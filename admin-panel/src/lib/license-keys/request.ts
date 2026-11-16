@@ -15,6 +15,7 @@ import { parseLicenseClaims, type LicenseClaims } from '@/lib/license-keys/forma
 import { normalizeLicenseDomain } from '@/lib/license-keys/domain';
 import { licenseEmailSchema } from '@/lib/license-keys/email';
 import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
+import { recordAuditEntry } from '@/lib/audit/audit-entry';
 import { PREDEFINED_CUSTOM_FIELDS, validateCustomFieldDefinitions, validateCustomFieldValues } from '@/lib/validations/custom-checkout-fields';
 import { formatTransferDeadline } from '@/lib/orders/transfer-format';
 import { licenseDurationError } from '@/lib/validations/product';
@@ -79,14 +80,19 @@ export async function issueRequestedLicense(
   if (!result?.id) return { ok: false, status: 409, error: 'Product is not configured for license issuance or no active signing key exists' };
 
   const claims = parseLicenseClaims(result.token);
-  const audit = await createPlatformClient().from('audit_log').insert({
+  const audit = await recordAuditEntry(createPlatformClient(), {
     table_name: 'issued_licenses',
     operation: 'INSERT',
     performed_by: ctx.actorUserId,
     new_values: { ...(ctx.accessGrantId ? { access_grant_id: ctx.accessGrantId } : {}), action: ctx.source === 'api' ? 'API_LICENSE_ISSUED' : 'MANUAL_LICENSE_ISSUED', license_id: result.id, product_id: input.productId, email: input.email, domain: claims?.domain ?? null, kid: result.kid },
   });
 
-  if (ctx.accessGrantId && audit.error) return { ok: false, status: 500, error: 'License audit could not be saved' };
+  // No key leaves without its audit entry (grant, manual and API alike): the caller gets no token
+  // and no mail goes out, so the unrecorded license reaches nobody.
+  if (!audit.ok) {
+    console.error('[license-request] Audit entry refused:', audit.error);
+    return { ok: false, status: 500, error: 'License audit could not be saved' };
+  }
 
   let emailSent = false;
   let emailPending = false;

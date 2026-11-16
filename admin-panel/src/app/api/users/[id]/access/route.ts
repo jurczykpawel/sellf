@@ -16,6 +16,7 @@ import { accessLicenseSchema, issueAccessLicense } from '@/lib/license-keys/acce
 import { mutateAccess } from '@/lib/services/business-events';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient, createPlatformClient } from '@/lib/supabase/admin';
+import { discardAuditEntry, recordAuditEntry } from '@/lib/audit/audit-entry';
 import { requireAdminApi } from '@/lib/auth-server';
 import { isDemoMode, DEMO_MODE_API_ERROR } from '@/lib/demo-guard';
 import {
@@ -190,23 +191,28 @@ export async function POST(
       accessData.access_expires_at = sanitizedData.access_expires_at as string;
     }
 
-    const { data: newAccess, error: accessError } = existingAccess ? { data: existingAccess, error: null } : await mutateAccess(adminClient, 'grant', userId, { type: 'user', id: adminUser.id },
-      { access_duration_days: accessData.access_duration_days ?? null, access_expires_at: accessData.access_expires_at ?? null, issue_license: issueLicense }, undefined, productId).single();
-
-    if (accessError) {
-      console.error('Error granting access:', accessError);
-      return NextResponse.json({ error: 'Failed to grant access' }, { status: 500 });
-    }
-
-    // Audit log: admin granted access (audit_log is in public schema)
+    // Audit entry first (audit_log is in public schema): a refused entry grants nothing.
     const platformClient = createPlatformClient();
-    await platformClient.from('audit_log').insert({
+    const audit = await recordAuditEntry(platformClient, {
       table_name: 'user_product_access',
       operation: 'INSERT',
       performed_by: adminUser.id,
       user_id: userId,
       new_values: { product_id: productId, product_name: product.name, action: 'admin_grant_access' },
-    }).then(() => {}, (err: unknown) => console.error('[audit] Failed to log grant:', err));
+    });
+    if (!audit.ok) {
+      console.error('[audit] Failed to log grant:', audit.error);
+      return NextResponse.json({ error: 'Access was not granted: the audit entry could not be saved' }, { status: 500 });
+    }
+
+    const { data: newAccess, error: accessError } = existingAccess ? { data: existingAccess, error: null } : await mutateAccess(adminClient, 'grant', userId, { type: 'user', id: adminUser.id },
+      { access_duration_days: accessData.access_duration_days ?? null, access_expires_at: accessData.access_expires_at ?? null, issue_license: issueLicense }, undefined, productId).single();
+
+    if (accessError) {
+      console.error('Error granting access:', accessError);
+      await discardAuditEntry(platformClient, audit.id);
+      return NextResponse.json({ error: 'Failed to grant access' }, { status: 500 });
+    }
 
     let license = null;
     if (issueLicense) {
@@ -278,23 +284,28 @@ export async function DELETE(
     if (revokeValue !== null && revokeValue !== 'true' && revokeValue !== 'false') {
       return NextResponse.json({ error: 'Invalid revoke_license' }, { status: 400 });
     }
-    // Remove access using adminClient
-    const { error: deleteError } = await mutateAccess(adminClient, 'revoke', userId, { type: 'user', id: adminUser.id }, { revoke_license: revokeValue !== 'false' }, existingAccess.id);
-
-    if (deleteError) {
-      console.error('Error removing access:', deleteError);
-      return NextResponse.json({ error: 'Failed to remove access' }, { status: 500 });
-    }
-
-    // Audit log: admin revoked access (audit_log is in public schema)
+    // Audit entry first (audit_log is in public schema): a refused entry revokes nothing.
     const platformClient = createPlatformClient();
-    await platformClient.from('audit_log').insert({
+    const audit = await recordAuditEntry(platformClient, {
       table_name: 'user_product_access',
       operation: 'DELETE',
       performed_by: adminUser.id,
       user_id: userId,
       old_values: { product_id: productId, action: 'admin_revoke_access' },
-    }).then(() => {}, (err: unknown) => console.error('[audit] Failed to log revoke:', err));
+    });
+    if (!audit.ok) {
+      console.error('[audit] Failed to log revoke:', audit.error);
+      return NextResponse.json({ error: 'Access was not removed: the audit entry could not be saved' }, { status: 500 });
+    }
+
+    // Remove access using adminClient
+    const { error: deleteError } = await mutateAccess(adminClient, 'revoke', userId, { type: 'user', id: adminUser.id }, { revoke_license: revokeValue !== 'false' }, existingAccess.id);
+
+    if (deleteError) {
+      console.error('Error removing access:', deleteError);
+      await discardAuditEntry(platformClient, audit.id);
+      return NextResponse.json({ error: 'Failed to remove access' }, { status: 500 });
+    }
 
     return NextResponse.json({
       message: 'Access removed successfully'

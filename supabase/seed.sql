@@ -467,7 +467,7 @@ VALUES ('COURSE20', 'Course Special 20%', 'percentage', 20, (SELECT jsonb_build_
 INSERT INTO webhook_endpoints (id, url, events, description, is_active, secret)
 VALUES (
   '88888888-8888-4888-a888-888888888888',
-  'https://webhook.site/sellf-test-endpoint',
+  'https://sellf-test-endpoint.invalid/hook',  -- reserved name (RFC 6761): local purchases never leave the machine
   ARRAY['purchase.completed', 'lead.captured'],
   'Zapier CRM Integration',
   true,

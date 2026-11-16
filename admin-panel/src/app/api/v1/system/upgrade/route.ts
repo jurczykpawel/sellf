@@ -9,7 +9,7 @@
  * - One launch at a time: a request that is still checking the release, a launch
  *   from the last few seconds (double click) or a held updater lock refuses the
  *   next one. A failed attempt releases all three at once, so a retry is immediate.
- * - Audit logged
+ * - Audit logged before launch (admin's auth user UUID); a refused audit entry starts nothing
  *
  * @see /admin-panel/scripts/upgrade.sh
  * @see /api/v1/system/upgrade-status
@@ -30,6 +30,7 @@ import {
 } from '@/lib/api';
 import { checkLatestUpdaterCompatibility } from '@/lib/system/updater-compatibility';
 import { createPlatformClient } from '@/lib/supabase/admin';
+import { discardAuditEntry, recordAuditEntry } from '@/lib/audit/audit-entry';
 import { isUpgradeLockHeld } from '@/lib/system/upgrade-lock';
 import { getUpgradeLockFilePath, getUpgradeLogFilePath, getUpgradeProgressFilePath } from '@/lib/system/upgrade-paths';
 
@@ -110,26 +111,6 @@ async function launchUpgrade(request: NextRequest, auth: Awaited<ReturnType<type
     }, data: { updater } }, request, 409);
   }
 
-  // Generate upgrade token
-  const token = randomUUID();
-
-  // Audit log
-  try {
-    const platformClient = createPlatformClient();
-    await platformClient.from('audit_log').insert({
-      user_id: auth.admin.userId,
-      operation: 'system_upgrade_triggered',
-      table_name: 'system',
-      performed_by: auth.admin.email || 'unknown',
-      new_values: {
-        current_version: process.env.NEXT_PUBLIC_APP_VERSION || 'unknown',
-        upgrade_token: token,
-      },
-    });
-  } catch (auditErr) {
-    console.error('[system/upgrade] Audit log insert failed:', auditErr instanceof Error ? auditErr.message : 'Unknown error');
-  }
-
   // Derive INSTALL_DIR from cwd in standalone mode so the script doesn't
   // fall back to glob auto-detection (which picks the first sellf-* dir
   // alphabetically and can target the wrong instance, e.g. sellf-demo
@@ -151,57 +132,88 @@ async function launchUpgrade(request: NextRequest, auth: Awaited<ReturnType<type
     );
   }
 
-  // Create log file with restricted permissions before launching.
-  // upgrade.sh writes to it via its own log() function using >>.
-  const logFile = getUpgradeLogFilePath(token);
-  const logFd = openSync(logFile, 'w', 0o600);
-  closeSync(logFd);
-
-  // Launch upgrade via systemd transient service so it runs in its own
-  // cgroup, independent of pm2-root.service. This is necessary because
-  // PM2 v6 (Go) kills the entire cgroup when stopping a managed process,
-  // which would terminate upgrade.sh mid-run even with detached: true.
-  //
-  // systemd-run creates a new scope under system.slice/<unit>.service
-  // that is unaffected by pm2 stop on the parent process.
-  //
-  // The script verifies the signed release manifest with the public key
-  // embedded in the installed upgrade.sh and refuses a version older than
-  // the installed one; neither check can be switched off.
-  const scriptArgs = installDir ? [scriptPath, token, installDir] : [scriptPath, token];
-  // Drop unusable entries (including implicit cwd lookup) while retaining the
-  // running executable's directory. Log counts only, never environment values.
-  // Keep this as one spawn argument; no shell interpolation is involved.
-  const pathEntries = process.env.PATH === undefined ? [] : process.env.PATH.split(':');
-  const validPathEntries = pathEntries.filter((entry) => isAbsolute(entry) && !/[:\x00-\x1f\x7f]/.test(entry));
-  const droppedCount = pathEntries.length - validPathEntries.length;
-  if (droppedCount > 0) {
-    console.warn(`[system/upgrade] Skipped ${droppedCount} unusable PATH entries`);
-  }
-  const upgradePath = [...new Set([...validPathEntries, dirname(process.execPath)])].join(':');
-  const systemdRunArgs = [
-    `--unit=sellf-upgrade-${token}`,
-    '--collect',   // auto-remove unit after exit
-    '--no-block',  // return immediately, don't wait for completion
-    // systemd-run creates a clean environment without $HOME. Pass it
-    // explicitly so PM2 resolves the correct ~/.pm2 daemon socket instead
-    // of defaulting to /etc/.pm2 (which doesn't exist and causes
-    // pm2 stop/start to silently target a different daemon).
-    '--setenv=HOME=/root',
-    '--setenv=PM2_HOME=/root/.pm2',
-    `--setenv=PATH=${upgradePath}`,
-    '--',
-    'bash', ...scriptArgs,
-  ];
-  // Wait for the launcher to acknowledge creation of the transient service.
-  // --no-block still lets the upgrade run independently of this request.
-  await new Promise<void>((accept, reject) => {
-    const child = spawn('/usr/bin/systemd-run', systemdRunArgs, {
-      stdio: ['ignore', 'ignore', 'ignore'],
-    });
-    child.once('error', reject);
-    child.once('exit', code => code === 0 ? accept() : reject(new Error('Upgrade launcher failed')));
+  // Audit entry before anything starts: no audit trail, no update. performed_by references
+  // auth.users, so it is the admin's auth user UUID (for an API key, the key owner's), never the e-mail;
+  // audit_log.operation only accepts INSERT/UPDATE/DELETE, the kind of action lives in new_values.
+  const token = randomUUID();
+  const auditClient = createPlatformClient();
+  const audit = await recordAuditEntry(auditClient, {
+    user_id: auth.admin.userId,
+    performed_by: auth.admin.userId,
+    table_name: 'system',
+    operation: 'UPDATE',
+    new_values: {
+      action: 'system_upgrade_triggered',
+      current_version: process.env.NEXT_PUBLIC_APP_VERSION || 'unknown',
+      upgrade_token: token,
+    },
   });
+  if (!audit.ok) {
+    console.error('[system/upgrade] Audit log insert failed:', audit.error);
+    return jsonResponse(
+      { error: { code: 'INTERNAL_ERROR', message: 'The update could not be recorded in the audit log, so it was not started.' } },
+      request,
+      500
+    );
+  }
+
+  try {
+    // Create log file with restricted permissions before launching.
+    // upgrade.sh writes to it via its own log() function using >>.
+    const logFile = getUpgradeLogFilePath(token);
+    const logFd = openSync(logFile, 'w', 0o600);
+    closeSync(logFd);
+
+    // Launch upgrade via systemd transient service so it runs in its own
+    // cgroup, independent of pm2-root.service. This is necessary because
+    // PM2 v6 (Go) kills the entire cgroup when stopping a managed process,
+    // which would terminate upgrade.sh mid-run even with detached: true.
+    //
+    // systemd-run creates a new scope under system.slice/<unit>.service
+    // that is unaffected by pm2 stop on the parent process.
+    //
+    // The script verifies the signed release manifest with the public key
+    // embedded in the installed upgrade.sh and refuses a version older than
+    // the installed one; neither check can be switched off.
+    const scriptArgs = installDir ? [scriptPath, token, installDir] : [scriptPath, token];
+    // Drop unusable entries (including implicit cwd lookup) while retaining the
+    // running executable's directory. Log counts only, never environment values.
+    // Keep this as one spawn argument; no shell interpolation is involved.
+    const pathEntries = process.env.PATH === undefined ? [] : process.env.PATH.split(':');
+    const validPathEntries = pathEntries.filter((entry) => isAbsolute(entry) && !/[:\x00-\x1f\x7f]/.test(entry));
+    const droppedCount = pathEntries.length - validPathEntries.length;
+    if (droppedCount > 0) {
+      console.warn(`[system/upgrade] Skipped ${droppedCount} unusable PATH entries`);
+    }
+    const upgradePath = [...new Set([...validPathEntries, dirname(process.execPath)])].join(':');
+    const systemdRunArgs = [
+      `--unit=sellf-upgrade-${token}`,
+      '--collect',   // auto-remove unit after exit
+      '--no-block',  // return immediately, don't wait for completion
+      // systemd-run creates a clean environment without $HOME. Pass it
+      // explicitly so PM2 resolves the correct ~/.pm2 daemon socket instead
+      // of defaulting to /etc/.pm2 (which doesn't exist and causes
+      // pm2 stop/start to silently target a different daemon).
+      '--setenv=HOME=/root',
+      '--setenv=PM2_HOME=/root/.pm2',
+      `--setenv=PATH=${upgradePath}`,
+      '--',
+      'bash', ...scriptArgs,
+    ];
+    // Wait for the launcher to acknowledge creation of the transient service.
+    // --no-block still lets the upgrade run independently of this request.
+    await new Promise<void>((accept, reject) => {
+      const child = spawn('/usr/bin/systemd-run', systemdRunArgs, {
+        stdio: ['ignore', 'ignore', 'ignore'],
+      });
+      child.once('error', reject);
+      child.once('exit', code => code === 0 ? accept() : reject(new Error('Upgrade launcher failed')));
+    });
+  } catch (launchError) {
+    // The update never started: no audit entry claims it did.
+    await discardAuditEntry(auditClient, audit.id);
+    throw launchError;
+  }
   lastLaunch = { token, at: Date.now() };
 
   return jsonResponse(

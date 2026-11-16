@@ -4,6 +4,7 @@ import { spawn } from 'child_process';
 import { dirname } from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const { ADMIN_USER_ID } = vi.hoisted(() => ({ ADMIN_USER_ID: '6f1c2a4e-8b0d-4c3e-9a51-2d7e8f90b123' }));
 vi.mock('@/lib/system/updater-compatibility', () => ({ checkLatestUpdaterCompatibility: vi.fn().mockResolvedValue({ version: 2, min_updater_version: 1, compatible: true }) }));
 vi.mock('child_process', () => ({ spawn: vi.fn(() => ({ once: vi.fn((event, callback) => { if (event === 'exit') callback(0); }) })) }));
 vi.mock('@/lib/system/upgrade-runtime-server', () => ({
@@ -13,22 +14,30 @@ vi.mock('@/lib/system/upgrade-runtime-server', () => ({
 vi.mock('fs', () => ({ existsSync: vi.fn((p: string) => p.endsWith('upgrade.sh')), openSync: vi.fn(() => 3), closeSync: vi.fn(), readFileSync: vi.fn(() => { throw new Error('missing'); }) }));
 vi.mock('@/lib/system/upgrade-lock', () => ({ isUpgradeLockHeld: vi.fn().mockResolvedValue(false) }));
 vi.mock('@/lib/api', () => ({
-  authenticate: vi.fn().mockResolvedValue({ admin: { userId: 'admin' } }),
+  authenticate: vi.fn().mockResolvedValue({ admin: { userId: ADMIN_USER_ID, email: 'admin@example.com' } }),
   API_SCOPES: { SYSTEM_WRITE: 'system:write' }, handleCorsPreFlight: vi.fn(),
   jsonResponse: (body: unknown, _: unknown, status: number) => Response.json(body, { status }),
   handleApiError: () => Response.json({ error: 'Invalid environment' }, { status: 500 }),
 }));
-vi.mock('@/lib/supabase/admin', () => ({ createPlatformClient: () => ({ from: () => ({ insert: vi.fn() }) }) }));
+const audit = vi.hoisted(() => ({ insert: vi.fn(), saved: vi.fn(), remove: vi.fn(), from: vi.fn() }));
+vi.mock('@/lib/supabase/admin', () => ({ createPlatformClient: () => ({ from: audit.from }) }));
 vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: vi.fn().mockResolvedValue(true) }));
 vi.mock('@/lib/system/upgrade-paths', () => ({ getUpgradeLockFilePath: () => '/lock', getUpgradeLogFilePath: () => '/log', getUpgradeProgressFilePath: (token: string) => `/progress-${token}` }));
 import { checkLatestUpdaterCompatibility } from '@/lib/system/updater-compatibility';
 import { getUpgradeCapability } from '@/lib/system/upgrade-runtime-server';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { isUpgradeLockHeld } from '@/lib/system/upgrade-lock';
-import { readFileSync } from 'fs';
+import { openSync, readFileSync } from 'fs';
 import { POST, _resetUpgradeLaunchGuardForTests } from '@/app/api/v1/system/upgrade/route';
 
-beforeEach(() => { vi.clearAllMocks(); _resetUpgradeLaunchGuardForTests(); });
+beforeEach(() => {
+  vi.clearAllMocks();
+  _resetUpgradeLaunchGuardForTests();
+  audit.saved.mockResolvedValue({ data: { id: 'audit-1' }, error: null });
+  audit.insert.mockReturnValue({ select: () => ({ single: audit.saved }) });
+  audit.remove.mockResolvedValue({ error: null });
+  audit.from.mockReturnValue({ insert: audit.insert, delete: () => ({ eq: audit.remove }) });
+});
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 describe('upgrade unit PATH', () => {
   it('passes deduplicated server PATH plus running executable directory as one argument', async () => {
@@ -151,5 +160,54 @@ describe('retrying an update', () => {
     expect((await response.json()).error.code).toBe('UPGRADE_RUNNING');
     expect(isUpgradeLockHeld).toHaveBeenCalledWith('/lock');
     expect(spawn).not.toHaveBeenCalled();
+  });
+});
+
+describe('audit entry of an update launch (W256c)', () => {
+  it('names the admin by auth user UUID, not by e-mail, with an operation audit_log accepts', async () => {
+    expect((await post()).status).toBe(202);
+    expect(audit.from).toHaveBeenCalledWith('audit_log');
+    expect(audit.insert).toHaveBeenCalledTimes(1);
+    const entry = audit.insert.mock.calls[0][0];
+    expect(entry).toMatchObject({ table_name: 'system', operation: 'UPDATE', user_id: ADMIN_USER_ID, performed_by: ADMIN_USER_ID });
+    expect(entry.new_values).toMatchObject({ action: 'system_upgrade_triggered', upgrade_token: expect.any(String) });
+    // audit_log.operation only accepts INSERT/UPDATE/DELETE (audit_log_operation_check).
+    expect(['INSERT', 'UPDATE', 'DELETE']).toContain(entry.operation);
+  });
+
+  it('starts nothing when the audit entry is refused by the database', async () => {
+    audit.saved.mockResolvedValueOnce({ data: null, error: { message: 'new row violates check constraint' } });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const response = await post();
+    expect(response.status).toBe(500);
+    expect((await response.json()).error.code).toBe('INTERNAL_ERROR');
+    expect(spawn).not.toHaveBeenCalled();
+    expect(openSync).not.toHaveBeenCalled();
+  });
+
+  it('starts nothing when the audit client throws', async () => {
+    audit.saved.mockRejectedValueOnce(new Error('network down'));
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect((await post()).status).toBe(500);
+    expect(spawn).not.toHaveBeenCalled();
+  });
+
+  it('a retry right after a refused audit entry is not blocked as a double click', async () => {
+    audit.saved.mockResolvedValueOnce({ data: null, error: { message: 'temporary' } });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect((await post()).status).toBe(500);
+    expect((await post()).status).toBe(202);
+  });
+
+  it('takes the entry back when the launcher fails (no entry for an update that never started)', async () => {
+    vi.mocked(spawn).mockImplementationOnce(() => ({ once: (event: string, callback: (code: number) => void) => { if (event === 'exit') callback(1); } }) as ReturnType<typeof spawn>);
+    expect((await post()).status).toBe(500);
+    expect(audit.remove).toHaveBeenCalledWith('id', 'audit-1');
+  });
+
+  it('records nothing for an attempt refused because an update is already running', async () => {
+    vi.mocked(isUpgradeLockHeld).mockResolvedValueOnce(true);
+    expect((await post()).status).toBe(409);
+    expect(audit.insert).not.toHaveBeenCalled();
   });
 });
