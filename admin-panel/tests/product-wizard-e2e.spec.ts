@@ -545,6 +545,58 @@ test.describe('Refused save and buyer summary', () => {
     await page.locator('button[aria-label="Close modal"], button[aria-label="Zamknij okno"]').click();
     await page.getByRole('button', { name: /Odrzuć/i }).click();
   });
+
+  test('a date without price tiers is refused at "Add tier", with its message and focus', async ({ page }) => {
+    await goToProducts(page);
+    await openWizard(page);
+
+    await page.locator('[data-product-type="standard"]').click();
+    await page.fill('input#name', `No Tiers ${Date.now()}`);
+    await page.fill('input#price', '100');
+    await fillDescription(page, 'desc');
+    await openFormSection(page, SECTION_TITLES.schedule.title);
+    await page.getByLabel(pl.events.enabled, { exact: true }).check();
+    await page.getByRole('button', { name: pl.events.addSession }).click();
+    await page.getByLabel(pl.events.starts_at).fill('2027-01-15T10:00');
+    await page.getByRole('button', { name: pl.events.removeTier }).click();
+
+    await openFormSection(page, SECTION_TITLES.offer.title);
+    await page.getByRole('button', { name: /Publikuj/i }).click();
+    await expectSection(page, SECTION_TITLES.schedule.title);
+    const addTier = page.getByRole('button', { name: pl.events.addTier });
+    await expect(addTier).toBeFocused();
+    await expect(addTier).toHaveAttribute('aria-invalid', 'true');
+    await expect(addTier).toHaveAccessibleDescription(escape(pl.events.errors.tiers));
+
+    await page.locator('button[aria-label="Close modal"], button[aria-label="Zamknij okno"]').click();
+    await page.getByRole('button', { name: /Odrzuć/i }).click();
+  });
+
+  test('on a phone "Buyer gets" is one line and expands from the keyboard; on a computer it is shown in full', async ({ page }) => {
+    await goToProducts(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openWizard(page);
+    const summary = page.locator('[data-buyer-summary]');
+    const toggle = page.getByRole('button', { name: pl.admin.products.form.summary.more });
+    const lineHeight = await summary.evaluate(element => parseFloat(getComputedStyle(element).lineHeight));
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect((await summary.boundingBox())!.height).toBeLessThan(lineHeight * 1.5);
+
+    await toggle.focus();
+    await page.keyboard.press('Enter');
+    const less = page.getByRole('button', { name: pl.admin.products.form.summary.less });
+    await expect(less).toHaveAttribute('aria-expanded', 'true');
+    expect((await summary.boundingBox())!.height).toBeGreaterThan(lineHeight * 1.5);
+    await page.keyboard.press('Enter');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await expect(toggle).toBeHidden();
+    await expect(summary).toContainText('bez wyboru terminu i uczestników.');
+    await expect.poll(() => summary.evaluate(element => element.scrollHeight <= element.clientHeight)).toBe(true);
+
+    await page.locator('button[aria-label="Close modal"], button[aria-label="Zamknij okno"]').click();
+  });
 });
 
 // The wizard seeds taxMode + vat_rate defaults from an async shop-config

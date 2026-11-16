@@ -2036,7 +2036,7 @@
           },
           "payment": {
             "oneTime": "after a one-time payment",
-            "subscription": "on a subscription",
+            "subscription": "for as long as the subscription is paid",
             "customPrice": "after paying an amount of their choice",
             "free": "for free"
           },
@@ -2052,7 +2052,12 @@
             "transfer": "bank transfer",
             "transferOrganization": "bank transfer for organisations",
             "transferPerson": "bank transfer for private buyers"
-          }
+          },
+          "conditions": {
+            "beforeDate": "(when the date is more than {hours} h away)"
+          },
+          "more": "show more",
+          "less": "show less"
         },
         "sections": {
           "nav": "Product sections",
@@ -6108,7 +6113,7 @@
   },
   "events": {
     "modeUnavailable": "Event mode works only for a one-time product that is not a bundle and has no pay-what-you-want price. Change the product type or turn off the custom price to use it.",
-    "errors": {"starts_at": "Enter the start date and time.", "ends_at": "End must be after the start.", "timezone": "Unknown time zone (e.g. Europe/Warsaw).", "online_url": "Enter a full link starting with https://.", "capacity": "Seat pool must be a whole number above zero.", "sort": "Order: a whole number 0–10000.", "tiers": "Add at least one price tier.", "tier_price": "Price cannot be negative.", "tier_price_whole": "Price must be a whole number in this currency.", "tier_seats": "Tier seats: a whole number above zero.", "tier_seats_capacity": "A tier cannot have more seats than the session pool.", "tier_sort": "Tier order must be unique (0–10000).", "tier_sale_ends_at": "Invalid sale end date.", "invalid": "Invalid value."},
+    "errors": {"starts_at": "Enter the start date and time.", "ends_at": "End must be after the start.", "timezone": "Unknown time zone (e.g. Europe/Warsaw).", "online_url": "Enter a full link starting with https://.", "capacity": "Seat pool must be a whole number above zero.", "sort": "Order: a whole number 0–10000.", "tiers": "Add at least one price tier.", "tiers_max": "A session can have at most 50 price tiers. Remove the extra ones.", "sessions_max": "A product can have at most 50 sessions. Remove the extra ones.", "tier_price": "Price cannot be negative.", "tier_price_whole": "Price must be a whole number in this currency.", "tier_seats": "Tier seats: a whole number above zero.", "tier_seats_capacity": "A tier cannot have more seats than the session pool.", "tier_sort": "Tier order must be unique (0–10000).", "tier_sale_ends_at": "Invalid sale end date.", "invalid": "Invalid value."},
     "csvFilename": "participants",
     "csvPhone": "Phone",
     "repeat": "Allow repeat purchase",

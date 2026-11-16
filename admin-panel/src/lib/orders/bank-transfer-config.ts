@@ -39,6 +39,10 @@ export function bankTransferFieldErrors(values: unknown): Record<string, string>
   for (const issue of r.error.issues) { const key = String(issue.path[0] ?? ''); if (key && !out[key]) out[key] = issue.message; }
   return out;
 }
+/** Checkout offers a bank transfer only for a fixed one-off price: never pay-what-you-want, bundles or subscriptions. */
+export function productAllowsTransfer(product: { allow_custom_price?: boolean | null; is_bundle?: boolean | null; product_type?: string | null }): boolean {
+  return !product.allow_custom_price && !product.is_bundle && product.product_type !== 'subscription';
+}
 export function canUseBankTransfer(enabled: boolean, rawProfile: unknown, buyerType: unknown): boolean {
   const profile = storedCheckoutProfileSchema.safeParse(rawProfile);
   return enabled && profile.success && profile.data.modules.some(m => m.id === 'buyer'
