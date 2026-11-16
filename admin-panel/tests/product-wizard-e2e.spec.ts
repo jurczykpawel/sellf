@@ -505,8 +505,10 @@ test.describe('Refused save and buyer summary', () => {
     await page.locator('[data-product-type="lead-magnet"]').click();
     await page.fill('input#name', `Refused Save ${Date.now()}`);
     await fillDescription(page, 'desc');
+    await openFormSection(page, SECTION_TITLES.delivery.title);
+    await page.getByRole('button', { name: /Dodaj element treści/i }).click();
     const summary = page.locator('[data-buyer-summary]');
-    await expect(summary).toHaveText(`${pl.admin.products.form.summary.label} dostęp do produktu za darmo, bez wyboru terminu i uczestników.`);
+    await expect(summary).toHaveText(`${pl.admin.products.form.summary.label} dostęp do 1 materiału za darmo, bez wyboru terminu i uczestników.`);
 
     // A checkout profile with no buyer type is refused.
     await openFormSection(page, SECTION_TITLES.cart.title);
