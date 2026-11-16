@@ -163,7 +163,7 @@ describe('retrying an update', () => {
   });
 });
 
-describe('audit entry of an update launch (W256c, intent since W256d)', () => {
+describe('audit entry of an update launch', () => {
   it('names the admin by auth user UUID, not by e-mail, with an operation audit_log accepts', async () => {
     expect((await post()).status).toBe(202);
     expect(audit.from).toHaveBeenCalledWith('audit_log');

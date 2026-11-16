@@ -232,7 +232,7 @@ describe('profile order details', () => {
     expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
   });
   it('refuses order details over the stored limit before the first write, so 422 leaves nothing saved (W223c, W223br)', async () => {
-    // Reviewer's case: 100 participants valid for the modules, 100-character multi-byte names, long e-mails.
+    // 100 participants valid for the modules, 100-character multi-byte names, long e-mails.
     const bigProfile = { v: 1, modules: [{ id: 'buyer', types: ['person'], gus: false }, { id: 'quantity', min: 1, max: 100, mode: 'checkout' }, { id: 'participants', required: true, prefill_from_buyer: false }] };
     mocks.productRead.mockResolvedValue({ data: { checkout_profile: bigProfile, currency: 'PLN', custom_checkout_fields: [] }, error: null });
     const name = '漢'.repeat(100);

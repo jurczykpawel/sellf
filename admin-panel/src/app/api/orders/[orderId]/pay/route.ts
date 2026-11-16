@@ -29,7 +29,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const product = (Array.isArray(tx.products) ? tx.products[0] : tx.products) as { name: string } | null;
     const quote = quoteOrderPayment(tx, now);
     if (quote.mode === 'paid') return reply({ reason: 'paid' }, 409);
-    // Refused on the server whatever the page shows: a cancelled order is never payable by the buyer (W254).
+    // Refused on the server whatever the page shows: a cancelled order is never payable by the buyer.
     if (quote.mode === 'unavailable') return reply({ reason: quote.reason }, 409);
     if (quote.amount !== parsed.data.expectedAmount) return reply({ reason: 'amount_changed', quote }, 409);
     const session = await createQuickPaySession(db, await getStripeServer(), tx, quote,

@@ -1,8 +1,7 @@
 /**
- * Admin grant/revoke of product access and its audit entry are ONE call (W256d): mutate_access_audited
- * writes both in a transaction, so the route itself never writes or deletes audit_log rows. W256c wrote
- * the entry first and deleted it on error, which left a false entry when the process died in between
- * (W256cr P2). The database side is covered by tests/unit/audit/*.integration.test.ts.
+ * Admin grant/revoke of product access and its audit entry are ONE call: mutate_access_audited
+ * writes both in a transaction, so the route itself never writes or deletes audit_log rows.
+ * The database side is covered by tests/unit/audit/*.integration.test.ts.
  * @see src/app/api/users/[id]/access/route.ts
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';

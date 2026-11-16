@@ -28,7 +28,7 @@ describe('transfer declaration', () => {
     expect(rpc).toHaveBeenCalledWith('declare_transfer', { p_id: id, p_note: 'Przelew z konta firmowego', p_now: expect.any(String) });
     expect(dispatch).toHaveBeenCalledWith(expect.anything(), id, 'order.transfer_declared');
   });
-  it('past the reservation deadline: the declaration is recorded and announced, the response says it came late (W254d)', async () => {
+  it('past the reservation deadline: the declaration is recorded and announced, the response says it came late', async () => {
     rpc.mockResolvedValue({ data: { success: true, already_declared: false, afterDeadline: true, releaseAt: '2026-02-03T12:00:00.000Z', declaredAt: '2026-02-03T12:05:00.000Z' }, error: null });
     const response = await post({ orderId: id, token: signTransferToken(id) });
     expect(response.status).toBe(200);

@@ -55,7 +55,7 @@ test.afterAll(async () => {
 });
 
 test('deleting a sold product moves it to the archive and restore brings it back inactive @J600', async ({ page }) => {
-  const name = `W250 Archiwum ${Date.now()}`;
+  const name = `Archive Archiwum ${Date.now()}`;
   const product = await soldProduct(name);
   await openProducts(page, name);
   await expect(page.locator('tr').filter({ hasText: name })).toBeVisible();
@@ -88,7 +88,7 @@ test('deleting a sold product moves it to the archive and restore brings it back
 });
 
 test('permanent delete from the archive lists the kept records and keeps the order and license @J601', async ({ page }) => {
-  const name = `W250 Trwale ${Date.now()}`;
+  const name = `Archive Trwale ${Date.now()}`;
   const product = await soldProduct(name);
   const buyer = await createTestUser('w250-perm-buyer');
   expect((await supabaseAdmin.from('user_product_access').insert({ user_id: buyer.userId, product_id: product.id, grant_source: 'purchase' })).error).toBeNull();
@@ -116,7 +116,7 @@ test('permanent delete from the archive lists the kept records and keeps the ord
 });
 
 test('a buyer keeps the content of an archived product while the public no longer sees it @J603', async ({ page, browser }) => {
-  const name = `W250 Kupujacy ${Date.now()}`;
+  const name = `Archive Kupujacy ${Date.now()}`;
   const product = await soldProduct(name);
   const { data: row } = await supabaseAdmin.from('products').select('slug').eq('id', product.id).single();
   const buyer = await createTestUser('w250-buyer');

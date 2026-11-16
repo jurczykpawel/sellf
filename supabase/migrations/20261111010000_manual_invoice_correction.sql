@@ -28,10 +28,9 @@ END $$;
 REVOKE ALL ON FUNCTION public.record_invoice_correction(uuid,uuid) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.record_invoice_correction(uuid,uuid) TO service_role;
 
--- ===== W256d: invoice settings + their audit entry in ONE transaction =====
--- Replaces "audit entry first, update, take the entry back on error" in actions/invoicing.ts: a process
--- killed between the two requests left an UPDATE entry while the settings stayed unchanged (W256cr P2,
--- measured with SIGKILL). p_token is the already encrypted token (app-side APP_ENCRYPTION_KEY); NULL
+-- ===== Invoice settings + their audit entry in ONE transaction =====
+-- Used by actions/invoicing.ts: the settings and their audit entry commit together or not at all.
+-- p_token is the already encrypted token (app-side APP_ENCRYPTION_KEY); NULL
 -- keeps the saved one. Validation of the values stays in the table's CHECK constraints.
 CREATE FUNCTION public.save_invoicing_config(p_settings jsonb, p_token jsonb, p_performed_by uuid)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$

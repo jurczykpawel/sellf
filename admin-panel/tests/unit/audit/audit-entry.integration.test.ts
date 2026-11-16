@@ -1,7 +1,7 @@
 /**
- * DB TEST: audit entries against the real audit_log (W256c). performed_by references auth.users, so
+ * DB TEST: audit entries against the real audit_log. performed_by references auth.users, so
  * an e-mail never lands there; the writer reports that instead of the caller silently going on.
- * (Entries are never taken back since W256d: database changes audit inside their RPC, see
+ * (Entries are never taken back: database changes audit inside their RPC, see
  * audit-sigkill.integration.test.ts.)
  *
  * REQUIRES: the local Supabase stack (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY).

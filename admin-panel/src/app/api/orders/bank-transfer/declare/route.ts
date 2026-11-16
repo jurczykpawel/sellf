@@ -1,6 +1,6 @@
 /**
  * Buyer declares the transfer is on its way; the signed order link is the only credential. Past the reservation deadline
- * the declaration only tells the seller (afterDeadline), it does not extend the reservation (W254d).
+ * the declaration only tells the seller (afterDeadline), it does not extend the reservation.
  * @see migration 20261115110000_cancelled_order_no_payment.sql (declare_transfer)
  */
 import { NextResponse } from 'next/server';

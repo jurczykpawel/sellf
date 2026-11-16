@@ -1,8 +1,8 @@
 /**
  * Read-only preview for the administrator before accepting a transfer that arrived after the order was cancelled
- * (plan D6, W254): the order price against today's price, seats left in the session and in the order's saved price tier,
+ * the order price against today's price, seats left in the session and in the order's saved price tier,
  * the coupon state and whether the invoice was corrected. Acceptance always honours the order price; going over a seat
- * limit needs the administrator's explicit confirmation (W254b). The seat facts come from event_order_seats, the same
+ * limit needs the administrator's explicit confirmation. The seat facts come from event_order_seats, the same
  * rule the acceptance applies, so the preview cannot say "free" when acceptance would go over a limit.
  * @see components/admin/BankTransferSection.tsx, app/api/v1/payments/[id]/late-transfer-preview/route.ts,
  *   migration 20261115110000_cancelled_order_no_payment.sql (event_order_seats, admin_bank_transfer_order)

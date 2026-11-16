@@ -622,7 +622,7 @@ the migration history must stay reviewable. Rules:
    public, storage buckets, the full `cron.job` rows (schedule, active, database, user, command),
    extensions and row counts per public table; a difference fails with the diff. Never refresh the
    snapshot to make a consolidation pass. (Replaces the manual two-database proof for the schema;
-   the probes W256r showed it missed are DB tests in `schema-snapshot-probes.integration.test.ts`.)
+   the probes for what it must catch are DB tests in `schema-snapshot-probes.integration.test.ts`.)
    **The snapshot and the row counts do NOT prove that configuration or dictionary data is
    equivalent** (a changed default setting or list value keeps the same count): for migrations that
    insert or change such rows, the proof is the upgrade rehearsal on a copy of production data

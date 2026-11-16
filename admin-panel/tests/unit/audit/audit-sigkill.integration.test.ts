@@ -1,8 +1,6 @@
 /**
- * DB TEST (W256d): a process killed (SIGKILL) at the change leaves no audit entry claiming a change
- * that did not happen. W256cr killed saveInvoiceSettings after its audit insert and before the
- * settings update: settings unchanged, 1 × UPDATE in audit_log — "audit first, take it back on error"
- * cannot take anything back from a dead process. Now the change and its entry are one RPC.
+ * DB TEST: a process killed (SIGKILL) at the change leaves no audit entry claiming a change
+ * that did not happen: the change and its entry are one RPC.
  *
  * Each case spawns sigkill-child.test.ts, which runs the real code against the local database and
  * SIGKILLs itself at the request that makes the change: `before` it is sent and `after` its response.
@@ -27,8 +25,8 @@ function runChild(kase: 'invoicing' | 'grant' | 'revoke', when: 'before' | 'afte
   const marker = join(dir, `${kase}-${when}`);
   const child = spawnSync(process.execPath, [join(root, 'node_modules/vitest/vitest.mjs'), 'run', 'tests/unit/audit/sigkill-child.test.ts'], {
     cwd: root, encoding: 'utf8', timeout: 90_000,
-    env: { ...process.env, W256D_SIGKILL_CASE: kase, W256D_SIGKILL_WHEN: when, W256D_SIGKILL_MARKER: marker,
-      W256D_SIGKILL_ACTOR: ids.actor, W256D_SIGKILL_USER: ids.userId ?? '', W256D_SIGKILL_PRODUCT: ids.productId ?? '' },
+    env: { ...process.env, SIGKILL_PROBE_CASE: kase, SIGKILL_PROBE_WHEN: when, SIGKILL_PROBE_MARKER: marker,
+      SIGKILL_PROBE_ACTOR: ids.actor, SIGKILL_PROBE_USER: ids.userId ?? '', SIGKILL_PROBE_PRODUCT: ids.productId ?? '' },
   });
   // The child must have died at the change request; otherwise the checks below prove nothing.
   expect(existsSync(marker), `child never reached the change request:\n${child.stdout}\n${child.stderr}`).toBe(true);
@@ -46,7 +44,7 @@ beforeAll(async () => {
   if (admin.error || user.error) throw admin.error ?? user.error;
   actor = admin.data.user!.id;
   buyer = user.data.user!.id;
-  const inserted = await db.from('products').insert({ id: product, name: 'W256d SIGKILL', slug: `w256d-sigkill-${stamp}`, price: 10, currency: 'PLN', is_active: true });
+  const inserted = await db.from('products').insert({ id: product, name: 'Audit SIGKILL', slug: `audit-sigkill-${stamp}`, price: 10, currency: 'PLN', is_active: true });
   if (inserted.error) throw inserted.error;
 });
 

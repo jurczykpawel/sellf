@@ -1,5 +1,5 @@
 /**
- * CHILD of audit-sigkill.integration.test.ts — skipped unless that test spawns it (W256D_SIGKILL_CASE).
+ * CHILD of audit-sigkill.integration.test.ts — skipped unless that test spawns it (SIGKILL_PROBE_CASE).
  *
  * Runs the real admin action / route against the local database with a fetch that SIGKILLs this
  * process at the request that makes the change: `before` = just before it is sent, `after` = right
@@ -12,12 +12,12 @@ import { NextRequest } from 'next/server';
 import { expect, it, vi } from 'vitest';
 
 const env = vi.hoisted(() => ({
-  kase: process.env.W256D_SIGKILL_CASE ?? '',
-  when: process.env.W256D_SIGKILL_WHEN ?? 'before',
-  marker: process.env.W256D_SIGKILL_MARKER ?? '',
-  actor: process.env.W256D_SIGKILL_ACTOR ?? '',
-  userId: process.env.W256D_SIGKILL_USER ?? '',
-  productId: process.env.W256D_SIGKILL_PRODUCT ?? '',
+  kase: process.env.SIGKILL_PROBE_CASE ?? '',
+  when: process.env.SIGKILL_PROBE_WHEN ?? 'before',
+  marker: process.env.SIGKILL_PROBE_MARKER ?? '',
+  actor: process.env.SIGKILL_PROBE_ACTOR ?? '',
+  userId: process.env.SIGKILL_PROBE_USER ?? '',
+  productId: process.env.SIGKILL_PROBE_PRODUCT ?? '',
 }));
 
 /** The request that makes the change, old and new shape alike (direct table write or RPC). */

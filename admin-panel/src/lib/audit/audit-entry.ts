@@ -1,5 +1,5 @@
 /**
- * audit_log writer that reports whether the entry was saved (W256c, W256d).
+ * audit_log writer that reports whether the entry was saved.
  *
  * USE ONLY FOR A REQUEST WHOSE EFFECT IS OUTSIDE THE DATABASE (system upgrade, invoice at the provider,
  * handing out an existing key). Such an entry records the INTENT — the admin asked for it — written

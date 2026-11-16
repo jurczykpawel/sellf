@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-/** W254d: the seller sees in the order's payment details that the buyer declared the transfer after the reservation deadline. */
+/** The seller sees in the order's payment details that the buyer declared the transfer after the reservation deadline. */
 import { createElement } from 'react';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';

@@ -15,7 +15,7 @@ const OPTS = { version: '2026.11.1', from: 'v2026.11.0', repoUrl: 'https://githu
 
 describe('parseCommit', () => {
   it('reads type, scope and subject, dropping internal task ids', () => {
-    expect(parseCommit({ hash: 'a'.repeat(40), subject: 'fix(orders): late transfer preview counts the tier (W254b)', body: '' })).toMatchObject({
+    expect(parseCommit({ hash: 'a'.repeat(40), subject: 'fix(orders): late transfer preview counts the tier (W123b)', body: '' })).toMatchObject({
       type: 'fix', scope: 'orders', subject: 'late transfer preview counts the tier', breaking: null,
     });
   });
@@ -56,7 +56,7 @@ describe('parseCommit', () => {
 
 describe('buildReleaseNotes', () => {
   const commits = [
-    { hash: '1111111aaaa', subject: 'feat(orders): cancelled order cannot be paid (W254)', body: '' },
+    { hash: '1111111aaaa', subject: 'feat(orders): cancelled order cannot be paid (W123)', body: '' },
     { hash: '2222222bbbb', subject: 'fix(stripe): skip foreign events', body: '' },
     { hash: '3333333cccc', subject: 'feat(api)!: remove legacy field', body: 'BREAKING CHANGE: clients must read `amount_total`.' },
     { hash: '4444444dddd', subject: 'docs(updater): explain the unknown outcome', body: '' },
@@ -81,7 +81,7 @@ describe('buildReleaseNotes', () => {
     expect(notes).toContain('- **orders:** cancelled order cannot be paid (1111111)');
     expect(notes).toContain('- **api:** clients must read `amount_total`. (3333333)');
     expect(notes).toContain('- **api:** remove legacy field (3333333)');
-    expect(notes).not.toContain('W254');
+    expect(notes).not.toContain('W123');
   });
 
   it('renders a multi-paragraph breaking footer as one list item (continuation indented)', () => {

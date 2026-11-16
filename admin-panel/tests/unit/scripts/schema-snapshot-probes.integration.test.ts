@@ -1,6 +1,6 @@
 /**
- * DB TEST: the schema snapshot behind `schema:check` catches the changes W256r showed it missed
- * (state of objects outside `public`, bytes of function bodies) and does not raise a false alarm
+ * DB TEST: the schema snapshot behind `schema:check` catches
+ * changes in the state of objects outside `public`, bytes of function bodies) and does not raise a false alarm
  * for the order equivalent grants were made in.
  *
  * Each probe changes the local test database, captures the snapshot before and after with the
@@ -95,7 +95,7 @@ const PROBES: Probe[] = [
   },
 ];
 
-describe('schema snapshot probes (W256r)', () => {
+describe('schema snapshot probes', () => {
   it.each(PROBES)('FAILs on $name', ({ apply, revert, proof, proofAfter, diffLine }) => {
     const before = snapshot();
     try {
@@ -111,7 +111,7 @@ describe('schema snapshot probes (W256r)', () => {
   });
 
   // A standalone `CREATE TYPE ... AS (...)` has a pg_class row of relkind 'c', so `typrelid` is set;
-  // with GRANT lines dumped away (--no-privileges) its USAGE must still reach the snapshot (W256rb).
+  // With GRANT lines dumped away (--no-privileges) its USAGE must still reach the snapshot.
   describe('privileges of a standalone composite type', () => {
     const type = 'public.w256c_probe_composite';
     const role = 'w256c_probe_custom';

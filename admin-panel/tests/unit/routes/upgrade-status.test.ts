@@ -94,8 +94,8 @@ describe('upgrade status failure reason', () => {
   });
 
   it('redacts secrets and removes markup and control characters from message, cause and GitHub message', async () => {
-    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'FAKE_SERVICE_KEY_w251rb_only');
-    const dirty = 'FAKE_SERVICE_KEY_w251rb_only ' + ['sk', 'live', '51FakeFakeFakeFakeFake'].join('_') + ' <img src=x onerror=alert(1)> \u0001\u007f\u0085\u202e end';
+    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'FAKE_SERVICE_KEY_redaction_only');
+    const dirty = 'FAKE_SERVICE_KEY_redaction_only ' + ['sk', 'live', '51FakeFakeFakeFakeFake'].join('_') + ' <img src=x onerror=alert(1)> \u0001\u007f\u0085\u202e end';
     vi.mocked(openSync).mockReturnValue(7);
     vi.mocked(readFileSync).mockReturnValue(JSON.stringify({
       step: 'failed', progress: -1, message: dirty, code: 'migration_state_unknown', details: { cause: dirty, github_message: dirty },

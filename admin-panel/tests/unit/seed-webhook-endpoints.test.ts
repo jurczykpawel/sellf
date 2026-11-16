@@ -1,12 +1,10 @@
 /**
- * Seeded webhook endpoints never point at a real host (W256c, tightened in W256d). The sample endpoint
- * is active, so every local test purchase is dispatched to it; with https://webhook.site/... buyer data
- * from local runs went to a public third-party service.
+ * Seeded webhook endpoints never point at a real host. The sample endpoint is active, so every local
+ * test purchase is dispatched to it.
  *
  * Only the `.invalid` TLD is accepted: RFC 6761 §6.4 requires resolvers to answer NXDOMAIN for it, so
  * the dispatcher's DNS guard stops before any HTTP. `example.com` and friends (RFC 2606) DO resolve to
- * public addresses, so the dispatcher would send buyer data there — the reviewer measured 1 HTTP call
- * (W256cr P2). The dispatcher probe below runs the production WebhookDispatcher with a resolver that
+ * public addresses, so they are refused. The dispatcher probe below runs the production WebhookDispatcher with a resolver that
  * behaves per RFC 6761 (NXDOMAIN for .invalid, a public address otherwise) and counts HTTP calls.
  * @see supabase/seed.sql
  * @see src/lib/services/webhook-queue/dispatcher.ts

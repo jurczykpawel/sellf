@@ -37,7 +37,7 @@ describe('quote', () => {
   it('an unpaid order is paid at its saved amount without re-pricing', () => {
     expect(quoteOrderPayment(tx)).toEqual({ mode: 'settle', amount: 8000, currency: 'PLN' });
   });
-  // W254 (owner 14/15.11): a cancelled order is never payable by the buyer, whatever the reason and even when price,
+  // A cancelled order is never payable by the buyer, whatever the reason and even when price,
   // seats and coupon are unchanged. Only the administrator can accept a late transfer.
   it.each([
     ['released by the reservation timer', 'payment_window_expired'],
@@ -48,7 +48,7 @@ describe('quote', () => {
   it('a paid order reports paid', () => {
     expect(quoteOrderPayment({ ...tx, status: 'completed' })).toEqual({ mode: 'paid' });
   });
-  // W254b (owner 15.11): past the reservation deadline no new online payment starts; the order waits for the release job.
+  // Past the reservation deadline no new online payment starts; the order waits for the release job.
   it('an unpaid order past its reservation deadline offers no new online payment', () => {
     expect(quoteOrderPayment({ ...tx, release_at: '2026-02-02T11:59:00Z' }, NOW)).toEqual({ mode: 'unavailable', reason: 'payment_window_closed' });
     expect(quoteOrderPayment({ ...tx, release_at: '2026-02-02T12:01:00Z' }, NOW)).toEqual({ mode: 'settle', amount: 8000, currency: 'PLN' });

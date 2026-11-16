@@ -39,7 +39,7 @@ describe('invoice settings action responses', () => {
 const SETTINGS = { provider: 'none', domain: '', mode: 'manual', template: '{product}', exemption: '', token: '' };
 const TRANSACTION_ID = '44444444-4444-4444-8444-444444444444';
 
-describe('invoice actions audit (W256c, transactional since W256d)', () => {
+describe('invoice actions audit', () => {
   it('saves the settings and their entry in one RPC (admin auth user UUID), with no direct table write', async () => {
     expect((await saveInvoiceSettings(SETTINGS)).success).toBe(true);
     expect(mock.steps).toEqual(['rpc:save_invoicing_config']);

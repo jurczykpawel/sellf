@@ -82,7 +82,7 @@ BEGIN
   -- the promo seats are taken by two other buyers in the meantime
   tx:=public.bank_transfer_order(input||'{"customer_email":"other-1@example.com"}',lines);
   tx:=public.bank_transfer_order(input||'{"customer_email":"other-2@example.com"}',lines);
-  -- W254b: going over the limit needs the administrator's explicit confirmation; without it nothing changes
+  -- Going over the limit needs the administrator's explicit confirmation; without it nothing changes
   ASSERT (public.event_order_seats(o,now())->>'oversold')::boolean, 'preview facts: over the limit';
   r:=public.admin_bank_transfer_order(o,'mark-paid',5000,t0,'Przelew po terminie',admin_id,true);
   ASSERT r->>'error'='oversold_confirmation_required' AND (r->'seats'->>'oversold')::boolean, 'oversold needs confirmation: '||r::text;
@@ -139,7 +139,7 @@ BEGIN
   ASSERT (SELECT status FROM public.seat_reservations WHERE transaction_id=o)='confirmed', 'seat available is re-taken';
   ASSERT NOT coalesce((SELECT (metadata->>'oversold')::boolean FROM public.payment_transactions WHERE id=o),false);
 
-  -- (6b) W254d (owner 15.11): a declaration past the deadline is recorded for the seller but moves neither the
+  -- (6b) A declaration past the deadline is recorded for the seller but moves neither the
   -- reservation nor the cancellation; the release job cancels on time. The deadline moment itself counts as late.
   tx:=public.bank_transfer_order(input||'{"customer_email":"late-declare@example.com"}',lines); o:=(tx->>'transaction_id')::uuid;
   r:=public.declare_transfer(o,'Wysłałem wczoraj wieczorem',t0+interval '48 hours 5 minutes');
@@ -234,7 +234,7 @@ BEGIN
   ASSERT (SELECT stripe_payment_intent_id IS NULL FROM public.payment_transactions WHERE id=o2), 'duplicate does not overwrite';
   PERFORM public.record_order_payment_refund((a->>'id')::uuid,'re_test_dup');
   ASSERT (SELECT refund_id FROM public.order_payment_attempts WHERE id=(a->>'id')::uuid)='re_test_dup';
-  -- (4) W254: a cancelled order cannot be paid online in any mode (released by the timer or cancelled by the administrator)
+  -- (4) A cancelled order cannot be paid online in any mode (released by the timer or cancelled by the administrator)
   tx:=public.bank_transfer_order(input||'{"customer_email":"reopen@example.com"}',jsonb_set(jsonb_set(jsonb_set(lines,'{0,unit_price}','80'),'{0,total_price}','80'),'{0,discounted_total}','80'));
   o2:=(tx->>'transaction_id')::uuid;
   ASSERT (public.release_unpaid_transfer(o2,t0+interval '48 hours')->>'released')::boolean;
@@ -270,7 +270,7 @@ BEGIN
   ASSERT (SELECT status FROM public.order_payment_attempts WHERE id=(a->>'id')::uuid)='superseded';
   ASSERT (public.complete_order_payment_attempt((a->>'id')::uuid,'cs_test_quick_7','pi_test_quick_7',8000,t0)->>'result')='duplicate';
   ASSERT (SELECT status FROM public.payment_transactions WHERE id=o2)='cancelled', 'released stays cancelled';
-  -- (4d) W254b reviewer case: the session has free seats but the saved price tier was taken meanwhile => preview and acceptance say oversold
+  -- (4d) The session has free seats but the saved price tier was taken meanwhile => preview and acceptance say oversold
   INSERT INTO public.product_sessions(product_id,starts_at,capacity) VALUES(p,'2099-04-01',5) RETURNING id INTO sid2;
   INSERT INTO public.product_price_tiers(session_id,price,seats,sort) VALUES(sid2,50,1,0);
   INSERT INTO public.product_price_tiers(session_id,price,sort) VALUES(sid2,80,1);
@@ -283,7 +283,7 @@ BEGIN
   ASSERT (public.admin_bank_transfer_order(o2,'mark-paid',5000,t0,'Spóźniony',admin_id,true)->>'error')='oversold_confirmation_required';
   r:=public.admin_bank_transfer_order(o2,'mark-paid',5000,t0,'Spóźniony',admin_id,true,true);
   ASSERT (r->>'success')::boolean AND (SELECT (metadata->>'oversold')::boolean FROM public.payment_transactions WHERE id=o2), 'confirmed over the tier: '||r::text;
-  -- (4e) W254b: an attempt started before the release deadline may finish; after the deadline no new attempt opens; the protection ends 30 min after the deadline
+  -- (4e) An attempt started before the release deadline may finish; after the deadline no new attempt opens; the protection ends 30 min after the deadline
   tx:=public.bank_transfer_order(input||'{"customer_email":"cap@example.com"}',jsonb_set(jsonb_set(jsonb_set(lines,'{0,unit_price}','80'),'{0,total_price}','80'),'{0,discounted_total}','80'));
   o2:=(tx->>'transaction_id')::uuid;
   a:=public.open_order_payment_attempt(o2,'settle',8000,'PLN',t0+interval '48 hours 29 minutes',t0+interval '47 hours 59 minutes');

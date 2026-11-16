@@ -104,7 +104,7 @@ describe('reservation job', () => {
       { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, // recovery sweeps
     ], name => name === 'release_unpaid_transfer' ? { data: { success: true, released: true, expire_sessions: ['cs_test_stale'] } } : { data: { success: true } });
     const result = await runTransferJob(db, 'transfer-reservations');
-    // W254: an online payment page still open for the released order is closed on Stripe.
+    // An online payment page still open for the released order is closed on Stripe.
     expect(expireSession).toHaveBeenCalledWith('cs_test_stale');
     expect(rpc).toHaveBeenCalledWith('release_unpaid_transfer', { p_id: id, p_now: '2026-02-03T12:00:00.000Z' });
     expect(trigger).toHaveBeenCalledWith('order.cancelled', expect.anything(), db, ['product']);
@@ -152,7 +152,7 @@ describe('administrator decisions', () => {
     expect(trigger.mock.calls.map(c => c[0])).toEqual(['order.reopened']);
     expect(fulfill).toHaveBeenCalled();
   });
-  // W254b (owner 15.11): accepting a late transfer over a seat limit is the administrator's explicit decision.
+  // Accepting a late transfer over a seat limit is the administrator's explicit decision.
   it('acceptance over a seat limit is refused until the administrator confirms it', async () => {
     const { db, rpc } = client([], () => ({ data: { success: false, error: 'oversold_confirmation_required', seats: { oversold: true } } }));
     const input = { action: 'mark-paid', amount: 12300, paidAt: '2026-01-01T00:00:00Z', acceptCancelled: true, reason: 'Przelew po terminie' };
@@ -166,7 +166,7 @@ describe('administrator decisions', () => {
     expect((await operateTransfer(confirmed.db, 'actor', id, { ...input, acceptOversold: true })).success).toBe(true);
     expect(confirmed.rpc).toHaveBeenCalledWith('admin_bank_transfer_order', expect.objectContaining({ p_accept_oversold: true }));
   });
-  // W254: the buyer must not finish paying an order that the administrator just closed (cancelled or marked paid).
+  // The buyer must not finish paying an order that the administrator just closed (cancelled or marked paid).
   it.each([
     ['cancel', { action: 'cancel', reason: 'Rezygnacja' }, { ...row, status: 'cancelled', cancel_reason: 'admin' }],
     ['mark-paid', { action: 'mark-paid', amount: 12300, paidAt: '2026-01-01T00:00:00Z' }, { ...row, status: 'completed' }],

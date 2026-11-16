@@ -1,6 +1,6 @@
 /**
  * GET /api/v1/payments/:id/late-transfer-preview — read-only facts before accepting a transfer that arrived after the
- * order was cancelled (W254b): order price vs today's, seats left in the session and in the saved price tier, whether
+ * order was cancelled: order price vs today's, seats left in the session and in the saved price tier, whether
  * acceptance goes over a limit (then mark-paid needs acceptOversold: true), coupon state, corrected invoice.
  * No personal data. @see lib/orders/late-transfer-preview.ts, ../mark-paid/route.ts
  */

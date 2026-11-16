@@ -1,4 +1,4 @@
-/** W254dr: a page left open across the deadline must not promise an extension — the pre-deadline help is conditional. */
+/** A page left open across the deadline must not promise an extension — the pre-deadline help is conditional. */
 import { describe, expect, it } from 'vitest';
 import pl from '@/messages/pl.json';
 import en from '@/messages/en.json';

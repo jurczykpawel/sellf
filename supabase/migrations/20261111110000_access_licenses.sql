@@ -44,11 +44,9 @@ END $$;
 REVOKE ALL ON FUNCTION public.mutate_access(text,uuid,uuid,uuid,jsonb,jsonb) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.mutate_access(text,uuid,uuid,uuid,jsonb,jsonb) TO service_role;
 
--- ===== W256d: license issued by the seller + its audit entry in ONE transaction =====
+-- ===== License issued by the seller + its audit entry in ONE transaction =====
 -- Manual and API v1 issuance (src/lib/license-keys/request.ts). The issued_licenses insert fires
--- capture_license_issued_event, which queues license.issued — its webhook payload carries the key.
--- With the audit entry written afterwards in a separate request, a refused entry left a committed
--- license and a queued event (W256cr P1). Here the license row, the event (trigger, same statement)
+-- capture_license_issued_event, which queues license.issued. The license row, the event (trigger, same statement)
 -- and the audit_log row commit together; when the audit insert fails, none of them exists.
 -- 23505 (same order_id + product_id) propagates unchanged so the caller can return the winner.
 CREATE FUNCTION public.issue_license_with_audit(p_license jsonb, p_performed_by uuid, p_audit_values jsonb DEFAULT '{}'::jsonb)
@@ -75,9 +73,8 @@ END $$;
 REVOKE ALL ON FUNCTION public.issue_license_with_audit(jsonb, uuid, jsonb) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.issue_license_with_audit(jsonb, uuid, jsonb) TO service_role;
 
--- ===== W256d: admin access grant/update/revoke + its audit entry in ONE transaction =====
--- Replaces "audit entry first, change, take the entry back on error" in api/users/[id]/access: a
--- process killed between the two requests left an entry for a change that never happened (W256cr P2).
+-- ===== Admin access grant/update/revoke + its audit entry in ONE transaction =====
+-- Used by api/users/[id]/access: the change and its audit entry commit together or not at all.
 -- The entry is written only when a row actually changed; performed_by references auth.users, so the
 -- actor must be a user (the admin's auth UUID). p_audit is stored as new_values (grant/update) or
 -- old_values (revoke), as before.

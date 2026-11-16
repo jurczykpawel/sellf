@@ -29,7 +29,7 @@ const DETECTION_STEPS = ['capture_expired_access', 'capture_expired_licenses', '
 
 export async function runBusinessEvents(db = createAdminClient()): Promise<{ processed: number; errors: number }> {
   // Detection and delivery are independent: claiming counts an attempt, so a failed detection
-  // step must not keep the claimed events from being delivered (W252cr P2).
+  // step must not keep the claimed events from being delivered.
   let detectionErrors = 0;
   for (const step of DETECTION_STEPS) {
     const failed = await db.rpc(step).then(result => Boolean(result.error), () => true);

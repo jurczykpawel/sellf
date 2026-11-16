@@ -133,7 +133,7 @@ test('buyer declares the transfer once from the pay link; the reservation is ext
 
 test('a declaration after the deadline tells the seller but does not extend the reservation; the job cancels on time @J181', async ({ page, request }) => {
   test.setTimeout(120000);
-  // W254d (owner 15.11): past release_at, before the release job runs, the button stays; clicking it only informs the seller.
+  // Past release_at, before the release job runs, the button stays; clicking it only informs the seller.
   const email = `unpaid-late-declare-${randomUUID()}@example.com`;
   const lateId = await placeViaRpc(plain.id, email);
   const releaseAt = new Date(Date.now() - 60000).toISOString();
@@ -164,11 +164,11 @@ test('an unpaid order past its window is released: seat back on sale, buyer and 
   test.setTimeout(200000);
   expect((await checked(await db.rpc('event_availability', { p_product_id: event.id })) as unknown as Array<{ remaining: number }>)[0].remaining).toBe(0);
   await checked(await db.from('payment_transactions').update({ release_at: new Date(Date.now() - 60000).toISOString() }).eq('id', orderId).select());
-  // W254b: past the deadline, before the job runs, no new online payment starts (no attempt, no Stripe session).
+  // Past the deadline, before the job runs, no new online payment starts (no attempt, no Stripe session).
   const closed = await request.post(`/api/orders/${orderId}/pay`, { data: { token: new URL(payUrl).searchParams.get('token'), expectedAmount: 10000 } });
   expect(closed.status()).toBe(409); expect(await closed.json()).toEqual({ reason: 'payment_window_closed' });
   expect(await checked(await db.from('order_payment_attempts').select('id').eq('transaction_id', orderId))).toHaveLength(0);
-  // W254c: the order page says the deadline passed, without "reserved until <past date>" and without the transfer details.
+  // The order page says the deadline passed, without "reserved until <past date>" and without the transfer details.
   await page.goto(new URL(payUrl).pathname + new URL(payUrl).search);
   await expect(page.getByRole('alert')).toContainText('Termin płatności minął — zamówienie zostanie wkrótce anulowane');
   await expect(page.getByText(/zarezerwowane do/)).toHaveCount(0);
@@ -187,7 +187,7 @@ test('an unpaid order past its window is released: seat back on sale, buyer and 
   await page.goto(new URL(payUrl).pathname + new URL(payUrl).search);
   await expect(page.getByRole('alert')).toContainText('Anulowane');
   await expect(page.getByRole('button', { name: 'Wysłałem przelew' })).toHaveCount(0);
-  // W254: the buyer cannot pay a cancelled order in any way, whether the timer or the administrator cancelled it.
+  // The buyer cannot pay a cancelled order in any way, whether the timer or the administrator cancelled it.
   const { data: adminUser } = await db.from('admin_users').select('user_id').limit(1).single();
   const byAdmin = await placeViaRpc(event.id, `unpaid-admin-cancel-${randomUUID()}@example.com`, sessionId);
   expect(await checked(await db.rpc('admin_bank_transfer_order', { p_id: byAdmin, p_action: 'cancel', p_reason: 'Rezygnacja klienta', p_actor: adminUser!.user_id })))
@@ -214,7 +214,7 @@ test('admin accepts the late transfer at the order price although the promo seat
   const row = page.getByRole('row').filter({ hasText: buyer }); await row.getByRole('button', { name: /szczegóły/i }).click();
   const section = page.getByRole('region', { name: 'Przelew tradycyjny', exact: true });
   await expect(section.getByText('Anulowane automatycznie: minął termin rezerwacji')).toBeVisible();
-  // W254: before deciding the administrator sees today's price and the seat situation; acceptance keeps the order price.
+  // Before deciding the administrator sees today's price and the seat situation; acceptance keeps the order price.
   const preview = section.getByRole('region', { name: 'Podgląd przed przyjęciem' });
   // The session is full (capacity 1), so there is no price on sale today.
   await expect(preview).toContainText(/Cena z zamówienia: 100,00\s?zł · cena dziś: niedostępna/);
@@ -227,7 +227,7 @@ test('admin accepts the late transfer at the order price although the promo seat
   await section.getByRole('button', { name: 'Jednak przyjmij' }).click();
   const form = section.getByRole('form', { name: 'Przyjmij spóźniony przelew po cenie z zamówienia' });
   await form.getByLabel('Data wpływu').fill(new Date().toISOString().slice(0, 10)); await form.getByLabel('Powód przyjęcia').fill('Przelew doszedł po terminie');
-  // W254b: over the limit the administrator confirms it explicitly; until then acceptance is not possible.
+  // Over the limit the administrator confirms it explicitly; until then acceptance is not possible.
   const accept = form.getByRole('button', { name: 'Przyjmij spóźniony przelew po cenie z zamówienia' });
   await expect(accept).toBeDisabled();
   await form.getByRole('checkbox', { name: /Przyjmuję ponad stan/ }).check();

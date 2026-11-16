@@ -1,7 +1,7 @@
 'use client';
 /**
  * Buyer "I have sent the transfer" on the signed order page. Past the reservation deadline it only tells the seller and
- * promises no extension (W254d). @see app/api/orders/bank-transfer/declare/route.ts
+ * promises no extension. @see app/api/orders/bank-transfer/declare/route.ts
  */
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';

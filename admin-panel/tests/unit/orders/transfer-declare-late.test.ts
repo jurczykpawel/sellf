@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * W254d (owner 15.11.2026): "I have sent the transfer" after the reservation deadline (before the release job cancels)
+ * "I have sent the transfer" after the reservation deadline (before the release job cancels)
  * only tells the seller. The page must not promise an extension; it says the seller was told and may accept a transfer
  * that arrives after the cancellation. Before the deadline the reservation is extended as before.
  */

@@ -1,5 +1,5 @@
 /**
- * Business events that keep failing must not starve new ones. Reproduces the W252b measurement:
+ * Business events that keep failing must not starve new ones. Scenario:
  * 120 events that always fail (license.issued without its license row) and one new event, worker
  * ticks every 62 s (an external cron that runs a little late). Time is advanced by moving these
  * events' timestamps back 62 s between ticks, which is what the queue sees when 62 s pass.
@@ -66,7 +66,7 @@ it('dispatches a new event by the second 62 s tick despite 120 permanently faili
   expect(ticks[0]).toEqual({ processed: 0, errors: 100 });
 }, 60_000);
 
-it('delivers a claimed event even when an expiry detection step fails, instead of using up its attempts (W252cr P2)', async () => {
+it('delivers a claimed event even when an expiry detection step fails, instead of using up its attempts', async () => {
   // Only capture_expired_access fails; every other RPC and the queue run for real.
   const detectionDown = new Proxy(db, {
     get(target, key, receiver) {

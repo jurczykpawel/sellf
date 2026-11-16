@@ -1,5 +1,5 @@
 /**
- * DB TEST (W256d): the RPCs that write a change together with its audit entry. A refused entry
+ * DB TEST: the RPCs that write a change together with its audit entry. A refused entry
  * (performed_by is no auth user → FK violation) leaves the change undone; a valid one commits both;
  * anon and authenticated cannot call them.
  *
@@ -24,7 +24,7 @@ beforeAll(async () => {
   if (admin.error || user.error) throw admin.error ?? user.error;
   actor = admin.data.user!.id;
   buyer = user.data.user!.id;
-  const inserted = await db.from('products').insert({ id: product, name: 'W256d RPC', slug: `w256d-rpc-${stamp}`, price: 10, currency: 'PLN', is_active: true });
+  const inserted = await db.from('products').insert({ id: product, name: 'Audited RPC', slug: `audited-rpc-${stamp}`, price: 10, currency: 'PLN', is_active: true });
   if (inserted.error) throw inserted.error;
 });
 

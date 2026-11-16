@@ -1,9 +1,7 @@
 /**
- * DB TEST (W256c, W256d): a license issued by hand or through API v1 exists only together with its
- * audit entry. W256c stopped the token and the mail, but the license row was already committed, and
- * its insert trigger queued license.issued — whose payload carries the key to every subscribed
- * endpoint (W256cr P1). Now the license, its license.issued event and the audit entry are one
- * transaction: a refused entry leaves none of the three.
+ * DB TEST: a license issued by hand or through API v1 exists only together with its
+ * audit entry: the license, its license.issued event and the audit entry are one transaction,
+ * so a refused entry leaves none of the three.
  * @see src/lib/license-keys/request.ts
  * @see supabase/migrations/20261111110000_access_licenses.sql (issue_license_with_audit)
  */

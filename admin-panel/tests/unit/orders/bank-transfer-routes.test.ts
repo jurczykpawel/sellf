@@ -33,7 +33,7 @@ describe('transfer administration API', () => {
     const response = await markPaid(new NextRequest('http://localhost/api/v1/payments/id/mark-paid', { method: 'POST', body: JSON.stringify({ amount: 1 }) }), { params: Promise.resolve({ id }) });
     expect(response.status).toBe(400);
   });
-  // W254c: the request is valid, it conflicts with the current seat state; the integrator resends with acceptOversold: true.
+  // The request is valid, it conflicts with the current seat state; the integrator resends with acceptOversold: true.
   it('reports an over-the-limit refusal as 409 CONFLICT naming the refusal', async () => {
     operate.mockResolvedValue({ success: false, error: 'Accepting this order goes over the seat limit', code: 'oversold_confirmation_required' });
     const response = await markPaid(new NextRequest(`http://localhost/api/v1/payments/${id}/mark-paid`, { method: 'POST',
@@ -50,7 +50,7 @@ describe('transfer administration API', () => {
   });
 });
 
-// W254b (owner 15.11): the facts the administrator sees before accepting a late transfer are also available to integrators.
+// The facts the administrator sees before accepting a late transfer are also available to integrators.
 describe('late transfer preview API', () => {
   const facts = { amount: 5000, currency: 'PLN', unitPrice: 50, unitPriceToday: 80, priceChanged: true,
     seats: { remaining: 4, tierRemaining: 0, quantity: 1, oversold: true, started: false }, coupon: null, invoiceCorrected: false };

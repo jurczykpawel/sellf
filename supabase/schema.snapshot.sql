@@ -10234,7 +10234,7 @@ BEGIN
   UPDATE public.order_payment_attempts SET status='expired' WHERE transaction_id=p_id AND status IN ('opening','open') AND expires_at<=p_now;
   SELECT * INTO a FROM public.order_payment_attempts WHERE transaction_id=p_id AND status IN ('opening','open');
   IF FOUND THEN RETURN to_jsonb(a)||'{"reused":true}'; END IF;
-  -- W254b: past the reservation deadline the order waits for the release job; no new attempt may extend it.
+  -- Past the reservation deadline the order waits for the release job; no new attempt may extend it.
   IF tx.release_at IS NOT NULL AND p_now>=tx.release_at THEN RAISE EXCEPTION 'Payment window closed' USING ERRCODE='22023'; END IF;
   INSERT INTO public.order_payment_attempts(transaction_id,kind,amount,currency,expires_at) VALUES(p_id,p_kind,p_amount,upper(p_currency),p_expires_at) RETURNING * INTO a;
   RETURN to_jsonb(a)||'{"reused":false}';

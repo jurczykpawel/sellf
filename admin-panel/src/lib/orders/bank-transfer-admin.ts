@@ -11,7 +11,7 @@ export const transferOperationSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('mark-paid'), amount: z.number().int().positive().max(Number.MAX_SAFE_INTEGER), paidAt: z.iso.datetime({ offset: true }),
     // A transfer received after the order was cancelled is accepted only on an explicit administrator decision.
     acceptCancelled: z.boolean().optional(), reason: reason.optional(),
-    // Accepting it over a seat limit (session or the order's price tier) is a second explicit decision (W254b).
+    // Accepting it over a seat limit (session or the order's price tier) is a second explicit decision.
     acceptOversold: z.boolean().optional() }).strict()
     .refine(v => !v.acceptCancelled || !!v.reason),
   z.object({ action: z.literal('cancel'), reason }).strict(),

@@ -1,4 +1,4 @@
--- Sellf 2026.11.1: queue retries (W252c).
+-- Sellf 2026.11.1: queue retries.
 --
 -- 1. Abandoned license mails can be resumed. A repeated license grant puts a given-up
 --    auth_mail_retries row back in the queue (application side). When the worker purges a
@@ -9,9 +9,7 @@
 --    attempt; a failed attempt waits with a growing interval (next_attempt_at) and after
 --    eight attempts the event is abandoned: it stays visible in the admin panel (webhook
 --    deliveries) and can be retried from there. The queue is ordered by next_attempt_at, so a
---    new event goes ahead of events that are waiting out their backoff. Measured before the fix
---    (report W252b, point 5): with 120 permanently failing events and a cron tick every 62 s a
---    new event was never dispatched, because every tick re-claimed the same 100 oldest events.
+--    new event goes ahead of events that are waiting out their backoff.
 --
 -- Service role only, as before: no table or function is reachable by anon or authenticated.
 
@@ -55,8 +53,7 @@ CREATE INDEX business_events_abandoned_idx ON public.business_events (abandoned_
 -- event whose attempts ran out without a recorded failure (worker crashed mid-delivery) is
 -- abandoned here instead of being claimed forever.
 -- Contract for callers: every claimed event must be delivered or recorded with
--- fail_business_event in the same run, whatever happened before the claim (W252cr P2: a failed
--- detection step used to end the run and let claimed events expire into abandonment).
+-- fail_business_event in the same run, whatever happened before the claim.
 CREATE OR REPLACE FUNCTION public.claim_business_events(p_limit integer DEFAULT 100) RETURNS SETOF public.business_events
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 BEGIN

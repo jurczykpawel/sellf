@@ -28,7 +28,7 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
   const lateDecision = tx.payment_provider === 'bank_transfer' && tx.status === 'cancelled' && tx.invoice?.status !== 'corrected';
   const [preview, setPreview] = useState<LateTransferPreview | null | 'error'>(null);
   const [declined, setDeclined] = useState(false);
-  // Over a seat limit the acceptance is a second explicit decision; the server refuses it without one (W254b).
+  // Over a seat limit the acceptance is a second explicit decision; the server refuses it without one.
   const [overLimitRefused, setOverLimitRefused] = useState(false), [acceptOversold, setAcceptOversold] = useState(false);
   const overLimit = overLimitRefused || (!!preview && preview !== 'error' && preview.seats?.oversold === true);
   useEffect(() => {
@@ -97,7 +97,7 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
     {tx.status === 'awaiting_payment' && !tx.invoice_hold_at && <button type="button" data-tour="unpaid-invoice" aria-busy={busy} disabled={busy} onClick={() => void run('invoice-issued')} className={primaryButton}>{progress('invoice-issued', 'markInvoiceIssued')}</button>}
     {lateDecision && <div className="space-y-3">
       <p className="text-sm text-sf-muted">{t('lateHelp')}</p>
-      {/* Facts at the moment of the decision; acceptance always keeps the order price (plan D6, W254). */}
+      {/* Facts at the moment of the decision; acceptance always keeps the order price. */}
       <section aria-label={t('latePreview')} className="rounded border border-sf-border p-3 text-sm">
         <h4 className="font-semibold">{t('latePreview')}</h4>
         {preview === 'error' && <p>{t('latePreviewError')}</p>}

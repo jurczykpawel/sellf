@@ -220,7 +220,7 @@ describe.skipIf(!hasSupabase)('Stripe webhook — shared Stripe account (instanc
   });
 });
 
-describe.skipIf(!hasSupabase)('Stripe webhook — delayed payment completion is redelivered on failure (W253b P1)', () => {
+describe.skipIf(!hasSupabase)('Stripe webhook — delayed payment completion is redelivered on failure', () => {
   it('async_payment_succeeded + completion RPC failure → 500 and nothing granted; the redelivery fulfils the order', async () => {
     const productId = await createProduct();
     const event = { ...sessionEvent({ product_id: productId, [STRIPE_INSTANCE_METADATA_KEY]: ours }), type: 'checkout.session.async_payment_succeeded' };
@@ -248,7 +248,7 @@ describe.skipIf(!hasSupabase)('Stripe webhook — delayed payment completion is 
   });
 });
 
-describe.skipIf(!hasSupabase)('Stripe webhook — identity changes only explicitly (W253c: no acceptance through local records)', () => {
+describe.skipIf(!hasSupabase)('Stripe webhook — identity changes only explicitly (no acceptance through local records)', () => {
   afterEach(() => vi.unstubAllEnvs());
 
   async function pendingOrderFor(event: ReturnType<typeof sessionEvent>, productId: string) {
@@ -336,7 +336,7 @@ describe.skipIf(!hasSupabase)('Stripe webhook — identity changes only explicit
   });
 });
 
-describe.skipIf(!hasSupabase)('Stripe webhook — disputes and refunds resolved through the payment (W253b P2)', () => {
+describe.skipIf(!hasSupabase)('Stripe webhook — disputes and refunds resolved through the payment', () => {
   function stripeFor(paymentIntent: string, piMetadata: Record<string, string> | Error) {
     return {
       charges: { retrieve: vi.fn(async (id: string) => ({ id, payment_intent: paymentIntent, amount_refunded: 0 })) },
@@ -366,7 +366,7 @@ describe.skipIf(!hasSupabase)('Stripe webhook — disputes and refunds resolved 
   });
 });
 
-describe.skipIf(!hasSupabase)('Stripe webhook — old quick pay of another installation (W253b P2)', () => {
+describe.skipIf(!hasSupabase)('Stripe webhook — old quick pay of another installation', () => {
   it('unmarked quick pay for an attempt this database never had → 200, acknowledged', async () => {
     expect(await postFull(quickPayEvent(crypto.randomUUID()))).toEqual({ status: 200, body: { received: true, skipped: 'unmarked quick pay attempt unknown here, skipped' } });
   });
@@ -378,7 +378,7 @@ describe.skipIf(!hasSupabase)('Stripe webhook — old quick pay of another insta
   });
 });
 
-describe.skipIf(!hasSupabase)('Stripe webhook — our payment for a deleted product (W253b P2)', () => {
+describe.skipIf(!hasSupabase)('Stripe webhook — our payment for a deleted product', () => {
   it('records the payment for reconciliation (amount, payment id) visible to the admin, acknowledges, and stays one record on redelivery', async () => {
     const productId = await createProduct();
     const { error } = await db!.from('products').delete().eq('id', productId);
@@ -429,7 +429,7 @@ describe.skipIf(!hasSupabase)('Stripe webhook — our payment for a deleted prod
   });
 });
 
-describe.skipIf(!hasSupabase)('Stripe webhook — our paid session for an existing but inactive product (W253c P2/3)', () => {
+describe.skipIf(!hasSupabase)('Stripe webhook — our paid session for an existing but inactive product', () => {
   async function guestPurchases(event: ReturnType<typeof sessionEvent>, productId: string) {
     const email = (event.data.object.customer_details as { email: string }).email;
     const { count } = await db!.from('guest_purchases').select('id', { count: 'exact', head: true }).eq('customer_email', email).eq('product_id', productId);
