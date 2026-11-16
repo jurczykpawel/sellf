@@ -1236,8 +1236,14 @@ from `src/lib/license/verify.ts`, which licenses Sellf-the-product itself.
 calls `issueLicense`, which signs a token (`payloadB64url.sigB64url`, claims
 `{v,kid,product,email,order,tier,iat,exp}`) and records it in `issued_licenses`
 (idempotent per order). The token rides on the `purchase.completed` webhook payload
-(`licenseKey`) for delivery. Buyers verify it against the seller's public keys from
-`GET /api/licenses/jwks?seller=<id>`.
+(`licenses[]`) and on `license.issued` (`licenseKey`) for delivery. Buyers verify it against
+the seller's public keys from `GET /api/licenses/jwks?seller=<id>`.
+
+**Planned key change:** generating or uploading a new key retires the previous one
+(`is_active = false`) instead of hiding it. JWKS lists the active key first, then every retired
+key, each with `status` (`active` | `retired`), so licenses signed before the change keep
+verifying offline; only the active key signs. Cancelling a leaked key (and re-signing live
+licenses) is not built yet — a retired key still verifies.
 
 **Custody (both supported):** `managed` — Sellf generates the keypair; `byok` — the
 seller uploads their own private key. Private keys are encrypted at rest with

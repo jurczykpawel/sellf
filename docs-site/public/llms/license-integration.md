@@ -78,18 +78,23 @@ GET https://your-sellf.example/api/licenses/jwks?seller=<seller-uuid>
 - No authentication.
 - `200`:
   ```json
-  { "keys": [ { "kid": "3f9a1c0b7e2d4a65", "alg": "ES256", "pem": "-----BEGIN PUBLIC KEY-----\n…\n-----END PUBLIC KEY-----\n" } ] }
+  { "keys": [
+    { "kid": "3f9a1c0b7e2d4a65", "alg": "ES256", "pem": "-----BEGIN PUBLIC KEY-----\n…\n-----END PUBLIC KEY-----\n", "status": "active" },
+    { "kid": "9b1e44d07c3a2f18", "alg": "ES256", "pem": "-----BEGIN PUBLIC KEY-----\n…\n-----END PUBLIC KEY-----\n", "status": "retired" }
+  ] }
   ```
-  `pem` is an SPKI PEM of an EC P-256 public key. Header `Cache-Control: public, max-age=300, s-maxage=300`.
+  `pem` is an SPKI PEM of an EC P-256 public key. `status` is `active` (signs new tokens) or
+  `retired` (replaced by a newer key; still valid for tokens it signed). The active key comes first. Header `Cache-Control: public, max-age=300, s-maxage=300`.
 - `400 {"error":"Bad request"}` when `seller` is missing or not a UUID.
 - `429 {"error":"Rate limited"}` above 60 requests per minute per client.
 - `500 {"error":"Server error"}`.
 - An unknown seller returns `200 {"keys": []}`.
 
-Important: only the seller's ACTIVE key is published. When the seller generates or uploads a
-new signing key, the previous key is deactivated and disappears from this list, so tokens
-signed with it no longer verify against the list. If your application must keep accepting
-older tokens after a rotation, keep a copy of the old public key in the application.
+Key change: when the seller generates or uploads a new signing key, new tokens are signed with
+it and the previous key stays in this list with `"status": "retired"`. Tokens signed with a
+retired key verify exactly like tokens signed with the active key: select the key by `kid` and
+do not reject a token because its key is retired. Treat `status` as information only; a missing
+`status` (older Sellf versions) means the key is published and valid.
 
 Caching: cache keys for at least 5 minutes. Keep the last good copy and use it when Sellf is
 unreachable. Do not fetch on every license check. Before replacing the cache, validate the

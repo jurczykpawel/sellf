@@ -78,7 +78,7 @@ test.describe('License keys', () => {
     const res = await request.get(`/api/licenses/jwks?seller=${seller.id}`);
     expect(res.status()).toBe(200);
     const body = await res.json();
-    expect(body.keys).toEqual([{ kid, alg: 'ES256', pem: keypair.publicKey }]);
+    expect(body.keys).toEqual([{ kid, alg: 'ES256', pem: keypair.publicKey, status: 'active' }]);
     const raw = JSON.stringify(body);
     expect(raw).not.toMatch(/PRIVATE KEY|encrypted_key|encryption_iv|encryption_tag|placeholder/);
   });

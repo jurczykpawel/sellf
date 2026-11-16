@@ -20,11 +20,11 @@ export interface RevokedLicenseRow {
   expires_at: string | null;
   revoked_at: string | null;
   products: { name: string | null; slug: string | null; license_tier: string | null } | null;
-  /** Sellf order behind `order_id` (absent on rows captured before W152). */
+  /** Sellf order behind `order_id` (absent on rows recorded before licenses stored their order). */
   sellf_order_id?: string | null;
   order_number?: number | null;
   customer_locale?: string | null;
-  /** refund | dispute | manual | subscription_cancelled; null while active. */
+  /** refund | dispute | manual | subscription_cancelled | expired (see LicenseRevocationReason); null while active. */
   revocation_reason?: string | null;
 }
 
@@ -45,7 +45,7 @@ export interface LicenseRevokeWebhookData {
     orderNumber: number | null;
     revocationReason: string | null;
   };
-  /** Why the license stopped working (refund, dispute, manual, subscription_cancelled); null while active. */
+  /** Why the license stopped working (refund, dispute, manual, subscription_cancelled, expired); null while active. */
   revocationReason: string | null;
   product: { id: string; name: string | null; slug: string | null };
   /** Seller-scoped revocation list the consumer hashes its `order` claim against. */

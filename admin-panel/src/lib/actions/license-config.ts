@@ -71,17 +71,21 @@ export async function setProductLicenseConfig(
   })
 }
 
-/** Deactivates any currently-active key for the seller. */
-async function deactivatePriorKeys(admin: SupabaseClient, sellerId: string): Promise<void> {
-  await admin
+/**
+ * Retires the seller's current signing key. A retired key stops signing but stays
+ * published at the JWKS URL, so licenses it signed keep verifying.
+ */
+async function retirePriorKeys(admin: SupabaseClient, sellerId: string): Promise<void> {
+  const { error } = await admin
     .from('seller_license_keys')
     .update({ is_active: false })
     .eq('seller_id', sellerId)
     .eq('is_active', true)
+  if (error) throw new Error(`retirePriorKeys: ${error.message}`)
 }
 
 /**
- * MANAGED custody: generate a fresh keypair, deactivate the prior active key,
+ * MANAGED custody: generate a fresh keypair, retire the prior active key,
  * store the new one. Returns the public key + kid only — never the private key.
  */
 export async function generateSellerLicenseKey(): Promise<ActionResponse<{ kid: string; publicKeyPem: string }>> {
@@ -93,7 +97,7 @@ export async function generateSellerLicenseKey(): Promise<ActionResponse<{ kid: 
     const admin = createAdminClient()
     try {
       const keypair = generateSellerKeypair()
-      await deactivatePriorKeys(admin, user.id)
+      await retirePriorKeys(admin, user.id)
       const { kid } = await storeSellerKey(admin, {
         sellerId: user.id,
         publicKeyPem: keypair.publicKeyPem,
@@ -110,7 +114,7 @@ export async function generateSellerLicenseKey(): Promise<ActionResponse<{ kid: 
 }
 
 /**
- * BYOK custody: validate + import a seller-supplied private key, deactivate the
+ * BYOK custody: validate + import a seller-supplied private key, retire the
  * prior active key. Returns the kid only — never echoes the private key back.
  */
 export async function uploadSellerLicenseKey(
@@ -123,7 +127,7 @@ export async function uploadSellerLicenseKey(
   if (privateKeyPem.length > 8192) {
     return { success: false, error: 'Private key is too large', errorCode: 'INVALID_INPUT' }
   }
-  // Validate key format before touching the database — prevents deactivating the
+  // Validate key format before touching the database — prevents retiring the
   // existing key when the user pastes something invalid.
   try {
     publicFromPrivate(privateKeyPem.trim())
@@ -136,7 +140,7 @@ export async function uploadSellerLicenseKey(
     }
     const admin = createAdminClient()
     try {
-      await deactivatePriorKeys(admin, user.id)
+      await retirePriorKeys(admin, user.id)
       const { kid } = await importSellerKey(admin, { sellerId: user.id, privateKeyPem: privateKeyPem.trim() })
       revalidatePath('/[locale]/dashboard/settings', 'page')
       return { success: true, data: { kid } }

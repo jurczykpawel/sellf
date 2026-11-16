@@ -6,10 +6,14 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 const querySchema = z.object({ seller: z.string().uuid() });
 
+/** `active` signs new licenses; `retired` was replaced by a planned key change and still verifies older licenses. */
+type PublicKeyStatus = 'active' | 'retired';
+
 interface PublicKeyRow {
   kid: string;
   public_key: string;
   alg: string;
+  status: PublicKeyStatus;
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -27,13 +31,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   // Public keys only — read via a SECURITY DEFINER RPC so the encrypted private
-  // columns are never reachable from this public endpoint.
+  // columns are never reachable from this public endpoint. The active key comes
+  // first; retired keys follow so licenses signed before a key change still verify.
   const { data, error } = await createAdminClient().rpc('seller_license_public_keys', { seller: parsed.data.seller });
   if (error) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
   const rows = (data ?? []) as PublicKeyRow[];
-  const keys = rows.map((r) => ({ kid: r.kid, alg: r.alg, pem: r.public_key }));
+  const keys = rows.map((r) => ({ kid: r.kid, alg: r.alg, pem: r.public_key, status: r.status }));
 
   return NextResponse.json(
     { keys },

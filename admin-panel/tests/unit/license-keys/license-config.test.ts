@@ -150,6 +150,18 @@ describe('generateSellerLicenseKey', () => {
   });
 });
 
+describe('planned key change', () => {
+  it('does not store a new key when retiring the current one fails', async () => {
+    vi.mocked(generateSellerKeypair).mockReturnValue(KEYPAIR);
+    adminFromMock.mockReturnValue(deactivateChain({ message: 'db down' }));
+
+    const res = await generateSellerLicenseKey();
+
+    expect(res).toMatchObject({ success: false, errorCode: 'KEY_GENERATION_FAILED' });
+    expect(vi.mocked(storeSellerKey)).not.toHaveBeenCalled();
+  });
+});
+
 describe('uploadSellerLicenseKey', () => {
   it('imports a BYOK key, deactivates prior, returns kid (never private)', async () => {
     const deact = deactivateChain();

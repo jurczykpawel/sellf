@@ -527,6 +527,8 @@ Supported outgoing event types include purchases, leads, waitlist signups, `refu
 
 Issuance and revocation send `license.issued` / `license.revoked`. The product must have
 license issuance enabled and the seller an active signing key, otherwise `409 CONFLICT`.
+`domain` works only when the product has the **License domain** field; without that field Sellf
+ignores it and the license carries no domain.
 Unless `sendEmail: false`, the buyer gets the key by email. `emailPending: true` means the license
 is issued but the mail provider refused the email for now (for example Supabase Auth's
 per-recipient limit); Sellf retries it automatically, so do not issue the license again.

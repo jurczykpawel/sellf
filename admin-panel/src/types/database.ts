@@ -6915,6 +6915,7 @@ export type Database = {
           alg: string
           kid: string
           public_key: string
+          status: string
         }[]
       }
       seller_revoked_orders: {

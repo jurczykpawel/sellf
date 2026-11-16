@@ -11649,13 +11649,15 @@ ALTER FUNCTION public.search_payment_transactions(p_search text, p_include_ident
 -- Name: seller_license_public_keys(uuid); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
-CREATE FUNCTION public.seller_license_public_keys(seller uuid) RETURNS TABLE(kid text, public_key text, alg text)
-    LANGUAGE sql SECURITY DEFINER
+CREATE FUNCTION public.seller_license_public_keys(seller uuid) RETURNS TABLE(kid text, public_key text, alg text, status text)
+    LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO ''
     AS $$
-  SELECT k.kid, k.public_key, k.alg
+  SELECT k.kid, k.public_key, k.alg,
+         CASE WHEN k.is_active THEN 'active' ELSE 'retired' END
   FROM public.seller_license_keys k
-  WHERE k.original_seller_id = seller AND k.is_active = true;
+  WHERE k.original_seller_id = seller
+  ORDER BY k.is_active DESC, k.created_at DESC, k.kid;
 $$;
 
 
@@ -11665,7 +11667,7 @@ ALTER FUNCTION public.seller_license_public_keys(seller uuid) OWNER TO postgres;
 -- Name: FUNCTION seller_license_public_keys(seller uuid); Type: COMMENT; Schema: public; Owner: postgres
 --
 
-COMMENT ON FUNCTION public.seller_license_public_keys(seller uuid) IS 'Returns active public keys (kid, public_key, alg) for a seller. Public-safe: never exposes encrypted private-key columns.';
+COMMENT ON FUNCTION public.seller_license_public_keys(seller uuid) IS 'Public keys (kid, public_key, alg, status) for a seller: the active signing key first, then retired keys that still verify licenses signed before a key change. Never exposes encrypted private-key columns.';
 
 
 --
@@ -22273,8 +22275,6 @@ function | public.search_order_leads(p_search text) | postgres | EXECUTE | postg
 function | public.search_order_leads(p_search text) | service_role | EXECUTE | postgres | -
 function | public.search_payment_transactions(p_search text, p_include_identifiers boolean) | postgres | EXECUTE | postgres | -
 function | public.search_payment_transactions(p_search text, p_include_identifiers boolean) | service_role | EXECUTE | postgres | -
-function | public.seller_license_public_keys(seller uuid) | anon | EXECUTE | postgres | -
-function | public.seller_license_public_keys(seller uuid) | authenticated | EXECUTE | postgres | -
 function | public.seller_license_public_keys(seller uuid) | postgres | EXECUTE | postgres | -
 function | public.seller_license_public_keys(seller uuid) | service_role | EXECUTE | postgres | -
 function | public.seller_revoked_orders(seller uuid, hash_prefix text) | postgres | EXECUTE | postgres | -

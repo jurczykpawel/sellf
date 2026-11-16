@@ -103,3 +103,27 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.mutate_access_audited(text,uuid,uuid,uuid,jsonb,jsonb,jsonb) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.mutate_access_audited(text,uuid,uuid,uuid,jsonb,jsonb,jsonb) TO service_role;
+
+-- ===== License signing keys: a planned key change keeps earlier keys published =====
+-- Changing the signing key retires the previous one (is_active = false) instead of hiding it:
+-- the public-keys reader returns the active key first, then every retired key, each with its
+-- status. Licenses signed with a retired key keep verifying offline; new licenses use the
+-- active key. The return type changes, so the function is dropped and created again.
+DROP FUNCTION IF EXISTS public.seller_license_public_keys(UUID);
+CREATE FUNCTION public.seller_license_public_keys(seller UUID)
+RETURNS TABLE (kid TEXT, public_key TEXT, alg TEXT, status TEXT)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT k.kid, k.public_key, k.alg,
+         CASE WHEN k.is_active THEN 'active' ELSE 'retired' END
+  FROM public.seller_license_keys k
+  WHERE k.original_seller_id = seller
+  ORDER BY k.is_active DESC, k.created_at DESC, k.kid;
+$$;
+REVOKE EXECUTE ON FUNCTION public.seller_license_public_keys(UUID) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.seller_license_public_keys(UUID) TO service_role;
+COMMENT ON FUNCTION public.seller_license_public_keys(UUID) IS
+  'Public keys (kid, public_key, alg, status) for a seller: the active signing key first, then retired keys that still verify licenses signed before a key change. Never exposes encrypted private-key columns.';

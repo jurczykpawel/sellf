@@ -23,7 +23,7 @@ beforeEach(() => {
   vi.mocked(checkRateLimit).mockResolvedValue(true);
   vi.mocked(createAdminClient).mockReset();
   vi.mocked(createAdminClient).mockReturnValue(
-    adminWith([{ kid: 'k1', public_key: '-----BEGIN PUBLIC KEY-----\nABC\n-----END PUBLIC KEY-----\n', alg: 'ES256' }]) as never,
+    adminWith([{ kid: 'k1', public_key: '-----BEGIN PUBLIC KEY-----\nABC\n-----END PUBLIC KEY-----\n', alg: 'ES256', status: 'active' }]) as never,
   );
 });
 
@@ -32,8 +32,20 @@ describe('GET /api/licenses/jwks', () => {
     const res = await GET(req(`seller=${SELLER}`));
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.keys).toEqual([{ kid: 'k1', alg: 'ES256', pem: expect.stringContaining('BEGIN PUBLIC KEY') }]);
+    expect(body.keys).toEqual([{ kid: 'k1', alg: 'ES256', pem: expect.stringContaining('BEGIN PUBLIC KEY'), status: 'active' }]);
     expect(res.headers.get('cache-control') ?? '').toMatch(/public/);
+  });
+
+  it('publishes retired keys after the active one, so licenses signed before a key change keep verifying', async () => {
+    vi.mocked(createAdminClient).mockReturnValue(adminWith([
+      { kid: 'new', public_key: 'PEM-NEW', alg: 'ES256', status: 'active' },
+      { kid: 'old', public_key: 'PEM-OLD', alg: 'ES256', status: 'retired' },
+    ]) as never);
+    const body = await (await GET(req(`seller=${SELLER}`))).json();
+    expect(body.keys).toEqual([
+      { kid: 'new', alg: 'ES256', pem: 'PEM-NEW', status: 'active' },
+      { kid: 'old', alg: 'ES256', pem: 'PEM-OLD', status: 'retired' },
+    ]);
   });
 
   it('never exposes private-key material', async () => {
