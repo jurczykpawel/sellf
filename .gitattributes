@@ -1,0 +1,3 @@
+# Generated; compared byte for byte by `bun run schema:check` (function bodies keep their whitespace):
+# no end-of-line conversion, no whitespace warnings.
+supabase/schema.snapshot.sql -text -whitespace linguist-generated

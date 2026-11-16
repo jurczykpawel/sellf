@@ -601,23 +601,45 @@ Sellers update Sellf themselves from the admin panel, so an upgrade must be all-
 the migration history must stay reviewable. Rules:
 
 1. **During a cycle** you may add migrations freely on feature/dev branches, one per change.
+   Each new migration is appended at the END of `supabase/migration-order.txt` and ships with the
+   refreshed `supabase/schema.snapshot.sql` in the same commit (`cd admin-panel && bun run schema:snapshot`).
 2. **Before the release gate** the release branch is tidied: all migrations added since the last
    release tag are consolidated into **a few logical files grouped by area** (orders, events,
    licenses, templates, misc …; target 4–8 files, hard limit **8**). Fix-ups of a migration from
    the same cycle (e.g. `*_repair`, `*_followup`) are folded into the file they fix. This is the
-   only moment a migration may be rewritten — it has not been released yet.
+   only moment a migration may be rewritten — it has not been released yet. The entries after the
+   last tag in `supabase/migration-order.txt` are rewritten with them (released entries never).
 3. **Never edit a migration that is in a released tag** (`git diff --name-only <last-tag> -- supabase/migrations`
    must show only additions). After a tag, migrations are append-only.
-4. **Prove consolidation changes nothing**: two clean databases at the previous release, one with
-   the original files, one with the consolidated files; `pg_dump --schema-only` diff must be empty
-   and table row counts equal (show a deliberately broken RED variant to prove the diff works).
-5. **Shared test environments (TEST, demo) must not get unreleased migrations applied ad hoc**
-   unless they can be reset; after consolidation register the new versions there as applied
-   (back up the registry first) instead of re-running SQL.
+4. **Consolidation is correct when the schema snapshot does not change**: `bun run schema:check`
+   (admin-panel) passes with the consolidated files and `supabase/schema.snapshot.sql` is untouched
+   in the consolidation commit. The check builds a clean database from all migrations and compares
+   with the snapshot: `pg_dump --schema-only --no-privileges` of public and postgrest (only the
+   version banner and the random `\restrict` key are dropped; function bodies stay byte for byte),
+   privileges as canonical records (object, grantee, privilege, grantor, grant option — the order
+   grants were made in does not matter) for public, postgrest and the auth/storage/cron tables,
+   triggers outside public with their enabled state, RLS flags of platform tables, policies outside
+   public, storage buckets, the full `cron.job` rows (schedule, active, database, user, command),
+   extensions and row counts per public table; a difference fails with the diff. Never refresh the
+   snapshot to make a consolidation pass. (Replaces the manual two-database proof for the schema;
+   the probes W256r showed it missed are DB tests in `schema-snapshot-probes.integration.test.ts`.)
+   **The snapshot and the row counts do NOT prove that configuration or dictionary data is
+   equivalent** (a changed default setting or list value keeps the same count): for migrations that
+   insert or change such rows, the proof is the upgrade rehearsal on a copy of production data
+   (point 9 and the sellf-release skill).
+5. **Shared test environments (TEST, demo) never get migrations applied or registered by hand.**
+   Never mark migrations as applied in their registry (owner decision 2026-11-11: it hides failures).
+   They get a real update with the release runner: a candidate goes there only as a real upgrade,
+   and an environment that received unreleased migrations is reset to the released schema and
+   upgraded for real.
 6. **Upgrade runners apply all pending migrations in ONE transaction** (`admin-panel/scripts/upgrade.sh`,
    Stackpilot `local/setup-supabase-migrations.sh`) so a failure rolls everything back.
-7. Enforcement: the release gate (`release-layout`) and CI `Migration lint` fail when more than 8
-   migrations were added since the last tag or a released migration was modified.
+7. Enforcement (CI `Migration lint` on every push/PR touching migrations, and the blocking
+   `migrations` job of the release build that `build` and `docker` need): `lint:migrations` fails
+   when a released migration file was modified or deleted, or `supabase/migration-order.txt` is
+   wrong (see below); `schema:check` fails when the snapshot differs. Only the release build runs
+   `lint:migrations --release` (against the previous tag), which also fails when more than 8
+   migrations were added since that tag, so an unconsolidated release cannot be built.
 8. **Transport size limits:** each added SQL file must be **at most 120000 bytes** and its
    complete JSON RPC payload (version, SQL, checksum, including escaping) **at most 128000 bytes**.
    The installed 10.6 runner passes SQL to `jq --arg` and JSON to `curl -d`; Linux
@@ -627,6 +649,14 @@ the migration history must stay reviewable. Rules:
    the unmodified runner from the previous release tag on Linux.** All pending files must
    apply successfully; compare the resulting schema against the original source migrations.
    Direct HTTP tests alone do not exercise the installed runner's argument limits.
+10. **Migration order file** `supabase/migration-order.txt`: one migration per line in apply order
+   (strictly ascending timestamps), only ever appended at the end, so two branches adding a migration
+   conflict in git instead of merging in a silently wrong order. `lint:migrations` fails for a file
+   missing from the list or an entry without a file, duplicates, malformed or unsorted entries, and
+   any change to the entries of the last release tag (they are a fixed prefix; found with
+   `git describe`, override `MIGRATION_ORDER_BASE=<tag>`). Resolve an order conflict by keeping both
+   lines in timestamp order. The file lives outside `supabase/migrations` so the tarball's
+   migrations directory stays `.sql`-only for installed runners.
 
 The version-2 updater verifies and extracts the release, then `exec`s the
 `# sellf-upgrade-stage2:1` entry in the downloaded `scripts/upgrade.sh` with the
@@ -714,6 +744,7 @@ Migration checklist:
 - [ ] Test policies with different user roles
 - [ ] Add indexes for foreign keys and frequently queried columns
 - [ ] Validate all constraints and checks
+- [ ] Appended to `supabase/migration-order.txt` and `supabase/schema.snapshot.sql` refreshed (`bun run schema:snapshot`) in the same commit
 - [ ] Test with `npx supabase db reset`
 - [ ] Add realistic sample data to `supabase/seed.sql`
 - [ ] Verify new migrations using `docker exec` SQL queries
@@ -1648,7 +1679,9 @@ Releases are manual. CI builds the `sellf-build.tar.gz` artifact automatically.
 
 **Versioning: CalVer `YYYY.M.patch`** (e.g. `2026.3.0`, `2026.3.1`). Year + month of release + patch counter within that month. No semver — Sellf is an end-user product, not a library.
 
-**Before creating a release, bump the version in all these files:**
+**Bump the version with one command** (repo root or admin-panel): `bun run release:bump 2026.3.0`.
+It checks CalVer, that the version is newer than the current one, that a new month starts at `.0`,
+that no tag exists and that the files agree, then writes all locations:
 
 | File | Field | Example |
 |------|-------|---------|
@@ -1657,6 +1690,18 @@ Releases are manual. CI builds the `sellf-build.tar.gz` artifact automatically.
 | `docker-compose.yml` | `image` default | `${SELLF_VERSION:-2026.3.0}` |
 | `.env.docker.example` | commented `SELLF_VERSION` | `2026.3.0` |
 | `README.md` | version badge URL | `version-2026.3.0-blue` |
+
+A new place that carries the version goes into `VERSION_FILES` in `admin-panel/scripts/release-bump.ts`.
+The release build fails unless `bun run release:bump --check <tag version>` passes (all files agree,
+the version equals the tag and is valid CalVer).
+
+**Release notes** are drafted from Conventional Commit prefixes since the last tag (Sellf merges
+local branches without PRs, so there are no PR labels): `bun run release:notes --out /tmp/release-notes.md`.
+Sections: Breaking changes (`type!:` or a `BREAKING CHANGE: <what to do>` footer — write one for
+every incompatible change; the whole footer is copied, continuation lines and paragraphs included, up
+to the next footer such as `Co-Authored-By:`), New features (`feat`), Fixes (`fix`), Performance, Documentation, Tests,
+Dependencies (`chore(deps)`), Maintenance. Only the Highlights are written by hand (replace the
+marker); `bun run release:notes --check /tmp/release-notes.md` must pass before `gh release create`.
 
 **Before creating a release, always run tests:**
 
@@ -1674,7 +1719,7 @@ git add -A && git commit -m "chore: bump version to 2026.3.0"
 git push
 
 # Create release → CI builds tar.gz and attaches to release
-gh release create v2026.3.0 --title "Sellf v2026.3.0" --notes "Changelog"
+gh release create v2026.3.0 --title "Sellf v2026.3.0" --notes-file /tmp/release-notes.md
 
 # Or trigger build without release tag
 gh workflow run build-release.yml -f version=v2026.3.0
@@ -1695,7 +1740,9 @@ auto-merge during a release with the repo variable `DEPENDABOT_AUTOMERGE_PAUSED=
 
 Triggered by: `release created` event or `workflow_dispatch`.
 
-Steps: `bun install --frozen-lockfile` → `bun run typecheck` → `bun run build` → package tar.gz → upload to GitHub Release.
+Steps: `dependabot-gate` → `test` (version files agree with the tag, typecheck, lint, audits, secret scan) and
+`migrations` (`lint:migrations --release` against the previous tag, `schema:check`) → `build` (package tar.gz,
+signed manifests, upload) and `docker`. A failing migration gate stops both artifacts.
 
 The tar.gz contains: `.next/` (with `standalone/admin-panel/server.js`), `package.json`, `public/`, `supabase/migrations/`, `supabase/templates/`.
 

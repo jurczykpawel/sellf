@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import path from 'path';
+import { PINNED_SUPABASE_CLI } from '@/../scripts/schema-snapshot';
 
 const WORKFLOWS_DIR = path.resolve(__dirname, '../../../../.github/workflows');
 const buildRelease = readFileSync(path.join(WORKFLOWS_DIR, 'build-release.yml'), 'utf8');
@@ -144,6 +145,45 @@ describe('lint-migrations.yml hardening', () => {
 
   it('pins its actions to full commit SHAs', () => {
     expect(unpinnedThirdPartyActions(lintMigrations)).toEqual([]);
+  });
+
+  it('fetches tags for the append-only order check and runs the schema snapshot check', () => {
+    expect(lintMigrations).toMatch(/lint:[\s\S]*?fetch-depth: 0[\s\S]*?run: bun run lint:migrations/);
+    expect(lintMigrations).toMatch(/schema-snapshot:[\s\S]*?run: bun run schema:check/);
+    expect(lintMigrations).toContain('supabase/migration-order.txt');
+  });
+});
+
+describe('migration gates use the pinned Supabase CLI', () => {
+  it('installs exactly PINNED_SUPABASE_CLI wherever schema:check runs', () => {
+    for (const workflow of [lintMigrations, buildRelease]) {
+      const versions = [...workflow.matchAll(/supabase\/setup-cli@[0-9a-f]{40}[^\n]*\n\s*with:\s*\n\s*version: ([\d.]+)/g)].map(m => m[1]);
+      expect(versions.length).toBeGreaterThan(0);
+      expect(new Set(versions)).toEqual(new Set([PINNED_SUPABASE_CLI]));
+    }
+  });
+});
+
+describe('build-release.yml migration gate', () => {
+  const migrationsJob = buildRelease.slice(buildRelease.indexOf('\n  migrations:\n'), buildRelease.indexOf('\n  verify-playerstack-bundle:\n'));
+
+  it('lints against the previous release tag in release mode and checks the schema snapshot', () => {
+    expect(migrationsJob).toContain('fetch-depth: 0');
+    expect(migrationsJob).toContain(`git describe --tags --abbrev=0 --match 'v[0-9]*' "\${GITHUB_SHA}^"`);
+    expect(migrationsJob).toContain('bun run lint:migrations --release');
+    expect(migrationsJob).toContain('bun run schema:check');
+  });
+
+  it('blocks the tarball and the Docker image on the migration gate', () => {
+    expect(buildRelease).toMatch(/\n  build:\n[\s\S]*?needs: \[test, migrations, verify-playerstack-bundle\]/);
+    expect(buildRelease).toMatch(/\n  docker:\n[\s\S]*?needs: \[test, migrations, verify-playerstack-bundle\]/);
+  });
+});
+
+describe('build-release.yml version consistency', () => {
+  it('fails the release unless every version location equals the tag (release:bump --check)', () => {
+    const testJob = buildRelease.slice(buildRelease.indexOf('\n  test:\n'), buildRelease.indexOf('\n  migrations:\n'));
+    expect(testJob).toContain('run: bun run release:bump --check "${RELEASE_VERSION#v}"');
   });
 });
 
