@@ -1,7 +1,8 @@
 /**
- * Admin grant/revoke of product access writes its audit entry first (W256c): a refused entry changes
- * nothing, and an entry for a change that then failed is taken back. Before, the result of the insert
- * was dropped (`.then(() => {}, …)` never sees a database error), so access changed without a trace.
+ * Admin grant/revoke of product access and its audit entry are ONE call (W256d): mutate_access_audited
+ * writes both in a transaction, so the route itself never writes or deletes audit_log rows. W256c wrote
+ * the entry first and deleted it on error, which left a false entry when the process died in between
+ * (W256cr P2). The database side is covered by tests/unit/audit/*.integration.test.ts.
  * @see src/app/api/users/[id]/access/route.ts
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -46,7 +47,7 @@ vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn().mockResolvedValu
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: () => tableClient(), createPlatformClient: () => tableClient() }));
 vi.mock('@/lib/auth-server', () => ({ requireAdminApi: vi.fn().mockResolvedValue({ user: { id: ADMIN_ID, email: 'admin@example.com' } }) }));
 vi.mock('@/lib/services/business-events', () => ({
-  mutateAccess: (...args: unknown[]) => {
+  mutateAccessAudited: (...args: unknown[]) => {
     m.steps.push(`mutate:${args[1]}`);
     const result = m.mutateAccess(...args);
     return Object.assign(Promise.resolve(result), { single: async () => result });
@@ -71,44 +72,36 @@ beforeEach(() => {
 });
 
 describe('admin access grant audit', () => {
-  it('writes the entry (admin auth user UUID) before granting', async () => {
+  it('grants and audits in one call, naming the admin by auth user UUID', async () => {
     expect((await grant()).status).toBe(201);
-    expect(m.steps).toEqual(['audit', 'mutate:grant']);
-    expect(m.auditInsert).toHaveBeenCalledWith(expect.objectContaining({ performed_by: ADMIN_ID, user_id: USER_ID, operation: 'INSERT' }));
+    expect(m.steps).toEqual(['mutate:grant']);
+    expect(m.mutateAccess).toHaveBeenCalledWith(expect.anything(), 'grant', USER_ID, ADMIN_ID,
+      { product_id: PRODUCT_ID, product_name: 'Course', action: 'admin_grant_access' }, expect.anything(), undefined, PRODUCT_ID);
+    expect(m.auditInsert).not.toHaveBeenCalled();
   });
 
-  it('grants nothing when the audit entry is refused', async () => {
-    m.auditResult.mockResolvedValueOnce({ data: null, error: { message: 'audit down' } });
+  it('reports 500 and deletes nothing when the call fails (refused entry = nothing granted, in the database)', async () => {
+    m.mutateAccess.mockReturnValueOnce({ data: null, error: { message: 'audit_log_performed_by_fkey' } });
     expect((await grant()).status).toBe(500);
-    expect(m.mutateAccess).not.toHaveBeenCalled();
-  });
-
-  it('takes the entry back when the grant itself fails', async () => {
-    m.mutateAccess.mockReturnValueOnce({ data: null, error: { message: 'grant failed' } });
-    expect((await grant()).status).toBe(500);
-    expect(m.steps).toEqual(['audit', 'mutate:grant', 'discard']);
-    expect(m.auditDelete).toHaveBeenCalledWith('id', 'audit-1');
+    expect(m.auditInsert).not.toHaveBeenCalled();
+    expect(m.auditDelete).not.toHaveBeenCalled();
   });
 });
 
 describe('admin access revoke audit', () => {
   beforeEach(() => { m.existing = { id: 'access-1' }; m.mutateAccess.mockReturnValue({ error: null }); });
 
-  it('writes the entry before revoking', async () => {
+  it('revokes and audits in one call', async () => {
     expect((await revoke()).status).toBe(200);
-    expect(m.steps).toEqual(['audit', 'mutate:revoke']);
-    expect(m.auditInsert).toHaveBeenCalledWith(expect.objectContaining({ performed_by: ADMIN_ID, user_id: USER_ID, operation: 'DELETE' }));
+    expect(m.steps).toEqual(['mutate:revoke']);
+    expect(m.mutateAccess).toHaveBeenCalledWith(expect.anything(), 'revoke', USER_ID, ADMIN_ID,
+      { product_id: PRODUCT_ID, action: 'admin_revoke_access' }, { revoke_license: true }, 'access-1');
+    expect(m.auditInsert).not.toHaveBeenCalled();
   });
 
-  it('revokes nothing when the audit entry is refused', async () => {
-    m.auditResult.mockResolvedValueOnce({ data: null, error: { message: 'audit down' } });
-    expect((await revoke()).status).toBe(500);
-    expect(m.mutateAccess).not.toHaveBeenCalled();
-  });
-
-  it('takes the entry back when the revoke itself fails', async () => {
+  it('reports 500 and deletes nothing when the call fails', async () => {
     m.mutateAccess.mockReturnValueOnce({ error: { message: 'revoke failed' } });
     expect((await revoke()).status).toBe(500);
-    expect(m.steps).toEqual(['audit', 'mutate:revoke', 'discard']);
+    expect(m.auditDelete).not.toHaveBeenCalled();
   });
 });

@@ -74,3 +74,35 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.issue_license_with_audit(jsonb, uuid, jsonb) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.issue_license_with_audit(jsonb, uuid, jsonb) TO service_role;
+
+-- ===== W256d: admin access grant/update/revoke + its audit entry in ONE transaction =====
+-- Replaces "audit entry first, change, take the entry back on error" in api/users/[id]/access: a
+-- process killed between the two requests left an entry for a change that never happened (W256cr P2).
+-- The entry is written only when a row actually changed; performed_by references auth.users, so the
+-- actor must be a user (the admin's auth UUID). p_audit is stored as new_values (grant/update) or
+-- old_values (revoke), as before.
+CREATE FUNCTION public.mutate_access_audited(p_action text, p_user_id uuid, p_product_id uuid DEFAULT NULL, p_access_id uuid DEFAULT NULL,
+  p_values jsonb DEFAULT '{}', p_actor jsonb DEFAULT '{}', p_audit jsonb DEFAULT '{}')
+RETURNS SETOF public.user_product_access LANGUAGE plpgsql SET search_path = '' AS $$
+DECLARE a public.user_product_access; changed integer := 0;
+BEGIN
+  IF (SELECT auth.role()) IS DISTINCT FROM 'service_role' THEN RAISE EXCEPTION 'Service role required' USING ERRCODE='42501'; END IF;
+  IF p_actor->>'type' IS DISTINCT FROM 'user' OR p_actor->>'id' IS NULL
+     OR (p_audit IS NOT NULL AND jsonb_typeof(p_audit) <> 'object') THEN
+    RAISE EXCEPTION 'Audited access change needs a user actor' USING ERRCODE='22023';
+  END IF;
+  FOR a IN SELECT * FROM public.mutate_access(p_action, p_user_id, p_product_id, p_access_id, p_values, p_actor) LOOP
+    changed := changed + 1;
+    RETURN NEXT a;
+  END LOOP;
+  IF changed > 0 THEN
+    INSERT INTO public.audit_log(table_name, operation, user_id, performed_by, old_values, new_values)
+      VALUES('user_product_access',
+        CASE p_action WHEN 'grant' THEN 'INSERT' WHEN 'revoke' THEN 'DELETE' ELSE 'UPDATE' END,
+        p_user_id, (p_actor->>'id')::uuid,
+        CASE WHEN p_action = 'revoke' THEN coalesce(p_audit, '{}'::jsonb) END,
+        CASE WHEN p_action <> 'revoke' THEN coalesce(p_audit, '{}'::jsonb) END);
+  END IF;
+END $$;
+REVOKE ALL ON FUNCTION public.mutate_access_audited(text,uuid,uuid,uuid,jsonb,jsonb,jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.mutate_access_audited(text,uuid,uuid,uuid,jsonb,jsonb,jsonb) TO service_role;

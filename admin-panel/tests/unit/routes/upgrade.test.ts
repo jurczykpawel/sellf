@@ -163,14 +163,15 @@ describe('retrying an update', () => {
   });
 });
 
-describe('audit entry of an update launch (W256c)', () => {
+describe('audit entry of an update launch (W256c, intent since W256d)', () => {
   it('names the admin by auth user UUID, not by e-mail, with an operation audit_log accepts', async () => {
     expect((await post()).status).toBe(202);
     expect(audit.from).toHaveBeenCalledWith('audit_log');
     expect(audit.insert).toHaveBeenCalledTimes(1);
     const entry = audit.insert.mock.calls[0][0];
     expect(entry).toMatchObject({ table_name: 'system', operation: 'UPDATE', user_id: ADMIN_USER_ID, performed_by: ADMIN_USER_ID });
-    expect(entry.new_values).toMatchObject({ action: 'system_upgrade_triggered', upgrade_token: expect.any(String) });
+    // The update runs outside the database: the entry records the request, not that it ran.
+    expect(entry.new_values).toMatchObject({ action: 'system_upgrade_requested', upgrade_token: expect.any(String) });
     // audit_log.operation only accepts INSERT/UPDATE/DELETE (audit_log_operation_check).
     expect(['INSERT', 'UPDATE', 'DELETE']).toContain(entry.operation);
   });
@@ -199,10 +200,14 @@ describe('audit entry of an update launch (W256c)', () => {
     expect((await post()).status).toBe(202);
   });
 
-  it('takes the entry back when the launcher fails (no entry for an update that never started)', async () => {
+  it('keeps the request and adds an outcome entry when the launcher fails (nothing is deleted)', async () => {
     vi.mocked(spawn).mockImplementationOnce(() => ({ once: (event: string, callback: (code: number) => void) => { if (event === 'exit') callback(1); } }) as ReturnType<typeof spawn>);
     expect((await post()).status).toBe(500);
-    expect(audit.remove).toHaveBeenCalledWith('id', 'audit-1');
+    expect(audit.remove).not.toHaveBeenCalled();
+    expect(audit.insert).toHaveBeenCalledTimes(2);
+    const [request, outcome] = audit.insert.mock.calls.map(call => call[0]);
+    expect(outcome).toMatchObject({ table_name: 'system', operation: 'UPDATE', performed_by: ADMIN_USER_ID,
+      new_values: { action: 'system_upgrade_launch_failed', upgrade_token: request.new_values.upgrade_token, request_audit_id: 'audit-1' } });
   });
 
   it('records nothing for an attempt refused because an update is already running', async () => {
