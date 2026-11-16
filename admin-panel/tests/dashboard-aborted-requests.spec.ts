@@ -30,7 +30,7 @@ test.describe('Dashboard interrupted requests', () => {
     test(`clicking ${target} ${delay} ms after load logs nothing`, async ({ page }) => {
       await openDashboard(page);
       await page.waitForTimeout(delay);
-      await page.locator(`a[href="/dashboard/${target}"]`).first().click();
+      await page.locator(`a[href$="/dashboard/${target}"]`).first().click();
       await page.waitForURL(`**/dashboard/${target}`);
       await page.waitForTimeout(3500);
       expect(problems).toEqual([]);
@@ -51,7 +51,7 @@ test.describe('Dashboard interrupted requests', () => {
     });
     await openDashboard(page);
     await page.waitForTimeout(300);
-    await page.locator('a[href="/dashboard/payments"]').first().click();
+    await page.locator('a[href$="/dashboard/payments"]').first().click();
     await page.waitForURL('**/dashboard/payments', { timeout: 15_000 });
     await page.waitForTimeout(3500);
     expect(problems).toEqual([]);

@@ -172,7 +172,7 @@ test('an unpaid order past its window is released: seat back on sale, buyer and 
   expect(await checked(await db.from('order_payment_attempts').select('id').eq('transaction_id', orderId))).toHaveLength(0);
   // The order page says the deadline passed, without "reserved until <past date>" and without the transfer details.
   await page.goto(new URL(payUrl).pathname + new URL(payUrl).search);
-  await expect(page.getByRole('alert')).toContainText('Termin płatności minął — zamówienie zostanie wkrótce anulowane');
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('Termin płatności minął — zamówienie zostanie wkrótce anulowane');
   await expect(page.getByText(/zarezerwowane do/)).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Dane do przelewu' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Zapłać online/ })).toHaveCount(0);
@@ -187,7 +187,7 @@ test('an unpaid order past its window is released: seat back on sale, buyer and 
   const cancelledMail = await untilMail(request, buyer, 'Zamówienie anulowane');
   expect(cancelledMail.HTML).toContain('nie otrzymaliśmy wpłaty w terminie');
   await page.goto(new URL(payUrl).pathname + new URL(payUrl).search);
-  await expect(page.getByRole('alert')).toContainText('Anulowane');
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('Anulowane');
   await expect(page.getByRole('button', { name: 'Wysłałem przelew' })).toHaveCount(0);
   // The buyer cannot pay a cancelled order in any way, whether the timer or the administrator cancelled it.
   const { data: adminUser } = await db.from('admin_users').select('user_id').limit(1).single();

@@ -84,7 +84,7 @@ test('receiver can confirm a full refund, preserve a partial refund and renew th
     const apiHeaders = { Authorization: `Bearer ${apiKey}` };
     for (const refundAmount of [1000, 2345]) {
       const intent = await stripe.paymentIntents.create({ amount: 2345, currency: 'pln', payment_method: 'pm_card_visa',
-        payment_method_types: ['card'], confirm: true });
+        automatic_payment_methods: { enabled: true, allow_redirects: 'never' }, confirm: true });
       visaIntents.push(intent.id);
       const transaction = await insert('payment_transactions', { product_id: product.id, amount: intent.amount,
         currency: 'PLN', customer_email: `contract-${run}@example.com`, session_id: intent.id,
@@ -127,7 +127,7 @@ test('receiver can confirm a full refund, preserve a partial refund and renew th
     const asyncRefunds: { method: string; transaction: Awaited<ReturnType<typeof insert>>; refund: Stripe.Refund }[] = [];
     for (const method of ['pm_card_pendingRefund', 'pm_card_refundFail']) {
       const intent = await stripe.paymentIntents.create({ amount: 1100, currency: 'pln', payment_method: method,
-        payment_method_types: ['card'], confirm: true });
+        automatic_payment_methods: { enabled: true, allow_redirects: 'never' }, confirm: true });
       const transaction = await insert('payment_transactions', { product_id: product.id, amount: intent.amount,
         currency: 'PLN', customer_email: `status-${run}@example.com`, session_id: intent.id,
         stripe_payment_intent_id: intent.id, status: 'completed' });
@@ -151,7 +151,7 @@ test('receiver can confirm a full refund, preserve a partial refund and renew th
     }
     for (const outcome of ['won', 'lost']) {
       const intent = await stripe.paymentIntents.create({ amount: 1100, currency: 'pln', payment_method: 'pm_card_createDispute',
-        payment_method_types: ['card'], confirm: true });
+        automatic_payment_methods: { enabled: true, allow_redirects: 'never' }, confirm: true });
       const transaction = await insert('payment_transactions', { product_id: product.id, amount: intent.amount,
         currency: 'PLN', customer_email: `dispute-${run}@example.com`, session_id: intent.id,
         stripe_payment_intent_id: intent.id, status: 'completed' });

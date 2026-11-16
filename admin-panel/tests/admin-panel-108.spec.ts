@@ -11,7 +11,7 @@ import { createTestAdmin, setAuthSession, supabaseAdmin as db } from './helpers/
 test('seller opens an order straight from its link and sees the Orders tab without horizontal scroll @J191 @J190', async ({ page }) => {
   const admin = await createTestAdmin('w135-orders');
   const run = randomUUID().replaceAll('-', '');
-  const product = await db.from('products').insert({ name: `W135 ${run}`, slug: `w135-${run}`, price: 49, currency: 'PLN', is_active: true }).select('id').single();
+  const product = await db.from('products').insert({ name: `W135 ${run}`, slug: `w135-${run}`, price: 49, currency: 'PLN', is_active: true, issue_license_on_purchase: true }).select('id').single();
   expect(product.error).toBeNull();
   const email = `w135-${run}@example.test`;
   const tx = await db.from('payment_transactions').insert({ product_id: product.data!.id, amount: 4900, currency: 'PLN', status: 'completed',

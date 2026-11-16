@@ -33,7 +33,7 @@ test('offer wrappers preserve product revisions and independent template scopes'
     const candidate = JSON.parse(readFileSync('../skills/sellf-template-author/examples/offer.json', 'utf8'));
     expect((await request.get(`/api/v1/products/${productId}/offer/config`)).status()).toBe(401);
     for (const credential of [write, activate, product]) expect((await call('config', credential)).status).toBe(403);
-    const readKeys = ['productId', 'productName', 'revision', 'draft', 'published', 'validation'].sort();
+    const readKeys = ['productId', 'productName', 'productSlug', 'revision', 'draft', 'published', 'validation'].sort();
     const baseline = (await call('config', read)).data;
     expect(baseline).toMatchObject({ revision: 0, draft: null, published: null });
     expect(Object.keys(baseline).sort()).toEqual(readKeys);
