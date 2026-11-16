@@ -23,10 +23,10 @@ for (const mode of ['ordinary', 'profile', 'legacy-profile']) {
       if (mode === 'ordinary') {
         await startNativeCheckout(page);
         await page.locator('#checkoutEmail').fill('company@example.com');
-        // Standard checkout invoice section (W223a): the NIP field opens with "I want a company invoice".
+        // Standard checkout invoice section: the NIP field opens with "I want a company invoice".
         await page.locator('#wantInvoice').check();
       }
-      // Both checkouts share the invoice section (W223b), so the same fields and company card.
+      // Both checkouts share the invoice section, so the same fields and company card.
       const nip = page.locator('#nip');
       const company = page.locator('#companyName');
       await expect(nip).toBeEnabled();

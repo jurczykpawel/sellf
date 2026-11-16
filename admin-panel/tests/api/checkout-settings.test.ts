@@ -1,6 +1,6 @@
 /**
- * API v1: shop checkout settings — "collect a different invoice recipient" (W223a, owner 10.11:
- * OFF by default, institutions only). @J622
+ * API v1: shop checkout settings — "collect a different invoice recipient":
+ * OFF by default, institutions only. @J622
  */
 import { afterAll, describe, expect, it } from 'vitest';
 import { get, patch, supabase } from './setup';

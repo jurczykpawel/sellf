@@ -1,5 +1,5 @@
 /**
- * W223c: order details are measured the way the database limits them (octet_length(details::text),
+ * Order details are measured the way the database limits them (octet_length(details::text),
  * 65 536 bytes), so a checkout route can refuse them before its first write.
  * Expected strings are PostgreSQL's own jsonb::text output (measured on the local stack).
  * @see src/lib/checkout-modules/order-details.ts

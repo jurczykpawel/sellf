@@ -17,7 +17,7 @@ it('uses the configured captcha provider so an unconfigured development checkout
   }));
   await waitFor(() => expect((screen.getByRole('button', { name: 'placeOrder' }) as HTMLButtonElement).disabled).toBe(false));
 });
-it('shows the server 422 module errors in the fields, as the online payment does (W223c, W223br) @J623', async () => {
+it('shows the server 422 module errors in the fields, as the online payment does @J623', async () => {
   const errors = [{ field: 'buyer.nip', code: 'invalid_checksum' }, { field: 'recipient.postal_code', code: 'required' }];
   const fetchMock = vi.fn(async () => new Response(JSON.stringify({ errors }), { status: 422 }));
   vi.stubGlobal('fetch', fetchMock);

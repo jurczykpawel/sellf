@@ -18,7 +18,7 @@ const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 // This is a public test NIP that should exist in GUS database
 const TEST_NIP_VALID = '5261040828';
 
-// Checkout NIP validation and GUS autofill UI moved to tests/checkout-invoice-section.spec.ts (W223a).
+// Checkout NIP validation and GUS autofill UI moved to tests/checkout-invoice-section.spec.ts.
 
 test.describe('GUS Checkout Flow - Security', () => {
   let testProduct: any;

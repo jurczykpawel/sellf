@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * W223a: behaviour of the checkout invoice section (accepted mockup v3).
+ * Behaviour of the checkout invoice section.
  * @see src/hooks/useInvoiceSection.ts
  */
 import { act, renderHook, waitFor } from '@testing-library/react';
@@ -143,7 +143,7 @@ describe('useInvoiceSection', () => {
     rerender({ prefill: { taxId: '', companyName: 'Fundacja', address: 'Prosta 1', postalCode: '00-001', city: 'Warszawa', country: 'PL' } });
     expect(result.current.buyer.fields.companyName).toBe('Moja Firma');
   });
-  it('a late GUS answer never overwrites data typed after switching to the manual path (W223ar #3)', async () => {
+  it('a late GUS answer never overwrites data typed after switching to the manual path', async () => {
     let resolveLate: (value: unknown) => void = () => {};
     lookup.mockImplementationOnce(() => new Promise(resolve => { resolveLate = resolve; }));
     const { result } = renderHook(() => useInvoiceSection({ recipientEnabled: false }));
@@ -156,7 +156,7 @@ describe('useInvoiceSection', () => {
     expect(result.current.buyer.fields).toMatchObject({ companyName: 'MANUAL COMPANY', country: 'US' });
   });
 
-  it('a late GUS answer never overwrites a field the buyer edited meanwhile (W223ar #3)', async () => {
+  it('a late GUS answer never overwrites a field the buyer edited meanwhile', async () => {
     let resolveLate: (value: unknown) => void = () => {};
     lookup.mockImplementationOnce(() => new Promise(resolve => { resolveLate = resolve; }));
     const { result } = renderHook(() => useInvoiceSection({ recipientEnabled: false }));
@@ -166,7 +166,7 @@ describe('useInvoiceSection', () => {
     expect(result.current.buyer.fields.companyName).toBe('TYPED');
   });
 
-  it('the "no NIP" path drops the hidden number, so it cannot block the purchase (W223ar #4)', () => {
+  it('the "no NIP" path drops the hidden number, so it cannot block the purchase', () => {
     const { result } = renderHook(() => useInvoiceSection({ recipientEnabled: false }));
     act(() => { result.current.setWant(true); result.current.setTaxId('buyer', '123'); });
     act(() => result.current.setMode('manual'));
@@ -182,7 +182,7 @@ describe('useInvoiceSection', () => {
     expect(result.current.toSubmit().buyer.tax_id).toBe('');
   });
 
-  it('manual path back to Poland: the number field disappears and its value is not sent (W223ar #4)', () => {
+  it('manual path back to Poland: the number field disappears and its value is not sent', () => {
     const { result } = renderHook(() => useInvoiceSection({ recipientEnabled: false }));
     act(() => { result.current.setWant(true); result.current.setMode('manual'); });
     act(() => { result.current.setField('buyer', 'country', 'US'); result.current.setField('buyer', 'taxId', 'EIN-1'); });

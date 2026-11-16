@@ -1,5 +1,5 @@
 /**
- * W223a: one lookup adapter for company data in every checkout (owner 10.11: GUS now, VIES later).
+ * One lookup adapter for company data in every checkout (GUS now, VIES later).
  * @see src/lib/checkout/invoice-company-lookup.ts
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';

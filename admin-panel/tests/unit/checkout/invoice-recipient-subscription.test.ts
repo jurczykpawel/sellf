@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * W223b (W223ar #7): a subscription has no order row the recipient could be kept on, so the
+ * A subscription has no order row the recipient could be kept on, so the
  * standard checkout never offers "Invoice for another institution" for it, even when the shop
  * collects recipients. One-time products keep the option. The server refuses it too.
  * @see src/app/[locale]/checkout/[slug]/components/CustomPaymentForm.tsx

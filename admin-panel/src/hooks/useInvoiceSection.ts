@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * State of the checkout invoice section (accepted mockup v3, owner 10.11). The single tax id field
+ * State of the checkout invoice section. The single tax id field
  * decides the company country; a complete number fetches company data on its own (GUS for a Polish
  * NIP); the manual path takes buyers without a NIP and companies outside the EU. The address is
  * always the same block of separate fields. Validation is the shared one the server runs again.
@@ -93,7 +93,7 @@ export function useInvoiceSection({ recipientEnabled, prefill, initialWant = fal
     });
   }, []);
 
-  /** A company lookup still on its way must not replace what the buyer did after asking (W223ar #3). */
+  /** A company lookup still on its way must not replace what the buyer did after asking. */
   const dropPendingLookup = useCallback((role: InvoiceRole) => {
     lookupSeq.current[role]++;
     setParty(role, party => party.lookup === 'loading' ? { ...party, lookup: 'idle', editing: true } : party);
@@ -150,7 +150,7 @@ export function useInvoiceSection({ recipientEnabled, prefill, initialWant = fal
     dropPendingLookup('buyer');
     if (value === 'manual') {
       // "No NIP or outside the EU": the number typed on the NIP path is gone, so a value the buyer
-      // can no longer see never blocks the purchase (W223ar #4).
+      // can no longer see never blocks the purchase.
       setBuyer(party => ({ ...party, fields: { ...party.fields, taxId: '' } }));
     }
     if (value === 'tax_id') {

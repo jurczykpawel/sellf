@@ -607,7 +607,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
   }, []);
 
   // The page shows the toast; here a rejected save is caught (no unhandled ApiError)
-  // and server field errors are put next to their fields (W146 B6/B7).
+  // and server field errors are put next to their fields.
   const submitAndShowFieldErrors = useCallback((data: Parameters<typeof onSubmit>[0]) => {
     void Promise.resolve(onSubmit(data)).catch((err: unknown) => {
       const errors = serverFieldErrors(err instanceof ApiError ? err.details : undefined);

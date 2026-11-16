@@ -1,5 +1,5 @@
 /**
- * Where checkout company data comes from (owner 10.11: one mechanism in every checkout, GUS now,
+ * Where checkout company data comes from: one mechanism in every checkout (GUS now,
  * VIES later). Each source maps its answer to the same separate address fields, so the invoice
  * section never knows which register answered.
  *

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Checkout invoice section (accepted mockup v3, owner 10.11 — priv/plans/2026-11-11-koszyk-nip-makieta.html):
+ * Checkout invoice section:
  * "I want a company invoice" → one field "NIP or EU VAT number" → company card from GUS, or the
  * same address block (country, name, street and number, postal code, city; the country is locked
  * when it follows from the number). "No NIP or the company is outside the EU" opens the block with

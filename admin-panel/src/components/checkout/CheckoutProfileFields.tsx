@@ -2,7 +2,7 @@
 
 /**
  * Profile UI uses the same values as the server module registry. The organization buyer and the
- * recipient use the standard checkout invoice section (W223b): same fields, rules and messages.
+ * recipient use the standard checkout invoice section: same fields, rules and messages.
  * @see lib/checkout-modules/registry.ts
  * @see components/checkout/InvoiceSection.tsx
  */

@@ -65,7 +65,7 @@ async function open(page: Page) { await acceptAllCookies(page); await page.goto(
 async function place(page: Page, buyerEmail: string) {
   let stripeRequests = 0; page.on('request', r => { if (r.url().includes('/api/create-payment-intent') || r.url().startsWith('https://js.stripe.com/')) stripeRequests++; });
   let orderRequests = 0; page.on('request', r => { if (new URL(r.url()).pathname === '/api/orders/bank-transfer') orderRequests++; });
-  // The organization uses the standard invoice section (W223b); GUS answers "not found", so the address is typed.
+  // The organization uses the standard invoice section; GUS answers "not found", so the address is typed.
   await page.route('**/api/gus/fetch-company-data', route => route.fulfill({ status: 404, json: { success: false, code: 'NOT_FOUND' } }));
   await open(page); await page.getByLabel('Typ nabywcy').selectOption('organization');
   await page.getByRole('radio', { name: /Przelew tradycyjny/ }).check();

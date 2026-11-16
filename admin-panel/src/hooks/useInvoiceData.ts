@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 /**
  * Buyer data saved in the signed-in buyer's profile (name, company, address). The invoice section
  * (standard checkout and checkout profile) takes the company from here once; the company lookup
- * and the tax id rules live in useInvoiceSection (W223b).
+ * and the tax id rules live in useInvoiceSection.
  * @see ./useInvoiceSection.ts
  */
 export interface InvoiceFieldsData {

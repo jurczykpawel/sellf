@@ -1,6 +1,6 @@
 /**
  * Buyer module; shares the existing order buyer fields. An organization follows the invoice rules
- * of the standard checkout section (W223b): `tax_id_mode: 'tax_id'` = the NIP path, where the number
+ * of the standard checkout section: `tax_id_mode: 'tax_id'` = the NIP path, where the number
  * decides the country; without it the manual path (chosen country, optional number).
  * @see ../payment/buyer-details.ts
  * @see ../checkout/invoice-section.ts

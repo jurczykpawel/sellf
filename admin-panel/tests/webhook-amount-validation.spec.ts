@@ -1,11 +1,6 @@
 /**
- * SECURITY TEST: Webhook Amount Validation
- *
- * Tests that Stripe webhook validates payment amounts against product prices
- * to prevent price manipulation attacks.
- *
- * VULNERABILITY: Currently webhook accepts any amount_total from Stripe
- * without comparing it to the actual product.price in database.
+ * Webhook amount validation: the Stripe webhook compares the paid amount_total with the
+ * product price stored in the database and grants access only when they match.
  */
 
 import { test, expect } from '@playwright/test';
@@ -50,20 +45,19 @@ test.describe('Webhook Amount Validation Security', () => {
     }
   });
 
-  test('SECURITY: Reject webhook with manipulated amount (lower than product price)', async ({ request }) => {
-    // This test demonstrates the CRITICAL vulnerability:
-    // Webhook accepts amount_total without verifying it matches product.price
+  test('rejects a payment whose amount is lower than the product price', async ({ request }) => {
+    // A paid amount lower than product.price must not grant access.
 
     console.log(`Using test product: ${testProduct.name} ($${testProduct.price})`);
 
-    // 2. Create a Stripe checkout session with MANIPULATED amount (only $1)
+    // 2. Create a Stripe checkout session with an amount of only $1
     // No payment_method_types: current Stripe accounts manage methods in the Dashboard and reject the parameter.
     const session = await stripe.checkout.sessions.create({
       line_items: [{
         price_data: {
           currency: 'usd',
           product_data: { name: testProduct.name },
-          unit_amount: 100, // MANIPULATED: $1.00 instead of $99.99
+          unit_amount: 100, // $1.00 instead of $99.99
         },
         quantity: 1,
       }],
@@ -81,15 +75,15 @@ test.describe('Webhook Amount Validation Security', () => {
       {
         session_id_param: session.id,
         product_id_param: testProduct.id,
-        customer_email_param: 'attacker@example.com',
-        amount_total: 100, // MANIPULATED: $1.00 instead of product price
+        customer_email_param: 'amount-check@example.com',
+        amount_total: 100, // $1.00 instead of the product price
         currency_param: 'usd',
       }
     );
 
-    console.log('\n🔍 Price manipulation test:');
+    console.log('\n🔍 Amount check:');
     console.log(`   Product price: $${testProduct.price}`);
-    console.log(`   Manipulated amount: $1.00 (100 cents)`);
+    console.log(`   Paid amount: $1.00 (100 cents)`);
     console.log(`   Result: ${error ? 'REJECTED ✅' : 'ACCEPTED ❌'}`);
 
     if (error) {

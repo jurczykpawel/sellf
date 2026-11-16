@@ -249,7 +249,7 @@ export default function PaymentsDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* An order opened from a link (`?order=`) keeps its own window; the list tutorial would point behind it (W148-2). */}
+      {/* An order opened from a link (`?order=`) keeps its own window; the list tutorial would point behind it. */}
       <TutorialTrigger id="payments-orders" auto={!openedFromLink && !unpaidRequested} />
       {unpaidRequested && !loading && !deepLinkTransactionId && <p role="status" className="rounded border border-sf-border p-4">{t('unpaidTutorialEmpty')}</p>}
       {/* Header */}

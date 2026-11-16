@@ -82,7 +82,7 @@ describe.skipIf(!db)('bundle_items schema + guards', () => {
     await db!.from('bundle_items').insert({ bundle_product_id: bundle, component_product_id: comp });
     const dup = await db!.from('bundle_items').insert({ bundle_product_id: bundle, component_product_id: comp });
     expect(dup.error).not.toBeNull();
-    // Owner decision 2026-11-14: a deleted product leaves the bundles that contain it.
+    // A deleted product leaves the bundles that contain it.
     const del = await db!.from('products').delete().eq('id', comp);
     expect(del.error).toBeNull();
     expect((await db!.from('bundle_items').select('component_product_id').eq('bundle_product_id', bundle)).data).toEqual([]);
@@ -147,12 +147,11 @@ describe.skipIf(!db)('bundle_items schema + guards', () => {
   });
 });
 
-// A01 (defense-in-depth): the "bundle_items public read" RLS policy must scope anon reads to
-// EXACTLY when the bundle product itself is publicly visible (mirroring the products anon SELECT
-// policy: is_active=true AND within availability window, or waitlist-enabled). Anon must NOT be able
-// to enumerate component mappings of DRAFT/inactive bundles (pre-announcement BI leak). Uses the
-// ANON key (RLS-enforced), NOT the service-role client, to assert the policy from the outside.
-describe.skipIf(!db || !anon)('bundle_items anon read RLS (A01)', () => {
+// The "bundle_items public read" RLS policy shows anon the components of a bundle exactly when the
+// bundle product itself is publicly visible (same rule as the products anon SELECT policy:
+// is_active=true AND within availability window, or waitlist-enabled). Uses the ANON key
+// (RLS-enforced), not the service-role client, to check the policy from the outside.
+describe.skipIf(!db || !anon)('bundle_items anon read RLS', () => {
   it('anon sees components of an ACTIVE bundle, but ZERO for a DRAFT bundle; service-role sees both', async () => {
     // Active (publicly visible) bundle with one component.
     const activeBundle = await mkProduct({ is_bundle: true, is_active: true });

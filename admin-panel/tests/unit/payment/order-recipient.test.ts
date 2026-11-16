@@ -1,4 +1,4 @@
-/** W223a: the recipient lands next to the buyer on the pending order only. @see src/lib/payment/order-recipient.ts */
+/** The recipient lands next to the buyer on the pending order only. @see src/lib/payment/order-recipient.ts */
 import { describe, expect, it, vi } from 'vitest';
 import { saveOrderRecipient, toStoredRecipient } from '@/lib/payment/order-recipient';
 

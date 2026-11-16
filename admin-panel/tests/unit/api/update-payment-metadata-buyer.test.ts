@@ -123,7 +123,7 @@ describe('POST /api/update-payment-metadata — buyer details on the pending row
     expect(args.p_session_id).toBeUndefined();
   });
 
-  it('refuses control characters and over-long text with field errors instead of storing a cut value (W223b)', async () => {
+  it('refuses control characters and over-long text with field errors instead of storing a cut value', async () => {
     const res = await POST(makeRequest(SESSION_ID, { companyName: `  Acme\u0000\u0007  ${'x'.repeat(250)}` }));
     expect(res.status).toBe(422);
     expect((await res.json()).errors).toEqual([{ field: 'invoice.company_name', code: 'too_long' }]);
@@ -231,7 +231,7 @@ describe('profile order details', () => {
     expect(res.status).toBe(500);
     expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
   });
-  it('refuses order details over the stored limit before the first write, so 422 leaves nothing saved (W223c, W223br)', async () => {
+  it('refuses order details over the stored limit before the first write, so 422 leaves nothing saved', async () => {
     // 100 participants valid for the modules, 100-character multi-byte names, long e-mails.
     const bigProfile = { v: 1, modules: [{ id: 'buyer', types: ['person'], gus: false }, { id: 'quantity', min: 1, max: 100, mode: 'checkout' }, { id: 'participants', required: true, prefill_from_buyer: false }] };
     mocks.productRead.mockResolvedValue({ data: { checkout_profile: bigProfile, currency: 'PLN', custom_checkout_fields: [] }, error: null });
@@ -313,7 +313,7 @@ describe('coupon reservation at submit', () => {
       code_param: 'NET30', product_id_param: PRODUCT_ID, customer_email_param: 'buyer@example.com', currency_param: 'PLN',
     });
   });
-  // W148-8: the second tab learns the code is gone (used in the first tab) by a stable code,
+  // The second tab learns the code is gone (used in the first tab) by a stable code,
   // so it can show a specific message and re-price instead of "could not save your details".
   it.each([
     { data: { valid: false, error: 'You have already used this code' }, error: null },

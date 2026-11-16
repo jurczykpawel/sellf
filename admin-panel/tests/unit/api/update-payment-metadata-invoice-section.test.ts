@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
 /**
- * W223a: the standard checkout sends the invoice section as one `invoice` object. The server
+ * The standard checkout sends the invoice section as one `invoice` object. The server
  * re-runs the same validation as the browser, writes the buyer (order + Stripe metadata) and,
  * when the shop collects it, the different invoice recipient. Stripe and Supabase are mocked.
  *
@@ -156,7 +156,7 @@ describe('POST /api/update-payment-metadata — different invoice recipient @J62
   });
 });
 
-describe('POST /api/update-payment-metadata — W223b: one rule set for the standard checkout', () => {
+describe('POST /api/update-payment-metadata — one rule set for the standard checkout', () => {
   function flatRequest(fields: Record<string, unknown>) {
     return new NextRequest('http://localhost/api/update-payment-metadata', {
       method: 'POST',
@@ -165,7 +165,7 @@ describe('POST /api/update-payment-metadata — W223b: one rule set for the stan
     });
   }
 
-  it('flat fields cannot bypass the invoice rules: a company without its address is refused (W223ar #2)', async () => {
+  it('flat fields cannot bypass the invoice rules: a company without its address is refused', async () => {
     const res = await POST(flatRequest({ needsInvoice: true, nip: '1181697228', country: 'PL', companyName: '', address: '', postalCode: '', city: '' }));
     expect(res.status).toBe(422);
     expect((await res.json()).errors).toEqual(expect.arrayContaining([{ field: 'invoice.company_name', code: 'required' }, { field: 'invoice.city', code: 'required' }]));
@@ -185,7 +185,7 @@ describe('POST /api/update-payment-metadata — W223b: one rule set for the stan
     expect(buyerArg()).toMatchObject({ type: 'person', needs_invoice: false, nip: '', company_name: '', country: 'DE' });
   });
 
-  it('a long non-EU tax id is stored whole, never cut (W223ar #5)', async () => {
+  it('a long non-EU tax id is stored whole, never cut', async () => {
     const taxId = '1234567890123456789012345';
     const res = await POST(request({ want: true, mode: 'manual', buyer: { tax_id: taxId, country: 'US', company_name: 'Acme Inc.', address: '1 Main St', postal_code: '10001', city: 'New York' }, recipient: null }));
     expect(res.status).toBe(200);
@@ -193,7 +193,7 @@ describe('POST /api/update-payment-metadata — W223b: one rule set for the stan
     expect(metadataArg()).toMatchObject({ nip: taxId });
   });
 
-  it('a subscription cannot take a different recipient: refused, nothing silently dropped (W223ar #7)', async () => {
+  it('a subscription cannot take a different recipient: refused, nothing silently dropped', async () => {
     mocks.recipientEnabled.mockResolvedValue(true);
     mocks.sessionsRetrieve.mockResolvedValue({ id: SESSION_ID, status: 'open', mode: 'subscription', metadata: { product_id: PRODUCT_ID }, customer: 'cus_1' });
     const recipient = { tax_id: '5260250995', company_name: 'Szkoła Podstawowa nr 1', address: 'ul. Szkolna 1', postal_code: '11-111', city: 'Przykładowo' };

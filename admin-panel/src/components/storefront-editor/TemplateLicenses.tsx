@@ -39,7 +39,7 @@ export default function TemplateLicenses() {
     const formatError = templateKeyFormatError(token, templateId);
     if (formatError) { setKeyError(t(formatError === 'template' ? 'wrongTemplate' : 'badFormat')); setConfirmReplace(false); return; }
     setKeyError('');
-    // A stored key is replaced only after an explicit confirmation (W148-6).
+    // A stored key is replaced only after an explicit confirmation.
     const stored = statuses.find(s => s.templateId === templateId)?.state;
     if (stored && stored !== 'missing' && !confirmReplace) { setConfirmReplace(true); return; }
     await submit();

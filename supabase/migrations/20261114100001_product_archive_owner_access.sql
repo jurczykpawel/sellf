@@ -1,4 +1,4 @@
--- Product archive, owner decisions 2026-11-14:
+-- Product archive:
 -- * an archived product is hidden from the public (waitlist included) but its buyers keep the content;
 -- * a permanent delete is blocked only by active subscriptions and future event reservations;
 --   ended subscriptions and past reservations stay as history, affiliate rules and bundle links go.

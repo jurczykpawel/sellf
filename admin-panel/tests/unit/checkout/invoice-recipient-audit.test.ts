@@ -1,5 +1,5 @@
 /**
- * W223b (W223ar #1), W223c: every change of the shop setting "collect a different invoice recipient"
+ * Every change of the shop setting "collect a different invoice recipient"
  * leaves an audit entry with the admin's user UUID (audit_log.performed_by references auth.users).
  * Setting and entry are saved in one database transaction (set_invoice_recipient_enabled); when the
  * entry is refused nothing is saved and the caller gets an error — from the panel and API v1 alike.

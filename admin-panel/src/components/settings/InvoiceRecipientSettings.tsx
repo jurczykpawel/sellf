@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Shop setting "collect a different invoice recipient" (owner 10.11): OFF by default; when on,
+ * Shop setting "collect a different invoice recipient": OFF by default; when on,
  * the checkout invoice section offers "Invoice for another institution (recipient)", always with a NIP.
  *
  * @see src/lib/actions/invoice-recipient-config.ts

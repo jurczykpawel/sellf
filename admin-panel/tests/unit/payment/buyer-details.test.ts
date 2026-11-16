@@ -104,7 +104,7 @@ describe('backfillBuyerDetails', () => {
   });
 });
 
-describe('buildBuyerDetails — tax id length (W223b, W223ar #5)', () => {
+describe('buildBuyerDetails — tax id length', () => {
   it('keeps an accepted tax id whole up to the shared limit', () => {
     const taxId = 'X'.repeat(TAX_ID_MAX_LENGTH);
     expect(buildBuyerDetails({ nip: taxId }, 'checkout').nip).toBe(taxId);

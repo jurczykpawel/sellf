@@ -188,7 +188,7 @@ test.describe('Checkout E2E - Guest Purchase Flow', () => {
 });
 
 // Invoice section (NIP / EU VAT / manual, GUS autofill and failures) moved to
-// tests/checkout-invoice-section.spec.ts with the W223a redesign.
+// tests/checkout-invoice-section.spec.ts with the invoice section redesign.
 
 test.describe('Checkout E2E - Error Scenarios', () => {
   let testProduct: any;
@@ -412,7 +412,7 @@ test.describe('Checkout E2E - Authenticated User Profile Data', () => {
     // Wait for profile to load
     await page.waitForTimeout(2000);
 
-    // A saved company opens the invoice section filled in (W223a)
+    // A saved company opens the invoice section filled in
     await expect(page.locator('#wantInvoice')).toBeChecked();
     const nipInput = page.locator('input#nip');
     await expect(nipInput).toBeVisible();

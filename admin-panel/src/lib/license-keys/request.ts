@@ -56,7 +56,7 @@ export async function issueRequestedLicense(
   const admin = createAdminClient();
   const product = await admin.from('products').select('slug, name, custom_checkout_fields, license_duration_days').eq('id', input.productId).single();
   if (product.error || !product.data) return { ok: false, status: 409, error: 'Product is not configured for license issuance' };
-  // A legacy duration beyond the supported range cannot produce a valid expiry date (W146 B7).
+  // A legacy duration beyond the supported range cannot produce a valid expiry date.
   if (licenseDurationError(product.data.license_duration_days)) return { ok: false, status: 409, error: 'Invalid license duration on the product', fieldErrors: { license_duration_days: 'license_duration' } };
   const definitions = validateCustomFieldDefinitions(product.data.custom_checkout_fields ?? []);
   if (!definitions.ok) return { ok: false, status: 400, error: 'Invalid product configuration' };

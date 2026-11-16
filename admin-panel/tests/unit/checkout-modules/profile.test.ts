@@ -135,7 +135,7 @@ describe('module values', () => {
 });
 
 
-describe('country-specific organization tax numbers (the shared invoice rules, W223b)', () => {
+describe('country-specific organization tax numbers (the shared invoice rules)', () => {
   it.each([
     ['PL', '5252248481', true], ['PL', '1234567890', false],
     ['DE', 'DE123456789', true], ['DE', 'FR123456789', false],

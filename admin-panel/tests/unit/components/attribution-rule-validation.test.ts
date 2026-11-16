@@ -14,7 +14,7 @@ afterEach(() => { cleanup(); vi.resetAllMocks(); });
 
 const view = () => createElement(NextIntlClientProvider, { locale: 'pl', messages: pl }, createElement(AttributionSettings));
 
-it('explains an empty or malformed channel next to the field in Polish and does not call the server (W224-B16)', async () => {
+it('explains an empty or malformed channel next to the field in Polish and does not call the server', async () => {
   actions.getAttributionConfig.mockResolvedValue({ success: true, data: { click_id_retention_days: 30, rules: [] } });
   render(view());
   fireEvent.click(await screen.findByRole('button', { name: pl.settings.attribution.addRule }));

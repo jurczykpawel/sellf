@@ -1639,7 +1639,7 @@
       "layers": [
         "http"
       ],
-      "limits": "Requires a fully disposable isolated database: the existing test postpones other due retry rows. No W110 execution of this scenario."
+      "limits": "Requires a fully disposable isolated database: the existing test postpones other due retry rows."
     },
     {
       "id": "J71",
@@ -5229,217 +5229,217 @@
   "escapes": [
     {
       "id": "E01",
-      "source": "W105 / CLOUD-BILLFIX1 Dla Sellf 1: refund ID/status",
+      "source": "refund ID/status",
       "journey": "J34",
       "why_missed": "Old fixtures supplied refund identity/status instead of testing a recorded Charge with the optional collection absent."
     },
     {
       "id": "E02",
-      "source": "W105: duplicate refund delivery",
+      "source": "duplicate refund delivery",
       "journey": "J35",
       "why_missed": "Separate Stripe entry points were checked individually without a single logical delivery assertion."
     },
     {
       "id": "E03",
-      "source": "W105: partial refund classification and remaining amount",
+      "source": "partial refund classification and remaining amount",
       "journey": "J34",
       "why_missed": "The full refund path did not prove partial status, API reconciliation and refunding the remainder."
     },
     {
       "id": "E04",
-      "source": "W105: delayed refund status and stale charge",
+      "source": "delayed refund status and stale charge",
       "journey": "J35",
       "why_missed": "Tests did not combine observed state changes, older input and retained notification versions."
     },
     {
       "id": "E05",
-      "source": "W105 / CLOUD-BILLFIX1 Dla Sellf 2: paid renewal period",
+      "source": "paid renewal period",
       "journey": "J36",
       "why_missed": "Tests accepted the builder shape rather than the invoice-specific period needed by the receiver."
     },
     {
       "id": "E06",
-      "source": "W105: missing invoice parent/payments",
+      "source": "missing invoice parent/payments",
       "journey": "J39",
       "why_missed": "Optional parent and expandable payments were not both absent in the same test."
     },
     {
       "id": "E07",
-      "source": "W105 / W107-03: actual subscription end",
+      "source": "actual subscription end",
       "journey": "J37",
       "why_missed": "Nominal billing end was not compared with actual access removal after a failed renewal."
     },
     {
       "id": "E08",
-      "source": "CLOUD-BILLFIX1 Dla Sellf 4 / W107-06",
+      "source": "dispute notification for products without a license",
       "journey": "J38",
       "why_missed": "License revocation was mistaken for a general dispute notification for products that issue no license."
     },
     {
       "id": "E09",
-      "source": "W106 / CLOUD-BILLFIX1 Dla Sellf 3: initial receipt",
+      "source": "initial receipt",
       "journey": "J32",
       "why_missed": "Tests inspected later emails instead of the first signup mail before payment context was ready."
     },
     {
       "id": "E10",
-      "source": "W106: pre-OTO subscription receipt",
+      "source": "pre-OTO subscription receipt",
       "journey": "J33",
       "why_missed": "Checkout Session identity was assumed to match an invoice-backed purchase lookup."
     },
     {
       "id": "E11",
-      "source": "W106: duplicated cookie preferences control",
+      "source": "duplicated cookie preferences control",
       "journey": "J40",
       "why_missed": "Offer composition and global footer were tested separately, not together on the buyer page."
     },
     {
       "id": "E12",
-      "source": "W107-01: missing free lead",
+      "source": "missing free lead",
       "journey": "J13",
       "why_missed": "Signed-in grant was the only free path proving lead delivery; new account and pending login were absent."
     },
     {
       "id": "E13",
-      "source": "W107-02: payment detail parity",
+      "source": "payment detail parity",
       "journey": "J30",
       "why_missed": "List response had richer order data than the independently asserted detail endpoint."
     },
     {
       "id": "E14",
-      "source": "W107-04: free access expiry in lead",
+      "source": "free access expiry in lead",
       "journey": "J15",
       "why_missed": "Lead assertions omitted the actual expiry needed for an access decision."
     },
     {
       "id": "E15",
-      "source": "W107-05: transfer access policy",
+      "source": "transfer access policy",
       "journey": "J28",
       "why_missed": "Order placement tests checked money but not whether the receiver could determine access policy."
     },
     {
       "id": "E16",
-      "source": "W107-07: abandoned order",
+      "source": "abandoned order",
       "journey": "J25",
       "why_missed": "Local expiration state was checked without asserting an external change event."
     },
     {
       "id": "E17",
-      "source": "W107-07: pending creation",
+      "source": "pending creation",
       "journey": "J113",
       "why_missed": "Completion and abandonment did not prove notification when the unpaid attempt is first created."
     },
     {
       "id": "E18",
-      "source": "W107-07: declined payment",
+      "source": "declined payment",
       "journey": "J114",
       "why_missed": "Decline UI coverage did not assert the external failure contract."
     },
     {
       "id": "E19",
-      "source": "W107-08: admin access grant/update/revoke",
+      "source": "admin access grant/update/revoke",
       "journey": "J22",
       "why_missed": "API success was not compared with signed before/after access outcomes at the receiver."
     },
     {
       "id": "E20",
-      "source": "W107-08: guest claim",
+      "source": "guest claim",
       "journey": "J23",
       "why_missed": "Registration claimed the purchase without a tested event identifying its source order."
     },
     {
       "id": "E21",
-      "source": "W107-08: natural expiry",
+      "source": "natural expiry",
       "journey": "J24",
       "why_missed": "An expiry producer existed but the cron dispatch was not executed in the consumer test."
     },
     {
       "id": "E22",
-      "source": "W107-09: reservation transitions",
+      "source": "reservation transitions",
       "journey": "J25",
       "why_missed": "Order outcomes were assumed to imply seat outcomes without reservation-specific payload assertions."
     },
     {
       "id": "E23",
-      "source": "W107-10",
+      "source": "invoice lifecycle events",
       "journey": "J108",
       "why_missed": "Invoice tests check provider and stored state without the external lifecycle contract."
     },
     {
       "id": "E24",
-      "source": "W107-11",
+      "source": "partner and commission events",
       "journey": "J109",
       "why_missed": "Partner and commission tests do not observe the required external transition events."
     },
     {
       "id": "E25",
-      "source": "W107-12",
+      "source": "refund request events",
       "journey": "J110",
       "why_missed": "Refund execution is covered separately from request review and cancellation notifications."
     },
     {
       "id": "E26",
-      "source": "W107-13",
+      "source": "license expiry event",
       "journey": "J111",
       "why_missed": "Offline token expiry was treated as sufficient without testing an explicit external expiry event."
     },
     {
       "id": "E27",
-      "source": "W107-14",
+      "source": "product publication events",
       "journey": "J112",
       "why_missed": "Publication and availability tests stop at local presentation, not external state changes."
     },
     {
       "id": "E28",
-      "source": "W107-15: VAT quality",
+      "source": "VAT quality",
       "journey": "J27",
       "why_missed": "A missing tax snapshot was indistinguishable from a zero tax amount in the tested payload."
     },
     {
       "id": "E29",
-      "source": "W107-16: transfer minor units",
+      "source": "transfer minor units",
       "journey": "J28",
       "why_missed": "Amounts were tested independently without asserting one explicit unit contract for all money fields."
     },
     {
       "id": "E30",
-      "source": "W107-17: internal order identity",
+      "source": "internal order identity",
       "journey": "J27",
       "why_missed": "Provider identity was accepted without the internal order UUID needed for detail reconciliation."
     },
     {
       "id": "E31",
-      "source": "W108 / owner-demo-feedback 10: free license and domain",
+      "source": "free license and domain",
       "journey": "J19",
       "why_missed": "New account, free grant, required domain and license issuance were tested in isolation rather than end to end."
     },
     {
       "id": "E32",
-      "source": "W108: pending grant retains checkout answers",
+      "source": "pending grant retains checkout answers",
       "journey": "J18",
       "why_missed": "Account metadata marker coverage did not include answers saved before account confirmation."
     },
     {
       "id": "E33",
-      "source": "W108 / owner-demo-feedback 15: manual domain policy",
+      "source": "manual domain policy",
       "journey": "J20",
       "why_missed": "A domain-required product was used as the only manual issuance fixture."
     },
     {
       "id": "E34",
-      "source": "W123 B1 / W133: license issued after dispute handling",
+      "source": "license issued after dispute handling",
       "journey": "J195",
       "why_missed": "Dispute tests created licenses before the dispute; the reverse order (payment, dispute, then issuance) was never exercised."
     },
     {
       "id": "E35",
-      "source": "W129 on TEST 0d292a45: revoked key shown as working",
+      "source": "revoked license in the buyer view",
       "journey": "J199",
       "why_missed": "Buyer page tests only covered active and expired licenses; revocation was verified via CRL, never in the buyer view."
     },
     {
       "id": "E36",
-      "source": "W148-8 / W148-9 on TEST: second tab with a used coupon",
+      "source": "second tab with a used coupon",
       "journey": "J310",
       "why_missed": "Coupon tests used one tab per buyer; the per-code verify limit (5/h, also spent by valid refreshes) and the submit-time reservation check were never exercised with two tabs of one cart."
     }

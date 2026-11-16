@@ -40,7 +40,7 @@ function lifecycle(tx: Tx, locale: 'pl' | 'en') {
   let link: { url: string | null; expiresAt: string | null } = { url: null, expiresAt: null };
   // A missing signing secret must not block the event itself; the link is then simply absent.
   try { link = buildOrderPayLink(tx.id, locale, getSellfBaseUrl()); } catch { console.error('[transfer-event] Pay link unavailable:', tx.id); }
-  // A cancelled order has no live reservation: its reminder and release times are void (W147-11).
+  // A cancelled order has no live reservation: its reminder and release times are void.
   const cancelled = tx.status === 'cancelled';
   return {
     payUrl: link.url, payUrlExpiresAt: link.expiresAt, paymentDeadline: transferDeadline(tx),

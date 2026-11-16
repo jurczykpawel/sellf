@@ -1,5 +1,5 @@
 /**
- * Checkout invoice section (accepted mockup v3, owner 10.11): "I want a company invoice" →
+ * Checkout invoice section: "I want a company invoice" →
  * one field "NIP or EU VAT number" (the number decides the company country) → company data
  * in separate address fields; "No NIP or the company is outside the EU" → the same address block
  * with a country choice. A different invoice recipient (institutions only) is a shop setting and
@@ -189,7 +189,7 @@ export function validateInvoiceSection(input: InvoiceSectionInput, { recipientEn
 
 /**
  * The older flat request fields (needsInvoice, nip, companyName, …) as an invoice section, so a
- * standard checkout request without `invoice` meets exactly the same rules (W223ar #2). Flat data
+ * standard checkout request without `invoice` meets exactly the same rules. Flat data
  * always named the company country, so it maps to the manual path: chosen country, number checked
  * by that country's pattern, the whole address required.
  */

@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-/** Premium template key entry: format check and replacement confirmation (W148-6). @see TemplateLicenses.tsx */
+/** Premium template key entry: format check and replacement confirmation. @see TemplateLicenses.tsx */
 import React from 'react';
 import { NextIntlClientProvider } from 'next-intl';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
