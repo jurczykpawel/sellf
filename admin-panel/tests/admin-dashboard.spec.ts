@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { supabaseAdmin, loginAsAdmin } from './helpers/admin-auth';
 import { restoreBaselineTaxMode } from './helpers/tax-mode';
+import { openFormSection } from './helpers/product-form';
 
 // Enforce single worker
 test.describe.configure({ mode: 'serial' });
@@ -119,8 +120,8 @@ test.describe('Authenticated Admin Dashboard', () => {
     // default arrives and validation rejects vat_rate=null.
     await modal.locator('#vat_rate').fill('23');
 
-    // Description lives on step 2 after the redesign — advance and fill it.
-    await modal.getByRole('button', { name: /Dalej|Next/i }).click();
+    // Description lives in the offer section.
+    await openFormSection(page, /Oferta|Offer/);
     await modal.locator('textarea[name="description"]').fill('Description');
 
     // Click Publish to commit

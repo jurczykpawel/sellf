@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 import { createTestAdmin, loginAsAdmin, supabaseAdmin } from './helpers/admin-auth';
+import { openFormSection } from './helpers/product-form';
 
 test('checkout profile settings persist after reopening the product wizard @J97', async ({ page }) => {
   test.setTimeout(90_000);
@@ -14,8 +15,7 @@ test('checkout profile settings persist after reopening the product wizard @J97'
     const row = page.locator('tr, [data-product-id]').filter({ hasText: name });
     await row.locator('button[title*="Edytuj"], button[title*="Edit"]').first().click();
     const dialog = page.getByRole('dialog');
-    await dialog.getByRole('button', { name: /Sprzedaż i ustawienia/i }).click();
-    await page.locator('[data-step3-group="B"]').getByRole('button').first().click();
+    await openFormSection(page, 'Dane w koszyku');
     await page.getByLabel('Własny koszyk dla tego produktu').check();
     await page.getByLabel('Telefon', { exact: true }).check();
     await page.getByLabel('Telefon: wymagane').check();
@@ -26,8 +26,7 @@ test('checkout profile settings persist after reopening the product wizard @J97'
     expect(response.status(), await response.text()).toBe(200);
     await expect(dialog).not.toBeVisible();
     await row.locator('button[title*="Edytuj"], button[title*="Edit"]').first().click();
-    await page.getByRole('dialog').getByRole('button', { name: /Sprzedaż i ustawienia/i }).click();
-    await page.locator('[data-step3-group="B"]').getByRole('button').first().click();
+    await openFormSection(page, 'Dane w koszyku');
     await expect(page.getByLabel('Własny koszyk dla tego produktu')).toBeChecked();
     await expect(page.getByLabel('Telefon: wymagane')).toBeChecked();
     const { data } = await supabaseAdmin.from('products').select('checkout_profile').eq('id', product.id).single();

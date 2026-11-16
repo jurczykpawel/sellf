@@ -29,10 +29,14 @@ vi.mock('@/components/ui/Modal', () => {
   const Container = ({ children }: { children: React.ReactNode }) => children;
   return { BaseModal: Container, ModalSection: Container, ModalBody: Container, ModalHeader: () => null, Button: () => null, Message: () => null };
 });
-vi.mock('@/components/ProductFormModal/wizard/steps/StepEssentials', () => ({ StepEssentials: (props: React.ComponentProps<typeof ProductTypeRadio>) => createElement(ProductTypeRadio, props) }));
-vi.mock('@/components/ProductFormModal/wizard/steps/StepContentDetails', () => ({ StepContentDetails: () => null }));
-vi.mock('@/components/ProductFormModal/wizard/steps/StepSalesSettings', () => ({ StepSalesSettings: () => null }));
-vi.mock('@/components/ProductFormModal/wizard/WizardStepIndicator', () => ({ WizardStepIndicator: () => null }));
+vi.mock('@/components/ProductFormModal/wizard/panels/BasicsPanel', () => ({ BasicsPanel: (props: React.ComponentProps<typeof ProductTypeRadio>) => createElement(ProductTypeRadio, props) }));
+vi.mock('@/components/ProductFormModal/wizard/panels/DeliveryPanel', () => ({ DeliveryPanel: () => null }));
+vi.mock('@/components/ProductFormModal/wizard/panels/CartPanel', () => ({ CartPanel: () => null }));
+vi.mock('@/components/ProductFormModal/wizard/panels/OfferPanel', () => ({ OfferPanel: () => null }));
+vi.mock('@/components/ProductFormModal/wizard/panels/SalesPanel', () => ({ SalesPanel: () => null }));
+vi.mock('@/components/ProductFormModal/sections/EventSection', () => ({ EventSection: () => null }));
+vi.mock('@/components/ProductFormModal/wizard/FormSectionNav', () => ({ FormSectionNav: () => null }));
+vi.mock('@/components/ProductFormModal/wizard/FormSection', () => ({ FormSection: ({ children }: { children: React.ReactNode }) => children }));
 vi.mock('@/components/ProductFormModal/wizard/WizardFooter', () => ({ WizardFooter: () => null }));
 vi.mock('@/components/player/VideoOptionsPanel', () => ({ VideoOptionsPanel: () => null }));
 vi.mock('@/components/ProductFormModal/sections/ConversionBadge', () => ({ ConversionBadge: () => null }));

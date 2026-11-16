@@ -4,7 +4,7 @@ description: Dane nabywcy, odbiorcy, telefon i uczestnicy zakupów jednorazowych
 ---
 
 Profil koszyka określa dane zbierane dla produktu. W edycji produktu wybierz
-**Sprzedaż i ustawienia → Koszyk** i włącz **Własny koszyk dla tego produktu**.
+**Dane w koszyku** i włącz **Własny koszyk dla tego produktu**.
 Produkty bez profilu zachowują dotychczasowy formularz oraz format webhooka.
 
 ## Moduły

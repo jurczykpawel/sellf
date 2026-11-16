@@ -4,6 +4,7 @@ import { test, expect } from '@playwright/test';
 import { supabaseAdmin as db } from './helpers/admin-auth';
 import { checkAccessibility } from './helpers/axe';
 import { menuName, mustAct, popover, popoverTitle, seenTutorials, stepText, tutorialAdmin, walk } from './helpers/tutorials';
+import { openFormSection } from './helpers/product-form';
 import type { Page } from '@playwright/test';
 
 if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(process.env.SUPABASE_URL ?? '')) throw new Error('Requires a local disposable Supabase stack');
@@ -23,15 +24,12 @@ async function admin(page: Page, prefix: string, autostart = true) {
   cleanups.push(() => session.cleanup());
   return session;
 }
-async function openSalesSettings(page: Page, productName: string) {
+async function openProductSection(page: Page, productName: string, section: 'Dane w koszyku' | 'Terminy i miejsca') {
   await page.goto('/pl/dashboard/products');
   const search = page.getByPlaceholder(/Szukaj/i).first();
   await search.fill(productName);
   await page.locator('tr').filter({ hasText: productName }).locator('button[title*="Edytuj"], button[title*="Edit"]').first().click();
-  const dialog = page.getByRole('dialog');
-  await dialog.getByRole('button', { name: /Dalej/i }).click();
-  await dialog.getByRole('button', { name: /Dalej/i }).click();
-  await page.locator('[data-step3-group="B"]').getByRole('button').first().click();
+  await openFormSection(page, section);
 }
 
 test('store templates tutorial starts on the first visit, is remembered per user and can be replayed from the help menu @J210', async ({ page, browser }) => {
@@ -71,7 +69,7 @@ test('product offer tutorial walks the offer editor of a chosen product @J211', 
 test('business cart tutorial starts when the custom cart is switched on and its prompt waits for a click when started by hand @J212', async ({ page }) => {
   const session = await admin(page, 'tour-profile');
   const product = await productFixture('Koszyk samouczek');
-  await openSalesSettings(page, product.name);
+  await openProductSection(page, product.name, 'Dane w koszyku');
   await expect(page.getByLabel('Własny koszyk dla tego produktu')).not.toBeChecked();
   await page.waitForFunction(() => performance.now() > 3000);
   await expect(popover(page)).toHaveCount(0);
@@ -94,7 +92,7 @@ test('business cart tutorial starts when the custom cart is switched on and its 
 test('event tutorial leads from switching on event mode to adding a date and a price tier @J213', async ({ page }) => {
   const session = await admin(page, 'tour-events');
   const product = await productFixture('Wydarzenie samouczek');
-  await openSalesSettings(page, product.name);
+  await openProductSection(page, product.name, 'Terminy i miejsca');
   await expect(page.getByRole('region', { name: 'Terminy i ceny' })).toBeVisible();
   await page.getByLabel('Tryb wydarzenia', { exact: true }).check();
   await expect(popoverTitle(page)).toHaveText(stepText('events', 'intro').title);
@@ -267,7 +265,7 @@ test('an order opened from a link does not start the payments list tutorial over
 test('event mode explains why it is unavailable instead of offering a tutorial that cannot continue @J302', async ({ page }) => {
   await admin(page, 'tour-event-off', false);
   const product = await productFixture('Wydarzenie dowolna cena', { allow_custom_price: true });
-  await openSalesSettings(page, product.name);
+  await openProductSection(page, product.name, 'Terminy i miejsca');
   await expect(page.getByLabel('Tryb wydarzenia', { exact: true })).toBeDisabled();
   await expect(page.locator('#event-mode-unavailable')).toHaveText(/tylko dla produktu jednorazowego/);
   await expect(page.getByTestId('tutorial-help-events')).toHaveCount(0);
@@ -334,7 +332,7 @@ test('tutorial links switch between settings tabs in both directions without a r
 test('Escape dismisses the tutorial while preserving the edited product and returning focus @J212', async ({ page }) => {
   await admin(page, 'tour-parent-escape', false);
   const product = await productFixture('Samouczek Escape');
-  await openSalesSettings(page, product.name);
+  await openProductSection(page, product.name, 'Dane w koszyku');
   await page.getByLabel('Własny koszyk dla tego produktu').check();
   const help = page.getByTestId('tutorial-help-b2b-checkout-profile');
   await help.click();

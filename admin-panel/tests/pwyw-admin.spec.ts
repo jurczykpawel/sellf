@@ -2,6 +2,7 @@ import { test, expect, Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { acceptAllCookies } from './helpers/consent';
 import { setAuthSession } from './helpers/admin-auth';
+import { openFormSection } from './helpers/product-form';
 
 /**
  * PWYW Admin Panel Tests
@@ -441,8 +442,8 @@ test.describe('PWYW Admin - Create New Product', () => {
     // Set minimum price
     await modal.locator('#custom_price_min').fill('5');
 
-    // Advance to step 2 and fill description there
-    await modal.getByRole('button', { name: /Dalej|Next/i }).click();
+    // Description lives in the offer section
+    await openFormSection(page, /Oferta|Offer/);
     await modal.locator('textarea[name="description"]').fill('New PWYW product description');
 
     // Save — wizard uses a regular button, not form submit

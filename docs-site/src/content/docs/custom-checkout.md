@@ -4,7 +4,7 @@ description: Collect buyer, recipient, phone and participant details for one-tim
 ---
 
 A checkout profile controls the data collected for a product. Open the product editor,
-choose **Sales and settings → Checkout**, and enable **Custom checkout for this product**.
+choose **Checkout details**, and enable **Custom checkout for this product**.
 Products without a profile keep their existing checkout and webhook format.
 
 ## Modules

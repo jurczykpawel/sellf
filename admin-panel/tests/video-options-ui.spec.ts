@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { createTestAdmin, loginAsAdmin, supabaseAdmin } from './helpers/admin-auth';
+import { formSectionButton, openFormSection } from './helpers/product-form';
 
 /**
  * Video Options UI Tests
@@ -51,41 +52,28 @@ async function openWizardAndGoToStep2(page: Page, productName: string) {
   await addBtn.click();
   await expect(page.getByText('Utwórz nowy produkt')).toBeVisible({ timeout: 15000 });
 
-  // Fill step 1 minimum (description moved to step 2)
+  // Fill the basics
   const dlg = page.getByRole('dialog');
   await dlg.locator('input#name').fill(productName);
   await dlg.locator('input#price').fill('10');
 
-  // Wait for slug auto-generation from name (required for step 1 validation)
+  // Wait for slug auto-generation from name (required by the basics validation)
   await expect(dlg.locator('input#slug')).not.toHaveValue('', { timeout: 10000 });
 
   // In local-tax mode (default), `vat_rate` must not be null when
   // `price_includes_vat=true`. The form auto-fetches the default from shop
-  // config; wait for that value so step-1 validation passes.
+  // config; wait for that value so the basics validation passes.
   // In Stripe Tax mode there is no #vat_rate input — the wait is a no-op.
   const vatRateInput = dlg.locator('#vat_rate');
   if (await vatRateInput.isVisible({ timeout: 3000 }).catch(() => false)) {
     await expect(vatRateInput).not.toHaveValue('', { timeout: 10000 });
   }
 
-  // Advance to step 2. A transient step-1 validation state (e.g. the
-  // shop-config fetch that seeds VAT/price defaults still settling right as
-  // "Dalej" becomes clickable) can hold the wizard on step 1 for a click —
-  // retry clicking for as long as step 1 is still showing, until step 2's
-  // description textarea actually renders, instead of assuming one retry is
-  // always enough. Clicking again once step 2 is already showing would
-  // inadvertently advance to step 3, so the click is conditional on still
-  // being stuck on step 1.
-  const nextBtn = dlg.getByRole('button', { name: /Dalej/i });
-  const nameInput = dlg.locator('input#name');
+  // Description lives in the offer section, content delivery in "Co dostaje klient".
+  await openFormSection(page, /Oferta|Offer/);
   const descTextarea = dlg.locator('textarea#description');
-  await expect(async () => {
-    if (await nameInput.isVisible().catch(() => false)) {
-      await nextBtn.click();
-    }
-    await expect(descTextarea).toBeVisible({ timeout: 1000 });
-  }).toPass({ timeout: 20000 });
   await descTextarea.fill('Video options test');
+  await openFormSection(page, /Co dostaje klient|What the buyer gets/);
 
   // Confirm content delivery section is rendered
   const contentSection = dlg.getByText(/Dostarczanie treści/i);
@@ -442,13 +430,13 @@ test.describe('Video Options UI', () => {
     const mutedCheckbox = dialog(page).locator('label').filter({ hasText: 'Wyciszony' }).locator('input[type="checkbox"]');
     await mutedCheckbox.check();
 
-    // Go to step 3
+    // Go to the next section
     await page.getByRole('dialog').getByRole('button', { name: /Dalej/i }).click();
-    await expect(page.getByRole('button', { name: /Sprzedaż i ustawienia|Sales & Settings/i })).toBeVisible();
+    await expect(formSectionButton(page, /Dane w koszyku|Checkout details/)).toHaveAttribute('aria-current', 'true');
 
-    // Go back to step 2 — options should persist
+    // Go back to content delivery — options should persist
     await page.getByRole('button', { name: /Wstecz/i }).click();
-    await expect(page.getByRole('button', { name: /Treść i szczegóły|Content & Details/i })).toBeVisible();
+    await expect(formSectionButton(page, /Co dostaje klient|What the buyer gets/)).toHaveAttribute('aria-current', 'true');
 
     // Verify options persisted
     const autoplayAfter = dialog(page).locator('label').filter({ hasText: 'Automatyczne odtwarzanie' }).locator('input[type="checkbox"]');

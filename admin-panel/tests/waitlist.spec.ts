@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { createTestAdmin, loginAsAdmin, supabaseAdmin } from './helpers/admin-auth';
+import { openFormSection } from './helpers/product-form';
 
 /**
  * Waitlist Feature Tests
@@ -186,19 +187,10 @@ test.describe('Waitlist Feature', () => {
         await vatCheckbox.uncheck();
       }
 
-      // Advance to step 2 and fill description there
-      await page.getByRole('dialog').getByRole('button', { name: /Dalej|Continue Setup/i }).click();
+      // Description lives in the offer section, availability and waitlist in the sales section
+      await openFormSection(page, /Oferta|Offer/);
       await page.fill('textarea#description', 'Temp description');
-
-      // Navigate to step 3 (Availability → Enable Waitlist is in group C of step 3)
-      const nextButton = page.getByRole('dialog').getByRole('button', { name: /Dalej|Continue Setup/i });
-      await nextButton.click();
-      // Confirm step 1 actually left (validates that the click was accepted)
-      await expect(page.locator('input#name')).not.toBeVisible({ timeout: 5000 });
-
-      // Step 3 groups B-E are collapsed by default — expand group C (Availability)
-      const availabilityGroup = page.locator('section[data-step3-group="C"]');
-      await availabilityGroup.locator('button[aria-expanded="false"]').click().catch(() => {});
+      await openFormSection(page, /Sprzedaż i rozliczenia|Sales and settlement/);
 
       const waitlistLabel = page.locator('label').filter({ hasText: /Enable Waitlist|Włącz zapis na listę/i });
       await expect(waitlistLabel).toBeVisible({ timeout: 5000 });
@@ -482,11 +474,10 @@ test.describe('Waitlist Feature', () => {
     });
 
     /**
-     * Helper to navigate wizard from step 1 to step 3 (Sales & Settings)
-     * Fills minimum required fields on step 1 so "Continue Setup" works
+     * Fills the minimum basics, the description in the offer section, then shows the sales section
+     * (availability and waitlist).
      */
-    async function navigateWizardToStep3(page: import('@playwright/test').Page): Promise<void> {
-      // Fill step 1 minimum required fields (description moved to step 2)
+    async function openSalesSection(page: import('@playwright/test').Page): Promise<void> {
       await page.fill('input#name', 'Waitlist Temp Product');
       await page.fill('input#price', '10');
 
@@ -497,35 +488,17 @@ test.describe('Waitlist Feature', () => {
         await expect(vatRateInput).not.toHaveValue('', { timeout: 10000 });
       }
 
-      // Step 1 → Step 2 (fill description on step 2)
-      const nextButton = page.getByRole('dialog').getByRole('button', { name: /Dalej|Continue Setup/i });
-      await nextButton.click();
-      await expect(page.locator('input#name')).not.toBeVisible({ timeout: 5000 });
+      await openFormSection(page, /Oferta|Offer/);
       await page.fill('textarea#description', 'Temp description');
-
-      // Step 2 → Step 3
-      await nextButton.click();
-      // Wait for the Availability StepGroup section to appear (data attribute is stable, not locale-dependent)
-      await expect(
-        page.locator('section[data-step3-group="C"]')
-      ).toBeVisible({ timeout: 10000 });
+      await openFormSection(page, /Sprzedaż i rozliczenia|Sales and settlement/);
     }
 
     /**
-     * Helper to ensure Availability & Waitlist section is expanded.
-     * Uses the stable data-step3-group="C" selector to avoid locale-sensitive text matching.
+     * Availability and waitlist are shown in the sales section without expanding anything.
      */
-    async function ensureAvailabilitySectionExpanded(page: import('@playwright/test').Page): Promise<void> {
-      const availabilityGroup = page.locator('section[data-step3-group="C"]');
+    async function expectWaitlistVisible(page: import('@playwright/test').Page): Promise<void> {
       const waitlistLabel = page.locator('label').filter({ hasText: /Włącz zapis na listę|Enable Waitlist/i });
-
-      await expect(async () => {
-        const isExpanded = await waitlistLabel.isVisible().catch(() => false);
-        if (!isExpanded) {
-          await availabilityGroup.locator('button[aria-expanded="false"]').click().catch(() => {});
-        }
-        await expect(waitlistLabel).toBeVisible({ timeout: 1000 });
-      }).toPass({ timeout: 10000 });
+      await expect(waitlistLabel).toBeVisible({ timeout: 10000 });
     }
 
     test('should disable waitlist checkbox when no webhook configured', async ({ page }) => {
@@ -539,11 +512,11 @@ test.describe('Waitlist Feature', () => {
       await page.getByRole('button', { name: /Dodaj produkt|Add Product/i }).click();
       await page.waitForSelector('[role="dialog"]');
 
-      // Navigate wizard to step 3 where Availability section lives
-      await navigateWizardToStep3(page);
+      // Show the sales section where availability lives
+      await openSalesSection(page);
 
-      // Ensure section is expanded (checks and clicks if needed)
-      await ensureAvailabilitySectionExpanded(page);
+      // Waitlist switch is visible in that section
+      await expectWaitlistVisible(page);
 
       // Find the waitlist checkbox by looking for the label text
       const waitlistLabel = page.locator('label').filter({ hasText: /Włącz zapis na listę|Enable Waitlist/i });
@@ -565,11 +538,11 @@ test.describe('Waitlist Feature', () => {
       await page.getByRole('button', { name: /Dodaj produkt|Add Product/i }).click();
       await page.waitForSelector('[role="dialog"]');
 
-      // Navigate wizard to step 3 where Availability section lives
-      await navigateWizardToStep3(page);
+      // Show the sales section where availability lives
+      await openSalesSection(page);
 
-      // Ensure section is expanded (checks and clicks if needed)
-      await ensureAvailabilitySectionExpanded(page);
+      // Waitlist switch is visible in that section
+      await expectWaitlistVisible(page);
 
       // Should show warning about configuring webhook.
       // Timeout is generous — hasWaitlistWebhook comes from an async RPC fetched on modal open.
@@ -590,11 +563,11 @@ test.describe('Waitlist Feature', () => {
         await page.getByRole('button', { name: /Dodaj produkt|Add Product/i }).click();
         await page.waitForSelector('[role="dialog"]');
 
-        // Navigate wizard to step 3 where Availability section lives
-        await navigateWizardToStep3(page);
+        // Show the sales section where availability lives
+        await openSalesSection(page);
 
-        // Ensure section is expanded (checks and clicks if needed)
-        await ensureAvailabilitySectionExpanded(page);
+        // Waitlist switch is visible in that section
+        await expectWaitlistVisible(page);
 
         // Find the waitlist checkbox
         const waitlistLabel = page.locator('label').filter({ hasText: /Włącz zapis na listę|Enable Waitlist/i });
@@ -622,11 +595,11 @@ test.describe('Waitlist Feature', () => {
         await page.getByRole('button', { name: /Dodaj produkt|Add Product/i }).click();
         await page.waitForSelector('[role="dialog"]');
 
-        // Navigate wizard to step 3 where Availability section lives
-        await navigateWizardToStep3(page);
+        // Show the sales section where availability lives
+        await openSalesSection(page);
 
-        // Ensure section is expanded (checks and clicks if needed)
-        await ensureAvailabilitySectionExpanded(page);
+        // Waitlist switch is visible in that section
+        await expectWaitlistVisible(page);
 
         // Should NOT show amber warning box
         const warningBox = page.locator('[data-testid="waitlist-webhook-warning"]');
