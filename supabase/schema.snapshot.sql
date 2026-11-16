@@ -8245,6 +8245,37 @@ COMMENT ON FUNCTION public.is_sale_price_active(p_sale_price numeric, p_sale_pri
 
 
 --
+-- Name: issue_license_with_audit(jsonb, uuid, jsonb); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.issue_license_with_audit(p_license jsonb, p_performed_by uuid, p_audit_values jsonb DEFAULT '{}'::jsonb) RETURNS uuid
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+DECLARE r public.issued_licenses; v public.issued_licenses;
+BEGIN
+  IF (SELECT auth.role()) IS DISTINCT FROM 'service_role' THEN RAISE EXCEPTION 'Service role required' USING ERRCODE='42501'; END IF;
+  IF p_performed_by IS NULL OR jsonb_typeof(p_license) IS DISTINCT FROM 'object'
+     OR (p_audit_values IS NOT NULL AND jsonb_typeof(p_audit_values) <> 'object') THEN
+    RAISE EXCEPTION 'Invalid license issuance' USING ERRCODE='22023';
+  END IF;
+  r := jsonb_populate_record(NULL::public.issued_licenses, p_license);
+  INSERT INTO public.issued_licenses(id, seller_id, original_seller_id, product_id, email, user_id, order_id, access_grant_id,
+      customer_locale, kid, license_key, expires_at, issuance_source, license_domain)
+    VALUES(coalesce(r.id, gen_random_uuid()), r.seller_id, r.original_seller_id, r.product_id, r.email, r.user_id, r.order_id,
+      r.access_grant_id, r.customer_locale, r.kid, r.license_key, r.expires_at, coalesce(r.issuance_source, 'purchase'), r.license_domain)
+    RETURNING * INTO v;
+  INSERT INTO public.audit_log(table_name, operation, performed_by, new_values)
+    VALUES('issued_licenses', 'INSERT', p_performed_by, coalesce(p_audit_values, '{}'::jsonb)
+      || CASE WHEN v.access_grant_id IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('access_grant_id', v.access_grant_id) END
+      || jsonb_build_object('license_id', v.id, 'product_id', v.product_id, 'email', v.email, 'domain', v.license_domain, 'kid', v.kid));
+  RETURN v.id;
+END $$;
+
+
+ALTER FUNCTION public.issue_license_with_audit(p_license jsonb, p_performed_by uuid, p_audit_values jsonb) OWNER TO postgres;
+
+--
 -- Name: jsonschema_subset_matches(json, jsonb); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -21965,6 +21996,8 @@ function | public.is_free_grantable_now(p_product_type text, p_available_from ti
 function | public.is_sale_price_active(p_sale_price numeric, p_sale_price_until timestamp with time zone, p_sale_quantity_limit integer, p_sale_quantity_sold integer) | authenticated | EXECUTE | postgres | -
 function | public.is_sale_price_active(p_sale_price numeric, p_sale_price_until timestamp with time zone, p_sale_quantity_limit integer, p_sale_quantity_sold integer) | postgres | EXECUTE | postgres | -
 function | public.is_sale_price_active(p_sale_price numeric, p_sale_price_until timestamp with time zone, p_sale_quantity_limit integer, p_sale_quantity_sold integer) | service_role | EXECUTE | postgres | -
+function | public.issue_license_with_audit(p_license jsonb, p_performed_by uuid, p_audit_values jsonb) | postgres | EXECUTE | postgres | -
+function | public.issue_license_with_audit(p_license jsonb, p_performed_by uuid, p_audit_values jsonb) | service_role | EXECUTE | postgres | -
 function | public.jsonschema_subset_matches(schema json, instance jsonb) | postgres | EXECUTE | postgres | -
 function | public.jsonschema_subset_matches(schema json, instance jsonb) | service_role | EXECUTE | postgres | -
 function | public.jsonschema_subset_pattern(pattern text) | postgres | EXECUTE | postgres | -

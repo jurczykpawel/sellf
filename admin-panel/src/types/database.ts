@@ -6189,6 +6189,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      issue_license_with_audit: {
+        Args: { p_audit_values?: Json; p_license: Json; p_performed_by: string }
+        Returns: string
+      }
       jsonschema_subset_matches: {
         Args: { instance: Json; schema: Json }
         Returns: boolean
