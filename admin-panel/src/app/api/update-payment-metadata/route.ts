@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { validateCheckoutModules } from '@/lib/checkout-modules/validate';
+import { ORDER_DETAILS_MAX_BYTES, orderDetailsByteLength } from '@/lib/checkout-modules/order-details';
 import { annotateViesStatus } from '@/lib/validation/vies';
 import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 import { getStripeServer } from '@/lib/stripe/server';
@@ -379,6 +380,11 @@ export async function POST(request: NextRequest) {
       if (!result.success) return NextResponse.json({ success: false, errors: result.errors }, { status: result.status });
       await annotateViesStatus(result.details);
       const rawQuantity = result.quantity;
+      const detailsTooLarge = () => NextResponse.json({
+        success: false, errors: [{ field: 'moduleValues', code: 'details_too_large' }],
+      }, { status: 422 });
+      // Checked before the first write (custom_field_values), so this 422 leaves nothing saved (W223c).
+      if (orderDetailsByteLength(result.details) > ORDER_DETAILS_MAX_BYTES) return detailsTooLarge();
       const customError = await persistCustomFields();
       if (customError) return customError;
       const { data: saved, error: saveError } = await admin.rpc('set_payment_order_details', {
@@ -387,11 +393,7 @@ export async function POST(request: NextRequest) {
         p_quantity: rawQuantity,
         ...(isCheckoutSession ? { p_session_id: stripeObjectId } : { p_payment_intent_id: stripeObjectId }),
       });
-      if (saveError && ['22023', '23514'].includes(saveError.code)) {
-        return NextResponse.json({
-          success: false, errors: [{ field: 'moduleValues', code: 'details_too_large' }],
-        }, { status: 422 });
-      }
+      if (saveError && ['22023', '23514'].includes(saveError.code)) return detailsTooLarge();
       if (saveError) return NextResponse.json({ success: false, error: 'Failed to save order details' }, { status: 500 });
       if (saved !== 1) return NextResponse.json({ success: false, code: 'quantity_snapshot_mismatch' }, { status: 409 });
       const personalFields = new Set([

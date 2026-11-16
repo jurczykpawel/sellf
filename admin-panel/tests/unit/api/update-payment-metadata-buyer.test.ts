@@ -225,6 +225,20 @@ describe('profile order details', () => {
     expect(await res.json()).toMatchObject({ errors: [{ field: 'moduleValues', code: 'details_too_large' }] });
     expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
   });
+  it('refuses order details over the stored limit before the first write, so 422 leaves nothing saved (W223c, W223br)', async () => {
+    // Reviewer's case: 100 participants valid for the modules, 100-character multi-byte names, long e-mails.
+    const bigProfile = { v: 1, modules: [{ id: 'buyer', types: ['person'], gus: false }, { id: 'quantity', min: 1, max: 100, mode: 'checkout' }, { id: 'participants', required: true, prefill_from_buyer: false }] };
+    mocks.productRead.mockResolvedValue({ data: { checkout_profile: bigProfile, currency: 'PLN', custom_checkout_fields: [] }, error: null });
+    const name = '漢'.repeat(100);
+    const participants = Array.from({ length: 100 }, (_, i) => ({ first_name: name, last_name: name, email: `${'u'.repeat(60)}${i}@${'d'.repeat(60)}.${'e'.repeat(60)}.example.com` }));
+    expect(Buffer.byteLength(JSON.stringify(participants))).toBeGreaterThan(65536);
+    const res = await POST(makeRequest(SESSION_ID, { moduleValues: { ...moduleValues, quantity: 100, participants } }));
+    expect(res.status).toBe(422);
+    expect(await res.json()).toMatchObject({ errors: [{ field: 'moduleValues', code: 'details_too_large' }] });
+    expect(mocks.customUpdate).not.toHaveBeenCalled();
+    expect(mocks.adminRpc).not.toHaveBeenCalled();
+    expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
+  });
   it('stops when order detail persistence fails', async () => {
     mocks.adminRpc.mockResolvedValue({ error: { code: 'XX000' }, data: null });
     expect((await POST(makeRequest(SESSION_ID, { moduleValues }))).status).toBe(500);
