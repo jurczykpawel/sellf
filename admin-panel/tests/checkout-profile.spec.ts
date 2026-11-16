@@ -69,6 +69,10 @@ async function party(page: Page, prefix: keyof typeof SECTION_IDS, nip = '526025
   }
 }
 const RECIPIENT = 'Faktura dla innej placówki (odbiorca)';
+/** Evidence of the profile's invoice section (only when a run asks for it). */
+async function sectionShot(page: Page, name: string) {
+  if (process.env.W223_SHOTS_DIR) await page.getByTestId('invoice-section').screenshot({ path: `${process.env.W223_SHOTS_DIR}/${name}.png` });
+}
 async function submit(page: Page) {
   const terms = page.getByRole('checkbox', { name: /Zgadzam|Akceptuję/ });
   if (await terms.count()) await terms.check();
@@ -304,6 +308,7 @@ test('organization, recipient, phone and five participants save against five uni
   await party(page, 'buyer');
   await page.getByLabel(RECIPIENT).check();
   await party(page, 'recipient', '5260250995');
+  await sectionShot(page, 'profile-1-organization-recipient');
   await page.locator('[id="phone"]').fill('500100200');
   for (let i = 0; i < 5; i++) {
     for (const [key, value] of Object.entries({ first_name: 'Jan', last_name: 'Nowak', email: `person${i}@example.com` })) {
@@ -343,6 +348,7 @@ test('missing or foreign recipient tax number renders a field error and stops co
   await submit(page);
   await expect(page.locator('#recipientNip-error')).toHaveText('Odbiorca musi mieć polski NIP (10 cyfr).');
   await expect(page.locator('#recipientNip')).toBeFocused();
+  await sectionShot(page, 'profile-2-recipient-polish-nip-only');
   await expect(page).toHaveURL(new RegExp(`/pl/checkout/${product.slug}$`));
 });
 test('hidden quantity has no control and uses the configured minimum', async ({ page }) => {
@@ -369,6 +375,9 @@ test('product without profile retains the original form', async ({ page }) => {
   expect((await db.from('products').update({ checkout_profile: null }).eq('id', product.id)).error).toBeNull();
   await open(page);
   await expect(page.locator('#fullName')).toBeVisible();
+  // The standard invoice section (W223a) opens the NIP field with "I want a company invoice".
+  await expect(page.locator('#wantInvoice')).toBeVisible();
+  await page.locator('#wantInvoice').check();
   await expect(page.locator('#nip')).toBeVisible();
   await expect(page.getByLabel('Typ nabywcy')).toHaveCount(0);
   await expect(page.getByLabel('Ilość', { exact: true })).toHaveCount(0);
@@ -419,6 +428,7 @@ test('EU tax number error uses the standard checkout message', async ({ page }) 
   await expect(page.locator('#taxIdManual')).toBeFocused();
   // U52-2: the first invalid field is scrolled into view, not just focused off-screen.
   await expect(page.locator('#taxIdManual')).toBeInViewport();
+  await sectionShot(page, 'profile-3-manual-path-error');
 });
 
 test('phone has one visible label and an accessible input in both languages', async ({ page }) => {

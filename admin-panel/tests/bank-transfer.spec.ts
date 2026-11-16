@@ -82,6 +82,7 @@ async function place(page: Page, buyerEmail: string) {
   await expect(page.locator('#nip-error')).toHaveText('Ten NIP ma błąd w cyfrach. Sprawdź, czy nie ma literówki.');
   await expect(page.locator('#nip')).toBeFocused();
   expect(orderRequests).toBe(0);
+  if (process.env.W223_SHOTS_DIR) await page.getByTestId('invoice-section').screenshot({ path: `${process.env.W223_SHOTS_DIR}/transfer-1-nip-error.png` });
   await page.locator('#nip').fill('5260250274');
   for (const [id, value] of Object.entries({ companyName: 'Testowa firma', address: 'Prosta 1', postalCode: '00-001', city: 'Warszawa' })) await page.locator(`#${id}`).fill(value);
   await expect(submit).toBeEnabled({ timeout: 30000 });
