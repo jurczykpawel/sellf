@@ -9,13 +9,13 @@ import { test, expect } from '@playwright/test';
 import { createTestAdmin, setAuthSession, supabaseAdmin as db } from './helpers/admin-auth';
 
 test('seller opens an order straight from its link and sees the Orders tab without horizontal scroll @J191 @J190', async ({ page }) => {
-  const admin = await createTestAdmin('w135-orders');
+  const admin = await createTestAdmin('orders-link');
   const run = randomUUID().replaceAll('-', '');
-  const product = await db.from('products').insert({ name: `W135 ${run}`, slug: `w135-${run}`, price: 49, currency: 'PLN', is_active: true, issue_license_on_purchase: true }).select('id').single();
+  const product = await db.from('products').insert({ name: `Orders ${run}`, slug: `orders-${run}`, price: 49, currency: 'PLN', is_active: true, issue_license_on_purchase: true }).select('id').single();
   expect(product.error).toBeNull();
-  const email = `w135-${run}@example.test`;
+  const email = `orders-${run}@example.test`;
   const tx = await db.from('payment_transactions').insert({ product_id: product.data!.id, amount: 4900, currency: 'PLN', status: 'completed',
-    customer_email: email, session_id: `cs_w135_${run}`, stripe_payment_intent_id: `pi_w135_${run}` }).select('id, order_number').single();
+    customer_email: email, session_id: `cs_orders_${run}`, stripe_payment_intent_id: `pi_orders_${run}` }).select('id, order_number').single();
   expect(tx.error).toBeNull();
   const orderNumber = tx.data!.order_number as number;
   try {
@@ -45,7 +45,7 @@ test('seller opens an order straight from its link and sees the Orders tab witho
 });
 
 test('grouped menu leads to Sales > Licenses and keeps the pinned state @J194 @J193', async ({ page }) => {
-  const admin = await createTestAdmin('w135-nav');
+  const admin = await createTestAdmin('orders-nav');
   try {
     await setAuthSession(page, admin.email, admin.password);
     await page.setViewportSize({ width: 1440, height: 900 });
