@@ -2,6 +2,7 @@
  * Product form sections, ordered by what the seller sets; each section says what it changes for the buyer.
  * @see ./ProductCreationWizard.tsx
  */
+import type { ProductFormData } from '../types';
 
 export const FORM_SECTIONS = ['basics', 'delivery', 'cart', 'schedule', 'offer', 'sales'] as const;
 export type FormSectionId = typeof FORM_SECTIONS[number];
@@ -19,6 +20,9 @@ const FIELD_SECTION: Record<string, FormSectionId> = {
   content_url: 'delivery',
   license_tier: 'delivery',
   license_duration_days: 'delivery',
+  checkout_profile: 'cart',
+  sessions: 'schedule',
+  event_mode: 'schedule',
   description: 'offer',
   marketing_fields: 'offer',
   sale_price: 'sales',
@@ -35,4 +39,20 @@ export function initialSection(tutorial: string | undefined): FormSectionId {
   if (tutorial === 'events') return 'schedule';
   if (tutorial === 'b2b-checkout-profile') return 'cart';
   return 'basics';
+}
+
+/** Count shown next to a section on the list (message key under `sections.counts`), or null when the section is not in use. */
+export function sectionCount(
+  section: FormSectionId,
+  formData: Pick<ProductFormData, 'checkout_profile' | 'custom_checkout_fields' | 'event_mode' | 'sessions'>,
+): { key: 'fields' | 'dates'; count: number } | null {
+  if (section === 'cart') {
+    const count = (formData.checkout_profile?.modules.length ?? 0) + formData.custom_checkout_fields.length;
+    return count ? { key: 'fields', count } : null;
+  }
+  if (section === 'schedule') {
+    const count = formData.event_mode ? formData.sessions?.length ?? 0 : 0;
+    return count ? { key: 'dates', count } : null;
+  }
+  return null;
 }

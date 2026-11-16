@@ -11,6 +11,7 @@ import { EventSection } from '../sections/EventSection';
 import { WizardFooter } from './WizardFooter';
 import { FormSection } from './FormSection';
 import { FormSectionNav } from './FormSectionNav';
+import { BuyerSummary } from './BuyerSummary';
 import { BasicsPanel } from './panels/BasicsPanel';
 import { DeliveryPanel } from './panels/DeliveryPanel';
 import { CartPanel } from './panels/CartPanel';
@@ -95,6 +96,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
     validateContentItemUrl,
     fieldErrors,
     setFieldErrors,
+    rejectedSaves,
     validateStep1Fields,
     waitlistWarning,
     proceedWithSubmit,
@@ -136,17 +138,14 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
     if (previous) setCurrentSection(previous);
   }, [sectionIndex]);
 
-  // A new error opens the section holding the first errored field and focuses that field.
-  const [previousErrors, setPreviousErrors] = useState(fieldErrors);
+  // Every refused save opens the section holding the first errored field and focuses that field.
+  const [shownRejection, setShownRejection] = useState(rejectedSaves);
   const [focusError, setFocusError] = useState(0);
-  if (previousErrors !== fieldErrors) {
-    setPreviousErrors(fieldErrors);
-    const added = Object.keys(fieldErrors).filter(key => !(key in previousErrors));
-    const section = added.length ? sectionForErrors(Object.keys(fieldErrors)) : null;
-    if (section) {
-      setCurrentSection(section);
-      setFocusError(count => count + 1);
-    }
+  if (shownRejection !== rejectedSaves) {
+    setShownRejection(rejectedSaves);
+    const section = sectionForErrors(Object.keys(fieldErrors));
+    if (section) setCurrentSection(section);
+    setFocusError(count => count + 1);
   }
   useEffect(() => {
     if (!focusError) return;
@@ -211,7 +210,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
           ) : undefined}
         />
 
-        <FormSectionNav current={currentSection} onSelect={setCurrentSection} t={t} />
+        <FormSectionNav current={currentSection} formData={formData} onSelect={setCurrentSection} t={t} />
 
         <ModalBody>
           {error && (
@@ -262,7 +261,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
                 />
               )}
               {currentSection === 'cart' && <CartPanel formData={formData} setFormData={setFormData} t={t} />}
-              {currentSection === 'schedule' && <EventSection formData={formData} setFormData={setFormData} />}
+              {currentSection === 'schedule' && <EventSection formData={formData} setFormData={setFormData} showErrors={'sessions' in fieldErrors} />}
               {currentSection === 'offer' && (
                 <OfferPanel
                   formData={formData}
@@ -296,6 +295,8 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
             </FormSection>
           </form>
         </ModalBody>
+
+        <BuyerSummary formData={formData} t={t} />
 
         <WizardFooter
           isFirstSection={sectionIndex === 0}

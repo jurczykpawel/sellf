@@ -13,10 +13,11 @@ interface MoneyInputErrorProps {
   error: MoneyInputErrorCode | null;
   currency: string;
   className?: string;
+  id?: string;
 }
 
-export function MoneyInputError({ error, currency, className = 'mt-1 text-xs text-sf-danger' }: MoneyInputErrorProps) {
+export function MoneyInputError({ error, currency, className = 'mt-1 text-xs text-sf-danger', id }: MoneyInputErrorProps) {
   const t = useTranslations('moneyInput');
   if (!error) return null;
-  return <p role="alert" className={className}>{t(MESSAGE_KEY[error], { currency })}</p>;
+  return <p id={id} role="alert" className={className}>{t(MESSAGE_KEY[error], { currency })}</p>;
 }

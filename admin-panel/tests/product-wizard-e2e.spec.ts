@@ -495,6 +495,56 @@ test.describe('Money input and publish feedback', () => {
   });
 });
 
+test.describe('Refused save and buyer summary', () => {
+  const escape = (text: string) => new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+
+  test('every refused save opens the section with the error and focuses the field, also the second time', async ({ page }) => {
+    await goToProducts(page);
+    await openWizard(page);
+
+    await page.locator('[data-product-type="lead-magnet"]').click();
+    await page.fill('input#name', `Refused Save ${Date.now()}`);
+    await fillDescription(page, 'desc');
+    const summary = page.locator('[data-buyer-summary]');
+    await expect(summary).toHaveText(`${pl.admin.products.form.summary.label} dostęp do produktu za darmo, bez wyboru terminu i uczestników.`);
+
+    // A checkout profile with no buyer type is refused.
+    await openFormSection(page, SECTION_TITLES.cart.title);
+    await page.getByLabel(pl.checkoutProfile.enabled).check();
+    const cart = page.locator('[data-form-section="cart"]');
+    await cart.getByLabel(pl.checkoutProfile.person, { exact: true }).uncheck();
+    await cart.getByLabel(pl.checkoutProfile.organization, { exact: true }).uncheck();
+    await expect(formSectionButton(page, SECTION_TITLES.cart.title)).toHaveText(`${SECTION_TITLES.cart.title} · 1 pole`);
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await openFormSection(page, SECTION_TITLES.offer.title);
+      await page.getByRole('button', { name: /Publikuj/i }).click();
+      await expectSection(page, SECTION_TITLES.cart.title);
+      const focused = page.locator('[data-form-section="cart"] :focus');
+      await expect(focused).toHaveAttribute('aria-invalid', 'true');
+      await expect(focused).toHaveAccessibleDescription(escape(pl.checkoutProfile.errors.invalid));
+      await expect(summary).toBeVisible();
+    }
+    await page.getByLabel(pl.checkoutProfile.enabled).uncheck();
+
+    // An event date left empty is refused in "Terminy i miejsca", next to the field.
+    await openFormSection(page, SECTION_TITLES.schedule.title);
+    await page.getByLabel(pl.events.enabled, { exact: true }).check();
+    await page.getByRole('button', { name: pl.events.addSession }).click();
+    await openFormSection(page, SECTION_TITLES.offer.title);
+    await page.getByRole('button', { name: /Publikuj/i }).click();
+    await expectSection(page, SECTION_TITLES.schedule.title);
+    const date = page.locator('[data-form-section="schedule"] :focus');
+    await expect(date).toHaveAttribute('aria-invalid', 'true');
+    await expect(page.getByRole('alert').filter({ hasText: pl.events.errors.starts_at })).toBeVisible();
+    await expect(formSectionButton(page, SECTION_TITLES.schedule.title)).toHaveText(`${SECTION_TITLES.schedule.title} · 1 termin`);
+    await expect(summary).toContainText('wybór terminu');
+
+    await page.locator('button[aria-label="Close modal"], button[aria-label="Zamknij okno"]').click();
+    await page.getByRole('button', { name: /Odrzuć/i }).click();
+  });
+});
+
 // The wizard seeds taxMode + vat_rate defaults from an async shop-config
 // fetch (getMyShopConfig, in useProductForm). Advancing or submitting before
 // that fetch settles would act on placeholder values (taxMode='local',

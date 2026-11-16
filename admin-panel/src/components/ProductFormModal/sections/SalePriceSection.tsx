@@ -40,6 +40,7 @@ export function SalePriceSection({
   const showCurrencyPrefix = formData.currency !== 'PLN' && formData.currency !== 'CHF';
   const salePriceInvalid = formData.sale_price !== null && formData.sale_price !== undefined && formData.sale_price >= formData.price;
   const salePriceActive = formData.sale_price !== null && formData.sale_price !== undefined && formData.sale_price < formData.price;
+  const salePriceDescribedBy = ['sale_price-description', salePriceParseError && 'sale_price-parse-error', salePriceInvalid && 'sale_price-error'].filter(Boolean).join(' ');
   const quantityLimitReached = formData.sale_quantity_limit && formData.sale_quantity_sold !== undefined && formData.sale_quantity_sold >= formData.sale_quantity_limit;
 
   return (
@@ -69,8 +70,10 @@ export function SalePriceSection({
                 name="sale_price"
                 value={salePriceDisplayValue}
                 onChange={handleSalePriceChange}
+                aria-invalid={salePriceInvalid || salePriceParseError ? true : undefined}
+                aria-describedby={salePriceDescribedBy}
                 placeholder={!showCurrencyPrefix ? `0,00 ${getCurrencySymbol(formData.currency)}` : t('salePricePlaceholder')}
-                className={`${showCurrencyPrefix ? 'pl-12' : 'pl-3'} pr-12 w-full py-2.5 border ${salePriceInvalid || salePriceParseError ? 'border-red-500' : 'border-sf-border'} focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent bg-sf-input text-sf-heading`}
+                className={`${showCurrencyPrefix ? 'pl-12' : 'pl-3'} pr-12 w-full py-2.5 border ${salePriceInvalid || salePriceParseError ? 'border-sf-danger' : 'border-sf-border'} focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent bg-sf-input text-sf-heading`}
               />
               <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                 <span className="text-sf-muted text-sm">
@@ -78,12 +81,12 @@ export function SalePriceSection({
                 </span>
               </div>
             </div>
-            <p className="mt-1 text-xs text-sf-muted">
+            <p id="sale_price-description" className="mt-1 text-xs text-sf-muted">
               {t('salePriceDescription')}
             </p>
-            <MoneyInputError error={salePriceParseError} currency={formData.currency} />
+            <MoneyInputError id="sale_price-parse-error" error={salePriceParseError} currency={formData.currency} />
             {salePriceInvalid && (
-              <p className="mt-1 text-xs text-sf-danger">
+              <p id="sale_price-error" className="mt-1 text-xs text-sf-danger">
                 {t('salePriceMustBeLower')}
               </p>
             )}

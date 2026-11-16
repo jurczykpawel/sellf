@@ -62,6 +62,12 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
 
   // Validation errors for required fields
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  // Counts refused saves, so the form shows the first error again even when the error map is unchanged.
+  const [rejectedSaves, setRejectedSaves] = useState(0);
+  const rejectSave = useCallback((errors: Record<string, string>) => {
+    setFieldErrors(errors);
+    setRejectedSaves(count => count + 1);
+  }, []);
 
   // Products list for OTO selection
   const [products, setProducts] = useState<Product[]>([]);
@@ -611,9 +617,9 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
   const submitAndShowFieldErrors = useCallback((data: Parameters<typeof onSubmit>[0]) => {
     void Promise.resolve(onSubmit(data)).catch((err: unknown) => {
       const errors = serverFieldErrors(err instanceof ApiError ? err.details : undefined);
-      if (Object.keys(errors).length) setFieldErrors(errors);
+      if (Object.keys(errors).length) rejectSave(errors);
     });
-  }, [onSubmit]);
+  }, [onSubmit, rejectSave]);
 
   // Proceed with submit after user confirms waitlist warning
   const proceedWithSubmit = useCallback(() => {
@@ -630,20 +636,16 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
     setPendingSubmitData(null);
   }, []);
 
-  // Validate required fields — returns true if valid. Full validation used at
-  // submit time (covers description on step 2 too).
-  const validateRequiredFields = useCallback((): boolean => {
+  // Every reason a save is refused, keyed by the field (or field group) that shows it.
+  const collectSaveErrors = useCallback((): Record<string, string> => {
     const errors = collectRequiredFieldErrors(formData, priceDisplayValue, taxMode);
     if (!marketingFieldsSchema.safeParse(formData.marketing_fields).success) errors.marketing_fields = 'invalid';
     if (parseMoneyInput(salePriceDisplayValue, formData.currency, locale).error) errors.sale_price = 'invalid';
-
-    if (Object.keys(errors).length > 0) {
-      setFieldErrors(errors);
-      if (errors.name) nameInputRef.current?.focus();
-      return false;
-    }
-    setFieldErrors({});
-    return true;
+    if (validateWholeAmounts({ sessions: formData.sessions }, formData.currency).length
+      || (formData.event_mode && !eventSessionsSchema.safeParse(formData.sessions ?? []).success)) errors.sessions = 'invalid';
+    if (!isEventCompatible(formData)) errors.event_mode = 'incompatible';
+    if (formData.checkout_profile && !parseCheckoutProfile(formData.checkout_profile, { ...formData }).success) errors.checkout_profile = 'invalid';
+    return errors;
   }, [formData, priceDisplayValue, salePriceDisplayValue, taxMode, locale]);
 
   // Validate just step-1 fields — used by "Dalej" so a missing description
@@ -676,10 +678,12 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
     // submission (e.g. Enter key) too.
     if (!shopConfigLoaded) return;
 
-    if (!validateRequiredFields()) return;
-    if (validateWholeAmounts({ sessions: formData.sessions }, formData.currency).length) return;
-    if (!isEventCompatible(formData) || (formData.event_mode && !eventSessionsSchema.safeParse(formData.sessions ?? []).success)) return;
-    if (formData.checkout_profile && !parseCheckoutProfile(formData.checkout_profile, { ...formData }).success) return;
+    const saveErrors = collectSaveErrors();
+    if (Object.keys(saveErrors).length) {
+      rejectSave(saveErrors);
+      return;
+    }
+    setFieldErrors({});
 
     // Validate all content items with URLs before submission
     if (formData.content_delivery_type === 'content') {
@@ -706,12 +710,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
       });
 
       if (invalidItems.length > 0) {
-        setFieldErrors({ content_url: 'invalid' });
-        window.setTimeout(() => {
-          const field = document.getElementById(`content_url_${invalidItems[0]}`);
-          field?.scrollIntoView({ block: 'center' });
-          field?.focus();
-        }, 0);
+        rejectSave({ content_url: 'invalid' });
         return;
       }
     }
@@ -748,7 +747,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
     }
 
     submitAndShowFieldErrors(submitData);
-  }, [formData, oto, submitAndShowFieldErrors, validateContentItemUrl, checkWaitlistConfig, shopConfigLoaded, validateRequiredFields]);
+  }, [formData, oto, submitAndShowFieldErrors, validateContentItemUrl, checkWaitlistConfig, shopConfigLoaded, collectSaveErrors, rejectSave]);
 
   return {
     // Form data
@@ -791,6 +790,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
     // Validation
     fieldErrors,
     setFieldErrors,
+    rejectedSaves,
     urlValidation,
     setUrlValidation,
 
@@ -805,7 +805,6 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
     // Utilities
     generateSlug,
     validateContentItemUrl,
-    validateRequiredFields,
     validateStep1Fields,
 
     // Waitlist warning

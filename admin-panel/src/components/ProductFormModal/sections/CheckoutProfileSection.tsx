@@ -20,18 +20,21 @@ export function CheckoutProfileSection({ formData, setFormData }: { formData: Pr
   const change = (entry: Module, patch: Record<string, unknown>) => update((profile?.modules ?? []).map(m => m.id === entry.id ? { ...m, ...patch } as Module : m));
   const toggle = (entry: Module, enabled: boolean) => update(DEFAULTS.flatMap(m => m.id === entry.id ? (enabled ? [m] : []) : profile?.modules.filter(v => v.id === m.id) ?? []));
   const result = profile ? parseCheckoutProfile(profile, { ...formData, is_bundle: formData.is_bundle }) : null;
-  const checkbox = (label: string, checked: boolean, onChange: (value: boolean) => void, disabled = false, tour?: string) => <label data-tour={tour} className="flex items-center gap-2"><input type="checkbox" checked={checked} disabled={disabled} onChange={e => onChange(e.target.checked)} />{label}</label>;
+  // The control a refused profile is marked on, so a refused save can focus it next to the message.
+  const invalid = result && !result.success && profile ? invalidControl(result.error.issues, profile) : null;
+  const errorId = 'checkout-profile-errors';
+  const checkbox = (label: string, checked: boolean, onChange: (value: boolean) => void, disabled = false, tour?: string, control?: string) => <label data-tour={tour} className="flex items-center gap-2"><input type="checkbox" checked={checked} disabled={disabled} aria-invalid={control && control === invalid ? true : undefined} aria-describedby={control && control === invalid ? errorId : undefined} onChange={e => onChange(e.target.checked)} />{label}</label>;
   return <section className="space-y-3" aria-label={t('title')}>
     <TutorialTrigger id="b2b-checkout-profile" auto={!!profile} />
     <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="font-medium text-sf-heading">{t('title')}</h4><TutorialHelpButton id="b2b-checkout-profile" /></div>
-    {checkbox(t('enabled'), !!profile, enabled => setFormData(prev => ({ ...prev, checkout_profile: enabled ? { v: 1, modules: [DEFAULTS[0]] } : null })), false, 'profile-enable')}
+    {checkbox(t('enabled'), !!profile, enabled => setFormData(prev => ({ ...prev, checkout_profile: enabled ? { v: 1, modules: [DEFAULTS[0]] } : null })), false, 'profile-enable', 'enabled')}
     {profile && DEFAULTS.map(defaultModule => {
       const entry = profile.modules.find(m => m.id === defaultModule.id);
       return <fieldset key={defaultModule.id} data-tour={MODULE_TOUR[defaultModule.id]} className="space-y-2 border border-sf-border rounded-lg p-3">
         <legend>{t(defaultModule.id)}</legend>
-        {checkbox(t(defaultModule.id), !!entry, enabled => toggle(defaultModule, enabled))}
+        {checkbox(t(defaultModule.id), !!entry, enabled => toggle(defaultModule, enabled), false, undefined, defaultModule.id)}
         {entry?.id === 'buyer' && <>
-          {(['person', 'organization'] as const).map(type => <div key={type}>{checkbox(t(type), entry.types.includes(type), enabled => change(entry, { types: enabled ? [...entry.types, type] : entry.types.filter(v => v !== type) }))}</div>)}
+          {(['person', 'organization'] as const).map(type => <div key={type}>{checkbox(t(type), entry.types.includes(type), enabled => change(entry, { types: enabled ? [...entry.types, type] : entry.types.filter(v => v !== type) }), false, undefined, `buyer.types.${type}`)}</div>)}
           {(['person', 'organization'] as const).map(type => <div key={`transfer-${type}`}>{checkbox(`${bt('title')}: ${t(type)}`, entry.bank_transfer_for?.includes(type) ?? false, enabled => change(entry, { bank_transfer_for: enabled ? [...(entry.bank_transfer_for ?? []), type] : (entry.bank_transfer_for ?? []).filter(v => v !== type) }), !entry.types.includes(type))}</div>)}
         </>}
         {entry?.id === 'recipient' && <p className="text-sm text-sf-muted">{t('recipientHelp')}</p>}
@@ -40,11 +43,26 @@ export function CheckoutProfileSection({ formData, setFormData }: { formData: Pr
         {entry?.id === 'participants' && entry.required && checkbox(t('allowLater'), !!entry.allow_later, enabled => change(entry, { allow_later: enabled }))}
         {entry?.id === 'participants' && checkbox(t('prefill'), entry.prefill_from_buyer, enabled => change(entry, { prefill_from_buyer: enabled }))}
         {entry?.id === 'quantity' && <div className="flex flex-wrap gap-3">
-          {(['min', 'max'] as const).map(key => <label key={key}>{t(key)}<input className="block border border-sf-border rounded p-2 w-24" type="number" min={1} max={100} value={entry[key]} onChange={e => change(entry, { [key]: Number(e.target.value) })} /></label>)}
+          {(['min', 'max'] as const).map(key => <label key={key}>{t(key)}<input className="block border border-sf-border rounded p-2 w-24" type="number" min={1} max={100} value={entry[key]} aria-invalid={invalid === `quantity.${key}` ? true : undefined} aria-describedby={invalid === `quantity.${key}` ? errorId : undefined} onChange={e => change(entry, { [key]: Number(e.target.value) })} /></label>)}
           <label>{t('mode')}<select className="block border border-sf-border rounded p-2" value={entry.mode} onChange={e => change(entry, { mode: e.target.value })}>{(['hidden', 'checkout', 'product_page'] as const).map(mode => <option key={mode} value={mode}>{t(mode)}</option>)}</select></label>
         </div>}
       </fieldset>;
     })}
-    {result && !result.success && <ul role="alert" className="text-sm text-sf-danger">{result.error.issues.map((issue, i) => <li key={i}>{t.has(`errors.${issue.message}`) ? t(`errors.${issue.message}`) : t('errors.invalid')}</li>)}</ul>}
+    {result && !result.success && <ul id={errorId} role="alert" className="text-sm text-sf-danger">{result.error.issues.map((issue, i) => <li key={i}>{t.has(`errors.${issue.message}`) ? t(`errors.${issue.message}`) : t('errors.invalid')}</li>)}</ul>}
   </section>;
+}
+
+/** Control a whole-profile rule is about; rules without one fall back to the profile switch. */
+const RULE_CONTROL: Record<string, string> = { quantity_range: 'quantity.min', participants_require_quantity: 'quantity', recipient_requires_organization: 'buyer.types.organization', license_quantity: 'quantity.max' };
+
+/** Control showing the first profile issue: the field it points at, its module switch, or the profile switch. */
+function invalidControl(issues: readonly { path: readonly PropertyKey[]; message: string }[], profile: CheckoutProfile): string {
+  const [issue] = issues;
+  const [, index, field] = issue.path;
+  const entry = typeof index === 'number' ? profile.modules[index] : undefined;
+  if (entry?.id === 'buyer' && field === 'types') return 'buyer.types.person';
+  if (entry?.id === 'quantity' && (field === 'min' || field === 'max')) return `quantity.${field}`;
+  if (entry) return entry.id;
+  if (issue.message === 'recipient_requires_organization' && !profile.modules.some(m => m.id === 'buyer')) return 'buyer';
+  return RULE_CONTROL[issue.message] ?? 'enabled';
 }
