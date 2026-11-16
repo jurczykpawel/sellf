@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { expect } from '@playwright/test';
 import { supabaseAdmin as db, loginAsAdmin } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
+import { fillInvoiceParty, mockGusNotFound } from './helpers/invoice-section';
 import { readCheckoutTerms, setCheckoutTerms, restoreCheckoutTerms } from './helpers/checkout-settings';
 import { test, startNativeCheckout } from './helpers/checkout-intent';
 
@@ -52,11 +53,11 @@ for (const event of [false, true]) test(`${event ? 'event tier 67' : 'product 49
 });
 test('product 49 from coupon link places a transfer for 30', async ({ page }) => {
   await checked(await db.from('products').update({ checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'], gus: false, bank_transfer_for: ['organization'] }] } }).eq('id', product.id).select());
-  await acceptAllCookies(page);
+  await mockGusNotFound(page); await acceptAllCookies(page);
   await page.goto(`/pl/checkout/${product.slug}?coupon=${code}`);
   await expect(page.getByRole('button', { name: /Usuń kod/ })).toBeVisible();
   await page.getByRole('radio', { name: /Przelew tradycyjny/ }).check();
-  for (const [key, value] of Object.entries({ company_name: 'Testowa firma', nip: '5260250274', address: 'Prosta 1', postal_code: '00-001', city: 'Warszawa' })) await page.locator(`[id="buyer.${key}"]`).fill(value);
+  await fillInvoiceParty(page);
   await page.getByLabel('Email', { exact: true }).fill(`price-${randomUUID()}@example.com`);
   await page.getByRole('checkbox', { name: /Zgadzam/ }).check();
   await expect(page.getByTestId('order-summary-total')).toContainText('30,00');
