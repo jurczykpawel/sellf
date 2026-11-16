@@ -566,8 +566,10 @@ the TSA instance, so there is no separate generator.
 `invoice_recipient_enabled` (default `false`) lets buyers in the standard checkout add a different
 invoice recipient (an institution, always with a Polish NIP). The recipient is stored with the order
 and sent as `invoice.recipient` in `purchase.completed`. Subscriptions do not take a separate recipient.
-Every change is written to the audit log with the admin's user ID (for an API key: its owner); when
-the audit entry cannot be written the change is undone and the API answers `500`.
+Every change is written to the audit log with the admin's user ID (for an API key: its owner). The
+setting and its audit entry are saved in one database transaction: when the entry cannot be written,
+nothing is saved, the setting keeps its previous value and the API answers `500`. Other checkout and
+shop settings are never touched by this call.
 
 ### API Keys (session auth only)
 

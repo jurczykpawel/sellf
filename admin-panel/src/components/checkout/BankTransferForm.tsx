@@ -41,6 +41,8 @@ export default function BankTransferForm({ collectTermsOfService, termsAccepted:
         customFieldValues: values, termsAccepted: accepted, captchaToken: captcha.token, locale, attribution: readBrowserAttribution(),
       }) });
       const result = await response.json();
+      // Server module errors (422) land in the fields, the same way as in the online payment.
+      if (response.status === 422 && Array.isArray(result.errors)) { onModuleErrors(result.errors); setError(ct('profile.fixFields')); captcha.reset(); setBusy(false); return; }
       if (!response.ok && result.fieldErrors) { setFieldErrors(result.fieldErrors); setError(ct('profile.fixFields')); captcha.reset(); setBusy(false); return; }
       if (!response.ok) { setError(t(response.status === 429 ? 'limit' : 'orderError')); captcha.reset(); setBusy(false); return; }
       router.push(`${locale === 'pl' ? '/pl' : ''}/order/${encodeURIComponent(result.orderId)}/transfer?token=${encodeURIComponent(result.token)}`);

@@ -34,3 +34,25 @@ export interface WebhookOrderDetails {
   participants: ReturnType<typeof readOrderDetails>['participants'];
   quantity: ReturnType<typeof readOrderDetails>['quantity'];
 }
+
+/** Size limit of order details checked by the database (set_payment_order_details, order_details CHECK). */
+export const ORDER_DETAILS_MAX_BYTES = 65536;
+
+const encoder = new TextEncoder();
+const utf8Bytes = (text: string): number => encoder.encode(text).length;
+
+/**
+ * Bytes of `details::jsonb::text` as PostgreSQL measures it (octet_length): JSON with ", " and ": "
+ * separators, UTF-8. Lets a route refuse oversized details before its first write. @see ORDER_DETAILS_MAX_BYTES
+ */
+export function orderDetailsByteLength(value: unknown): number {
+  if (Array.isArray(value)) {
+    return value.length === 0 ? 2 : 2 + 2 * (value.length - 1) + value.reduce<number>((sum, item) => sum + orderDetailsByteLength(item ?? null), 0);
+  }
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value).filter(([, item]) => item !== undefined);
+    return entries.length === 0 ? 2 : 2 + 2 * (entries.length - 1)
+      + entries.reduce((sum, [key, item]) => sum + utf8Bytes(JSON.stringify(key)) + 2 + orderDetailsByteLength(item), 0);
+  }
+  return utf8Bytes(JSON.stringify(value) ?? 'null');
+}
