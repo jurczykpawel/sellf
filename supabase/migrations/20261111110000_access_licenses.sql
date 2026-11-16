@@ -103,3 +103,80 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.mutate_access_audited(text,uuid,uuid,uuid,jsonb,jsonb,jsonb) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.mutate_access_audited(text,uuid,uuid,uuid,jsonb,jsonb,jsonb) TO service_role;
+
+-- ===== License signing keys: a planned key change keeps earlier keys published =====
+-- Changing the signing key retires the previous one (is_active = false) instead of hiding it:
+-- the public-keys reader returns the active key first, then every retired key, each with its
+-- status. Licenses signed with a retired key keep verifying offline; new licenses use the
+-- active key. The return type changes, so the function is dropped and created again.
+DROP FUNCTION IF EXISTS public.seller_license_public_keys(UUID);
+CREATE FUNCTION public.seller_license_public_keys(seller UUID)
+RETURNS TABLE (kid TEXT, public_key TEXT, alg TEXT, status TEXT)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT k.kid, k.public_key, k.alg,
+         CASE WHEN k.is_active THEN 'active' ELSE 'retired' END
+  FROM public.seller_license_keys k
+  WHERE k.original_seller_id = seller
+  ORDER BY k.is_active DESC, k.created_at DESC, k.kid;
+$$;
+REVOKE EXECUTE ON FUNCTION public.seller_license_public_keys(UUID) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.seller_license_public_keys(UUID) TO service_role;
+COMMENT ON FUNCTION public.seller_license_public_keys(UUID) IS
+  'Public keys (kid, public_key, alg, status) for a seller: the active signing key first, then retired keys that still verify licenses signed before a key change. Never exposes encrypted private-key columns.';
+
+-- ===== License signing keys: replacing the active key is one transaction =====
+-- The application encrypts the new private key first, then calls this function once. It locks the
+-- seller's key set, retires the current active key and saves the new one together, so a failed save
+-- leaves the current key signing and two simultaneous changes end with exactly one active key.
+-- Saving a key the seller already has (same kid) makes it active again.
+CREATE OR REPLACE FUNCTION public.replace_seller_license_key(
+  p_seller_id UUID,
+  p_kid TEXT,
+  p_public_key TEXT,
+  p_encrypted_key TEXT,
+  p_encryption_iv TEXT,
+  p_encryption_tag TEXT,
+  p_custody TEXT
+)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = ''
+AS $$
+BEGIN
+  IF p_seller_id IS NULL OR coalesce(p_kid, '') = '' OR coalesce(p_public_key, '') = ''
+     OR coalesce(p_encrypted_key, '') = '' OR coalesce(p_encryption_iv, '') = ''
+     OR coalesce(p_encryption_tag, '') = '' THEN
+    RAISE EXCEPTION 'replace_seller_license_key: missing key data' USING ERRCODE = '22023';
+  END IF;
+
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('seller_license_keys:' || p_seller_id::text, 0));
+
+  UPDATE public.seller_license_keys
+     SET is_active = false
+   WHERE seller_id = p_seller_id
+     AND is_active = true
+     AND kid <> p_kid;
+
+  INSERT INTO public.seller_license_keys
+    (seller_id, original_seller_id, kid, public_key, encrypted_key, encryption_iv, encryption_tag, custody, is_active)
+  VALUES
+    (p_seller_id, p_seller_id, p_kid, p_public_key, p_encrypted_key, p_encryption_iv, p_encryption_tag, p_custody, true)
+  ON CONFLICT (seller_id, kid) DO UPDATE
+    SET public_key = EXCLUDED.public_key,
+        encrypted_key = EXCLUDED.encrypted_key,
+        encryption_iv = EXCLUDED.encryption_iv,
+        encryption_tag = EXCLUDED.encryption_tag,
+        custody = EXCLUDED.custody,
+        is_active = true;
+
+  RETURN p_kid;
+END $$;
+REVOKE ALL ON FUNCTION public.replace_seller_license_key(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.replace_seller_license_key(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO service_role;
+COMMENT ON FUNCTION public.replace_seller_license_key(UUID, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) IS
+  'Server only: retires the seller''s active license signing key and saves the new (already encrypted) key in one transaction, serialized per seller.';

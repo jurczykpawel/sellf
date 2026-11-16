@@ -15,6 +15,12 @@ describe('verifySellfLicense (SDK)', () => {
     expect(r).toMatchObject({ valid: true, claims: { product: 'pro-kit', tier: 'pro' } });
   });
 
+  it('verifies a token signed with a retired key after a planned key change', () => {
+    const next = generateSellerKeypair();
+    const published = [{ kid: next.kid, alg: 'ES256', pem: next.publicKeyPem, status: 'active' as const }, { ...jwks[0], status: 'retired' as const }];
+    expect(verifySellfLicense(signLicense(claims, key.privateKeyPem), { keys: published, now: NOW })).toMatchObject({ valid: true, claims: { kid: key.kid } });
+  });
+
   it('rejects when no key matches the token kid', () => {
     const other = generateSellerKeypair();
     const r = verifySellfLicense(signLicense({ ...claims, kid: other.kid }, other.privateKeyPem), { keys: jwks, now: NOW });

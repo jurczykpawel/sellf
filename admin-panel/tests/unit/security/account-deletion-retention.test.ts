@@ -565,7 +565,7 @@ describe('auth.admin.deleteUser() for a seller with an issued license key: verif
       seller: sellerId,
     });
     expect(keysBeforeError).toBeNull();
-    expect(keysBefore).toEqual([{ kid: keypair.kid, public_key: keypair.publicKeyPem, alg: 'ES256' }]);
+    expect(keysBefore).toEqual([{ kid: keypair.kid, public_key: keypair.publicKeyPem, alg: 'ES256', status: 'active' }]);
 
     const { error: deleteError } = await admin.auth.admin.deleteUser(sellerId);
     expect(deleteError).toBeNull();
@@ -584,7 +584,7 @@ describe('auth.admin.deleteUser() for a seller with an issued license key: verif
       seller: sellerId,
     });
     expect(keysAfterError).toBeNull();
-    expect(keysAfter).toEqual([{ kid: keypair.kid, public_key: keypair.publicKeyPem, alg: 'ES256' }]);
+    expect(keysAfter).toEqual([{ kid: keypair.kid, public_key: keypair.publicKeyPem, alg: 'ES256', status: 'active' }]);
 
     // The CRL/revocation RPC resolves the same way for issued_licenses.
     await deleteChecked(

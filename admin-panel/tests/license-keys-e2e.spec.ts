@@ -6,7 +6,7 @@
  * asserts the real HTTP/DB/RLS surface.
  */
 import { test, expect } from '@playwright/test';
-import { createSign, createVerify, createHash, generateKeyPairSync } from 'node:crypto';
+import { createSign, createVerify, createHash, createPublicKey, generateKeyPairSync } from 'node:crypto';
 import { supabaseAdmin } from './helpers/admin-auth';
 
 test.describe.configure({ mode: 'serial' });
@@ -78,7 +78,9 @@ test.describe('License keys', () => {
     const res = await request.get(`/api/licenses/jwks?seller=${seller.id}`);
     expect(res.status()).toBe(200);
     const body = await res.json();
-    expect(body.keys).toEqual([{ kid, alg: 'ES256', pem: keypair.publicKey }]);
+    const { x, y } = createPublicKey(keypair.publicKey).export({ format: 'jwk' });
+    expect(body.keys).toEqual([{ kty: 'EC', crv: 'P-256', x, y, kid, alg: 'ES256', use: 'sig', pem: keypair.publicKey, status: 'active' }]);
+    expect(createPublicKey({ key: body.keys[0], format: 'jwk' }).export({ type: 'spki', format: 'pem' })).toBe(keypair.publicKey);
     const raw = JSON.stringify(body);
     expect(raw).not.toMatch(/PRIVATE KEY|encrypted_key|encryption_iv|encryption_tag|placeholder/);
   });

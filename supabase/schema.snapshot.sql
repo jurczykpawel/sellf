@@ -11208,6 +11208,54 @@ END $$;
 ALTER FUNCTION public.remove_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid, p_permanent boolean) OWNER TO postgres;
 
 --
+-- Name: replace_seller_license_key(uuid, text, text, text, text, text, text); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.replace_seller_license_key(p_seller_id uuid, p_kid text, p_public_key text, p_encrypted_key text, p_encryption_iv text, p_encryption_tag text, p_custody text) RETURNS text
+    LANGUAGE plpgsql
+    SET search_path TO ''
+    AS $$
+BEGIN
+  IF p_seller_id IS NULL OR coalesce(p_kid, '') = '' OR coalesce(p_public_key, '') = ''
+     OR coalesce(p_encrypted_key, '') = '' OR coalesce(p_encryption_iv, '') = ''
+     OR coalesce(p_encryption_tag, '') = '' THEN
+    RAISE EXCEPTION 'replace_seller_license_key: missing key data' USING ERRCODE = '22023';
+  END IF;
+
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('seller_license_keys:' || p_seller_id::text, 0));
+
+  UPDATE public.seller_license_keys
+     SET is_active = false
+   WHERE seller_id = p_seller_id
+     AND is_active = true
+     AND kid <> p_kid;
+
+  INSERT INTO public.seller_license_keys
+    (seller_id, original_seller_id, kid, public_key, encrypted_key, encryption_iv, encryption_tag, custody, is_active)
+  VALUES
+    (p_seller_id, p_seller_id, p_kid, p_public_key, p_encrypted_key, p_encryption_iv, p_encryption_tag, p_custody, true)
+  ON CONFLICT (seller_id, kid) DO UPDATE
+    SET public_key = EXCLUDED.public_key,
+        encrypted_key = EXCLUDED.encrypted_key,
+        encryption_iv = EXCLUDED.encryption_iv,
+        encryption_tag = EXCLUDED.encryption_tag,
+        custody = EXCLUDED.custody,
+        is_active = true;
+
+  RETURN p_kid;
+END $$;
+
+
+ALTER FUNCTION public.replace_seller_license_key(p_seller_id uuid, p_kid text, p_public_key text, p_encrypted_key text, p_encryption_iv text, p_encryption_tag text, p_custody text) OWNER TO postgres;
+
+--
+-- Name: FUNCTION replace_seller_license_key(p_seller_id uuid, p_kid text, p_public_key text, p_encrypted_key text, p_encryption_iv text, p_encryption_tag text, p_custody text); Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON FUNCTION public.replace_seller_license_key(p_seller_id uuid, p_kid text, p_public_key text, p_encrypted_key text, p_encryption_iv text, p_encryption_tag text, p_custody text) IS 'Server only: retires the seller''s active license signing key and saves the new (already encrypted) key in one transaction, serialized per seller.';
+
+
+--
 -- Name: restore_product_as(jsonb, uuid, uuid); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -11649,13 +11697,15 @@ ALTER FUNCTION public.search_payment_transactions(p_search text, p_include_ident
 -- Name: seller_license_public_keys(uuid); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
-CREATE FUNCTION public.seller_license_public_keys(seller uuid) RETURNS TABLE(kid text, public_key text, alg text)
-    LANGUAGE sql SECURITY DEFINER
+CREATE FUNCTION public.seller_license_public_keys(seller uuid) RETURNS TABLE(kid text, public_key text, alg text, status text)
+    LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO ''
     AS $$
-  SELECT k.kid, k.public_key, k.alg
+  SELECT k.kid, k.public_key, k.alg,
+         CASE WHEN k.is_active THEN 'active' ELSE 'retired' END
   FROM public.seller_license_keys k
-  WHERE k.original_seller_id = seller AND k.is_active = true;
+  WHERE k.original_seller_id = seller
+  ORDER BY k.is_active DESC, k.created_at DESC, k.kid;
 $$;
 
 
@@ -11665,7 +11715,7 @@ ALTER FUNCTION public.seller_license_public_keys(seller uuid) OWNER TO postgres;
 -- Name: FUNCTION seller_license_public_keys(seller uuid); Type: COMMENT; Schema: public; Owner: postgres
 --
 
-COMMENT ON FUNCTION public.seller_license_public_keys(seller uuid) IS 'Returns active public keys (kid, public_key, alg) for a seller. Public-safe: never exposes encrypted private-key columns.';
+COMMENT ON FUNCTION public.seller_license_public_keys(seller uuid) IS 'Public keys (kid, public_key, alg, status) for a seller: the active signing key first, then retired keys that still verify licenses signed before a key change. Never exposes encrypted private-key columns.';
 
 
 --
@@ -22244,6 +22294,8 @@ function | public.release_unpaid_transfer(p_id uuid, p_now timestamp with time z
 function | public.release_unpaid_transfer(p_id uuid, p_now timestamp with time zone) | service_role | EXECUTE | postgres | -
 function | public.remove_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid, p_permanent boolean) | postgres | EXECUTE | postgres | -
 function | public.remove_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid, p_permanent boolean) | service_role | EXECUTE | postgres | -
+function | public.replace_seller_license_key(p_seller_id uuid, p_kid text, p_public_key text, p_encrypted_key text, p_encryption_iv text, p_encryption_tag text, p_custody text) | postgres | EXECUTE | postgres | -
+function | public.replace_seller_license_key(p_seller_id uuid, p_kid text, p_public_key text, p_encrypted_key text, p_encryption_iv text, p_encryption_tag text, p_custody text) | service_role | EXECUTE | postgres | -
 function | public.restore_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid) | postgres | EXECUTE | postgres | -
 function | public.restore_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid) | service_role | EXECUTE | postgres | -
 function | public.retain_disputed_access() | postgres | EXECUTE | postgres | -
@@ -22273,8 +22325,6 @@ function | public.search_order_leads(p_search text) | postgres | EXECUTE | postg
 function | public.search_order_leads(p_search text) | service_role | EXECUTE | postgres | -
 function | public.search_payment_transactions(p_search text, p_include_identifiers boolean) | postgres | EXECUTE | postgres | -
 function | public.search_payment_transactions(p_search text, p_include_identifiers boolean) | service_role | EXECUTE | postgres | -
-function | public.seller_license_public_keys(seller uuid) | anon | EXECUTE | postgres | -
-function | public.seller_license_public_keys(seller uuid) | authenticated | EXECUTE | postgres | -
 function | public.seller_license_public_keys(seller uuid) | postgres | EXECUTE | postgres | -
 function | public.seller_license_public_keys(seller uuid) | service_role | EXECUTE | postgres | -
 function | public.seller_revoked_orders(seller uuid, hash_prefix text) | postgres | EXECUTE | postgres | -

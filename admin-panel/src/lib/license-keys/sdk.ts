@@ -6,12 +6,15 @@ import { parseLicenseClaims, verifyLicense, type LicenseVerifyResult } from '@/l
  * `GET /api/licenses/jwks?seller=<id>`). Selects the key by the token's `kid`,
  * then checks the ECDSA signature and expiry — no network call needed at verify
  * time. Sellers can copy this function (it depends only on `format.ts`, which is
- * plain Node `crypto`).
+ * plain Node `crypto`). A `retired` key (replaced by a planned key change) verifies
+ * the licenses it signed exactly like the active key, so `status` is not checked.
  */
 export interface SellfPublicKey {
   kid: string;
   alg: string;
   pem: string;
+  /** `active` signs new licenses; `retired` only verifies licenses signed before a key change. Absent in older Sellf versions. */
+  status?: 'active' | 'retired';
 }
 
 export function verifySellfLicense(

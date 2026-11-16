@@ -1236,8 +1236,20 @@ from `src/lib/license/verify.ts`, which licenses Sellf-the-product itself.
 calls `issueLicense`, which signs a token (`payloadB64url.sigB64url`, claims
 `{v,kid,product,email,order,tier,iat,exp}`) and records it in `issued_licenses`
 (idempotent per order). The token rides on the `purchase.completed` webhook payload
-(`licenseKey`) for delivery. Buyers verify it against the seller's public keys from
-`GET /api/licenses/jwks?seller=<id>`.
+(`licenses[]`) and on `license.issued` (`licenseKey`) for delivery. Buyers verify it against
+the seller's public keys from `GET /api/licenses/jwks?seller=<id>`.
+
+**Planned key change:** generating or uploading a new key retires the previous one
+(`is_active = false`) instead of hiding it. `storeSellerKey` encrypts the private key first, then
+calls the service-role-only `replace_seller_license_key()` RPC, which takes a per-seller advisory
+lock and retires the old key + saves the new one in one transaction (a failed save keeps the old
+key signing; concurrent changes end with exactly one active key). JWKS lists the active key first,
+then every retired key, so licenses signed before the change keep verifying offline; only the
+active key signs. Each JWKS entry is a standard EC P-256 JWK (`kty`, `crv`, `x`, `y`, `kid`,
+`alg: ES256`, `use: sig`) plus `pem` (same key, SPKI PEM — used by `sdk.ts` and the docs' verifiers)
+and `status` (`active` | `retired`). The token itself is not a JWS (DER signature over the base64url
+payload), so JOSE JWT verifiers do not apply. Cancelling a leaked key (and re-signing live
+licenses) is not built yet — a retired key still verifies.
 
 **Custody (both supported):** `managed` — Sellf generates the keypair; `byok` — the
 seller uploads their own private key. Private keys are encrypted at rest with

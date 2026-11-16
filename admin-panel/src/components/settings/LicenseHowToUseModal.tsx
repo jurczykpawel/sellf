@@ -32,14 +32,14 @@ const JWKS_EXAMPLE = (jwksUrl: string) =>
 // Cache the response — the endpoint sets max-age=300.
 const res = await fetch('${jwksUrl}');
 const { keys } = await res.json();
-// keys = [{ kid, alg, pem }, ...]`;
+// keys = [{ kid, alg, pem, status }, ...] — status: 'active' or 'retired'; both verify`;
 
 const JWKS_PLACEHOLDER = `// event.licenses[0].jwksUrl comes straight from the webhook payload.
 // A bundle purchase issues one license per licensable product — iterate event.licenses.
 // Cache the response — the endpoint sets max-age=300.
 const res = await fetch(event.licenses[0].jwksUrl);
 const { keys } = await res.json();
-// keys = [{ kid, alg, pem }, ...]`;
+// keys = [{ kid, alg, pem, status }, ...] — status: 'active' or 'retired'; both verify`;
 
 const VERIFY_CODE = `import { createVerify } from 'node:crypto';
 

@@ -30,8 +30,12 @@ Potem panel pokazuje:
 - **Identyfikator klucza**: wartość `kid`, zapisywaną w każdym kluczu licencyjnym.
 - **Adres JWKS**: `https://your-sellf.example/api/licenses/jwks?seller=<id-sprzedawcy>`. Stąd aplikacja pobiera klucze publiczne. Wartość `seller` to Twój identyfikator sprzedawcy; będzie potrzebny w aplikacji.
 
-:::caution[Zmiana klucza podpisującego]
-Sellf publikuje tylko bieżący klucz podpisujący. Gdy wygenerujesz albo wgrasz nowy, stary klucz publiczny znika z adresu JWKS, więc licencje nim podpisane przestają przechodzić weryfikację w aplikacjach, które korzystają z tej listy. Zmieniaj klucz tylko świadomie albo zachowaj stary klucz publiczny w aplikacji (kod niżej przyjmuje go przez `addTrustedKeys`).
+Każdy klucz pod adresem JWKS to zwykły klucz publiczny w formacie JWK (`kty: "EC"`, `crv: "P-256"`, `x`, `y`, `kid`, `alg: "ES256"`, `use: "sig"`), więc wczyta go każda biblioteka kryptograficzna. Ma też dwa pola Sellfa: `pem` (ten sam klucz jako tekst PEM, z niego korzystają przykłady na tej stronie) i `status` (`active` albo `retired`). Sam klucz licencji nie jest tokenem JWT, więc biblioteka do JWT go nie sprawdzi, nawet z właściwym kluczem. Użyj kodu poniżej.
+
+:::note[Zmiana klucza]
+Klucz podpisujący możesz zmienić w każdej chwili: kliknij jeszcze raz **Wygeneruj klucz** albo **Wgraj klucz**. Od tej chwili nowe licencje są podpisywane nowym kluczem. Stary klucz jest **wycofany**, nie unieważniony: zostaje pod adresem JWKS ze statusem `"status": "retired"`, więc licencje nim podpisane dalej działają. Aplikacji nie trzeba zmieniać, bo wybiera klucz po `kid` z tej samej listy.
+
+Zmiana klucza nie pomoże, jeśli ktoś ukradł Twój klucz prywatny: stary klucz dalej potwierdza licencje. Unieważnienia wykradzionego klucza Sellf jeszcze nie ma.
 :::
 
 ### 2. Włącz licencje w produkcie
@@ -170,7 +174,7 @@ function isPublicKey(k: unknown): k is SellfPublicKey {
     typeof key.pem === 'string' && key.pem.includes('-----BEGIN PUBLIC KEY-----');
 }
 
-/** Keys you load yourself at startup (saved last good copy, or an old key kept after a rotation). */
+/** Keys you load yourself at startup (a saved last good copy of the key list). */
 export function addTrustedKeys(keys: unknown[]): void {
   trustedKeys.push(...keys.filter(isPublicKey));
 }
@@ -421,7 +425,7 @@ Jeśli Twój pełny skrót jest w `order_hashes`, licencja jest cofnięta. Aplik
 | Wynik | Najczęstsza przyczyna | Co zrobić |
 |---|---|---|
 | `malformed` | Klucz skopiowany z dodatkowym tekstem, ucięty albo to nie jest klucz z Sellfa | Poproś kupującego o ponowne skopiowanie całego klucza; usuń spacje |
-| `unknown_key` | Zły `SELLF_SELLER_ID` albo klucz podpisano kluczem, którego Sellf już nie publikuje (zmiana klucza) | Sprawdź adres JWKS w **Ustawienia → Licencja**; zobacz uwagę o zmianie klucza |
+| `unknown_key` | Zły `SELLF_SELLER_ID` albo klucz pochodzi z innego sklepu | Sprawdź adres JWKS w **Ustawienia → Licencja** |
 | `keys_unavailable` | Pierwszy start, brak zapisanych kluczy i Sellf niedostępny | Zapisuj listę kluczy i wczytuj ją przez `addTrustedKeys`; zdecyduj, co aplikacja robi w tym czasie |
 | `signature` | Klucz został zmieniony albo podpisał go inny sklep | Wystaw nowy klucz; sprawdź `SELLF_URL` |
 | `expired` | Minęła data `exp` | Kupujący przedłuża licencję albo kupuje ponownie |

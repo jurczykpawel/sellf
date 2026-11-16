@@ -115,7 +115,8 @@ Z uprawnieniem `payments:write`: `POST /payments/{id}/mark-paid` (zaksięgowanie
 
 Klucz API z uprawnieniem `licenses:write` wydaje licencję przez `POST /api/v1/licenses`
 (`{ productId, email, domain?, customFieldValues?, sendEmail? = true, locale? }`) i odwołuje ją
-przez `DELETE /api/v1/licenses/{id}`. `licenses:read` daje listę `GET /api/v1/licenses`
+przez `DELETE /api/v1/licenses/{id}`. `domain` działa tylko wtedy, gdy produkt ma pole
+**Domena licencji**; bez tego pola Sellf je pomija i licencja nie ma domeny. `licenses:read` daje listę `GET /api/v1/licenses`
 (filtry `product_id`, `email`, `status`, `source`, bez tokenów) i pojedynczą licencję z tokenem
 `GET /api/v1/licenses/{id}`. Wydanie wysyła `license.issued` i, o ile nie podasz `sendEmail: false`,
 mail do kupującego z kluczem i linkiem do produktu.

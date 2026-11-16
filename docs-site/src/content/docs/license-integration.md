@@ -30,8 +30,12 @@ After that the panel shows:
 - **Key ID**: the `kid` written into every key.
 - **JWKS URL**: `https://your-sellf.example/api/licenses/jwks?seller=<seller-id>`. Your application downloads public keys from here. The `seller` value is your seller ID; you will need it in the application.
 
-:::caution[Rotating the key]
-Sellf publishes only the current signing key. Generating or uploading a new one removes the old public key from the JWKS URL, so licenses signed with it stop verifying in applications that rely on that list. Rotate only when you mean to, or keep the old public key in your application (the code below accepts it through `addTrustedKeys`).
+Each key at the JWKS URL is a standard public key in JWK format (`kty: "EC"`, `crv: "P-256"`, `x`, `y`, `kid`, `alg: "ES256"`, `use: "sig"`), so any crypto library can load it. It also has two Sellf fields: `pem` (the same key as PEM text, used by the examples on this page) and `status` (`active` or `retired`). The license key itself is not a JWT, so a JWT library will not check it, even with the right key. Use the code below.
+
+:::note[Changing the key]
+You can change the signing key at any time: click **Generate key** or **Upload key** again. From then on new licenses are signed with the new key. The old key is **retired**, not cancelled: it stays at the JWKS URL with `"status": "retired"`, so licenses signed with it keep working. Your application needs no change, because it picks the key by `kid` from the same list.
+
+A changed key does not help if someone has stolen your private key: the old key keeps verifying licenses. Sellf does not yet offer cancelling a leaked key.
 :::
 
 ### 2. Turn on licenses for a product
@@ -170,7 +174,7 @@ function isPublicKey(k: unknown): k is SellfPublicKey {
     typeof key.pem === 'string' && key.pem.includes('-----BEGIN PUBLIC KEY-----');
 }
 
-/** Keys you load yourself at startup (saved last good copy, or an old key kept after a rotation). */
+/** Keys you load yourself at startup (a saved last good copy of the key list). */
 export function addTrustedKeys(keys: unknown[]): void {
   trustedKeys.push(...keys.filter(isPublicKey));
 }
@@ -421,7 +425,7 @@ If your full hash is in `order_hashes`, the license is revoked. Your application
 | Result | Usual cause | What to do |
 |---|---|---|
 | `malformed` | Key copied with extra text, cut in half, or not a Sellf key | Ask the buyer to copy the whole key again; trim spaces |
-| `unknown_key` | Wrong `SELLF_SELLER_ID`, or the key was signed with a key that is no longer published (rotation) | Check the JWKS URL in **Settings → License**; see the rotation note above |
+| `unknown_key` | Wrong `SELLF_SELLER_ID`, or the key comes from a different store | Check the JWKS URL in **Settings → License** |
 | `keys_unavailable` | First start, no saved keys, and Sellf unreachable | Save the key list and load it with `addTrustedKeys`; decide what the app does meanwhile |
 | `signature` | The key was edited, or it was signed by a different store | Issue a new key; check `SELLF_URL` |
 | `expired` | `exp` has passed | The buyer renews or buys again |
