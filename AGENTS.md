@@ -64,13 +64,6 @@ bun run lint           # ESLint (next/core-web-vitals + next/typescript)
 bun run typecheck      # tsc --noEmit
 ```
 
-### MCP server (run from mcp-server/)
-
-```bash
-bun run build          # tsc
-bun run typecheck      # tsc --noEmit
-```
-
 ### Unit tests (Vitest) — admin-panel/
 
 ```bash
@@ -495,7 +488,7 @@ import type { PaymentConfigActionResult } from '@/types/payment-config';
 - **Hooks / non-critical**: `console.error(...)` and return empty/default value
 - **Console logging**: bracket-prefixed tags: `console.error('[functionName] Error:', error)`
 - **Error extraction**: always `error instanceof Error ? error.message : 'Unknown error'`
-- **MCP server / CLI**: `console.error(msg); process.exit(1)` for fatal errors
+- **CLI scripts**: `console.error(msg); process.exit(1)` for fatal errors
 
 ### Authentication Patterns
 
@@ -970,8 +963,8 @@ independent READ/WRITE scopes and APP_ENCRYPTION_KEY encryption. Its service-onl
 `save_template_credential` RPC rechecks the actor/key and writes the credential plus
 status-only audit metadata atomically. Saving resets verification to `unknown`;
 status readers return only template ID, state and verification time. `/api/v1/templates/licenses` GET/POST exposes status/entry with independent READ/WRITE
-permissions and a 16384-byte streamed request bound. `templates_license_status` and
-`templates_license_activate` are matching MCP adapters; saving never publishes.
+permissions and a 16384-byte streamed request bound. Over MCP, `get_template_licenses` is a
+generated tool; saving a key (`save_template_license`) is excluded from MCP. Saving never publishes.
 Node instrumentation refreshes the separate template snapshot every 30 seconds.
 Public readers perform no credential/database/issuer I/O and combine fresh key grants
 with the independent local platform tier. Confirmations expire within 60 seconds or
@@ -1001,7 +994,26 @@ OpenAPI 3.1, served publicly at `GET /api/v1/openapi.json` (relative server URL,
 or query parameter that differs from what the route source checks/reads (static rules in
 `tests/unit/lib/api/route-inventory.ts`), and on an invalid OpenAPI document. A validator you
 want in the document must be exported from `src/lib/` (route files may only export handlers).
-The generated MCP layer (W221b) reads `operationId`, `x-required-scope` and `x-mcp.exclude`.
+
+### MCP endpoint (generated from the registry)
+
+`POST /api/mcp` (`src/app/api/mcp/route.ts`) is a stateless Streamable HTTP MCP server built on
+`@modelcontextprotocol/server`. `src/lib/mcp/operations.ts` turns the OpenAPI document into tools:
+one per operation that has `x-required-scope`, BearerAuth security and no `x-mcp.exclude` (session-only
+and public operations drop out by themselves); `$ref`s are inlined; the tool name is the `operationId`.
+Zero business logic and zero hand-written tools: **a new v1 operation becomes an MCP tool through its
+registry entry**; hide one with `mcpExclude: true`.
+
+- Auth: `Authorization: Bearer <API key>` only, via `authenticateApiKeyPrincipal` (panel session cookies are
+  refused and never forwarded). A key sees the operations `hasScope` allows (same rule as the API).
+- Each tool call is an HTTP request to this same process (`SELLF_INTERNAL_URL`, default
+  `http://127.0.0.1:$PORT`, never a Host-derived address) at `/api/v1/...` with the caller's Authorization
+  and client-IP headers, so scopes, rate limits, demo mode and audit are the API's. The MCP request itself
+  also counts once against the key's rate limit. API status ≥ 400 → `isError` with the API's JSON.
+- `?mode=compact` exposes `search_operations` + `call_operation` (full scope ≈ 100 tools, ~190 KB).
+- Tests: `tests/unit/lib/mcp/` (generation, scope, compact, `$ref`, docs recipes vs schemas),
+  `tests/unit/api/mcp-route.test.ts` (auth boundary, forwarding), `tests/api/mcp.test.ts` (official SDK
+  client against the running app). OAuth (Claude.ai / ChatGPT connectors) is not implemented yet.
 
 ### Runtime Configuration
 
@@ -1449,7 +1461,7 @@ only lose its click id (retention) or FK references (deletions). Attribution nev
 **Read paths (agents):** `GET /api/v1/analytics/attribution` (`analytics:read`, aggregates only,
 major units, net of refunds; `days|from,to`, `touch`, `group_by`, `product_id`) backed by the RPC
 `get_attribution_report`; `GET /api/v1/payments?embed=attribution` (`payments:read`, per order);
-MCP `get_purchase_attribution` (default last 3 days) and `list_payments` `embed: "attribution"`;
+MCP tools `get_purchase_attribution` and `list_payments` (`embed=attribution`), generated from those routes;
 `purchase.completed.attribution` webhook field (never the click id); admin "Source" box in payment
 details (`AttributionSection`) and **Settings → Purchase sources** (`AttributionSettings`,
 RPC `save_attribution_config`, audited).
@@ -1754,7 +1766,7 @@ gh workflow run build-release.yml -f version=v2026.3.0
 ### Dependabot policy
 
 Weekly. `.github/workflows/dependabot-auto-merge.yml` classifies every Dependabot PR: **safe**
-(docs-site, github-actions, mcp-server devDependencies, non-major) merges itself once `pr-ci.yml`
+(docs-site, github-actions, non-major) merges itself once `pr-ci.yml`
 (typecheck, lint, build, docs build) is green; everything that ships (all admin-panel/Bun PRs, runtime
 deps, Docker, majors) gets the `release-batch` label and `security` fixes the `security` label, and neither
 is auto-merged. Those are folded into the release branch during the release (sellf-release step 0) with

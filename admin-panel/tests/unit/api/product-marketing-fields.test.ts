@@ -6,7 +6,8 @@ import { mapApiInputToProductRow } from '@/lib/api/dto/product';
 import { storedJsonBytes } from '@/lib/storefront-templates/json';
 import { marketingFieldsSchema, marketingFieldsShapeSchema, marketingProjectionSchema } from '@/lib/validations/product-marketing';
 import { PRODUCT_API_FIELDS } from '@/lib/validations/product';
-import { productCreateShape, productUpdateShape } from '../../../../mcp-server/src/tools/product-schema';
+import { buildOpenApiSpec } from '@/lib/api/openapi/spec';
+import { mcpOperations, type OpenApiDocument } from '@/lib/mcp/operations';
 
 const mocks = vi.hoisted(() => ({ authenticate: vi.fn(), rpc: vi.fn() }));
 vi.mock('@/lib/api', async () => ({ ...await vi.importActual<typeof import('@/lib/api')>('@/lib/api'), authenticate: mocks.authenticate }));
@@ -42,7 +43,7 @@ const invalid = [null, {}, { ...empty, extra: true }, { ...empty, en: { ...copy,
   { ...empty, en: { ...copy, tools: Array.from({ length: 13 }, (_, i) => String(i)) } },
   JSON.parse('{"format":null,"sourceLocale":"en","en":{"result":null,"tools":[],"requirements":[]},"__proto__":{}}'), boundary(8193)];
 
-describe('marketing DTO and MCP parity', () => {
+describe('marketing DTO and MCP tool schema', () => {
   for (const context of ['create', 'update'] as const) {
     it(`${context} preserves complete metadata and does not default omitted metadata`, () => {
       const input = context === 'create' ? base : {};
@@ -53,16 +54,12 @@ describe('marketing DTO and MCP parity', () => {
       expect(() => mapApiInputToProductRow({ ...base, marketing_fields }, context)).toThrow();
     });
   }
-  it.each([empty, translated, boundary(8191), boundary(8192), { ...empty, en: { ...copy, result: '😀'.repeat(240), tools: ['A, B: C', 'Editor \"A\"'] } }, ...invalid])('matches the shared validator in MCP %#', value => {
-    const expected = marketingFieldsSchema.safeParse(value).success;
-    for (const shape of [productCreateShape, productUpdateShape]) {
-      const schema = shape['marketing_fields' as keyof typeof shape];
-      expect(schema, 'MCP marketing field').toBeDefined();
-      expect(schema.safeParse(value).success).toBe(expected);
+  it('MCP product tools take marketing_fields from the API validator (generated, no second copy)', () => {
+    const tools = mcpOperations(buildOpenApiSpec() as unknown as OpenApiDocument);
+    for (const name of ['create_product', 'update_product']) {
+      const body = (tools.find(tool => tool.name === name)!.inputSchema.properties as Record<string, { properties: Record<string, unknown> }>).body;
+      expect(JSON.stringify(body.properties.marketing_fields), name).toContain('sourceLocale');
     }
-  });
-  it('keeps the standalone structural schema aligned with the shared contract', () => {
-    expect(z.toJSONSchema(productCreateShape.marketing_fields.unwrap())).toEqual(z.toJSONSchema(marketingFieldsShapeSchema));
   });
   it('keeps public editorial reads bounded to declared fields', () => {
     expect(PRODUCT_API_FIELDS.split(', ')).toContain('marketing_fields');

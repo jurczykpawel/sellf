@@ -41,7 +41,6 @@ bun test
 ```
 sellf/
   admin-panel/     # Next.js application (main codebase)
-  mcp-server/      # MCP server for AI integrations
   supabase/        # Database migrations and seed data
   scripts/         # Utility scripts
   bruno/           # API collection (Bruno client)

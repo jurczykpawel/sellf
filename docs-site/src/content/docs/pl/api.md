@@ -20,6 +20,8 @@ To OpenAPI 3.1: publiczny (bez klucza), bez danych i sekretów, buforowany przez
 - treść żądań i odpowiedzi dla produktów, ofert produktów i szablonów sklepu to pełne schematy JSON generowane z tych samych walidatorów, których używa serwer; pozostałe grupy opisują parametry, a treść żądania tam, gdzie istnieje walidator;
 - `x-mcp: { exclude: true }` oznacza operacje, których agent nie powinien wywoływać (zarządzanie kluczami, eksport CSV, sam opis).
 
+Wbudowany endpoint MCP `/api/mcp` powstaje z tego opisu: jedno narzędzie na każdą operację dozwoloną dla klucza albo `?mode=compact` z wyszukiwaniem i wywołaniem. Zobacz [Podłącz swojego agenta AI](/pl/connect-ai-agent/).
+
 Opis powstaje z jednego rejestru w kodzie. Test w CI nie przepuści trasy bez wpisu w rejestrze ani różnicy między opisanym uprawnieniem lub parametrami zapytania a tym, co trasa faktycznie sprawdza, więc plik zgadza się z wersją, którą masz zainstalowaną.
 
 ## Ustawienia koszyka
@@ -83,7 +85,7 @@ Poniższe starsze pola są rozpoznawane i walidowane, ale **ignorowane**, poniew
 | `min_amount` | Nieujemna liczba lub null | `custom_price_min` (jednostki główne; nieujemna liczba) |
 | `metadata` | Obiekt | Brak; metadane płatności mają osobny kontrakt |
 
-To nie są aliasy: v1 nie mapuje ich na alternatywne pola, nie zapisuje ich ani nie zwraca. Starsi klienci MCP mogą wysyłać `custom_price_label`; aktualny schemat narzędzi MCP pomija całą piątkę. Zachowujemy zgodność z klientami v1 bez przekazywania nieobsługiwanych kolumn do bazy.
+To nie są aliasy: v1 nie mapuje ich na alternatywne pola, nie zapisuje ich ani nie zwraca. Narzędzia MCP powstają z tego samego walidatora, więc ich schemat też zawiera te dawne pola; są przyjmowane i pomijane tak samo. Zachowujemy zgodność z klientami v1 bez przekazywania nieobsługiwanych kolumn do bazy.
 
 `categories`, `tags` i `bundleItemIds` są obsługiwanymi polami relacji, zapisywanymi osobno od wiersza produktu. Nie są polami nieznanymi. Pozostałe endpointy mają własne reguły walidacji.
 

@@ -16,7 +16,7 @@ Built by Paweł Jurczyk (github.com/jurczykpawel). 17 years IT background. Open-
 - Webhooks with DLQ + retry + dashboard replay
 - Pay-what-you-want, tip jar, order bumps, OTO pages, coupons (incl. OTO discount)
 - License tiers: Free → Registered → Pro → Business (white-label)
-- MCP server with 45 tools / 4 resources / 6 prompts for Claude Desktop
+- Built-in MCP endpoint (/api/mcp) generated from the OpenAPI description (/api/v1/openapi.json); compact mode: /api/mcp?mode=compact
 - Polish market integrations: GUS REGON auto-fill, VAT compliance, Omnibus Directive support
 
 ## Pages

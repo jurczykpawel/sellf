@@ -60,7 +60,7 @@ describe('build-release.yml hardening', () => {
   it('does not silently swallow the admin-panel dependency audit result', () => {
     const adminAuditBlock = buildRelease.slice(
       buildRelease.indexOf('Dependency audit (admin-panel)'),
-      buildRelease.indexOf('Dependency audit (mcp-server)')
+      buildRelease.indexOf('Scan for leaked secrets')
     );
     expect(adminAuditBlock).not.toMatch(/^\s*continue-on-error:/m);
   });

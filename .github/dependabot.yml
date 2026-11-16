@@ -1,9 +1,9 @@
 version: 2
 # Weekly cadence, three kinds of PR (the label/merge policy lives in
 # .github/workflows/dependabot-auto-merge.yml, which classifies every PR):
-#   - "safe"        docs-site, github-actions, mcp-server devDependencies: merged by the
+#   - "safe"        docs-site, github-actions: merged by the
 #                   workflow once PR CI (pr-ci.yml) is green.
-#   - "release-batch" everything that ships in the product (admin-panel, mcp-server and
+#   - "release-batch" everything that ships in the product (admin-panel and
 #                   Docker runtime deps, majors): never auto-merged; labelled `release-batch`
 #                   and folded into the release branch by the release process
 #                   (sellf-release step 0). build-release.yml refuses to build a release
@@ -38,24 +38,6 @@ updates:
       - dependency-name: "eslint"
         update-types: ["version-update:semver-major"]
 
-  - package-ecosystem: "npm"
-    directory: "/mcp-server"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 3
-    labels:
-      - "dependencies"
-    groups:
-      dev-dependencies:
-        dependency-type: "development"
-        update-types: ["patch", "minor"]
-      runtime-dependencies:
-        dependency-type: "production"
-        update-types: ["patch", "minor"]
-      security:
-        applies-to: security-updates
-        patterns: ["*"]
 
   - package-ecosystem: "npm"
     directory: "/docs-site"

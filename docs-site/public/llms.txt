@@ -10,7 +10,7 @@
 ## API and integrations
 
 - [REST API v1](https://docs.sellf.app/api/): endpoints, API keys and scopes, pagination
-- [Connect your AI agent](https://docs.sellf.app/connect-ai-agent/): MCP server setup with scoped keys
+- [Connect your AI agent](https://docs.sellf.app/connect-ai-agent/): built-in MCP endpoint (/api/mcp) with scoped API keys
 - [Webhooks](https://docs.sellf.app/webhooks/): envelope, signature verification, retries, event payloads
 - [Buyer emails](https://docs.sellf.app/buyer-emails/): delivering buyer messages through webhooks or Supabase
 - [PlayerStack lead forms](https://docs.sellf.app/playerstack-leads/): email-confirmed lead magnets

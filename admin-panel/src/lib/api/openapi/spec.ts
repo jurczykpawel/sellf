@@ -45,6 +45,16 @@ function stripMeta(schema: JsonObject): JsonObject {
   return rest;
 }
 
+/**
+ * `z.custom(guard).pipe(shape)` (e.g. "plain JSON only", then the real shape) has an
+ * unrepresentable input; describe it by the shape it pipes into, so agents see the fields.
+ */
+function describeGuardedPipe({ zodSchema, jsonSchema }: { zodSchema: unknown; jsonSchema: JsonObject }): void {
+  const def = (zodSchema as z.ZodType).def as { type: string; in?: z.ZodType; out?: z.ZodType };
+  if (def.type !== 'pipe' || def.in?.def.type !== 'custom' || !def.out) return;
+  Object.assign(jsonSchema, stripMeta(z.toJSONSchema(def.out, { io: 'input', unrepresentable: 'any' }) as JsonObject));
+}
+
 /** zod schemas of the registry → components.schemas, with cross-references between them. */
 function convertSchemas(operations: readonly ApiOperation[]): { schemas: Record<string, JsonObject>; idOf: Map<z.ZodType, string> } {
   const registry = z.registry<{ id: string }>();
@@ -60,7 +70,7 @@ function convertSchemas(operations: readonly ApiOperation[]): { schemas: Record<
     if (op.body) add(op.body, `${op.operationId}_body`);
     if (op.response) add(op.response, `${op.operationId}_response`);
   }
-  const out = z.toJSONSchema(registry, { io: 'input', unrepresentable: 'any', uri: SCHEMA_REF }) as { schemas: Record<string, JsonObject> };
+  const out = z.toJSONSchema(registry, { io: 'input', unrepresentable: 'any', uri: SCHEMA_REF, override: describeGuardedPipe }) as { schemas: Record<string, JsonObject> };
   const schemas = Object.fromEntries(Object.entries(out.schemas).map(([id, schema]) => [id, stripMeta(schema)]));
   return { schemas, idOf };
 }

@@ -36,6 +36,8 @@ It is OpenAPI 3.1, public (no key needed), contains no data or secrets, and is c
 - request bodies and responses for products, product offers and storefront templates are full JSON Schemas generated from the same validators the server uses; other groups document parameters, and bodies where a validator exists;
 - `x-mcp: { exclude: true }` marks operations an agent should not call (key management, CSV export, the description itself).
 
+The built-in MCP endpoint `/api/mcp` is generated from this description: one tool per operation the key may call, or `?mode=compact` for search + call. See [Connect your AI agent](/connect-ai-agent/).
+
 The description is generated from one registry in the code. A CI test fails when a route has no entry there, or when the documented scope or query parameters differ from what the route checks, so the file stays in step with the release you run.
 
 ---
@@ -123,7 +125,7 @@ These legacy fields are recognized and validated but **ignored**, because they h
 | `min_amount` | Nonnegative number or null | `custom_price_min` (major units; nonnegative number) |
 | `metadata` | Object | None; payment metadata is a separate contract |
 
-These are not aliases: v1 does not map them to the alternative fields, store them or return them. Older MCP clients may send `custom_price_label`; the current MCP tool schema omits all five fields. This keeps existing v1 callers compatible without forwarding unsupported columns to storage.
+These are not aliases: v1 does not map them to the alternative fields, store them or return them. MCP tools are generated from the same validator, so their schema lists these legacy fields too; they are accepted and ignored in the same way. This keeps existing v1 callers compatible without forwarding unsupported columns to storage.
 
 `categories`, `tags` and `bundleItemIds` are supported relation inputs, handled separately from the product row. They are not unknown fields. Other endpoints have their own validation rules.
 

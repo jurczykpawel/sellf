@@ -1,22 +1,15 @@
 ---
 title: Connect your AI agent
-description: Connect Claude Code, Claude Desktop, Codex or Cursor to Sellf and try three tested MCP recipes.
+description: Connect Claude Code, Claude Desktop, Codex or Cursor to your Sellf's built-in MCP endpoint and try tested recipes.
 ---
 
-Sellf's MCP server lets your own AI agent draft products, create coupons and read sales analytics through the Sellf API. The server runs locally on your computer over **stdio**; it connects to your Sellf installation over HTTPS. You do not need a hosted MCP endpoint.
+Every Sellf instance has a built-in MCP endpoint at **`https://YOUR-SELLF/api/mcp`** (Streamable HTTP). Your AI agent connects to it with a Sellf API key and can then draft products, create coupons or read sales reports. Nothing to install on the Sellf side.
 
-## Prepare Sellf and the server
+The tools are generated from the [API description](/api/#api-description-for-agents) (`/api/v1/openapi.json`): one tool per API operation, named after its `operationId` (for example `create_product`). Each call is an ordinary request to `/api/v1` with your key, so scopes, rate limits and the audit log apply exactly as for the API; MCP bypasses nothing. A request body goes under the `body` argument; path and query parameters are arguments by name.
 
-1. Install [Bun](https://bun.sh/) on the computer running your agent and obtain the [Sellf source](https://github.com/jurczykpawel/sellf).
-2. Install the MCP package dependencies:
+## Prepare a key
 
-   ```sh
-   cd /absolute/path/to/sellf/mcp-server
-   bun install
-   command -v bun
-   ```
-
-3. In Sellf, open **Dashboard → API Keys** (`/dashboard/api-keys`). Creating a key requires a registered or higher license. Create a separate key per workflow with the scopes below; copy it when shown. Explicit scope selection in the admin UI requires Pro; an authenticated admin can also request an explicitly scoped key through `POST /api/v1/api-keys` (see the [API reference](/api/)). Do not accept a full-access default for these recipes.
+In Sellf, open **Dashboard → API Keys** (`/dashboard/api-keys`). Creating a key requires a registered or higher license. Create a separate key per workflow with the scopes below; copy it when shown. Explicit scope selection in the admin UI requires Pro; an authenticated admin can also request an explicitly scoped key through `POST /api/v1/api-keys` (see the [API reference](/api/)). Do not accept a full-access default for these recipes.
 
 | Recipe | Exact scopes |
 | --- | --- |
@@ -24,72 +17,79 @@ Sellf's MCP server lets your own AI agent draft products, create coupons and rea
 | Create and inspect a coupon for a known product ID | `coupons:read`, `coupons:write` |
 | Weekly sales report below | `analytics:read` |
 
-Add `products:read` to the coupon key only if the agent must look up the product. The report below needs neither transaction nor user access. Tools such as `get_revenue_stats` use the payments API and need `payments:read` even though their names sound analytical. Do not grant `*`, refunds, user writes or webhook writes for these recipes.
+The agent sees only the operations its key's scopes allow (each operation's scope is `x-required-scope` in the API description). Add `products:read` to the coupon key only if the agent must look up the product. Do not grant `*`, refunds, user writes or webhook writes for these recipes. Key management and CSV export are never exposed over MCP.
 
 **Keep keys in private local configuration, outside version control.** Never paste a key into a recipe prompt. Use a local Sellf instance for experiments: an `sf_test_` prefix does not create a separate database or make writes harmless. Revoke the key in Sellf when finished.
 
-In all examples replace the Bun path with the result of `command -v bun`, the source path with your absolute path, the URL with your Sellf origin (without `/api/v1`), and the key with the workflow's scoped key. Use HTTPS except for local development, where `http://127.0.0.1:3000` is supported. Windows users should use absolute Windows paths and escape backslashes in JSON.
+In all examples replace `https://sellf.example.com` with your Sellf origin and `sf_live_REPLACE` with the workflow's scoped key. Use HTTPS except for local development, where `http://127.0.0.1:3000/api/mcp` works.
+
+### Full or compact tool list
+
+`/api/mcp` lists one tool per allowed operation. With a full-scope key that is about 100 tools and roughly 190 KB of definitions, which crowds a chat model's context. **`/api/mcp?mode=compact`** exposes just two tools instead: `search_operations` (find operations by words; returns their input schemas) and `call_operation` (`{"operationId": "...", "params": {...}}`). Use compact mode for broad keys and chat clients; a narrowly scoped key works well in the default mode.
 
 ## Claude Code
 
-Run in your project; `--scope local` keeps this registration out of the shared project MCP file:
-
 ```sh
-claude mcp add --scope local \
-  --env SELLF_API_URL=https://sellf.example.com \
-  --env SELLF_API_KEY=REPLACE_WITH_SCOPED_KEY \
-  --transport stdio sellf -- \
-  /absolute/path/to/bun /absolute/path/to/sellf/mcp-server/src/index.ts
+claude mcp add --transport http --scope local sellf https://sellf.example.com/api/mcp \
+  --header "Authorization: Bearer sf_live_REPLACE"
 ```
 
-Open `/mcp` in Claude Code and check that `sellf` is connected. The command contains your key, so avoid saving it in shell history. See [Claude Code's MCP setup](https://code.claude.com/docs/en/mcp).
+`--scope local` keeps the registration (and the key) out of the shared project file. Open `/mcp` in Claude Code and check that `sellf` is connected; a wrong key shows 401. See [Claude Code's MCP setup](https://code.claude.com/docs/en/mcp).
 
 ## Claude Desktop
 
-Open **Settings → Developer → Edit Config**. The file is `~/Library/Application Support/Claude/claude_desktop_config.json` on macOS or `%APPDATA%\Claude\claude_desktop_config.json` on Windows. Merge this entry into your existing `mcpServers` object:
+Claude Desktop's configuration file starts local processes, so it reaches a remote endpoint through [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) (requires Node.js). Open **Settings → Developer → Edit Config** (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS, `%APPDATA%\Claude\claude_desktop_config.json` on Windows) and merge:
 
 ```json
 {
   "mcpServers": {
     "sellf": {
-      "command": "/absolute/path/to/bun",
-      "args": ["/absolute/path/to/sellf/mcp-server/src/index.ts"],
-      "env": {
-        "SELLF_API_URL": "https://sellf.example.com",
-        "SELLF_API_KEY": "REPLACE_WITH_SCOPED_KEY"
-      }
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://sellf.example.com/api/mcp?mode=compact", "--header", "Authorization:${SELLF_AUTH}"],
+      "env": { "SELLF_AUTH": "Bearer sf_live_REPLACE" }
     }
   }
 }
 ```
 
-Fully quit and reopen Claude Desktop, then check its available tools for `sellf`. See the [local MCP server guide](https://modelcontextprotocol.io/docs/develop/connect-local-servers).
+The header has no space after the colon and its value sits in `env` on purpose: some clients pass arguments containing spaces incorrectly. Fully quit and reopen Claude Desktop, then check its tools for `sellf`.
+
+Connecting from Claude.ai or ChatGPT in the browser (custom connectors) needs OAuth sign-in, which Sellf does not offer yet; it is planned. Until then use one of the clients on this page.
 
 ## Codex
 
-Add this to your private `~/.codex/config.toml`:
+In your private `~/.codex/config.toml`:
 
 ```toml
 [mcp_servers.sellf]
-command = "/absolute/path/to/bun"
-args = ["/absolute/path/to/sellf/mcp-server/src/index.ts"]
-
-[mcp_servers.sellf.env]
-SELLF_API_URL = "https://sellf.example.com"
-SELLF_API_KEY = "REPLACE_WITH_SCOPED_KEY"
+url = "https://sellf.example.com/api/mcp"
+bearer_token_env_var = "SELLF_API_KEY"
 ```
 
-Restart the Codex session and check `codex mcp list` or `/mcp` in the CLI. See the [official Codex MCP documentation](https://developers.openai.com/codex/mcp/).
+Export `SELLF_API_KEY=sf_live_REPLACE` in the environment that starts Codex, restart the session and check `codex mcp list`. See the [official Codex MCP documentation](https://developers.openai.com/codex/mcp/).
 
 ## Cursor
 
-Merge the **same JSON shown for Claude Desktop** into your private `~/.cursor/mcp.json`. Restart Cursor and enable `sellf` in its MCP settings. Avoid a shared `.cursor/mcp.json` containing your key. See [Cursor's MCP setup](https://cursor.com/help/customization/mcp).
+In your private `~/.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "sellf": {
+      "url": "https://sellf.example.com/api/mcp",
+      "headers": { "Authorization": "Bearer ${env:SELLF_API_KEY}" }
+    }
+  }
+}
+```
+
+Restart Cursor and enable `sellf` in its MCP settings. Avoid a shared `.cursor/mcp.json` containing your key. See [Cursor's MCP setup](https://cursor.com/help/customization/mcp).
 
 ## Check the connection
 
-Ask the agent to list Sellf tools, then run a read allowed by your key: `list_products` with `{"limit":1}` for the product key, `list_coupons` with `{"limit":1}` for the coupon key, or `get_top_products` with `{"period":"week","limit":1,"sort_by":"sales"}` for reporting.
+Ask the agent to list Sellf tools, then run a read allowed by your key: `list_products` with `{"limit":1}` for the product key, `list_coupons` with `{"limit":1}` for the coupon key, or `get_top_products` with `{"period":"week","limit":1,"sort_by":"sales"}` for reporting. In compact mode the agent first calls `search_operations` (for example `{"query":"list products"}`).
 
-If the process cannot start, check the absolute Bun/source paths and run `bun install` in `mcp-server`. If a tool returns 401, check the key and Sellf URL; for 403, check its scopes and that its owner is still an admin. Seeing a tool in the client does not grant permission to use it. After changing keys, restart the MCP connection. Seller permissions are enforced by the API.
+A 401 from `/api/mcp` means a missing, wrong or revoked key (a signed-in panel session is not accepted). A tool result marked as an error carries the API's own response, for example 403 when the key lacks a scope or its owner is no longer an admin. After changing keys, restart the MCP connection.
 
 ## Recipe 1: Draft a product from an offer
 
@@ -103,16 +103,16 @@ sections. Keep it inactive and unlisted. Return its ID, admin preview URL
 and checkout URL. Do not publish.
 ```
 
-Expected calls (the real server also defaults `is_active` to false):
+Expected calls (the API also defaults `is_active` to false):
 
 ```json
-{"name":"create_product","arguments":{"name":"Automation workbook","slug":"automation-workbook","price":49.99,"currency":"PLN","description":"A practical workbook with three exercises.","long_description":"Practice automation with three guided exercises.","features":[{"title":"Included","items":["Workbook","Three exercises"]}],"product_type":"one_time","is_listed":false}}
+{"name":"create_product","arguments":{"body":{"name":"Automation workbook","slug":"automation-workbook","price":49.99,"currency":"PLN","description":"A practical workbook with three exercises.","long_description":"Practice automation with three guided exercises.","features":[{"title":"Included","items":["Workbook","Three exercises"]}],"product_type":"one_time","is_listed":false}}}
 {"name":"get_product","arguments":{"id":"PRODUCT_UUID"}}
 ```
 
 Check the saved price, currency and features. Product prices use **major units**: `49.99`, not `4999`. Preview while signed in as admin at `https://sellf.example.com/p/automation-workbook?preview=1`. The payment page is `https://sellf.example.com/checkout/automation-workbook`; it becomes available after publication. A draft's public checkout returns 404. Configure Stripe and actual content delivery before selling; drafting the offer does not upload a workbook or charge a buyer.
 
-When ready, explicitly ask: `Publish only product PRODUCT_UUID. Keep it unlisted.` The agent calls `update_product` with `{"id":"PRODUCT_UUID","is_active":true}`. Unlisted products can still be bought through their direct checkout link. To put payment on your own page, enable embedding in Sellf and copy its generated loader snippet; MCP does not deploy your website.
+When ready, explicitly ask: `Publish only product PRODUCT_UUID. Keep it unlisted.` The agent calls `update_product` with `{"id":"PRODUCT_UUID","body":{"is_active":true}}`. Unlisted products can still be bought through their direct checkout link. To put payment on your own page, enable embedding in Sellf and copy its generated loader snippet; MCP does not deploy your website.
 
 ## Recipe 2: Create a coupon
 
@@ -125,11 +125,11 @@ Read it back and show the restrictions. Do not change the product.
 ```
 
 ```json
-{"name":"create_coupon","arguments":{"code":"WORKBOOK20","discount_type":"percentage","discount_value":20,"is_active":true,"allowed_product_ids":["PRODUCT_UUID"],"usage_limit_global":10,"usage_limit_per_user":1,"exclude_order_bumps":true}}
+{"name":"create_coupon","arguments":{"body":{"code":"WORKBOOK20","discount_type":"percentage","discount_value":20,"is_active":true,"allowed_product_ids":["PRODUCT_UUID"],"usage_limit_global":10,"usage_limit_per_user":1,"exclude_order_bumps":true}}}
 {"name":"get_coupon","arguments":{"id":"COUPON_UUID"}}
 ```
 
-Verify the returned code, product restriction and limits. An empty product restriction applies broadly, so keep the UUID. `20` means 20%; for a fixed discount, use major units and specify its currency. This recipe creates a live coupon and does not redeem it. To undo it, use `deactivate_coupon` with its ID, or delete an unused test coupon with `delete_coupon`.
+Verify the returned code, product restriction and limits. An empty product restriction applies broadly, so keep the UUID. `20` means 20%; for a fixed discount, use major units and specify its currency. This recipe creates a live coupon and does not redeem it. To undo it, call `update_coupon` with `{"id":"COUPON_UUID","body":{"is_active":false}}`, or delete an unused test coupon with `delete_coupon`.
 
 ## Recipe 3: Weekly sales report
 
@@ -214,7 +214,7 @@ a 67 PLN price, `issue_license_on_purchase: false` and this `checkout_profile`:
 }
 ```
 
-Then call `create_coupon` with `{"code":"WIR30","discount_type":"set_price","discount_value":30,"currency":"PLN","allowed_product_ids":["RETURNED_PRODUCT_UUID"]}`.
+Then call `create_coupon` with `{"body":{"code":"WIR30","discount_type":"set_price","discount_value":30,"currency":"PLN","allowed_product_ids":["RETURNED_PRODUCT_UUID"]}}`.
 Have the agent read both records back for review before activating the product.
 The buyer is an organization; the recipient may differ, phone is required, and
 participant count follows quantity (set `allow_later: true` on `participants` to let buyers pay first and add participants later; no reminder e-mail is sent). Transfers require shop bank details and the
@@ -225,13 +225,6 @@ sessions and tiers using the product's `sessions` and `tiers` fields. Delete the
 
 ## Verification and cleanup
 
-These recipes are exercised by [`mcp-server/tests/recipes.e2e.ts`](https://github.com/jurczykpawel/sellf/blob/main/mcp-server/tests/recipes.e2e.ts): an SDK client starts the real stdio process against local Sellf, uses separate scoped keys, reads the created product/coupon back, checks the explicitly published checkout page, and checks a weekly report against synthetic completed/pending and older transactions in two currencies. The test deletes its fixtures and keys. It does not run an AI model or complete a Stripe charge.
+The endpoint is covered by `admin-panel/tests/api/mcp.test.ts`: the official MCP SDK client talks to a running local Sellf with a key limited to `products:read` (initialize, tool list limited to that scope, a real `get_product` call, an out-of-scope write refused without touching the product, compact search and call) and checks that a missing key and a panel session alone get 401. The recipe arguments above follow the generated tool schemas; the recipes themselves are not run end to end, and nothing here runs an AI model or a Stripe charge.
 
-Maintainers can run it with local Sellf already running, from `mcp-server`:
-
-```sh
-SELLF_RECIPE_E2E=1 SELLF_API_URL=http://127.0.0.1:3000 \
-  bun --env-file=../admin-panel/.env.local run test
-```
-
-The test needs local Supabase service credentials to provision and remove fixtures; **do not put those credentials in an agent's MCP config**. `SELLF_BUN_PATH` can select an absolute Bun executable. Set `SELLF_RECIPE_TRANSCRIPT` to a private file path to record exact prompts, tool arguments and results. No database reset is needed. For manual trials, delete the unused test coupon and product by their returned IDs; never delete real payment history to clean up a recipe.
+For manual trials, delete the unused test coupon and product by their returned IDs; never delete real payment history to clean up a recipe.

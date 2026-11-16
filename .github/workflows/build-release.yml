@@ -53,10 +53,6 @@ jobs:
         working-directory: ./admin-panel
         run: bun install --frozen-lockfile
 
-      - name: Install MCP server dependencies
-        working-directory: ./mcp-server
-        run: bun install --frozen-lockfile
-
       - name: Version files agree with the tag
         working-directory: ./admin-panel
         env:
@@ -90,14 +86,6 @@ jobs:
         # extractor watcher, @next/eslint-plugin-next); absent from the standalone
         # build and the Docker image. Remove once a fixed braces/micromatch ships.
         run: bun audit --audit-level=high --ignore=GHSA-vfj7-8cjw-p6xm
-
-      - name: Dependency audit (mcp-server)
-        working-directory: ./mcp-server
-        # Blocking: audits the real bun.lock and fails the build on any
-        # high/critical advisory in the resolved dependency tree. Use
-        # `--ignore=<advisory id>` for a specific, time-bound, reviewed
-        # exception — never continue-on-error again.
-        run: bun audit --audit-level=high
 
       - name: Scan for leaked secrets
         uses: trufflesecurity/trufflehog@ea68ca03c865c5f324e86e849ced20ed3cf9dbbb # v3.99.8
