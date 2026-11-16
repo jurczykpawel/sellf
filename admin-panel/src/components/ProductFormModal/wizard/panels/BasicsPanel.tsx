@@ -10,7 +10,7 @@ import {
 import type { ProductFormData, TranslationFunction } from '../../types';
 import type { TaxMode } from '@/lib/actions/shop-config';
 
-interface StepEssentialsProps {
+interface BasicsPanelProps {
   formData: ProductFormData;
   setFormData: React.Dispatch<React.SetStateAction<ProductFormData>>;
   t: TranslationFunction;
@@ -29,7 +29,7 @@ interface StepEssentialsProps {
   isEditing?: boolean;
 }
 
-export const StepEssentials: React.FC<StepEssentialsProps> = ({
+export const BasicsPanel: React.FC<BasicsPanelProps> = ({
   formData,
   setFormData,
   t,

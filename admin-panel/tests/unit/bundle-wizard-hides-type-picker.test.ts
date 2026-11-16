@@ -2,7 +2,7 @@
  * A bundle is implicitly a one-time product — the "product type" picker
  * (Standard / Subscription / Tip jar / Lead magnet) must NOT appear in the
  * "New bundle" wizard. Regression: v2026.6.17 shipped bundles but the type
- * radio in StepEssentials lacked the `!is_bundle` guard.
+ * radio in the basics section lacked the `!is_bundle` guard.
  *
  * Rendered with renderToStaticMarkup (same approach as bundle-contents-preview).
  * The heavy sibling sections are stubbed so only the real ProductTypeRadio
@@ -23,7 +23,7 @@ vi.mock('@/components/ProductFormModal/sections', async (importOriginal) => {
   };
 });
 
-import { StepEssentials } from '@/components/ProductFormModal/wizard/steps/StepEssentials';
+import { BasicsPanel } from '@/components/ProductFormModal/wizard/panels/BasicsPanel';
 import { initialFormData } from '@/components/ProductFormModal/types';
 
 function renderStep(isBundle: boolean): string {
@@ -54,7 +54,7 @@ function renderStep(isBundle: boolean): string {
         onError: () => {},
         getMessageFallback: ({ key }: { key: string }) => key,
       },
-      createElement(StepEssentials, props),
+      createElement(BasicsPanel, props),
     ),
   );
 }

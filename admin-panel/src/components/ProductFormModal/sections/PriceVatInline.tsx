@@ -275,6 +275,9 @@ export function PriceVatInline({
               <input
                 type="number"
                 id="vat_rate"
+                aria-label={t('vatRate')}
+                aria-invalid={!!fieldErrors.vat_rate}
+                aria-describedby={fieldErrors.vat_rate ? 'vat-rate-error' : undefined}
                 value={formData.vat_rate ?? ''}
                 onChange={(e) => {
                   if (fieldErrors.vat_rate && setFieldErrors) {
@@ -389,6 +392,7 @@ export function PriceVatInline({
             <select
               id="currency"
               name="currency"
+              aria-label={t('currency')}
               value={formData.currency}
               onChange={handleCurrencyChange}
               className="h-full py-0 pl-1 pr-6 border-transparent bg-transparent text-sf-muted text-sm focus:outline-none focus:ring-sf-accent focus:border-sf-accent"
@@ -411,11 +415,11 @@ export function PriceVatInline({
       </div>
 
       {priceParseError ? (
-        <MoneyInputError error={priceParseError} currency={formData.currency} className="mt-1.5 text-xs text-red-500" />
+        <MoneyInputError error={priceParseError} currency={formData.currency} className="mt-1.5 text-xs text-sf-danger" />
       ) : priceErrorMessage ? (
-        <p id="price-error" role="alert" className="mt-1.5 text-xs text-red-500">{priceErrorMessage}</p>
+        <p id="price-error" role="alert" className="mt-1.5 text-xs text-sf-danger">{priceErrorMessage}</p>
       ) : fieldErrors.vat_rate ? (
-        <p className="mt-1.5 text-xs text-red-500">{t('vatRateRequired', { defaultValue: 'VAT rate is required (no default set in Tax settings)' })}</p>
+        <p id="vat-rate-error" role="alert" className="mt-1.5 text-xs text-sf-danger">{t('vatRateRequired', { defaultValue: 'VAT rate is required (no default set in Tax settings)' })}</p>
       ) : (
         <p className="mt-1.5 text-xs text-sf-muted">
           {t('priceHint')}

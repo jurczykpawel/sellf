@@ -33,7 +33,7 @@ async function setCustomSettings(value: Record<string, unknown>): Promise<void> 
 }
 
 describe('invoice recipient setting + audit entry in one transaction @J622', () => {
-  const email = `w223c-setting-${Date.now()}@example.com`;
+  const email = `recipient-setting-${Date.now()}@example.com`;
   let adminUserId = '';
   let original: Record<string, unknown> = {};
 
@@ -45,7 +45,7 @@ describe('invoice recipient setting + audit entry in one transaction @J622', () 
     original = (row?.custom_settings ?? {}) as Record<string, unknown>;
   });
   beforeEach(async () => {
-    await setCustomSettings({ ...original, w223c_other: 'kept', invoice_recipient_enabled: false });
+    await setCustomSettings({ ...original, unrelated_setting: 'kept', invoice_recipient_enabled: false });
   });
   afterAll(async () => {
     await setCustomSettings(original);
@@ -56,7 +56,7 @@ describe('invoice recipient setting + audit entry in one transaction @J622', () 
   it('saves the flag with an audit entry naming the admin and keeps the other custom settings', async () => {
     const saved = await changeInvoiceRecipientEnabled(client, true, { performedBy: adminUserId, details: { auth: 'session' } });
     expect(saved).toEqual({ ok: true });
-    expect(await customSettings()).toEqual({ ...original, w223c_other: 'kept', invoice_recipient_enabled: true });
+    expect(await customSettings()).toEqual({ ...original, unrelated_setting: 'kept', invoice_recipient_enabled: true });
     const { data: entries } = await admin.from('audit_log').select('table_name, operation, user_id, old_values, new_values')
       .eq('performed_by', adminUserId).eq('table_name', 'shop_config');
     expect(entries).toEqual([{
@@ -69,7 +69,7 @@ describe('invoice recipient setting + audit entry in one transaction @J622', () 
     const ghost = randomUUID();
     const saved = await changeInvoiceRecipientEnabled(client, true, { performedBy: ghost });
     expect(saved.ok).toBe(false);
-    expect(await customSettings()).toEqual({ ...original, w223c_other: 'kept', invoice_recipient_enabled: false });
+    expect(await customSettings()).toEqual({ ...original, unrelated_setting: 'kept', invoice_recipient_enabled: false });
     const { data: entries } = await admin.from('audit_log').select('id').eq('performed_by', ghost);
     expect(entries).toEqual([]);
   });
@@ -77,7 +77,7 @@ describe('invoice recipient setting + audit entry in one transaction @J622', () 
   it('interleaved calls: a failing audit of one never undoes the other, successful change', async () => {
     const outcomes: Array<{ failed: boolean; succeeded: boolean; stored: unknown }> = [];
     for (let round = 0; round < ROUNDS; round++) {
-      await setCustomSettings({ ...original, w223c_other: 'kept', invoice_recipient_enabled: false });
+      await setCustomSettings({ ...original, unrelated_setting: 'kept', invoice_recipient_enabled: false });
       const [failing, succeeding] = await Promise.all([
         changeInvoiceRecipientEnabled(client, true, { performedBy: randomUUID() }),
         changeInvoiceRecipientEnabled(client, true, { performedBy: adminUserId }),
@@ -85,6 +85,6 @@ describe('invoice recipient setting + audit entry in one transaction @J622', () 
       outcomes.push({ failed: !failing.ok, succeeded: succeeding.ok, stored: (await customSettings()).invoice_recipient_enabled });
     }
     expect(outcomes).toEqual(Array.from({ length: ROUNDS }, () => ({ failed: true, succeeded: true, stored: true })));
-    expect((await customSettings()).w223c_other).toBe('kept');
+    expect((await customSettings()).unrelated_setting).toBe('kept');
   });
 });

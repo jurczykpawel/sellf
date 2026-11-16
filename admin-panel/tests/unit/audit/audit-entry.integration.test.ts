@@ -16,7 +16,7 @@ const admin = createClient(process.env.SUPABASE_URL ?? '', process.env.SUPABASE_
 const client = admin as unknown as AuditClient;
 
 describe('audit entries in audit_log', () => {
-  const email = `w256c-audit-${Date.now()}@example.com`;
+  const email = `audit-entry-${Date.now()}@example.com`;
   let adminUserId = '';
 
   beforeAll(async () => {
@@ -30,17 +30,17 @@ describe('audit entries in audit_log', () => {
   });
 
   it('saves an entry naming the admin by auth user UUID and returns its id', async () => {
-    const saved = await recordAuditEntry(client, { table_name: 'system', operation: 'UPDATE', performed_by: adminUserId, user_id: adminUserId, new_values: { action: 'w256c_probe' } });
+    const saved = await recordAuditEntry(client, { table_name: 'system', operation: 'UPDATE', performed_by: adminUserId, user_id: adminUserId, new_values: { action: 'audit_entry_probe' } });
     expect(saved.ok).toBe(true);
     if (!saved.ok) return;
     const row = await admin.from('audit_log').select('performed_by, new_values').eq('id', saved.id).single();
-    expect(row.data).toEqual({ performed_by: adminUserId, new_values: { action: 'w256c_probe' } });
+    expect(row.data).toEqual({ performed_by: adminUserId, new_values: { action: 'audit_entry_probe' } });
   });
 
   it('reports a refused entry: an e-mail in performed_by (the old upgrade audit) is not saved', async () => {
     const saved = await recordAuditEntry(client, { table_name: 'system', operation: 'UPDATE', performed_by: email });
     expect(saved.ok).toBe(false);
-    const rows = await admin.from('audit_log').select('id').eq('user_id', adminUserId).eq('new_values->>action', 'w256c_email');
+    const rows = await admin.from('audit_log').select('id').eq('user_id', adminUserId).eq('new_values->>action', 'audit_entry_email');
     expect(rows.data).toEqual([]);
   });
 

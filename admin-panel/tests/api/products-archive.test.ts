@@ -22,7 +22,7 @@ const db = supabaseAdmin();
 const createdProductIds: string[] = [];
 
 async function createProduct(name: string): Promise<string> {
-  const slug = `w250-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const slug = `archive-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const { status, data } = await post<ApiResponse<Product>>('/api/v1/products', { name, slug, description: 'Archive test', price: 49 });
   expect(status).toBe(201);
   createdProductIds.push(data.data!.id);
@@ -31,16 +31,16 @@ async function createProduct(name: string): Promise<string> {
 
 /** A paid order and an issued license for the product, as the checkout would leave them. */
 async function sell(productId: string): Promise<{ orderId: string; licenseId: string }> {
-  const session = `cs_test_w250${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
+  const session = `cs_test_archive${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
   const { data: order, error } = await db.from('payment_transactions').insert({
-    product_id: productId, customer_email: 'w250-buyer@example.com', amount: 4900, currency: 'PLN',
+    product_id: productId, customer_email: 'archive-buyer@example.com', amount: 4900, currency: 'PLN',
     status: 'completed', session_id: session,
   }).select('id').single();
   expect(error).toBeNull();
   const { data: admin } = await db.from('admin_users').select('user_id').limit(1).single();
   const { data: license, error: licenseError } = await db.from('issued_licenses').insert({
     seller_id: admin!.user_id, original_seller_id: admin!.user_id, product_id: productId,
-    email: 'w250-buyer@example.com', order_id: order!.id, kid: 'w250', license_key: `w250-${order!.id}`,
+    email: 'archive-buyer@example.com', order_id: order!.id, kid: 'archive', license_key: `archive-${order!.id}`,
   }).select('id').single();
   expect(licenseError).toBeNull();
   return { orderId: order!.id, licenseId: license!.id };
@@ -128,7 +128,7 @@ describe('Product archive API @J602', () => {
     const detail = await get<ApiResponse<{ id: string; product: { id: string | null; name: string } }>>(`/api/v1/payments/${orderId}`);
     expect(detail.status).toBe(200);
     expect(detail.data.data?.product).toMatchObject({ id: null, name: 'Archive permanent' });
-    const list = await get<ApiResponse<Array<{ id: string; product: { id: string | null; name: string } }>>>('/api/v1/payments?limit=100&email=w250-buyer');
+    const list = await get<ApiResponse<Array<{ id: string; product: { id: string | null; name: string } }>>>('/api/v1/payments?limit=100&email=archive-buyer');
     expect(list.data.data?.find(p => p.id === orderId)?.product).toMatchObject({ id: null, name: 'Archive permanent' });
   });
 
@@ -145,7 +145,7 @@ describe('Product archive API @J602', () => {
     const id = await createProduct('Archive subscription');
     await sell(id);
     const { data: subscription, error } = await db.from('subscriptions').insert({
-      product_id: id, stripe_customer_id: 'cus_w250', stripe_subscription_id: `sub_w250_${Date.now()}`, status: 'active',
+      product_id: id, stripe_customer_id: 'cus_archive', stripe_subscription_id: `sub_archive_${Date.now()}`, status: 'active',
     }).select('id').single();
     expect(error).toBeNull();
     await del(`/api/v1/products/${id}`);

@@ -74,7 +74,7 @@ export function BasicInfoSection({
             required
           />
           {fieldErrors.name && (
-            <p id="name-error" role="alert" className="mt-1 text-xs text-red-500">
+            <p id="name-error" role="alert" className="mt-1 text-xs text-sf-danger">
               {fieldErrors.name === 'required' ? t('nameRequired', { name: t('productName') }) : productFieldErrorMessage('name', locale)}
             </p>
           )}

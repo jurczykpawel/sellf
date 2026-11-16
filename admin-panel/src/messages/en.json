@@ -1760,6 +1760,7 @@
           "help": "Optional seller-authored copy. Plain text only; leave missing facts blank. Result: 240 characters. Up to 12 tools (80 characters each) and 12 requirements (240 each). Total: 8 KiB. Format describes the content, not billing or access.",
           "invalid": "Check marketing copy: use plain text, distinct list items, and stay within the character, list and total size limits.",
           "format": "Format",
+          "formatHint": "A label shown with the offer description. Buyer details, seats and participants are set in “Checkout details”.",
           "noFormat": "Not specified",
           "sourceLocale": "Source language",
           "locale": "Editing language",
@@ -1914,13 +1915,6 @@
         "productListedHelp": "Unlisted products can still be purchased via direct checkout link",
         "featuredProduct": "Featured product",
         "featuredProductHelp": "Highlighted in the product catalog",
-        "step3": {
-          "conversion": "Conversion",
-          "formFields": "Form fields",
-          "availability": "Availability & access",
-          "refunds": "Refunds",
-          "advanced": "Advanced"
-        },
         "conversionBadge": {
           "salePrice": "+6% conversion",
           "oto": "+4% conversion"
@@ -2015,10 +2009,7 @@
         "enabled": "Enabled",
         "wizard": {
           "title": "Create New Product",
-          "subtitle": "Set up your product in a few quick steps",
-          "step1": "Essentials",
-          "step2": "Content & Details",
-          "step3": "Sales & Settings",
+          "subtitle": "Start with the basics; set the rest in the sections below",
           "stepOf": "Step {current} of {total}",
           "createProduct": "Create Product",
           "continueSetup": "Continue Setup",
@@ -2030,6 +2021,38 @@
           "exitMessage": "You have unsaved product data. Close without creating?",
           "exitDiscard": "Discard",
           "exitKeepEditing": "Keep Editing"
+        },
+        "sections": {
+          "nav": "Product sections",
+          "basics": {
+            "title": "Basics",
+            "effect": "Name, page address and price. The buyer sees them on the product page and in the checkout."
+          },
+          "delivery": {
+            "title": "What the buyer gets",
+            "effect": "Materials and access after purchase: content or a redirect, bundle items, access period and license key."
+          },
+          "cart": {
+            "title": "Checkout details",
+            "effect": "Fields the buyer fills in before paying: who is buying, number of seats, participants, extra fields and consents. This changes the checkout form."
+          },
+          "schedule": {
+            "title": "Dates and seats",
+            "effect": "The buyer picks a date and number of seats; the price can depend on the tier. Needed only for events."
+          },
+          "offer": {
+            "title": "Offer",
+            "effect": "Description and look of the sales page: copy, image, video, categories and tags. Does not change the checkout form."
+          },
+          "sales": {
+            "title": "Sales and settlement",
+            "effect": "When and where the product can be bought, promotions, what happens after purchase, refunds and commissions."
+          },
+          "groups": {
+            "visibility": "Status and visibility",
+            "refunds": "Refunds",
+            "embed": "Selling on other sites"
+          }
         },
         "description": "Description",
         "descriptionPlaceholder": "Describe your product",
@@ -6316,7 +6339,7 @@
     },
     "b2b-checkout-profile": {
       "name": "Business cart: buyer, recipient, participants",
-      "where": "Products, edit a product, Sales and settings, Cart.",
+      "where": "Products, edit a product, Checkout details.",
       "steps": {
         "intro": {
           "title": "A cart of its own",
@@ -6347,7 +6370,7 @@
     },
     "events": {
       "name": "Events with dates and price tiers",
-      "where": "Products, edit a product, Sales and settings, Dates and prices.",
+      "where": "Products, edit a product, Dates and seats.",
       "steps": {
         "intro": {
           "title": "An event",

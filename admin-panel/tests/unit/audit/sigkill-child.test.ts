@@ -56,7 +56,7 @@ vi.mock('@/lib/auth-server', () => ({ requireAdminApi: async () => ({ user: { id
 it.skipIf(!env.kase)(`SIGKILL probe: ${env.kase} ${env.when}`, async () => {
   if (env.kase === 'invoicing') {
     const { saveInvoiceSettings } = await import('@/lib/actions/invoicing');
-    await saveInvoiceSettings({ provider: 'none', domain: '', mode: 'manual', exemption: '', template: '{product} w256d-sigkill', token: '' });
+    await saveInvoiceSettings({ provider: 'none', domain: '', mode: 'manual', exemption: '', template: '{product} audit-sigkill', token: '' });
   } else {
     const { POST, DELETE } = await import('@/app/api/users/[id]/access/route');
     const params = { params: Promise.resolve({ id: env.userId }) };

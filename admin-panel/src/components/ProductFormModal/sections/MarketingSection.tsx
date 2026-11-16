@@ -50,11 +50,12 @@ export function MarketingSection({ formData, setFormData, t, fieldErrors }: Mark
         {!valid && <p id={`${id}-error`} ref={errorRef} role="alert" tabIndex={-1} className="text-sm text-sf-danger focus:ring-2 focus:ring-sf-accent">{t('marketing.invalid')}</p>}
         <div>
           <label htmlFor={`${id}-format`} className="block text-sm text-sf-body">{t('marketing.format')}</label>
-          <select id={`${id}-format`} className={controlClass} value={fields.format ?? ''} aria-describedby={describedBy}
+          <select id={`${id}-format`} className={controlClass} value={fields.format ?? ''} aria-describedby={`${id}-format-hint ${describedBy}`}
             onChange={event => update({ ...fields, format: productFormatSchema.safeParse(event.target.value).data ?? null })}>
             <option value="">{t('marketing.noFormat')}</option>
             {productFormatSchema.options.map(format => <option key={format} value={format}>{t(`marketing.formats.${format}`)}</option>)}
           </select>
+          <p id={`${id}-format-hint`} className="mt-1 text-xs text-sf-muted">{t('marketing.formatHint')}</p>
         </div>
         <div>
           <label htmlFor={`${id}-source`} className="block text-sm text-sf-body">{t('marketing.sourceLocale')}</label>

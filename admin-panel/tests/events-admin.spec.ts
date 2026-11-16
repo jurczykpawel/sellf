@@ -2,28 +2,26 @@
 import { test, expect } from '@playwright/test';
 import { setAuthSession, supabaseAdmin } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
+import { openFormSection } from './helpers/product-form';
 import type { Page } from '@playwright/test';
 const name = `Event admin ${Date.now()}`;
 test.describe.configure({ mode: 'serial' });
 test.beforeEach(async ({ page }) => { await acceptAllCookies(page); await setAuthSession(page,'demo@sellf.app','demo123'); await page.goto('/pl/dashboard/products'); });
 const copyName = `Event copy ${Date.now()}`;
 test.afterAll(async () => { await supabaseAdmin.from('products').delete().in('name',[name,copyName]); });
-async function sales(page: Page) {
-  const dialog=page.getByRole('dialog');
-  await dialog.getByRole('button',{name:/Dalej/i}).click();
-  await dialog.getByRole('button',{name:/Dalej/i}).click();
-  await page.locator('[data-step3-group="B"]').getByRole('button').first().click();
+async function schedule(page: Page) {
+  await openFormSection(page,'Terminy i miejsca');
   await expect(page.getByRole('region',{name:'Terminy i ceny'})).toBeVisible();
 }
 async function edit(page: Page, productName: string) {
   const search=page.getByPlaceholder(/Szukaj/i).first(); await search.fill(productName);
   const row=page.locator('tr').filter({hasText:productName});
-  await row.locator('button[title*="Edytuj"], button[title*="Edit"]').first().click(); await sales(page);
+  await row.locator('button[title*="Edytuj"], button[title*="Edit"]').first().click(); await schedule(page);
 }
 test('creates an event with two tiers and previews thirty seats at the early price @J49',async({page})=>{
   await page.getByRole('button',{name:/Dodaj produkt/i}).click();
   await page.locator('#name').fill(name); await page.locator('#price').fill('67'); await page.locator('#currency').selectOption('PLN');
-  await expect(page.locator('#slug')).not.toHaveValue(''); await sales(page);
+  await expect(page.locator('#slug')).not.toHaveValue(''); await schedule(page);
   await page.getByLabel('Tryb wydarzenia',{exact:true}).check(); await page.getByRole('button',{name:'Dodaj termin',exact:true}).click();
   await page.getByLabel('Początek (strefa wydarzenia)',{exact:true}).fill('2099-01-10T10:00');
   await page.getByLabel('Strefa czasowa',{exact:true}).fill('Europe/Warsaw');

@@ -51,7 +51,7 @@ async function registry(): Promise<string[]> {
 /** Three release migrations with fresh timestamps; `brokenSecond` makes the middle one fail. */
 function releaseMigrations(brokenSecond: boolean) {
   const base = 20990000000000 + randomInt(1, 9_000_000) * 100;
-  const suffix = `w251_${base}`;
+  const suffix = `upgrade_${base}`;
   const tables = [`public.${suffix}_first`, `public.${suffix}_third`];
   const migrations = {
     [`${base + 1}_${suffix}_first`]: `CREATE TABLE ${tables[0]} (id integer);\nINSERT INTO ${tables[0]} VALUES (1);\n`,

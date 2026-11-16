@@ -17,19 +17,19 @@ const productIds: string[] = [];
 /** A paid product with one completed order and an issued license. */
 async function soldProduct(name: string): Promise<{ id: string; orderId: string; licenseId: string }> {
   const { data: product, error } = await supabaseAdmin.from('products').insert({
-    name, slug: `w250-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, price: 49, currency: 'PLN', is_active: true,
+    name, slug: `archive-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, price: 49, currency: 'PLN', is_active: true,
   }).select('id').single();
   expect(error).toBeNull();
   productIds.push(product!.id);
   const { data: order, error: orderError } = await supabaseAdmin.from('payment_transactions').insert({
-    product_id: product!.id, customer_email: 'w250-buyer@example.com', amount: 4900, currency: 'PLN',
-    status: 'completed', session_id: `cs_test_w250${Date.now()}${Math.random().toString(36).slice(2, 8)}`,
+    product_id: product!.id, customer_email: 'archive-buyer@example.com', amount: 4900, currency: 'PLN',
+    status: 'completed', session_id: `cs_test_archive${Date.now()}${Math.random().toString(36).slice(2, 8)}`,
   }).select('id').single();
   expect(orderError).toBeNull();
   const { data: seller } = await supabaseAdmin.from('admin_users').select('user_id').limit(1).single();
   const { data: license, error: licenseError } = await supabaseAdmin.from('issued_licenses').insert({
     seller_id: seller!.user_id, original_seller_id: seller!.user_id, product_id: product!.id,
-    email: 'w250-buyer@example.com', order_id: order!.id, kid: 'w250', license_key: `w250-${order!.id}`,
+    email: 'archive-buyer@example.com', order_id: order!.id, kid: 'archive', license_key: `archive-${order!.id}`,
   }).select('id').single();
   expect(licenseError).toBeNull();
   return { id: product!.id, orderId: order!.id, licenseId: license!.id };
@@ -48,7 +48,7 @@ async function rowAction(page: Page, name: string, action: RegExp) {
   await page.locator('button').filter({ hasText: action }).first().click();
 }
 
-test.beforeAll(async () => { admin = await createTestAdmin('w250-archive'); });
+test.beforeAll(async () => { admin = await createTestAdmin('product-archive-admin'); });
 test.afterAll(async () => {
   for (const id of productIds) await supabaseAdmin.from('products').delete().eq('id', id);
   await admin.cleanup();
@@ -90,7 +90,7 @@ test('deleting a sold product moves it to the archive and restore brings it back
 test('permanent delete from the archive lists the kept records and keeps the order and license @J601', async ({ page }) => {
   const name = `Archive Trwale ${Date.now()}`;
   const product = await soldProduct(name);
-  const buyer = await createTestUser('w250-perm-buyer');
+  const buyer = await createTestUser('archive-perm-buyer');
   expect((await supabaseAdmin.from('user_product_access').insert({ user_id: buyer.userId, product_id: product.id, grant_source: 'purchase' })).error).toBeNull();
   expect((await supabaseAdmin.from('products').update({ archived_at: new Date().toISOString(), is_active: false }).eq('id', product.id)).error).toBeNull();
   await openProducts(page, name);
@@ -119,7 +119,7 @@ test('a buyer keeps the content of an archived product while the public no longe
   const name = `Archive Kupujacy ${Date.now()}`;
   const product = await soldProduct(name);
   const { data: row } = await supabaseAdmin.from('products').select('slug').eq('id', product.id).single();
-  const buyer = await createTestUser('w250-buyer');
+  const buyer = await createTestUser('archive-buyer');
   expect((await supabaseAdmin.from('user_product_access').insert({ user_id: buyer.userId, product_id: product.id, grant_source: 'purchase' })).error).toBeNull();
   expect((await supabaseAdmin.from('products').update({ archived_at: new Date().toISOString(), is_active: false, enable_waitlist: true }).eq('id', product.id)).error).toBeNull();
 
