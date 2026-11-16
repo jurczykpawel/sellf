@@ -23,7 +23,7 @@ it.each([
   const output = sql(`
     CREATE TEMP TABLE p AS SELECT gen_random_uuid() AS id;
     INSERT INTO public.products(id,name,slug,price,currency,product_type,is_bundle,event_mode,allow_custom_price,billing_interval,billing_interval_count,recurring_price,content_config)
-      SELECT id,'Lifecycle ${kind}','w216-'||id,${price},'PLN','${type}',${bundle},${event},${pwyw},'month',1,15,'{"secret":"paid-content"}' FROM p;
+      SELECT id,'Lifecycle ${kind}','lifecycle-'||id,${price},'PLN','${type}',${bundle},${event},${pwyw},'month',1,15,'{"secret":"paid-content"}' FROM p;
     ${assert(`SELECT ${events}=1 FROM p`, 'created must be recorded once')}
     ${assert(`(SELECT payload->'product'->>'price'='${price * 100}' AND payload->>'amountUnit'='minor'
       AND payload->>'revision'='1' AND payload->'product'->>'productType'='${type}'
@@ -59,10 +59,10 @@ it('uses currency precision, database-owned revisions and an immutable deletion 
     CREATE TEMP TABLE p AS SELECT gen_random_uuid() AS id;
     CREATE TEMP TABLE e AS SELECT gen_random_uuid() AS id;
     INSERT INTO public.products(id,name,slug,price,currency,webhook_revision)
-      SELECT id,'Precision','w216-'||id,123,'JPY',999 FROM p;
+      SELECT id,'Precision','lifecycle-'||id,123,'JPY',999 FROM p;
     ${assert(`(SELECT webhook_revision=1 FROM public.products,p WHERE products.id=p.id)`, 'insert revision belongs to database')}
     INSERT INTO public.webhook_endpoints(id,url,secret,events,product_filter_mode)
-      SELECT id,'https://example.com/w216','local-test-secret',ARRAY['product.deleted'],'selected' FROM e;
+      SELECT id,'https://example.com/lifecycle','local-test-secret',ARRAY['product.deleted'],'selected' FROM e;
     INSERT INTO public.webhook_endpoint_products SELECT e.id,p.id,now() FROM e,p;
     UPDATE public.products SET price=1.23,currency='PLN',webhook_revision=999 WHERE id=(SELECT id FROM p);
     ${assert(`(SELECT payload->'product'->>'price'='123' AND payload->>'revision'='2' FROM public.business_events,p
@@ -95,7 +95,7 @@ it('keeps outbox and snapshot helpers private', () => {
 it('dashboard examples expose exactly the public database snapshot fields', () => {
   const output = sql(`
     CREATE TEMP TABLE p AS SELECT gen_random_uuid() AS id;
-    INSERT INTO public.products(id,name,slug,price,currency) SELECT id,'Preview','w216-'||id,12.34,'PLN' FROM p;
+    INSERT INTO public.products(id,name,slug,price,currency) SELECT id,'Preview','lifecycle-'||id,12.34,'PLN' FROM p;
     SELECT payload FROM public.business_events,p WHERE product_id=p.id AND event_type='product.created';`);
   const payload = JSON.parse(output.split('\n').find(line => line.startsWith('{'))!);
   for (const event of ['product.created', 'product.updated', 'product.deleted']) {

@@ -16,13 +16,13 @@ import { getProductLocalizations } from '@/lib/actions/product-localization';
 const url = process.env.SUPABASE_URL!;
 const db = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 const run = crypto.randomUUID().slice(0, 8);
-const email = `w252b-l10n-${run}@example.com`;
+const email = `l10n-${run}@example.com`;
 const ids = { visible: crypto.randomUUID(), future: crypto.randomUUID(), ended: crypto.randomUUID(), inactiveOwned: crypto.randomUUID(), archivedOwned: crypto.randomUUID() };
 let userId = '';
 
 const localized = (name: string) => ({ localized: { pl: { name, description: `${name} opis`, image_alt: `${name} okładka` } } });
 const product = (id: string, name: string, extra: Record<string, unknown>) =>
-  ({ id, name: `${name} canonical`, slug: `w252b-${name.toLowerCase()}-${run}`, description: 'canonical', price: 10, currency: 'PLN', is_listed: true, enable_waitlist: false, available_from: null, available_until: null, content_config: localized(name), ...extra });
+  ({ id, name: `${name} canonical`, slug: `l10n-${name.toLowerCase()}-${run}`, description: 'canonical', price: 10, currency: 'PLN', is_listed: true, enable_waitlist: false, available_from: null, available_until: null, content_config: localized(name), ...extra });
 
 beforeAll(async () => {
   const created = await db.auth.admin.createUser({ email, password: 'password123', email_confirm: true });

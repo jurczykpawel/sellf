@@ -19,8 +19,8 @@ let actor = '';
 let buyer = '';
 
 beforeAll(async () => {
-  const admin = await db.auth.admin.createUser({ email: `w256d-rpc-admin-${stamp}@example.com`, email_confirm: true });
-  const user = await db.auth.admin.createUser({ email: `w256d-rpc-buyer-${stamp}@example.com`, email_confirm: true });
+  const admin = await db.auth.admin.createUser({ email: `audited-rpc-admin-${stamp}@example.com`, email_confirm: true });
+  const user = await db.auth.admin.createUser({ email: `audited-rpc-buyer-${stamp}@example.com`, email_confirm: true });
   if (admin.error || user.error) throw admin.error ?? user.error;
   actor = admin.data.user!.id;
   buyer = user.data.user!.id;
@@ -43,7 +43,7 @@ const audits = async (performedBy: string, table: string) =>
 describe('save_invoicing_config', () => {
   it('a refused audit entry saves nothing; a valid one saves the settings and the entry together, keeping the token', async () => {
     const before = (await db.from('invoicing_config').select('*').eq('id', true).single()).data!;
-    const settings = { provider: 'none', domain: '', mode: 'manual', exemption: 'zw', template: '{product} w256d-rpc' };
+    const settings = { provider: 'none', domain: '', mode: 'manual', exemption: 'zw', template: '{product} audited-rpc' };
     try {
       const refused = await db.rpc('save_invoicing_config', { p_settings: settings, p_token: null, p_performed_by: missingActor });
       expect(refused.error?.code).toBe('23503');

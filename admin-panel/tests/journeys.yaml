@@ -5429,19 +5429,19 @@
       "id": "E34",
       "source": "license issued after dispute handling",
       "journey": "J195",
-      "why_missed": "Dispute tests created licenses before the dispute; the reverse order (payment, dispute, then issuance) was never exercised."
+      "why_missed": "Covers the order payment, dispute, then license issuance: a license issued during an open dispute starts revoked and follows the dispute outcome."
     },
     {
       "id": "E35",
       "source": "revoked license in the buyer view",
       "journey": "J199",
-      "why_missed": "Buyer page tests only covered active and expired licenses; revocation was verified via CRL, never in the buyer view."
+      "why_missed": "The buyer view shows valid, expired and revoked licenses with their status; a revoked key is neither displayed nor copyable."
     },
     {
       "id": "E36",
       "source": "second tab with a used coupon",
       "journey": "J310",
-      "why_missed": "Coupon tests used one tab per buyer; the per-code verify limit (5/h, also spent by valid refreshes) and the submit-time reservation check were never exercised with two tabs of one cart."
+      "why_missed": "Two tabs of one cart share the per-code verify limit (5/h, also spent by valid refreshes); the submit-time reservation check re-prices a coupon already used in the other tab."
     }
   ]
 }
