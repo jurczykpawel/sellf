@@ -1,7 +1,7 @@
 /**
  * Our paid Stripe payment for a product deleted from this shop cannot be fulfilled and redeliveries would never
  * help: the webhook acknowledges it and the seller sees it in Payments as a paid payment waiting for a decision.
- * A product that still exists but was deactivated after checkout started is fulfilled instead (W253c).
+ * A product that still exists but was deactivated after checkout started is fulfilled instead.
  * Real sandbox event (`stripe trigger`) carrying this installation's marker.
  * @see src/lib/stripe/payment-reconciliation.ts
  */

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * W254c: past the reservation deadline, before the release job cancels the order, the buyer's order page used to say
+ * Past the reservation deadline, before the release job cancels the order, the buyer's order page used to say
  * "reserved until <a date in the past>" next to the transfer details, an invitation to pay an order about to be cancelled.
  * Now it says the deadline passed and the order will be cancelled soon, without the transfer details.
  */

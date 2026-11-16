@@ -104,7 +104,7 @@ describe('POST /api/admin/licenses', () => {
       orderId: expect.stringMatching(/^manual_[0-9a-f-]{36}$/),
       source: 'manual',
       customFieldValues: { _sellf_license_domain: 'app.example.com' },
-    }));
+    }), { audit: { performedBy: 'admin-1', values: { action: 'MANUAL_LICENSE_ISSUED' } } });
     const body = await response.json();
     expect(body.license).toMatchObject({ id: LICENSE, token: 'payload.signature', sellerId: SELLER });
     expect(response.headers.get('cache-control')).toBe('no-store');

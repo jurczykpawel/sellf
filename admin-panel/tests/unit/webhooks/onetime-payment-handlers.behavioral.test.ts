@@ -350,7 +350,7 @@ describe.skipIf(!hasSupabase)('Stripe webhook — POST routing & gates', () => {
     expect(json.skipped).toBe('Missing product_id or customer_email in session');
   });
 
-  // A deleted product is acknowledged and recorded for reconciliation (W253b); an inactive one is fulfilled (W253c).
+  // A deleted product is acknowledged and recorded for reconciliation; an inactive one is fulfilled.
   it('non-terminal completion failure (our marker, amount below the price) → 500 so Stripe retries', async () => {
     const email = uniq('buyer') + '@example.com';
     const product = await createProduct({ price: 49.99 });

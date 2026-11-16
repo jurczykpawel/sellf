@@ -1,8 +1,8 @@
 /**
  * Online payment of an unpaid transfer order from the signed order link (mail, reminder, webhook payUrl): the saved
- * amount, price and seat stay reserved. A cancelled order is never payable by the buyer (W254, owner 14/15.11.2026),
+ * amount, price and seat stay reserved. A cancelled order is never payable by the buyer,
  * whatever the reason; only the administrator can accept a late transfer (see late-transfer-preview.ts). Past the
- * reservation deadline no new online payment starts (W254b); the order waits for the release job.
+ * reservation deadline no new online payment starts; the order waits for the release job.
  * @see migration 20261115110000_cancelled_order_no_payment.sql (open/complete_order_payment_attempt)
  */
 import { fulfillTransfer } from '@/lib/orders/bank-transfer-service';

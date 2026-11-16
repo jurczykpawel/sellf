@@ -1,4 +1,4 @@
-/** What the administrator sees before accepting a transfer that arrived after cancellation (W254, D6): the order price
+/** What the administrator sees before accepting a transfer that arrived after cancellation: the order price
  * against today's price, the seats left, the coupon state and the corrected-invoice block. Nothing is changed. */
 import { describe, expect, it, vi } from 'vitest';
 import { previewLateTransfer } from '@/lib/orders/late-transfer-preview';
@@ -42,7 +42,7 @@ describe('late transfer preview', () => {
     const { client } = db(base, session({ remaining: 0, sold_out: true, current_tier: { price: 120 } }), seatFacts({ session_remaining: 0, oversold: true }));
     expect(await previewLateTransfer(client, id, NOW)).toMatchObject({ unitPriceToday: 120, priceChanged: true, seats: { remaining: 0, oversold: true } });
   });
-  // W254r reviewer case: 5 seats, the 50 PLN tier (1 seat) taken by another buyer after the cancellation. The session still
+  // 5 seats, the 50 PLN tier (1 seat) taken by another buyer after the cancellation. The session still
   // has 4 free seats, but accepting at the order's tier goes over that tier's limit, so the preview must say oversold.
   it('the saved price tier taken by someone else is oversold even with free seats in the session', async () => {
     const { client, rpc } = db({ ...base, payment_line_items: [{ ...line, unit_price: 50 }] }, session({ remaining: 4, current_tier: { price: 80 } }),

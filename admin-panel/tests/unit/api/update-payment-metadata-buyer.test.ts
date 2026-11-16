@@ -218,25 +218,33 @@ describe('profile order details', () => {
     expect((await POST(makeRequest(SESSION_ID, { moduleValues }))).status).toBe(409);
     expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
   });
-  it('returns field errors when order details exceed the stored limit', async () => {
-    mocks.adminRpc.mockResolvedValue({ error: { code: '22023' }, data: null });
+  it('returns field errors when the merged order details exceed the stored limit', async () => {
+    mocks.adminRpc.mockResolvedValue({ error: { code: '54000', message: 'details_too_large' }, data: null });
     const res = await POST(makeRequest(SESSION_ID, { moduleValues }));
     expect(res.status).toBe(422);
     expect(await res.json()).toMatchObject({ errors: [{ field: 'moduleValues', code: 'details_too_large' }] });
     expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
   });
+  it.each(['22023', '23514'])('does not read other database refusals (%s) as a size problem', async code => {
+    mocks.adminRpc.mockResolvedValue({ error: { code }, data: null });
+    const res = await POST(makeRequest(SESSION_ID, { moduleValues }));
+    expect(res.status).toBe(500);
+    expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
+  });
   it('refuses order details over the stored limit before the first write, so 422 leaves nothing saved (W223c, W223br)', async () => {
-    // Reviewer's case: 100 participants valid for the modules, 100-character multi-byte names, long e-mails.
+    // 100 participants valid for the modules, 100-character multi-byte names, long e-mails.
     const bigProfile = { v: 1, modules: [{ id: 'buyer', types: ['person'], gus: false }, { id: 'quantity', min: 1, max: 100, mode: 'checkout' }, { id: 'participants', required: true, prefill_from_buyer: false }] };
     mocks.productRead.mockResolvedValue({ data: { checkout_profile: bigProfile, currency: 'PLN', custom_checkout_fields: [] }, error: null });
     const name = '漢'.repeat(100);
     const participants = Array.from({ length: 100 }, (_, i) => ({ first_name: name, last_name: name, email: `${'u'.repeat(60)}${i}@${'d'.repeat(60)}.${'e'.repeat(60)}.example.com` }));
     expect(Buffer.byteLength(JSON.stringify(participants))).toBeGreaterThan(65536);
+    // The database measures the merged JSON and refuses it inside the one transaction.
+    mocks.adminRpc.mockResolvedValue({ error: { code: '54000', message: 'details_too_large' }, data: null });
     const res = await POST(makeRequest(SESSION_ID, { moduleValues: { ...moduleValues, quantity: 100, participants } }));
     expect(res.status).toBe(422);
     expect(await res.json()).toMatchObject({ errors: [{ field: 'moduleValues', code: 'details_too_large' }] });
     expect(mocks.customUpdate).not.toHaveBeenCalled();
-    expect(mocks.adminRpc).not.toHaveBeenCalled();
+    expect(mocks.adminRpc).toHaveBeenCalledTimes(1);
     expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
   });
   it('stops when order detail persistence fails', async () => {
@@ -261,8 +269,20 @@ describe('profile and custom fields together', () => {
   it('saves both module and required custom field values', async () => {
     const res = await POST(makeRequest(SESSION_ID, { moduleValues, customFieldValues: { note: 'Workshop' } }));
     expect(res.status).toBe(200);
-    expect(mocks.customUpdate).toHaveBeenCalledWith({ custom_field_values: { note: 'Workshop' } });
-    expect(mocks.adminRpc).toHaveBeenCalledWith('set_payment_order_details', expect.anything());
+    // One transaction: custom fields ride in the same RPC as the merged details.
+    expect(mocks.customUpdate).not.toHaveBeenCalled();
+    expect(mocks.adminRpc).toHaveBeenCalledTimes(1);
+    expect(mocks.adminRpc).toHaveBeenCalledWith('set_payment_order_details', expect.objectContaining({
+      p_custom_field_values: { note: 'Workshop' }, p_session_id: SESSION_ID, p_quantity: 1,
+    }));
+  });
+  it('an over-limit merged result saves neither the custom fields nor the details', async () => {
+    mocks.adminRpc.mockResolvedValue({ error: { code: '54000', message: 'details_too_large' }, data: null });
+    const res = await POST(makeRequest(SESSION_ID, { moduleValues, customFieldValues: { note: 'Workshop' } }));
+    expect(res.status).toBe(422);
+    expect(await res.json()).toMatchObject({ errors: [{ field: 'moduleValues', code: 'details_too_large' }] });
+    expect(mocks.customUpdate).not.toHaveBeenCalled();
+    expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
   });
   it.each([{}, undefined])('rejects missing required custom values before module persistence: %s', async customFieldValues => {
     expect((await POST(makeRequest(SESSION_ID, { moduleValues, customFieldValues }))).status).toBe(400);

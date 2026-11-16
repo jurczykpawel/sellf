@@ -1,4 +1,4 @@
--- W253c (release 11.1): Stripe payments of this installation on a shared Stripe account.
+-- Release 11.1: Stripe payments of this installation on a shared Stripe account.
 --
 -- 1. Payments waiting for reconciliation (admin_actions 'stripe_payment_needs_reconciliation', written by
 --    the Stripe webhook for a paid product that was deleted) are recorded once per payment, atomically:

@@ -13,7 +13,7 @@ export function transferDeadline(tx: { release_at?: string | null; payment_due_a
 }
 
 /**
- * Unpaid order past its reservation deadline, waiting for the release job to cancel it (W254b/W254c): no new online
+ * Unpaid order past its reservation deadline, waiting for the release job to cancel it: no new online
  * payment starts, and the order page says the deadline passed instead of showing the transfer details.
  * @see supabase migration 20261115110000_cancelled_order_no_payment.sql (open_order_payment_attempt, release_unpaid_transfer)
  */

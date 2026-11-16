@@ -39,7 +39,7 @@ it('has the same explanation in English', () => {
   for (const fact of ['2 emails per hour', '30 emails per hour', '60 s', 'Authentication → Rate Limits', 'GOTRUE_RATE_LIMIT_EMAIL_SENT', 'GOTRUE_SMTP_MAX_FREQUENCY', 'retries', 'Mailstack']) expect(text).toContain(fact);
 });
 
-it('places the per-recipient interval in Authentication → Rate Limits, where Supabase Studio shows it (W252br P3)', async () => {
+it('places the per-recipient interval in Authentication → Rate Limits, where Supabase Studio shows it', async () => {
   const { readFileSync } = await import('node:fs');
   const path = await import('node:path');
   // Supabase Studio: SMTP_MAX_FREQUENCY is a field of Auth/RateLimits/RateLimits.tsx, not of the SMTP form.

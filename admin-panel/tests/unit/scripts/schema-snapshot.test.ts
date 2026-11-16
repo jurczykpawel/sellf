@@ -32,7 +32,7 @@ describe('normalizeDump', () => {
     expect(out).toContain(['CREATE TABLE public.products (id uuid);   ', '', '', '', 'ALTER TABLE public.products OWNER TO postgres;'].join('\n'));
   });
 
-  it('keeps function bodies byte for byte: a literal with two trailing spaces differs from one without (W256r probe)', () => {
+  it('keeps function bodies byte for byte: a literal with two trailing spaces differs from one without', () => {
     const fn = (literal: string) => [...header, 'CREATE FUNCTION public.f() RETURNS text', '    LANGUAGE sql', `    AS $$ SELECT '${literal}' $$;`, ''].join('\n');
     const withSpaces = normalizeDump(fn('a  \nb'));
     expect(withSpaces).toContain("SELECT 'a  \nb'");

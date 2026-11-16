@@ -110,7 +110,7 @@ describe('sanitizeUpdateText', () => {
   });
 
   it('redacts configured secret values wherever they appear', () => {
-    expect(sanitizeUpdateText('key=FAKE_SERVICE_KEY_w251rb_only;', 500, ['FAKE_SERVICE_KEY_w251rb_only'])).toBe('key=[redacted];');
+    expect(sanitizeUpdateText('key=FAKE_SERVICE_KEY_redaction_only;', 500, ['FAKE_SERVICE_KEY_redaction_only'])).toBe('key=[redacted];');
   });
 
   it('removes markup, C0, DEL, C1 and direction controls', () => {
@@ -142,7 +142,7 @@ describe('sanitizeUpdateText', () => {
     expect(sanitizeUpdateText('value Qm-FzZTY0RmFrZVNlY3JldF_ZhbHVlRm9yVGVzdHM9 end', 500)).toBe('value [redacted] end');
   });
 
-  // W251rd: a value next to ":" or ".", or inside a URL or file path, is still a value (T is not a real key).
+  // A value next to ":" or ".", or inside a URL or file path, is still a value (T is not a real key).
   it.each([
     ['apikey:T', 'apikey:[redacted]'],
     ['apikey: T', 'apikey: [redacted]'],
@@ -180,8 +180,8 @@ describe('sanitizeUpdateText', () => {
 
 describe('sanitizeUpdateFailure', () => {
   it('cleans cause and GitHub message with the same rules', () => {
-    const dirty = `FAKE_SERVICE_KEY_w251rb_only ${samples.webhook} <img src=x onerror=alert(1)>\u007f\u0085\u202e`;
-    const failure = sanitizeUpdateFailure({ code: 'migration_failed', details: { cause: dirty, github_message: dirty } }, ['FAKE_SERVICE_KEY_w251rb_only']);
+    const dirty = `FAKE_SERVICE_KEY_redaction_only ${samples.webhook} <img src=x onerror=alert(1)>\u007f\u0085\u202e`;
+    const failure = sanitizeUpdateFailure({ code: 'migration_failed', details: { cause: dirty, github_message: dirty } }, ['FAKE_SERVICE_KEY_redaction_only']);
     expect(failure?.details).toEqual({ cause: '[redacted] [redacted]', github_message: '[redacted] [redacted]' });
   });
 });

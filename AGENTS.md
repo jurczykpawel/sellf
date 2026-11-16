@@ -520,7 +520,7 @@ Use `createClient()` from appropriate Supabase client:
 2. **Test RLS Policies**: Changes to database schema require testing RLS policies
 3. **Validate Inputs**: All user inputs must be validated client-side AND server-side
 4. **Rate Limiting**: New public endpoints must enforce rate limits
-5. **Audit Logging**: Admin actions are logged to `audit_log` through `recordAuditEntry` (`admin-panel/src/lib/audit/audit-entry.ts`): `performed_by` is the admin's auth user UUID (never an e-mail), the entry is written before the change, a refused entry changes nothing, and `discardAuditEntry` takes it back when the change fails
+5. **Audit Logging**: Admin actions are logged to `audit_log` with `performed_by` = the admin's auth user UUID (never an e-mail). A **change in the database** writes its entry in the same transaction as the change, inside an RPC (e.g. `save_invoicing_config`, `mutate_access_audited`, `issue_license_with_audit`, `set_invoice_recipient_enabled`): a refused entry changes nothing and no entry exists for a change that did not happen — never "entry first, change, delete the entry on error" (a killed process leaves a false entry). An action whose **effect is outside the database** (system upgrade, invoice at the provider) records an explicit INTENT with `recordAuditEntry` (`admin-panel/src/lib/audit/audit-entry.ts`) before it starts — action named as a request (`*_requested`), a failure added as a separate outcome entry, nothing deleted; such an entry is not proof the effect happened
 6. **TypeScript Strict**: All TypeScript must pass strict mode checks
 7. **Error Handling**: Never expose sensitive information in error messages
 8. **No Workarounds**: NEVER implement quick fixes or workarounds just to make something work. Always find and fix the root cause. Follow best practices and maintain code quality. Update dependencies when needed instead of patching around issues.
@@ -622,7 +622,7 @@ the migration history must stay reviewable. Rules:
    public, storage buckets, the full `cron.job` rows (schedule, active, database, user, command),
    extensions and row counts per public table; a difference fails with the diff. Never refresh the
    snapshot to make a consolidation pass. (Replaces the manual two-database proof for the schema;
-   the probes W256r showed it missed are DB tests in `schema-snapshot-probes.integration.test.ts`.)
+   the probes for what it must catch are DB tests in `schema-snapshot-probes.integration.test.ts`.)
    **The snapshot and the row counts do NOT prove that configuration or dictionary data is
    equivalent** (a changed default setting or list value keeps the same count): for migrations that
    insert or change such rows, the proof is the upgrade rehearsal on a copy of production data

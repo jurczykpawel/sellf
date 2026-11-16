@@ -1,5 +1,5 @@
 'use client';
-/** "Pay online" for an unpaid transfer order (never a cancelled one, W254). @see app/api/orders/[orderId]/pay/route.ts */
+/** "Pay online" for an unpaid transfer order (never a cancelled one). @see app/api/orders/[orderId]/pay/route.ts */
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { formatPrice } from '@/lib/constants';

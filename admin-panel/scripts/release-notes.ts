@@ -69,7 +69,7 @@ export function parseCommit({ hash, subject, body }: RawCommit): ParsedCommit {
   const footer = breakingFooter(body);
   if (!match) return { hash, type: 'other', scope: null, subject: subject.trim(), breaking: footer };
   const [, type, rawScope, bang, rawSubject] = match;
-  // Internal task ids (W254b) mean nothing to sellers.
+  // Internal task ids (e.g. W123b) mean nothing to sellers.
   const cleanSubject = rawSubject.replace(/\s*\(W\d+[a-z]*\)$/i, '').trim();
   const scope = rawScope && !/^w\d+[a-z]*$/i.test(rawScope) ? rawScope : null;
   const breaking = footer ?? (bang ? cleanSubject : null);

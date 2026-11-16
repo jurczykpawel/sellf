@@ -1,4 +1,4 @@
--- W254 (owner decision 14/15.11.2026): a cancelled order can no longer be paid by the buyer in any way, whether the
+-- A cancelled order can no longer be paid by the buyer in any way, whether the
 -- administrator cancelled it or the reservation timer released it (payment_window_expired). Only the administrator
 -- can accept a transfer that arrived late (admin_bank_transfer_order, p_accept_cancelled).
 -- * open_order_payment_attempt accepts only 'settle' on an order still awaiting payment (the 'reopen' mode is gone).
@@ -6,13 +6,11 @@
 --   duplicate the caller refunds automatically (sellf-dup-refund-<attempt>).
 -- * Every closing of an order (admin cancel, timer release, admin mark-paid) supersedes the open attempts and returns
 --   their Stripe session ids in expire_sessions, so the caller expires the payment pages still open in the buyer's browser.
--- W254b (owner decisions 15.11.2026):
 -- * After the reservation deadline (release_at) no NEW online payment attempt opens. An attempt started before it may
 --   finish, but the release job's protection ends 30 minutes after the deadline at the latest (cannot be renewed).
 -- * Accepting a late transfer that would go over a seat limit (session capacity OR the order's saved price tier, the
 --   rules confirm_event_order applies) requires the administrator's explicit confirmation (p_accept_oversold).
 --   event_order_seats() gives the preview the same facts the acceptance uses.
--- W254d (owner decision 15.11.2026):
 -- * "I have sent the transfer" after the reservation deadline (release_at, before the release job cancels) is recorded so the
 --   seller sees it, but neither extends the reservation nor delays the cancellation. Before the deadline: extended as before.
 -- Bodies otherwise identical to 20261110235905 / 20261110235906.
@@ -48,7 +46,7 @@ BEGIN
   UPDATE public.order_payment_attempts SET status='expired' WHERE transaction_id=p_id AND status IN ('opening','open') AND expires_at<=p_now;
   SELECT * INTO a FROM public.order_payment_attempts WHERE transaction_id=p_id AND status IN ('opening','open');
   IF FOUND THEN RETURN to_jsonb(a)||'{"reused":true}'; END IF;
-  -- W254b: past the reservation deadline the order waits for the release job; no new attempt may extend it.
+  -- Past the reservation deadline the order waits for the release job; no new attempt may extend it.
   IF tx.release_at IS NOT NULL AND p_now>=tx.release_at THEN RAISE EXCEPTION 'Payment window closed' USING ERRCODE='22023'; END IF;
   INSERT INTO public.order_payment_attempts(transaction_id,kind,amount,currency,expires_at) VALUES(p_id,p_kind,p_amount,upper(p_currency),p_expires_at) RETURNING * INTO a;
   RETURN to_jsonb(a)||'{"reused":false}';
@@ -268,7 +266,7 @@ END $$;
 REVOKE EXECUTE ON FUNCTION public.admin_bank_transfer_order(uuid,text,numeric,timestamptz,text,uuid,boolean,boolean) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_bank_transfer_order(uuid,text,numeric,timestamptz,text,uuid,boolean,boolean) TO service_role;
 
--- ===== DECLARATION: past the deadline it only tells the seller (W254d) =====
+-- ===== DECLARATION: past the deadline it only tells the seller =====
 CREATE OR REPLACE FUNCTION public.declare_transfer(p_id uuid,p_note text,p_now timestamptz) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE tx public.payment_transactions%ROWTYPE; hold integer; note text:=nullif(btrim(p_note),''); late boolean;

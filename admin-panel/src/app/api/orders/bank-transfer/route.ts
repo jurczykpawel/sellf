@@ -8,6 +8,7 @@ import { normalizeCouponCode } from '@/lib/coupons/normalize-code';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 import { verifyCaptchaToken } from '@/lib/captcha/verify';
 import { validateCheckoutModules } from '@/lib/checkout-modules/validate';
+import { ORDER_PAYLOAD_MAX_BYTES, transferOrderPayloadByteLength } from '@/lib/checkout-modules/order-details';
 import { annotateViesStatus } from '@/lib/validation/vies';
 import { resolveEventCheckout } from '@/lib/events/checkout';
 import { bankTransferConfigSchema, canUseBankTransfer } from '@/lib/orders/bank-transfer-config';
@@ -115,12 +116,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (product.event_mode) lines[0].session_id = body.sessionId;
     // The order row is inserted inside the RPC; its snapshot trigger reads this reference.
     const attributionRef = crypto.randomUUID();
-    await storeCheckoutAttribution(db, [attributionRef], body.attribution, attributionRequestContext(request.headers));
-    const placed = await db.rpc('bank_transfer_order', { p_order: {
+    const order = {
       product_id: product.id, currency: product.currency.toUpperCase(), customer_email: email, user_id: user?.id ?? null, terms_required: termsRequired,
       order_details: { v: 1, ...validation.details }, custom_field_values: custom.values, coupon_id: coupon?.id ?? null,
       metadata: { event_ip: ip, locale: body.locale, [ATTRIBUTION_REF_KEY]: attributionRef },
-    }, p_lines: lines as unknown as Json });
+    };
+    // Measured as place_order will see it, before any write (attribution included).
+    if (transferOrderPayloadByteLength(order, {
+      grantAccessOnPlacement: config.data.bank_transfer_grant_access_on_placement, eventMode: Boolean(product.event_mode),
+    }) > ORDER_PAYLOAD_MAX_BYTES) {
+      return NextResponse.json({ errors: [{ field: 'moduleValues', code: 'details_too_large' }] }, { status: 422, headers: { 'Cache-Control': 'no-store' } });
+    }
+    await storeCheckoutAttribution(db, [attributionRef], body.attribution, attributionRequestContext(request.headers));
+    const placed = await db.rpc('bank_transfer_order', { p_order: order as unknown as Json, p_lines: lines as unknown as Json });
     if (placed.error) return fail(placed.error.code === 'P0429' ? 'Unpaid order limit reached' : 'Order placement failed', placed.error.code === 'P0429' ? 429 : placed.error.code === 'P0409' ? 409 : 400);
     const result = placed.data as { transaction_id: string; order_number: number; amount: number; currency: string; dueAt: string; releaseAt: string | null; transfer: Json };
     after(async () => {

@@ -38,6 +38,9 @@ export interface WebhookOrderDetails {
 /** Size limit of order details checked by the database (set_payment_order_details, order_details CHECK). */
 export const ORDER_DETAILS_MAX_BYTES = 65536;
 
+/** SQLSTATE set_payment_order_details raises when the merged order details would exceed the limit. */
+export const ORDER_DETAILS_TOO_LARGE_SQLSTATE = '54000';
+
 const encoder = new TextEncoder();
 const utf8Bytes = (text: string): number => encoder.encode(text).length;
 
@@ -55,4 +58,25 @@ export function orderDetailsByteLength(value: unknown): number {
       + entries.reduce((sum, [key, item]) => sum + utf8Bytes(JSON.stringify(key)) + 2 + orderDetailsByteLength(item), 0);
   }
   return utf8Bytes(JSON.stringify(value) ?? 'null');
+}
+
+/** Size limit of the whole order payload checked by place_order (octet_length(p_order::text)). */
+export const ORDER_PAYLOAD_MAX_BYTES = 65536;
+
+/**
+ * Bytes of the order payload as place_order measures it after bank_transfer_order enriched it
+ * (payment provider, cleared Stripe ids, access_on_placement in metadata; expires_at for an event).
+ * Lets the transfer route refuse an oversized order with a field error before its first write.
+ */
+export function transferOrderPayloadByteLength(
+  order: Record<string, unknown>,
+  context: { grantAccessOnPlacement: boolean; eventMode: boolean },
+): number {
+  const metadata = order.metadata && typeof order.metadata === 'object' && !Array.isArray(order.metadata) ? order.metadata : {};
+  return orderDetailsByteLength({
+    ...order,
+    payment_provider: 'bank_transfer', session_id: null, stripe_payment_intent_id: null,
+    metadata: { ...metadata, access_on_placement: context.grantAccessOnPlacement },
+    ...(context.eventMode ? { expires_at: null } : {}),
+  });
 }

@@ -52,7 +52,7 @@ describe('Product archive API @J602', () => {
   });
 
   it('DELETE of a product with orders archives it and keeps the order and license', async () => {
-    const id = await createProduct('W250 sold course');
+    const id = await createProduct('Archive sold course');
     const { orderId, licenseId } = await sell(id);
 
     const impact = await get<ApiResponse<Impact>>(`/api/v1/products/${id}/deletion-impact`);
@@ -75,18 +75,18 @@ describe('Product archive API @J602', () => {
   });
 
   it('lists archived products only under status=archived', async () => {
-    const id = await createProduct('W250 listed archive');
+    const id = await createProduct('Archive listed archive');
     await sell(id);
     await del(`/api/v1/products/${id}`);
 
-    const active = await get<ApiResponse<Product[]>>('/api/v1/products?limit=100&search=W250%20listed%20archive');
+    const active = await get<ApiResponse<Product[]>>('/api/v1/products?limit=100&search=Archive%20listed%20archive');
     expect((active.data.data ?? []).map(p => p.id)).not.toContain(id);
-    const archived = await get<ApiResponse<Product[]>>('/api/v1/products?limit=100&status=archived&search=W250%20listed%20archive');
+    const archived = await get<ApiResponse<Product[]>>('/api/v1/products?limit=100&status=archived&search=Archive%20listed%20archive');
     expect((archived.data.data ?? []).map(p => p.id)).toContain(id);
   });
 
   it('refuses activation and permanent delete of a sold product outside the archive flow', async () => {
-    const id = await createProduct('W250 permanent guard');
+    const id = await createProduct('Archive permanent guard');
     await sell(id);
 
     const premature = await del<ApiResponse<null>>(`/api/v1/products/${id}?permanent=true`);
@@ -99,21 +99,21 @@ describe('Product archive API @J602', () => {
   });
 
   it('restores an archived product as inactive', async () => {
-    const id = await createProduct('W250 restore');
+    const id = await createProduct('Archive restore');
     await sell(id);
     await del(`/api/v1/products/${id}`);
 
     const { status, data } = await post<ApiResponse<Product>>(`/api/v1/products/${id}/restore`, {});
     expect(status).toBe(200);
     expect(data.data).toMatchObject({ id, archived_at: null, is_active: false });
-    const listed = await get<ApiResponse<Product[]>>('/api/v1/products?limit=100&search=W250%20restore');
+    const listed = await get<ApiResponse<Product[]>>('/api/v1/products?limit=100&search=Archive%20restore');
     expect((listed.data.data ?? []).map(p => p.id)).toContain(id);
   });
 
   it('permanent delete from the archive keeps the order and license with the purchase-time name', async () => {
-    const id = await createProduct('W250 permanent');
+    const id = await createProduct('Archive permanent');
     const { orderId, licenseId } = await sell(id);
-    await patch(`/api/v1/products/${id}`, { name: 'W250 permanent renamed' });
+    await patch(`/api/v1/products/${id}`, { name: 'Archive permanent renamed' });
     await del(`/api/v1/products/${id}`);
 
     const { status } = await del(`/api/v1/products/${id}?permanent=true`);
@@ -121,19 +121,19 @@ describe('Product archive API @J602', () => {
     expect((await get(`/api/v1/products/${id}`)).status).toBe(404);
 
     const order = (await db.from('payment_transactions').select('product_id,product_name,status').eq('id', orderId).single()).data;
-    expect(order).toEqual({ product_id: null, product_name: 'W250 permanent', status: 'completed' });
+    expect(order).toEqual({ product_id: null, product_name: 'Archive permanent', status: 'completed' });
     const license = (await db.from('issued_licenses').select('product_id,product_name').eq('id', licenseId).single()).data;
-    expect(license).toEqual({ product_id: null, product_name: 'W250 permanent' });
+    expect(license).toEqual({ product_id: null, product_name: 'Archive permanent' });
 
     const detail = await get<ApiResponse<{ id: string; product: { id: string | null; name: string } }>>(`/api/v1/payments/${orderId}`);
     expect(detail.status).toBe(200);
-    expect(detail.data.data?.product).toMatchObject({ id: null, name: 'W250 permanent' });
+    expect(detail.data.data?.product).toMatchObject({ id: null, name: 'Archive permanent' });
     const list = await get<ApiResponse<Array<{ id: string; product: { id: string | null; name: string } }>>>('/api/v1/payments?limit=100&email=w250-buyer');
-    expect(list.data.data?.find(p => p.id === orderId)?.product).toMatchObject({ id: null, name: 'W250 permanent' });
+    expect(list.data.data?.find(p => p.id === orderId)?.product).toMatchObject({ id: null, name: 'Archive permanent' });
   });
 
   it('hides an archived product from the public product endpoint even with the waitlist on', async () => {
-    const id = await createProduct('W250 public');
+    const id = await createProduct('Archive public');
     await sell(id);
     const { data: before } = await db.from('products').update({ enable_waitlist: true, is_active: false }).eq('id', id).select('slug').single();
     expect((await fetch(`${API_URL}/api/public/products/${before!.slug}`)).status).toBe(200);
@@ -142,7 +142,7 @@ describe('Product archive API @J602', () => {
   });
 
   it('refuses a permanent delete while a subscription is active and keeps the ended one', async () => {
-    const id = await createProduct('W250 subscription');
+    const id = await createProduct('Archive subscription');
     await sell(id);
     const { data: subscription, error } = await db.from('subscriptions').insert({
       product_id: id, stripe_customer_id: 'cus_w250', stripe_subscription_id: `sub_w250_${Date.now()}`, status: 'active',
@@ -159,11 +159,11 @@ describe('Product archive API @J602', () => {
     await db.from('subscriptions').update({ status: 'canceled' }).eq('id', subscription!.id);
     expect((await del(`/api/v1/products/${id}?permanent=true`)).status).toBe(204);
     const kept = (await db.from('subscriptions').select('product_id,product_name,status').eq('id', subscription!.id).single()).data;
-    expect(kept).toEqual({ product_id: null, product_name: 'W250 subscription', status: 'canceled' });
+    expect(kept).toEqual({ product_id: null, product_name: 'Archive subscription', status: 'canceled' });
   });
 
   it('a product without orders is still deleted at once', async () => {
-    const id = await createProduct('W250 never sold');
+    const id = await createProduct('Archive never sold');
     const { status } = await del(`/api/v1/products/${id}`);
     expect(status).toBe(204);
     expect((await get(`/api/v1/products/${id}`)).status).toBe(404);

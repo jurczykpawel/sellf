@@ -30,7 +30,7 @@ import {
 } from '@/lib/api';
 import { checkLatestUpdaterCompatibility } from '@/lib/system/updater-compatibility';
 import { createPlatformClient } from '@/lib/supabase/admin';
-import { discardAuditEntry, recordAuditEntry } from '@/lib/audit/audit-entry';
+import { recordAuditEntry } from '@/lib/audit/audit-entry';
 import { isUpgradeLockHeld } from '@/lib/system/upgrade-lock';
 import { getUpgradeLockFilePath, getUpgradeLogFilePath, getUpgradeProgressFilePath } from '@/lib/system/upgrade-paths';
 
@@ -132,9 +132,12 @@ async function launchUpgrade(request: NextRequest, auth: Awaited<ReturnType<type
     );
   }
 
-  // Audit entry before anything starts: no audit trail, no update. performed_by references
-  // auth.users, so it is the admin's auth user UUID (for an API key, the key owner's), never the e-mail;
-  // audit_log.operation only accepts INSERT/UPDATE/DELETE, the kind of action lives in new_values.
+  // The update runs outside the database (systemd + upgrade.sh), so no transaction can cover it. The
+  // entry records the admin's REQUEST before anything starts (no entry, no update); it is not proof
+  // that the update ran — the upgrade log and status are. A launcher failure adds an outcome entry
+  // instead of deleting the request. performed_by references auth.users, so it is the admin's auth
+  // user UUID (for an API key, the key owner's), never the e-mail; audit_log.operation only accepts
+  // INSERT/UPDATE/DELETE, the kind of action lives in new_values.
   const token = randomUUID();
   const auditClient = createPlatformClient();
   const audit = await recordAuditEntry(auditClient, {
@@ -143,7 +146,7 @@ async function launchUpgrade(request: NextRequest, auth: Awaited<ReturnType<type
     table_name: 'system',
     operation: 'UPDATE',
     new_values: {
-      action: 'system_upgrade_triggered',
+      action: 'system_upgrade_requested',
       current_version: process.env.NEXT_PUBLIC_APP_VERSION || 'unknown',
       upgrade_token: token,
     },
@@ -210,8 +213,15 @@ async function launchUpgrade(request: NextRequest, auth: Awaited<ReturnType<type
       child.once('exit', code => code === 0 ? accept() : reject(new Error('Upgrade launcher failed')));
     });
   } catch (launchError) {
-    // The update never started: no audit entry claims it did.
-    await discardAuditEntry(auditClient, audit.id);
+    // The update never started: the request stays recorded, with its outcome next to it.
+    const outcome = await recordAuditEntry(auditClient, {
+      user_id: auth.admin.userId,
+      performed_by: auth.admin.userId,
+      table_name: 'system',
+      operation: 'UPDATE',
+      new_values: { action: 'system_upgrade_launch_failed', upgrade_token: token, request_audit_id: audit.id },
+    });
+    if (!outcome.ok) console.error('[system/upgrade] Outcome entry refused:', outcome.error);
     throw launchError;
   }
   lastLaunch = { token, at: Date.now() };

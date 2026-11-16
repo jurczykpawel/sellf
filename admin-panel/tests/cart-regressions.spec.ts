@@ -127,9 +127,15 @@ for (const locale of ['en', 'pl']) test(`${locale}: external embed only exposes 
   test.setTimeout(120000);
   for (const linked of [false, true]) {
     sellerHtml = `<!doctype html><html lang="${locale}"><body><div data-sellf-embed data-product-slug="${products[0].slug}"></div><script src="${sellfOrigin}/embed/v1/checkout.js"></script></body></html>`;
-    const responsePromise = page.waitForResponse(r => r.url().includes('/api/embed/checkout-session') && r.request().method() === 'POST');
+    // With captcha on, the first POST answers kind 'paid_needs_captcha' (no session) and the loader posts
+    // again with the solved token; only the 'paid' answer carries the Stripe session.
+    const responsePromise = page.waitForResponse(async r => {
+      if (!r.url().includes('/api/embed/checkout-session') || r.request().method() !== 'POST' || !r.ok()) return false;
+      return (await r.json().catch(() => null))?.kind === 'paid';
+    });
     await page.goto(`${sellerOrigin}/${linked ? `?coupon=${coupon.code}` : ''}`);
-    const response = await responsePromise; const body = await response.json(); expect(response.status(), JSON.stringify(body)).toBe(200); remember(body);
+    const response = await responsePromise; const body = await response.json(); remember(body);
+    expect(body.sessionId, JSON.stringify(body)).toMatch(/^cs_/);
     await expect(page.locator('iframe[name="embedded-checkout"]')).toBeVisible({ timeout: 60000 });
     const input = page.locator('input[name=coupon]');
     if (linked) await expect(input).toHaveValue(coupon.code); else await expect(input).toHaveCount(0);

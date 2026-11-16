@@ -26,7 +26,7 @@ const orderPage = (id: string) => `/pl/order/${id}/transfer?token=${signTransfer
 async function payOnHostedCheckout(page: Page) {
   await page.waitForURL(/checkout\.stripe\.com/, { timeout: 60000 });
   // Hosted Checkout comes in two layouts. Classic: the card form is in the page (input cardNumber, opened from the card
-  // accordion item when several PLN methods are offered). Newer (local-tests sandbox, 11.2026, W254c): the whole form is
+  // accordion item when several PLN methods are offered). Newer (local-tests sandbox, 11.2026): the whole form is
   // a Payment Element inside an iframe (inputs number/expiry/cvc/name, "Card" accordion row, submit inside the frame).
   const classicNumber = page.locator('input[name="cardNumber"]'), classicCard = page.getByTestId('card-accordion-item');
   const form = page.frameLocator('iframe[src*="elements-inner-habanero"]');
@@ -91,7 +91,7 @@ test('buyer pays an unpaid transfer order online from the pay link at the saved 
 });
 
 test('a cancelled order cannot be paid online whatever the reason; its page leads to the product @J186', async ({ page }) => {
-  // W254 (owner 14/15.11): neither a timer release nor an administrator cancellation leaves a way to pay.
+  // Neither a timer release nor an administrator cancellation leaves a way to pay.
   const released = await place(`quick-released-${randomUUID()}@example.com`, 100);
   expect((await checked(await db.rpc('release_unpaid_transfer', { p_id: released, p_now: new Date(Date.now() + 49 * 3600000).toISOString() })) as { released: boolean }).released).toBe(true);
   const cancelled = await place(`quick-cancelled-${randomUUID()}@example.com`, 100);
