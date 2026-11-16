@@ -128,6 +128,7 @@ const SPECIAL_AUTH_ROUTES = new Set([
   'update-payment-metadata/route.ts',          // CORS + PaymentIntent ID (pre-auth payment flow)
   'verify-payment/route.ts',                   // session_id + ownership check
   'loginwall/verify/route.ts',                 // bearer HMAC gate token (no user session), allowlist-scoped CORS
+  'mcp/route.ts',                              // API key only (no session); tool calls go through /api/v1 with that key
 ]);
 
 /** Auth-required routes: must verify user session */
@@ -197,6 +198,14 @@ function hasUserAuthCheck(source: string): boolean {
 // ============================================================================
 
 describe('Area 4: API Route Authentication & Authorization', () => {
+
+  it('MCP endpoint accepts only an API key and never forwards cookies', () => {
+    const source = allRoutes.find(r => r.rel === 'mcp/route.ts')!.source;
+    expect(source).toContain('authenticateApiKeyPrincipal(request)');
+    expect(source).not.toMatch(/\bauthenticate\(|createAdminClient|getUser\(/);
+    expect(source).toMatch(/FORWARDED_HEADERS = \[[^\]]*\]/);
+    expect(/FORWARDED_HEADERS = \[([^\]]*)\]/.exec(source)![1]).not.toContain('cookie');
+  });
 
   it('payout CSV delegates to its session admin adapter', () => {
     const route = allRoutes.find(r => r.rel === 'affiliates/payouts/[id]/csv/route.ts');
