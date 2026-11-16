@@ -9,7 +9,7 @@ import { selectEventSession } from '@/lib/events/presentation';
 import { storedCheckoutProfileSchema } from '@/lib/checkout-modules/profile';
 import BankTransferForm from '@/components/checkout/BankTransferForm';
 import { getTransferAvailability } from '@/lib/orders/transfer-public';
-import { availableTransferMethod, canUseBankTransfer, transferBlockedBySession, transferFitsSession } from '@/lib/orders/bank-transfer-config';
+import { availableTransferMethod, canUseBankTransfer, productAllowsTransfer, transferBlockedBySession, transferFitsSession } from '@/lib/orders/bank-transfer-config';
 import { useInvoiceData } from '@/hooks/useInvoiceData';
 import { parseQuantityInput } from '@/lib/checkout-modules/quantity';
 import CheckoutProfileFields, { CheckoutQuantityField, useCheckoutProfileValues } from '@/components/checkout/CheckoutProfileFields';
@@ -209,7 +209,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const [transfer, setTransfer] = useState<Awaited<ReturnType<typeof getTransferAvailability>> | null>(null);
   const [method, setMethod] = useState<'online' | 'transfer' | null>(null);
   const profileHasTransfer = !!profile?.modules.some(m => m.id === 'buyer' && !!m.bank_transfer_for?.length)
-    && !product.allow_custom_price && !product.is_bundle && !isSubscription;
+    && productAllowsTransfer(product);
   useEffect(() => {
     if (!profileHasTransfer) return;
     let active = true;

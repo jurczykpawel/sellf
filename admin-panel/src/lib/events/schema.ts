@@ -2,6 +2,8 @@
 import { z } from 'zod';
 /** Never throws: an unparsable value is simply not an HTTPS link (B8: typing "h" crashed the form). */
 const isHttpsUrl = (v: string): boolean => { try { return new URL(v).protocol === 'https:'; } catch { return false; } };
+/** Most sessions per product and most price tiers per session. */
+export const EVENT_LIST_MAX = 50;
 const text = z.string().trim().max(500).nullable().optional();
 export const eventTierSchema = z.object({
   id: z.string().uuid().optional(), label: text, price: z.number({ message: 'tier_price' }).finite({ message: 'tier_price' }).nonnegative({ message: 'tier_price' }), seats: z.number().int({ message: 'tier_seats' }).positive({ message: 'tier_seats' }).max(2147483647, { message: 'tier_seats' }).nullable().optional(),
@@ -12,7 +14,7 @@ export const eventSessionSchema = z.object({
   timezone: z.string().max(100, { message: 'timezone' }).default('Europe/Warsaw').refine(v => { try { new Intl.DateTimeFormat('en', { timeZone: v }); return true; } catch { return false; } }, { message: 'timezone' }),
   title: text, venue: text, extra_days: text, online_url: z.string().max(2048, { message: 'online_url' }).refine(isHttpsUrl, { message: 'online_url' }).nullable().optional(),
   capacity: z.number().int({ message: 'capacity' }).positive({ message: 'capacity' }).max(2147483647, { message: 'capacity' }).nullable().optional(), sales_open: z.boolean().default(true), sort: z.number().int({ message: 'sort' }).min(0, { message: 'sort' }).max(10000, { message: 'sort' }).default(0),
-  tiers: z.array(eventTierSchema).min(1, { message: 'tiers' }).max(50, { message: 'tiers' }),
+  tiers: z.array(eventTierSchema).min(1, { message: 'tiers' }).max(EVENT_LIST_MAX, { message: 'tiers_max' }),
 }).strict().superRefine((s, ctx) => {
   if (s.ends_at && !(Date.parse(s.ends_at) > Date.parse(s.starts_at))) ctx.addIssue({ code: 'custom', path: ['ends_at'], message: 'ends_at' });
   const sorts = new Set<number>(); const ids = new Set<string>();
@@ -23,15 +25,20 @@ export const eventSessionSchema = z.object({
     if (s.capacity != null && t.seats != null && t.seats > s.capacity) ctx.addIssue({ code: 'custom', path: ['tiers', i, 'seats'], message: 'tier_seats_capacity' });
   });
 });
-export const eventSessionsSchema = z.array(eventSessionSchema).max(50).refine(s => {
+export const eventSessionsSchema = z.array(eventSessionSchema).max(EVENT_LIST_MAX, { message: 'sessions_max' }).refine(s => {
   const ids = s.flatMap(v => v.id ? [v.id] : []); return new Set(ids).size === ids.length;
 }, 'Session IDs must be unique');
-/** Field-level error codes keyed "<session>.<field>" / "<session>.tiers.<n>.<field>"; codes map to `events.errors.*`. */
+/** Key of errors about the whole session list (e.g. too many sessions) in `eventFieldErrors`. */
+export const EVENT_LIST_ERROR = 'sessions';
+/**
+ * Field-level error codes keyed "<session>.<field>" / "<session>.tiers.<n>.<field>"; codes map to `events.errors.*`.
+ * Errors about a whole list keep their list key: "<session>.tiers" (no or too many tiers) and `EVENT_LIST_ERROR`.
+ */
 export function eventFieldErrors(sessions: unknown): Record<string, string> {
   const r = eventSessionsSchema.safeParse(sessions); const out: Record<string, string> = {};
   if (r.success) return out;
   for (const issue of r.error.issues) {
-    const key = issue.path.join('.'); if (!key || out[key]) continue;
+    const key = issue.path.join('.') || EVENT_LIST_ERROR; if (out[key]) continue;
     out[key] = /^[a-z_]+$/.test(issue.message) ? issue.message : 'invalid';
   }
   return out;
