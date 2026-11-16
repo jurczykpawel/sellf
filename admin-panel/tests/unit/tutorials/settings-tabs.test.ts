@@ -10,6 +10,7 @@ vi.mock('@/components/providers/config-provider', () => ({ useConfig: () => ({ d
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ role: 'platform_admin' }) }));
 vi.mock('@/components/settings/BankTransferSettings', () => ({ default: () => React.createElement('div', null, 'BankTransferSettings') }));
 vi.mock('@/components/settings/InvoicingSettings', () => ({ default: () => React.createElement('div', null, 'InvoicingSettings') }));
+vi.mock('@/components/settings/InvoiceRecipientSettings', () => ({ default: () => React.createElement('div', null, 'InvoiceRecipientSettings') }));
 vi.mock('@/components/settings/ShopSettings', () => ({ default: () => React.createElement('div', null, 'ShopSettings') }));
 vi.mock('@/components/settings/BuyerEmailSettings', () => ({ default: () => React.createElement('div', null, 'BuyerEmailSettings') }));
 vi.mock('@/components/settings/BrandingSettings', () => ({ default: () => React.createElement('div', null, 'BrandingSettings') }));

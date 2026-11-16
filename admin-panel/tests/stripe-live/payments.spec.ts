@@ -260,10 +260,14 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
       }
     }
     if (s.profile) {
-      for (const prefix of ['buyer', 'recipient']) {
-        if (prefix === 'recipient') await page.getByLabel('Different recipient').check();
-        for (const [key, value] of Object.entries({ company_name: 'Test Organization', nip: '5260250274', address: 'Prosta 1', postal_code: '00-001', city: 'Warszawa' })) {
-          await page.locator(`[id="${prefix}.${key}"]`).fill(value);
+      // Organization and recipient use the standard invoice section (W223b); GUS answers "not found".
+      await page.route('**/api/gus/fetch-company-data', route => route.fulfill({ status: 404, json: { success: false, code: 'NOT_FOUND' } }));
+      for (const prefix of ['', 'recipient']) {
+        if (prefix) await page.getByLabel('Invoice for another institution (recipient)').check();
+        const id = (key: string) => `#${prefix ? `${prefix}${key[0].toUpperCase()}${key.slice(1)}` : key}`;
+        await page.locator(id('nip')).fill('5260250274');
+        for (const [key, value] of Object.entries({ companyName: 'Test Organization', address: 'Prosta 1', postalCode: '00-001', city: 'Warszawa' })) {
+          await page.locator(id(key)).fill(value);
         }
       }
       await page.locator('[id="phone"]').fill('500100200');

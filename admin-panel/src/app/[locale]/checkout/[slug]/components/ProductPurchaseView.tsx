@@ -19,6 +19,7 @@ interface ProductPurchaseViewProps {
   licenseValid?: boolean;
   taxMode?: TaxMode;
   collectTermsOfService: boolean;
+  collectInvoiceRecipient?: boolean;
   bundleComponents?: BundleComponentSummary[];
   layoutMode?: 'standalone' | 'embedded';
   afterCheckoutSlot?: React.ReactNode;
@@ -52,7 +53,7 @@ function getProductUnavailableReason(product: Product): UnavailableReason {
   return null; // Product is available
 }
 
-export default function ProductPurchaseView({ product, paymentMethodOrder, expressCheckoutConfig, licenseValid, taxMode, collectTermsOfService, bundleComponents, layoutMode = 'standalone', afterCheckoutSlot }: ProductPurchaseViewProps) {
+export default function ProductPurchaseView({ product, paymentMethodOrder, expressCheckoutConfig, licenseValid, taxMode, collectTermsOfService, collectInvoiceRecipient = false, bundleComponents, layoutMode = 'standalone', afterCheckoutSlot }: ProductPurchaseViewProps) {
   const unavailableReason = getProductUnavailableReason(product);
 
   // Show waitlist form if product is unavailable AND waitlist is enabled
@@ -71,7 +72,7 @@ export default function ProductPurchaseView({ product, paymentMethodOrder, expre
       ) : !product.event_mode && product.product_type !== 'subscription' && product.price === 0 && !product.allow_custom_price ? (
         <FreeProductForm product={product} collectTermsOfService={collectTermsOfService} bundleComponents={bundleComponents} />
       ) : (
-        <PaidProductForm product={product} paymentMethodOrder={paymentMethodOrder} expressCheckoutConfig={expressCheckoutConfig} taxMode={taxMode} layoutMode={layoutMode} afterCheckoutSlot={afterCheckoutSlot} collectTermsOfService={collectTermsOfService} bundleComponents={bundleComponents} />
+        <PaidProductForm product={product} paymentMethodOrder={paymentMethodOrder} expressCheckoutConfig={expressCheckoutConfig} taxMode={taxMode} layoutMode={layoutMode} afterCheckoutSlot={afterCheckoutSlot} collectTermsOfService={collectTermsOfService} collectInvoiceRecipient={collectInvoiceRecipient} bundleComponents={bundleComponents} />
       )}
 
       </div>

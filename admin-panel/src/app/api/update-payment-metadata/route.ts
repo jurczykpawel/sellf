@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { validateCheckoutModules } from '@/lib/checkout-modules/validate';
 import { annotateViesStatus } from '@/lib/validation/vies';
-import { classifyTaxId } from '@/lib/validation/tax-id';
 import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 import { getStripeServer } from '@/lib/stripe/server';
 import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
@@ -21,6 +20,11 @@ import {
 } from '@/lib/validations/custom-checkout-fields';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 import { buildBuyerDetails } from '@/lib/payment/buyer-details';
+import type { BuyerDetails } from '@/lib/payment/buyer-details';
+import { invoiceSectionFromFlatFields, validateInvoiceSection } from '@/lib/checkout/invoice-section';
+import { readInvoiceRecipientEnabled } from '@/lib/checkout/invoice-recipient-setting';
+import { saveOrderRecipient, toStoredRecipient } from '@/lib/payment/order-recipient';
+import type { StoredRecipient } from '@/lib/payment/order-recipient';
 
 /**
  * POST /api/update-payment-metadata
@@ -99,6 +103,8 @@ export async function POST(request: NextRequest) {
       // Validated with requireAll=true so required fields must be filled
       // before checkout.confirm() is allowed to proceed.
       customFieldValues,
+      // W223a invoice section of the standard checkout; when present it replaces the flat fields above.
+      invoice,
     } = await readJsonBody<any>(request);
 
     if (!clientSecret) {
@@ -156,34 +162,8 @@ export async function POST(request: NextRequest) {
     if (shouldShowTosCheckbox(checkoutConfig.collect_terms_of_service, !sessionUser) && termsAccepted !== true) {
       return NextResponse.json({ success: false, error: 'Terms acceptance required' }, { status: 400 });
     }
-    // Legacy invoice form: the tax id follows the company country, as in the profile checkout.
-    const taxCountry = typeof country === 'string' && /^[A-Z]{2}$/.test(country) ? country : 'PL';
-    let taxId: unknown = nip;
-    if (typeof nip === 'string' && nip.trim()) {
-      const classified = classifyTaxId(nip, taxCountry);
-      if (!classified.valid) return NextResponse.json({ success: false, error: 'invalid_tax_id' }, { status: 400 });
-      taxId = classified.normalized;
-    }
     const stripe = await getStripeServer();
-    const buyer = buildBuyerDetails(
-      { firstName, lastName, fullName, termsAccepted, needsInvoice, nip: taxId, companyName, address, city, postalCode, country },
-      'checkout',
-    );
     const localeMetadata: Record<string, string> = locale === 'pl' || locale === 'en' ? { locale } : {};
-    const metadata = {
-      ...localeMetadata,
-      first_name: buyer.first_name,
-      last_name: buyer.last_name,
-      full_name: buyer.full_name,
-      terms_accepted: buyer.terms_accepted ? 'true' : '',
-      needs_invoice: buyer.needs_invoice ? 'true' : 'false',
-      nip: buyer.nip,
-      company_name: buyer.company_name,
-      address: buyer.address,
-      city: buyer.city,
-      postal_code: buyer.postal_code,
-      country: buyer.country,
-    };
 
     let stripeMetadata: Record<string, string> = {};
     let productIdFromStripe: string | null = null;
@@ -256,6 +236,43 @@ export async function POST(request: NextRequest) {
         .select('checkout_profile, currency').eq('id', productId).single();
       if (error || !data) return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 });
       profileProduct = data;
+    }
+    // The rules follow the product configuration on the server, never the shape of the request:
+    // a checkout profile validates its modules; every other checkout runs the invoice section,
+    // also when an older client sends the flat fields (W223ar #2).
+    const usesProfile = !isSubscription && profileProduct?.checkout_profile != null;
+    let standard: { buyer: BuyerDetails; metadata: Record<string, string>; recipientToStore: StoredRecipient | null } | null = null;
+    if (!usesProfile) {
+      // A subscription has no pending order row to keep a recipient on, so it never takes one (W223ar #7).
+      const recipientEnabled = !isSubscription && await readInvoiceRecipientEnabled(createAdminClient());
+      const section = validateInvoiceSection(
+        invoice !== undefined ? invoice : invoiceSectionFromFlatFields({ needsInvoice, nip, companyName, address, city, postalCode, country }),
+        { recipientEnabled },
+      );
+      if (!section.ok) return NextResponse.json({ success: false, errors: section.errors }, { status: 422 });
+      const party = section.buyer;
+      const personCountry = typeof country === 'string' && /^[A-Z]{2}$/.test(country) ? country : 'PL';
+      const buyer = buildBuyerDetails(party
+        ? { firstName, lastName, fullName, termsAccepted, needsInvoice: true, buyerType: 'organization', nip: party.nip, companyName: party.company_name, address: party.address, city: party.city, postalCode: party.postal_code, country: party.country }
+        : { firstName, lastName, fullName, termsAccepted, needsInvoice: false, buyerType: 'person', country: personCountry }, 'checkout');
+      standard = {
+        buyer,
+        recipientToStore: recipientEnabled ? toStoredRecipient(section.recipient) : null,
+        metadata: {
+          ...localeMetadata,
+          first_name: buyer.first_name,
+          last_name: buyer.last_name,
+          full_name: buyer.full_name,
+          terms_accepted: buyer.terms_accepted ? 'true' : '',
+          needs_invoice: buyer.needs_invoice ? 'true' : 'false',
+          nip: buyer.nip,
+          company_name: buyer.company_name,
+          address: buyer.address,
+          city: buyer.city,
+          postal_code: buyer.postal_code,
+          country: buyer.country,
+        },
+      };
     }
     if (!isSubscription && stripeMetadata.coupon_id) {
       const buyerEmail = z.email().max(254).safeParse(
@@ -353,58 +370,57 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    if (!isSubscription) {
+    if (usesProfile) {
       const admin = createAdminClient();
       const product = profileProduct!;
-      if (product.checkout_profile != null) {
-        const result = validateCheckoutModules(product.checkout_profile, moduleValues, {
-          locale, currency: product.currency, termsAccepted,
-        });
-        if (!result.success) return NextResponse.json({ success: false, errors: result.errors }, { status: result.status });
-        await annotateViesStatus(result.details);
-        const rawQuantity = result.quantity;
-        const customError = await persistCustomFields();
-        if (customError) return customError;
-        const { data: saved, error: saveError } = await admin.rpc('set_payment_order_details', {
-          p_details: result.details,
-          p_product_id: productId,
-          p_quantity: rawQuantity,
-          ...(isCheckoutSession ? { p_session_id: stripeObjectId } : { p_payment_intent_id: stripeObjectId }),
-        });
-        if (saveError && ['22023', '23514'].includes(saveError.code)) {
-          return NextResponse.json({
-            success: false, errors: [{ field: 'moduleValues', code: 'details_too_large' }],
-          }, { status: 422 });
-        }
-        if (saveError) return NextResponse.json({ success: false, error: 'Failed to save order details' }, { status: 500 });
-        if (saved !== 1) return NextResponse.json({ success: false, code: 'quantity_snapshot_mismatch' }, { status: 409 });
-        const personalFields = new Set([
-          'first_name', 'last_name', 'full_name', 'email', 'nip', 'tax_id', 'company_name',
-          'address', 'city', 'postal_code', 'country', 'phone', 'buyer', 'recipient',
-          'participants', 'participant_emails',
-        ]);
-        const profileMetadata = Object.fromEntries(
-          Object.entries(stripeMetadata).map(([key, value]) => [key, personalFields.has(key) ? '' : value]),
-        );
-        Object.assign(profileMetadata, localeMetadata);
-        if (isCheckoutSession) await stripe.checkout.sessions.update(stripeObjectId, { metadata: profileMetadata });
-        else await stripe.paymentIntents.update(stripeObjectId, { metadata: profileMetadata });
-        const party = result.details.buyer;
-        if (stripeTaxCustomerId && party && typeof party === 'object' && !Array.isArray(party)) {
-          if (shouldForwardTaxIdentityToStripe(checkoutConfig.tax_mode)) {
-            const text = (key: string) => typeof party[key] === 'string' ? party[key] : undefined;
-            await applyBuyerTaxIdentityToCustomer({
-              stripe, customerId: stripeTaxCustomerId,
-              identity: {
-                country: text('country'), taxId: text('nip'), address: text('address'),
-                city: text('city'), postalCode: text('postal_code'),
-              },
-            });
-          }
-        }
-        return NextResponse.json({ success: true });
+      const result = validateCheckoutModules(product.checkout_profile, moduleValues, {
+        locale, currency: product.currency, termsAccepted,
+      });
+      if (!result.success) return NextResponse.json({ success: false, errors: result.errors }, { status: result.status });
+      await annotateViesStatus(result.details);
+      const rawQuantity = result.quantity;
+      const customError = await persistCustomFields();
+      if (customError) return customError;
+      const { data: saved, error: saveError } = await admin.rpc('set_payment_order_details', {
+        p_details: result.details,
+        p_product_id: productId,
+        p_quantity: rawQuantity,
+        ...(isCheckoutSession ? { p_session_id: stripeObjectId } : { p_payment_intent_id: stripeObjectId }),
+      });
+      if (saveError && ['22023', '23514'].includes(saveError.code)) {
+        return NextResponse.json({
+          success: false, errors: [{ field: 'moduleValues', code: 'details_too_large' }],
+        }, { status: 422 });
       }
+      if (saveError) return NextResponse.json({ success: false, error: 'Failed to save order details' }, { status: 500 });
+      if (saved !== 1) return NextResponse.json({ success: false, code: 'quantity_snapshot_mismatch' }, { status: 409 });
+      const personalFields = new Set([
+        'first_name', 'last_name', 'full_name', 'email', 'nip', 'tax_id', 'company_name',
+        'address', 'city', 'postal_code', 'country', 'phone', 'buyer', 'recipient',
+        'participants', 'participant_emails',
+      ]);
+      const profileMetadata = Object.fromEntries(
+        Object.entries(stripeMetadata).map(([key, value]) => [key, personalFields.has(key) ? '' : value]),
+      );
+      Object.assign(profileMetadata, localeMetadata);
+      if (isCheckoutSession) await stripe.checkout.sessions.update(stripeObjectId, { metadata: profileMetadata });
+      else await stripe.paymentIntents.update(stripeObjectId, { metadata: profileMetadata });
+      const party = result.details.buyer;
+      if (stripeTaxCustomerId && party && typeof party === 'object' && !Array.isArray(party)) {
+        if (shouldForwardTaxIdentityToStripe(checkoutConfig.tax_mode)) {
+          const text = (key: string) => typeof party[key] === 'string' ? party[key] : undefined;
+          await applyBuyerTaxIdentityToCustomer({
+            stripe, customerId: stripeTaxCustomerId,
+            identity: {
+              country: text('country'), taxId: text('nip'), address: text('address'),
+              city: text('city'), postalCode: text('postal_code'),
+            },
+          });
+        }
+      }
+      return NextResponse.json({ success: true });
     }
+    const { buyer, metadata, recipientToStore } = standard!;
     const customError = await persistCustomFields();
     if (customError) return customError;
     if (isCheckoutSession) await stripe.checkout.sessions.update(stripeObjectId, { metadata });
@@ -420,7 +436,7 @@ export async function POST(request: NextRequest) {
         await applyBuyerTaxIdentityToCustomer({
           stripe,
           customerId: stripeTaxCustomerId,
-          identity: { country, taxId: buyer.nip || undefined, address, city, postalCode },
+          identity: { country: buyer.country || undefined, taxId: buyer.nip || undefined, address: buyer.address || undefined, city: buyer.city || undefined, postalCode: buyer.postal_code || undefined },
         });
       }
     }
@@ -445,6 +461,10 @@ export async function POST(request: NextRequest) {
       if (!savedRows && !isSubscription) {
         console.error('[update-payment-metadata] no pending payment row for', stripeObjectId);
         return detailsNotSaved(409);
+      }
+      if (recipientToStore) {
+        const saved = await saveOrderRecipient(createAdminClient(), isCheckoutSession ? { session_id: stripeObjectId } : { stripe_payment_intent_id: stripeObjectId }, recipientToStore);
+        if (!saved.ok) return detailsNotSaved(500);
       }
     } catch (saveError) {
       console.error('[update-payment-metadata] failed to persist buyer details:', saveError instanceof Error ? saveError.message : 'Unknown error');

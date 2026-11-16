@@ -64,13 +64,28 @@ test.afterAll(async ({ browser }) => {
 async function open(page: Page) { await acceptAllCookies(page); await page.goto(`/pl/checkout/${product.slug}`); await expect(page.getByLabel('Typ nabywcy')).toBeVisible(); }
 async function place(page: Page, buyerEmail: string) {
   let stripeRequests = 0; page.on('request', r => { if (r.url().includes('/api/create-payment-intent') || r.url().startsWith('https://js.stripe.com/')) stripeRequests++; });
+  let orderRequests = 0; page.on('request', r => { if (new URL(r.url()).pathname === '/api/orders/bank-transfer') orderRequests++; });
+  // The organization uses the standard invoice section (W223b); GUS answers "not found", so the address is typed.
+  await page.route('**/api/gus/fetch-company-data', route => route.fulfill({ status: 404, json: { success: false, code: 'NOT_FOUND' } }));
   await open(page); await page.getByLabel('Typ nabywcy').selectOption('organization');
   await page.getByRole('radio', { name: /Przelew tradycyjny/ }).check();
-  for (const [key, value] of Object.entries({ first_name: 'Anna', last_name: 'Testowa', company_name: 'Testowa firma', nip: '5260250274', address: 'Prosta 1', postal_code: '00-001', city: 'Warszawa' })) await page.locator(`[id="buyer.${key}"]`).fill(value);
+  for (const [key, value] of Object.entries({ first_name: 'Anna', last_name: 'Testowa' })) await page.locator(`[id="buyer.${key}"]`).fill(value);
+  await page.locator('#nip').fill('5260250274');
+  for (const [id, value] of Object.entries({ companyName: 'Testowa firma', address: 'Prosta 1', postalCode: '00-001', city: 'Warszawa' })) await page.locator(`#${id}`).fill(value);
   await page.getByLabel('Email', { exact: true }).fill(buyerEmail);
   await page.getByRole('checkbox', { name: /Zgadzam/ }).check();
   await expect(page.getByTestId('order-summary-total')).toContainText('123,00');
   const submit = page.getByRole('button', { name: 'Zamawiam z obowiązkiem zapłaty' }); await expect(submit).toBeEnabled({ timeout: 30000 });
+  // The transfer form runs the same invoice rules and messages before any request (@J623).
+  await page.locator('#nip').fill('5260250275');
+  await submit.click();
+  await expect(page.locator('#nip-error')).toHaveText('Ten NIP ma błąd w cyfrach. Sprawdź, czy nie ma literówki.');
+  await expect(page.locator('#nip')).toBeFocused();
+  expect(orderRequests).toBe(0);
+  if (process.env.W223_SHOTS_DIR) await page.getByTestId('invoice-section').screenshot({ path: `${process.env.W223_SHOTS_DIR}/transfer-1-nip-error.png` });
+  await page.locator('#nip').fill('5260250274');
+  for (const [id, value] of Object.entries({ companyName: 'Testowa firma', address: 'Prosta 1', postalCode: '00-001', city: 'Warszawa' })) await page.locator(`#${id}`).fill(value);
+  await expect(submit).toBeEnabled({ timeout: 30000 });
   const responsePromise = page.waitForResponse('**/api/orders/bank-transfer'); await submit.click();
   const response = await responsePromise; expect(response.status()).toBe(200);
   const order = await response.json(); expect(order.amount).toBe(12300); ids.push(order.orderId);
@@ -125,7 +140,7 @@ test('organization checkout retains a visible payment action after a coupon relo
   await page.getByRole('radio', { name: /online/i }).check();
   await expect(page.locator('[id="buyer.email"]')).toBeVisible();
 });
-test('(a) organization places transfer with immediate access, unpaid invoice, protected instructions and Auth mail @J52 @J231', async ({ page }) => {
+test('(a) organization places transfer with immediate access, unpaid invoice, protected instructions and Auth mail @J52 @J231 @J623', async ({ page }) => {
   test.setTimeout(120000); const order = await place(page, email); orderId = order.orderId;
   const instructionsUrl = page.url();
   const tx = await checked(await db.from('payment_transactions').select('created_at,payment_due_at,status').eq('id', orderId).single());

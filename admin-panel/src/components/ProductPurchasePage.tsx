@@ -9,6 +9,8 @@ import { getShopConfig } from '@/lib/actions/shop-config';
 import { getTemplate } from '@/lib/checkout-templates/registry';
 import { getCheckoutConfig } from '@/lib/stripe/checkout-config';
 import { firstRelated } from '@/lib/supabase/relations';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { readInvoiceRecipientEnabled } from '@/lib/checkout/invoice-recipient-setting';
 import type { Product } from '@/types';
 import type { TaxMode } from '@/lib/actions/shop-config';
 import type { BundleComponentSummary } from '@/app/[locale]/checkout/[slug]/components/BundleContentsPreview';
@@ -55,6 +57,8 @@ export default async function ProductPurchasePage({ product }: { product: Produc
   // Resolve ToS consent setting server-side
   const checkoutConfig = await getCheckoutConfig();
   const collectTermsOfService = checkoutConfig.collect_terms_of_service;
+  // Shop setting kept in admin-only custom_settings; read with the service role.
+  const collectInvoiceRecipient = await readInvoiceRecipientEnabled(createAdminClient());
 
   // Resolve bundle components for the "This bundle includes:" block. Empty for
   // non-bundles, so the showcase renders unchanged.
@@ -72,6 +76,7 @@ export default async function ProductPurchasePage({ product }: { product: Produc
       licenseValid={licenseValid}
       taxMode={taxMode}
       collectTermsOfService={collectTermsOfService}
+      collectInvoiceRecipient={collectInvoiceRecipient}
       bundleComponents={bundleComponents}
     />
   );

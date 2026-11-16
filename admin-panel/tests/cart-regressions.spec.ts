@@ -32,8 +32,11 @@ function remember(body: { checkoutSessionId?: string; sessionId?: string }) {
   const id = body.checkoutSessionId ?? body.sessionId;
   if (id?.startsWith('cs_')) sessions.add(id);
 }
+/** The organization fills the standard invoice section (W223b); GUS answers "not found", so the address is typed. */
 async function fillBuyer(page: Page) {
-  for (const [key, value] of Object.entries(company)) await page.locator(`[id="buyer.${key}"]`).fill(value);
+  await page.route('**/api/gus/fetch-company-data', route => route.fulfill({ status: 404, json: { success: false, code: 'NOT_FOUND' } }));
+  await page.locator('#nip').fill(company.nip);
+  for (const [id, value] of Object.entries({ companyName: company.company_name, address: company.address, city: company.city, postalCode: company.postal_code })) await page.locator(`#${id}`).fill(value);
 }
 const setTerms = (page: Page, enabled: boolean) => setCheckoutTerms(page, admin, enabled);
 let savedTerms: boolean | null;
@@ -249,7 +252,7 @@ test('person autostarts online and keeps one priced session while choosing buyer
   for (let i = 0; i < 3; i++) { await type.selectOption('organization'); await type.selectOption('person'); }
   expect(creationRequests).toHaveLength(1);
   await type.selectOption('organization');
-  await expect(page.locator('[id="buyer.company_name"]')).toHaveValue(company.company_name);
+  await expect(page.locator('#companyName')).toHaveValue(company.company_name);
   await expect(page.locator('[id="buyer.first_name"]')).toHaveValue('Checkout');
   await page.locator('input[name=payment-method][value=transfer]').check();
   await page.getByLabel('Quantity', { exact: true }).fill('2');

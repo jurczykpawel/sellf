@@ -1,0 +1,25 @@
+'use server';
+/** Panel actions for the shop setting "collect a different invoice recipient". @see ../checkout/invoice-recipient-setting.ts */
+import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
+import { withAdminClient } from '@/lib/actions/admin-auth';
+import { changeInvoiceRecipientEnabled, readInvoiceRecipientEnabled } from '@/lib/checkout/invoice-recipient-setting';
+import type { ActionResponse } from '@/lib/actions/admin-auth';
+
+export async function getInvoiceRecipientSetting(): Promise<ActionResponse<{ enabled: boolean }>> {
+  return withAdminClient(async ({ dataClient }) => ({ success: true, data: { enabled: await readInvoiceRecipientEnabled(dataClient) } }));
+}
+
+export async function setInvoiceRecipientSetting(input: unknown): Promise<ActionResponse<void>> {
+  const parsed = z.boolean().safeParse(input);
+  if (!parsed.success) return { success: false, error: 'Invalid setting', errorCode: 'INVALID_INPUT' };
+  return withAdminClient(async ({ dataClient, user }) => {
+    const saved = await changeInvoiceRecipientEnabled(dataClient, parsed.data, { auditClient: dataClient, performedBy: user.id, details: { auth: 'session' } });
+    if (!saved.ok) {
+      console.error('[setInvoiceRecipientSetting] Error:', saved.error);
+      return { success: false, error: 'Setting not saved', errorCode: 'DATABASE_ERROR' };
+    }
+    revalidatePath('/dashboard/settings');
+    return { success: true };
+  }, { mutating: true });
+}

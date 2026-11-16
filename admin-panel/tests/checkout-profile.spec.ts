@@ -29,7 +29,11 @@ test.afterAll(async () => {
   await db.from('payment_transactions').delete().eq('product_id', product.id);
   await db.from('products').delete().eq('id', product.id);
 });
+async function mockGusNotFound(page: Page) {
+  await page.route('**/api/gus/fetch-company-data', route => route.fulfill({ status: 404, json: { success: false, code: 'NOT_FOUND' } }));
+}
 async function open(page: Page, quantity = 1) {
+  await mockGusNotFound(page);
   await acceptAllCookies(page);
   await page.goto(`/pl/checkout/${product.slug}`);
   if (quantity !== 1) await page.getByLabel('Ilość', { exact: true }).fill(String(quantity));
@@ -51,10 +55,23 @@ async function open(page: Page, quantity = 1) {
   await page.route('https://api.stripe.com/**/confirm', route => route.abort());
   return (await response.json()).checkoutSessionId as string;
 }
-async function party(page: Page, prefix: string, omitNip = false) {
-  for (const [key, value] of Object.entries({ company_name: 'Pracownia', nip: '5260250274', address: 'Prosta 1', postal_code: '00-001', city: 'Warszawa' })) {
-    if (!(omitNip && key === 'nip')) await page.locator(`[id="${prefix}.${key}"]`).fill(value);
+/** The organization buyer and the recipient use the standard invoice section (W223b). GUS is mocked as "not found". */
+const SECTION_IDS = {
+  buyer: { nip: 'nip', company_name: 'companyName', address: 'address', postal_code: 'postalCode', city: 'city' },
+  recipient: { nip: 'recipientNip', company_name: 'recipientCompanyName', address: 'recipientAddress', postal_code: 'recipientPostalCode', city: 'recipientCity' },
+} as const;
+async function party(page: Page, prefix: keyof typeof SECTION_IDS, nip = '5260250274') {
+  const ids = SECTION_IDS[prefix];
+  await page.locator(`#${ids.nip}`).fill(nip);
+  await expect(page.locator(`#${ids.company_name}`)).toBeVisible();
+  for (const [key, value] of Object.entries({ company_name: 'Pracownia', address: 'Prosta 1', postal_code: '00-001', city: 'Warszawa' })) {
+    await page.locator(`#${ids[key as keyof typeof ids]}`).fill(value);
   }
+}
+const RECIPIENT = 'Faktura dla innej placówki (odbiorca)';
+/** Evidence of the profile's invoice section (only when a run asks for it). */
+async function sectionShot(page: Page, name: string) {
+  if (process.env.W223_SHOTS_DIR) await page.getByTestId('invoice-section').screenshot({ path: `${process.env.W223_SHOTS_DIR}/${name}.png` });
 }
 async function submit(page: Page) {
   const terms = page.getByRole('checkbox', { name: /Zgadzam|Akceptuję/ });
@@ -118,6 +135,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 800 
   test(`long B2B profile focuses the first displayed error on every attempt at ${viewport.width}px`, async ({ page }) => {
     await page.setViewportSize(viewport);
     expect((await db.from('products').update({ checkout_profile: profile }).eq('id', product.id)).error).toBeNull();
+    await mockGusNotFound(page);
     await acceptAllCookies(page);
     await page.goto(`/pl/checkout/${product.slug}`);
     await startNativeCheckout(page);
@@ -130,7 +148,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 800 
     await party(page, 'buyer');
     await page.locator('[id="buyer.first_name"]').fill('Jan');
     await page.locator('[id="buyer.last_name"]').fill('Nowak');
-    await page.locator('[id="buyer.nip"]').fill('123');
+    await page.locator('#nip').fill('123');
     await page.locator('#phone').fill('500100200');
     for (let i = 0; i < 5; i++) {
       for (const [key, value] of Object.entries({ first_name: 'Jan', last_name: 'Nowak', email: `person${i}@example.com` })) {
@@ -139,7 +157,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 800 
     }
     await expect(start).toBeEnabled({ timeout: 30000 });
     if (await terms.count()) await terms.check();
-    const nip = page.locator('[id="buyer.nip"]');
+    const nip = page.locator('#nip');
     for (let attempt = 0; attempt < 2; attempt++) {
       await start.scrollIntoViewIfNeeded();
       await expect(nip).not.toBeInViewport();
@@ -160,7 +178,7 @@ test('invalid profile fields are marked, described and focused', async ({ page }
   await open(page, 2);
   await page.getByLabel('Typ nabywcy').selectOption('organization');
   await party(page, 'buyer');
-  await page.locator('[id="buyer.nip"]').fill('123');
+  await page.locator('#nip').fill('123');
   await page.locator('#phone').fill('+48 12');
   for (let i = 0; i < 2; i++) {
     for (const [key, value] of Object.entries({ first_name: 'Jan', last_name: 'Nowak', email: 'same@example.com' })) {
@@ -179,14 +197,15 @@ test('invalid profile fields are marked, described and focused', async ({ page }
   const baseline = await scan();
   expect(baseline).toEqual([]);
   await submit(page);
-  for (const id of ['buyer.nip', 'phone', 'participants.1.email']) {
+  for (const id of ['nip', 'phone', 'participants.1.email']) {
     const input = page.locator(`[id="${id}"]`);
     await expect(input).toHaveAttribute('aria-invalid', 'true');
     await expect(input).toHaveClass(/border-sf-danger/);
     await expect(page.locator(`[id="${id}-error"]`)).toBeVisible();
   }
   await expect(page.locator('[id="participants.0.email"]')).toHaveAttribute('aria-invalid', 'false');
-  await expect(page.locator('[id="buyer.nip"]')).toBeFocused();
+  await expect(page.locator('#nip')).toBeFocused();
+  await expect(page.locator('#nip-error')).toHaveText('NIP ma 10 cyfr.');
   expect(await scan()).toEqual(baseline);
 });
 test('required profile fields receive inline errors and first-field focus', async ({ page }) => {
@@ -287,8 +306,9 @@ test('organization, recipient, phone and five participants save against five uni
   const session = await open(page, 5);
   await page.getByLabel('Typ nabywcy').selectOption('organization');
   await party(page, 'buyer');
-  await page.getByLabel('Inny odbiorca').check();
-  await party(page, 'recipient');
+  await page.getByLabel(RECIPIENT).check();
+  await party(page, 'recipient', '5260250995');
+  await sectionShot(page, 'profile-1-organization-recipient');
   await page.locator('[id="phone"]').fill('500100200');
   for (let i = 0; i < 5; i++) {
     for (const [key, value] of Object.entries({ first_name: 'Jan', last_name: 'Nowak', email: `person${i}@example.com` })) {
@@ -299,14 +319,15 @@ test('organization, recipient, phone and five participants save against five uni
   await submit(page);
   expect((await updated).status()).toBe(200);
   const { data: tx } = await db.from('payment_transactions').select('id,amount,order_details').eq('session_id', session).single();
-  expect(tx).toMatchObject({ amount: 50000, order_details: { buyer: { type: 'organization', nip: '5260250274' }, recipient: { differs: true }, phone: { value: '+48500100200' }, quantity: { value: 5 } } });
+  expect(tx).toMatchObject({ amount: 50000, order_details: { buyer: { type: 'organization', nip: '5260250274', country: 'PL', tax_id_type: 'pl_nip' }, recipient: { differs: true, nip: '5260250995', country: 'PL', company_name: 'Pracownia' }, phone: { value: '+48500100200' }, quantity: { value: 5 } } });
+  expect(tx!.order_details.buyer).not.toHaveProperty('tax_id_mode');
   expect(tx!.order_details.participants.people).toHaveLength(5);
   await page.screenshot({ path: '/private/tmp/sellf-w9/profile-b2b.png', fullPage: true });
 });
 test('person omits company and recipient and prefills one editable participant', async ({ page }) => {
   await open(page);
-  await expect(page.locator('[id="buyer.company_name"]')).toHaveCount(0);
-  await expect(page.getByLabel('Inny odbiorca')).toHaveCount(0);
+  await expect(page.locator('#companyName')).toHaveCount(0);
+  await expect(page.getByLabel(RECIPIENT)).toHaveCount(0);
   await page.locator('[id="buyer.first_name"]').fill('Anna');
   await page.locator('[id="buyer.last_name"]').fill('Nowak');
   await expect(page.locator('[id="participants.0.first_name"]')).toHaveValue('Anna');
@@ -315,15 +336,19 @@ test('person omits company and recipient and prefills one editable participant',
   await page.locator('[id="buyer.first_name"]').fill('Maria');
   await expect(page.locator('[id="participants.0.first_name"]')).toHaveValue('Ewa');
 });
-test('missing recipient tax number renders a field error and stops confirmation', async ({ page }) => {
+test('missing or foreign recipient tax number renders a field error and stops confirmation @J623', async ({ page }) => {
   await open(page);
   await page.getByLabel('Typ nabywcy').selectOption('organization');
   await party(page, 'buyer');
-  await page.getByLabel('Inny odbiorca').check();
-  await party(page, 'recipient', true);
+  await page.getByLabel(RECIPIENT).check();
   await page.locator('[id="phone"]').fill('500100200');
   await submit(page);
-  await expect(page.locator('[id="recipient.nip-error"]')).toBeVisible();
+  await expect(page.locator('#recipientNip-error')).toHaveText('Podaj NIP albo wybierz „Nie mam NIP albo firma jest spoza UE”.');
+  await page.locator('#recipientNip').fill('DE123456789');
+  await submit(page);
+  await expect(page.locator('#recipientNip-error')).toHaveText('Odbiorca musi mieć polski NIP (10 cyfr).');
+  await expect(page.locator('#recipientNip')).toBeFocused();
+  await sectionShot(page, 'profile-2-recipient-polish-nip-only');
   await expect(page).toHaveURL(new RegExp(`/pl/checkout/${product.slug}$`));
 });
 test('hidden quantity has no control and uses the configured minimum', async ({ page }) => {
@@ -350,48 +375,60 @@ test('product without profile retains the original form', async ({ page }) => {
   expect((await db.from('products').update({ checkout_profile: null }).eq('id', product.id)).error).toBeNull();
   await open(page);
   await expect(page.locator('#fullName')).toBeVisible();
+  // The standard invoice section (W223a) opens the NIP field with "I want a company invoice".
+  await expect(page.locator('#wantInvoice')).toBeVisible();
+  await page.locator('#wantInvoice').check();
   await expect(page.locator('#nip')).toBeVisible();
   await expect(page.getByLabel('Typ nabywcy')).toHaveCount(0);
   await expect(page.getByLabel('Ilość', { exact: true })).toHaveCount(0);
 });
 
 
-for (const [country, nip, stored, type] of [['DE', 'DE123456789', 'DE123456789', 'eu_vat'], ['DE', '123 456 789', 'DE123456789', 'eu_vat'], ['US', 'EIN 12-3456789', 'EIN 12-3456789', 'other'], ['US', '', '', undefined]] as const) {
-  test(`organization in ${country} saves its tax number "${nip}" with country and type @J220`, async ({ page }) => {
+for (const [path, country, nip, stored, type] of [
+  ['tax_id', 'DE', 'DE123456789', 'DE123456789', 'eu_vat'],
+  ['manual', 'DE', '123 456 789', 'DE123456789', 'eu_vat'],
+  ['manual', 'US', 'EIN 12-3456789', 'EIN 12-3456789', 'other'],
+  ['manual', 'US', '', '', undefined],
+] as const) {
+  test(`organization in ${country} (${path} path) saves its tax number "${nip}" with country and type @J220 @J623`, async ({ page }) => {
     expect((await db.from('products').update({ checkout_profile: profile }).eq('id', product.id)).error).toBeNull();
     const session = await open(page);
     await page.getByLabel('Typ nabywcy').selectOption('organization');
-    await party(page, 'buyer');
-    await expect(page.locator('label[for="buyer.nip"]')).toHaveText('NIP / numer VAT');
-    await page.locator('[id="buyer.country"]').selectOption(country);
-    await page.locator('[id="buyer.nip"]').fill(nip);
-    await page.getByLabel('Inny odbiorca').check();
-    await party(page, 'recipient');
-    await page.locator('[id="recipient.country"]').selectOption(country);
-    await page.locator('[id="recipient.nip"]').fill(nip);
+    await expect(page.locator('label[for="nip"]')).toHaveText('NIP lub numer VAT UE');
+    if (path === 'tax_id') {
+      await page.locator('#nip').fill(nip);
+      await expect(page.locator('#country')).toHaveValue('Niemcy');
+    } else {
+      await page.getByRole('button', { name: 'Nie mam NIP albo firma jest spoza UE' }).click();
+      await page.locator('#country').selectOption(country);
+      if (nip) await page.locator('#taxIdManual').fill(nip);
+    }
+    for (const [id, value] of Object.entries({ companyName: 'Pracownia', address: 'Prosta 1', postalCode: '00-001', city: 'Warszawa' })) await page.locator(`#${id}`).fill(value);
     const updated = page.waitForResponse('**/api/update-payment-metadata');
     await submit(page);
     expect((await updated).status()).toBe(200);
     const { data: tx, error } = await db.from('payment_transactions').select('order_details').eq('session_id', session).single();
     expect(error).toBeNull();
     const taxId = type ? { tax_id_type: type, tax_id_country: country } : {};
-    expect(tx!.order_details).toMatchObject({ buyer: { country, nip: stored, ...taxId }, recipient: { country, nip: stored, ...taxId } });
+    expect(tx!.order_details).toMatchObject({ buyer: { country, nip: stored, ...taxId } });
     if (!type) expect(tx!.order_details).not.toHaveProperty('buyer.tax_id_type');
   });
 }
 
-test('EU tax number error explains the format of the selected country', async ({ page }) => {
+test('EU tax number error uses the standard checkout message', async ({ page }) => {
   expect((await db.from('products').update({ checkout_profile: profile }).eq('id', product.id)).error).toBeNull();
   await open(page);
   await page.getByLabel('Typ nabywcy').selectOption('organization');
-  await party(page, 'buyer');
-  await page.locator('[id="buyer.country"]').selectOption('DE');
-  await page.locator('[id="buyer.nip"]').fill('FRAB123456789');
+  await page.getByRole('button', { name: 'Nie mam NIP albo firma jest spoza UE' }).click();
+  await page.locator('#country').selectOption('DE');
+  await page.locator('#taxIdManual').fill('FRAB123456789');
+  for (const [id, value] of Object.entries({ companyName: 'Pracownia', address: 'Prosta 1', postalCode: '00-001', city: 'Warszawa' })) await page.locator(`#${id}`).fill(value);
   await submit(page);
-  await expect(page.locator('[id="buyer.nip-error"]')).toContainText('w formacie wybranego kraju');
-  await expect(page.locator('[id="buyer.nip"]')).toBeFocused();
+  await expect(page.locator('#taxIdManual-error')).toHaveText('Ten numer VAT UE ma zły format dla wybranego kraju.');
+  await expect(page.locator('#taxIdManual')).toBeFocused();
   // U52-2: the first invalid field is scrolled into view, not just focused off-screen.
-  await expect(page.locator('[id="buyer.nip"]')).toBeInViewport();
+  await expect(page.locator('#taxIdManual')).toBeInViewport();
+  await sectionShot(page, 'profile-3-manual-path-error');
 });
 
 test('phone has one visible label and an accessible input in both languages', async ({ page }) => {

@@ -68,6 +68,7 @@ interface PaidProductFormProps {
   paymentMethodOrder?: string[];
   expressCheckoutConfig?: ExpressCheckoutConfig;
   taxMode?: TaxMode;
+  collectInvoiceRecipient?: boolean;
   collectTermsOfService: boolean;
   bundleComponents?: BundleComponentSummary[];
   /**
@@ -80,7 +81,7 @@ interface PaidProductFormProps {
 
 const noopSubscribe = () => () => {};
 
-export default function PaidProductForm({ product, paymentMethodOrder, expressCheckoutConfig, taxMode, collectTermsOfService, bundleComponents, layoutMode = 'standalone', afterCheckoutSlot }: PaidProductFormProps) {
+export default function PaidProductForm({ product, paymentMethodOrder, expressCheckoutConfig, taxMode, collectInvoiceRecipient = false, collectTermsOfService, bundleComponents, layoutMode = 'standalone', afterCheckoutSlot }: PaidProductFormProps) {
   const t = useTranslations('checkout');
   const locale = useLocale();
   const parsedProfile = storedCheckoutProfileSchema.safeParse(product.checkout_profile);
@@ -667,7 +668,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           )}
 
           {profile && !hasAccess && !isFunnelTest && !isFreeAccess && <>
-            <CheckoutProfileFields profile={profile} state={profileForm} invoice={invoice} errors={profileForm.errors} disabled={paymentProcessing} />
+            <CheckoutProfileFields profile={profile} state={profileForm} errors={profileForm.errors} disabled={paymentProcessing} />
             {transferTooLate && <p role="note" className="my-4 text-sm text-sf-muted">{bt('transferTooLate', { hours: reservationHours ?? 0 })}</p>}
             {transferAllowed && <fieldset className="my-4 space-y-3"><legend className="font-semibold">{bt('method')}</legend>
               {activeMethod === null && <p role="status" className="text-sm text-sf-muted">{bt('chooseMethod')}</p>}
@@ -801,6 +802,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 customFieldErrors={customFieldErrors}
                 isGuest={!user}
                 collectTermsOfService={collectTermsOfService}
+                collectInvoiceRecipient={collectInvoiceRecipient}
                 onCouponUnavailable={coupon.invalidateCoupon}
               />
             </CheckoutElementsProvider></div>

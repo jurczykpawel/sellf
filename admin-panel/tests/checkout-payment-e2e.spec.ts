@@ -15,9 +15,6 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
 
 const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-// Valid test NIP
-const TEST_NIP_VALID = '5261040828';
-
 /**
  * Mock Stripe.js globally for all tests
  * This prevents real Stripe API calls and iframe loading
@@ -190,111 +187,8 @@ test.describe('Checkout E2E - Guest Purchase Flow', () => {
   });
 });
 
-test.describe('Checkout E2E - Invoice & GUS Integration', () => {
-  let testProduct: any;
-
-  test.beforeAll(async () => {
-    const { data } = await supabaseAdmin
-      .from('products')
-      .insert({
-        name: `Invoice Test ${Date.now()}`,
-        slug: `invoice-test-${Date.now()}`,
-        price: 100,
-        currency: 'PLN',
-        is_active: true
-      })
-      .select()
-      .single();
-    testProduct = data;
-  });
-
-  test.afterAll(async () => {
-    if (testProduct) {
-      await supabaseAdmin.from('products').delete().eq('id', testProduct.id);
-    }
-  });
-
-  test('should autofill company data from GUS API @J125', async ({ page }) => {
-    await page.route('**/api/gus/fetch-company-data', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          success: true,
-          data: {
-            nazwa: 'TEST SPÓŁKA Z O.O.',
-            ulica: 'ul. Testowa',
-            nrNieruchomosci: '123',
-            nrLokalu: '4',
-            miejscowosc: 'Warszawa',
-            kodPocztowy: '00-001',
-            wojewodztwo: 'MAZOWIECKIE',
-            regon: '123456789',
-            nip: TEST_NIP_VALID
-          }
-        })
-      });
-    });
-
-    await page.goto(`/pl/checkout/${testProduct.slug}`);
-    await startNativeCheckout(page);
-    await page.waitForSelector('input#fullName', { timeout: 10000 });
-
-    // NIP field should be visible (no checkbox needed)
-    await expect(page.locator('input#nip')).toBeVisible();
-
-    // Fill NIP and trigger autofill
-    const nipInput = page.locator('input#nip');
-    await nipInput.fill(TEST_NIP_VALID);
-    await nipInput.blur();
-
-    await page.waitForTimeout(1000);
-
-    // Verify all fields were autofilled correctly
-    await expect(page.locator('input#companyName')).toHaveValue('TEST SPÓŁKA Z O.O.');
-    await expect(page.locator('input#address')).toHaveValue('ul. Testowa 123/4');
-    await expect(page.locator('input#city')).toHaveValue('Warszawa');
-    await expect(page.locator('input#postalCode')).toHaveValue('00-001');
-
-    // Success message should be visible
-    await expect(page.locator('text=Dane pobrane z bazy GUS')).toBeVisible();
-  });
-
-  test('should validate NIP before calling GUS API', async ({ page }) => {
-    await page.goto(`/pl/checkout/${testProduct.slug}`);
-    await startNativeCheckout(page);
-    await page.waitForSelector('input#fullName', { timeout: 10000 });
-
-    const nipInput = page.locator('input#nip');
-    await nipInput.fill('1234567890'); // Invalid NIP
-    await nipInput.blur();
-
-    // Should show validation error
-    await expect(page.locator('text=/Nieprawidłowy numer NIP/i')).toBeVisible();
-    // Should NOT show loading spinner (validation happens before API call)
-    await expect(page.locator('svg.animate-spin').first()).not.toBeVisible();
-  });
-
-  test('should show company fields when NIP has 10 digits', async ({ page }) => {
-    await page.goto(`/pl/checkout/${testProduct.slug}`);
-    await startNativeCheckout(page);
-    await page.waitForSelector('input#fullName', { timeout: 10000 });
-
-    // NIP field should be visible
-    const nipInput = page.locator('input#nip');
-    await expect(nipInput).toBeVisible();
-
-    // Company fields should not be visible initially
-    await expect(page.locator('input#companyName')).not.toBeVisible();
-
-    // Fill NIP with 10 digits (even if invalid checksum)
-    await nipInput.fill('1234567890');
-
-    // Wait for company fields to appear - use proper wait instead of fixed timeout
-    const companyInput = page.locator('input#companyName');
-    await expect(companyInput).toBeVisible({ timeout: 5000 });
-  });
-});
+// Invoice section (NIP / EU VAT / manual, GUS autofill and failures) moved to
+// tests/checkout-invoice-section.spec.ts with the W223a redesign.
 
 test.describe('Checkout E2E - Error Scenarios', () => {
   let testProduct: any;
@@ -322,38 +216,6 @@ test.describe('Checkout E2E - Error Scenarios', () => {
 
   // Removed: Payment error handling requires Stripe Elements
   // This is tested in payment-access-flow.spec.ts using RPC functions
-
-  test('should handle GUS API failure gracefully', async ({ page }) => {
-    await page.route('**/api/gus/fetch-company-data', async (route) => {
-      await route.fulfill({
-        status: 500,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          success: false,
-          error: 'Internal server error',
-          code: 'UNKNOWN_ERROR'
-        })
-      });
-    });
-
-    await page.goto(`/pl/checkout/${testProduct.slug}`);
-    await startNativeCheckout(page);
-    await page.waitForSelector('input#fullName', { timeout: 10000 });
-
-    const nipInput = page.locator('input#nip');
-    await nipInput.fill(TEST_NIP_VALID);
-    await nipInput.blur();
-
-    await page.waitForTimeout(1000);
-
-    await expect(page.locator('text=/Nie udało się pobrać danych/i')).toBeVisible();
-
-    await page.fill('input#companyName', 'MANUAL COMPANY');
-    await page.fill('input#address', 'ul. Manual 1');
-    await page.fill('input#city', 'Warsaw');
-
-    await expect(page.locator('input#companyName')).toHaveValue('MANUAL COMPANY');
-  });
 
   test('should show 404 for non-existent product', async ({ page }) => {
     await page.goto('/pl/checkout/non-existent-product-slug-12345');
@@ -550,7 +412,8 @@ test.describe('Checkout E2E - Authenticated User Profile Data', () => {
     // Wait for profile to load
     await page.waitForTimeout(2000);
 
-    // NIP field should be visible
+    // A saved company opens the invoice section filled in (W223a)
+    await expect(page.locator('#wantInvoice')).toBeChecked();
     const nipInput = page.locator('input#nip');
     await expect(nipInput).toBeVisible();
 

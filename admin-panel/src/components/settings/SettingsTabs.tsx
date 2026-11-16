@@ -6,6 +6,7 @@ import { Store, CreditCard, FileText, Wrench, KeyRound } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import BankTransferSettings from '@/components/settings/BankTransferSettings'
 import InvoicingSettings from '@/components/settings/InvoicingSettings'
+import InvoiceRecipientSettings from '@/components/settings/InvoiceRecipientSettings'
 import ShopSettings from './ShopSettings'
 import BuyerEmailSettings from './BuyerEmailSettings'
 import BrandingSettings from './BrandingSettings'
@@ -84,6 +85,7 @@ export default function SettingsTabs({ siteUrl, initialCheckoutTheme, hasLicense
             <ShopSettings />
             <BuyerEmailSettings />
             <InvoicingSettings />
+            <InvoiceRecipientSettings />
             {role === 'platform_admin' && <BrandingSettings />}
             <CheckoutThemeSettings initialTheme={initialCheckoutTheme} />
           </>

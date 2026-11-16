@@ -23,6 +23,8 @@ export interface CheckoutTemplateProps {
   taxMode: TaxMode;
   /** Single ToS setting (collect_terms_of_service), resolved server-side. */
   collectTermsOfService: boolean;
+  /** Shop setting: the invoice section offers a different recipient (institutions, always with a NIP). */
+  collectInvoiceRecipient?: boolean;
   /**
    * Resolved bundle components when `product.is_bundle`; empty/absent otherwise.
    * Threaded down to ProductShowcase to render the "This bundle includes:" block.

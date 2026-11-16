@@ -150,7 +150,7 @@ export interface BuildWebhookPayloadParams {
   /**
    * Stripe Checkout `customer_details`. In the EMBED flow the buyer's NIP + billing address
    * are collected by Stripe (tax_id_collection / billing_address_collection), not by Sellf's
-   * own InvoiceFields — so they live here, not in `metadata`. Used as the invoice source
+   * own invoice section — so they live here, not in `metadata`. Used as the invoice source
    * when `metadata.needs_invoice` is absent, so embed B2B purchases carry faktura data too.
    */
   stripeCustomerDetails?: {
@@ -299,7 +299,7 @@ export async function buildPurchaseWebhookPayload(
   }
   if (webhookData.bumpProduct) Object.assign(webhookData.bumpProduct, webhookData.bumpProducts[0]);
 
-  // Add invoice data if requested. On-site (Sellf's InvoiceFields) writes it to metadata;
+  // Add invoice data if requested. On-site (Sellf's invoice section) writes it to metadata;
   // embed collects NIP + address via Stripe → read from customer_details as the fallback,
   // treating a provided tax id as a faktura request (B2B). Without this, embed purchases
   // would emit no invoice data and integrations would issue incomplete fakturas.
@@ -319,6 +319,8 @@ export async function buildPurchaseWebhookPayload(
       };
     }
   } else if (metadata?.needs_invoice === 'true') {
+    // The standard checkout stores a different invoice recipient (shop setting) with the order.
+    const recipient = readOrderDetails(params.orderDetails).recipient;
     webhookData.invoice = {
       needsInvoice: true,
       nip: metadata.nip || null,
@@ -328,6 +330,7 @@ export async function buildPurchaseWebhookPayload(
       postalCode: metadata.postal_code || null,
       country: metadata.country || null,
       ...taxIdWebhookFields(metadata.nip, metadata.country),
+      ...(recipient?.differs && { recipient }),
     };
   } else {
     const taxId = stripeCustomerDetails?.tax_ids?.find((t) => t.value)?.value ?? null;

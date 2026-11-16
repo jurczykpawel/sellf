@@ -9,10 +9,13 @@ Produkty bez profilu zachowują dotychczasowy formularz oraz format webhooka.
 
 ## Moduły
 
-- **Nabywca:** osoba prywatna, organizacja lub oba typy. Organizacja podaje nazwę,
-  NIP i adres do faktury. Pobieranie danych z GUS wymaga włączonej integracji GUS.
-- **Odbiorca:** nabywca będący organizacją może wskazać innego odbiorcę z własnym NIP-em
-  i adresem. Nie zaznaczaj innego odbiorcy, jeśli jest nim nabywca.
+- **Nabywca:** osoba prywatna, organizacja lub oba typy. Organizacja wypełnia tę samą sekcję
+  faktury co w zwykłym koszyku: jedno pole „NIP lub numer VAT UE” (numer ustala kraj firmy,
+  polski NIP pobiera dane z GUS) albo „Nie mam NIP albo firma jest spoza UE” z wyborem kraju;
+  adres zawsze w osobnych polach.
+- **Odbiorca:** nabywca będący organizacją może wskazać innego odbiorcę — placówkę z polskim
+  NIP-em (np. szkołę) — w tej samej sekcji faktury. Nie zaznaczaj innego odbiorcy, jeśli jest
+  nim nabywca.
 - **Telefon:** opcjonalny lub wymagany; zapis w formacie E.164 (np. `+48500100200`).
 - **Ilość:** minimum i maksimum miejsc (1–100). Wybierz ukrytą stałą ilość równą minimum,
   wybór w koszyku albo wybór na stronie produktu.
@@ -29,6 +32,8 @@ mieć ilości większej od jednego. Nieprawidłowe kombinacje są odrzucane przy
 Klucz GUS ustawiasz raz w **Ustawienia → Integracje**. Przy włączonej integracji dane
 nabywcy są pobierane dla poprawnego polskiego NIP-u w zwykłym koszyku i w koszyku
 z profilem. Bez klucza dane można wpisać ręcznie; brak konfiguracji nie wyświetla błędu.
+Te same reguły i komunikaty obowiązują przy płatności online i przy zamówieniu przelewem
+w koszyku z profilem.
 Produkt nie ma osobnego przełącznika GUS. Dawne wartości `buyer.gus` w zapisanych
 profilach są ignorowane i usuwane przy aktualizacji bazy. W zapisach przez API v1 oraz
 MCP pomiń to pole. Jest odrzucane tak jak inne nieznane pola profilu.
@@ -59,6 +64,6 @@ Dla organizacji blok `invoice` powstaje z zapisanego nabywcy: `needsInvoice`, `n
 `companyName`, `address`, `city`, `postalCode`, `country`. Inny odbiorca trafia do
 `invoice.recipient` w zapisanym formacie modułu z kluczami snake_case. Zakup osoby prywatnej
 bez prośby o fakturę pomija `invoice`. Produkty bez profilu nie otrzymują `orderDetails`
-i zachowują istniejący format faktury. Dotychczasowe `customFields` nadal zawierają odpowiedzi.
+i zachowują istniejący format faktury, z `invoice.recipient`, gdy sklep zbiera odbiorcę ([Webhooki](/pl/webhooks/)). Dotychczasowe `customFields` nadal zawierają odpowiedzi.
 
 Konfigurację adresów i dostarczania opisuje strona [Webhooki](/pl/webhooks/).

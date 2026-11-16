@@ -556,6 +556,19 @@ the TSA instance, so there is no separate generator.
 | POST | `/system/upgrade` | `system:read` | Trigger self-upgrade |
 | GET | `/system/upgrade-status` | `system:read` | Poll upgrade progress |
 
+### Checkout settings
+
+| Method | Path | Scope | Description |
+|--------|------|-------|-------------|
+| GET | `/settings/checkout` | `system:read` | Read checkout settings: `{ "invoice_recipient_enabled": false }` |
+| PATCH | `/settings/checkout` | `system:write` | Change them; body exactly `{ "invoice_recipient_enabled": true }` (other fields → `400`) |
+
+`invoice_recipient_enabled` (default `false`) lets buyers in the standard checkout add a different
+invoice recipient (an institution, always with a Polish NIP). The recipient is stored with the order
+and sent as `invoice.recipient` in `purchase.completed`. Subscriptions do not take a separate recipient.
+Every change is written to the audit log with the admin's user ID (for an API key: its owner); when
+the audit entry cannot be written the change is undone and the API answers `500`.
+
 ### API Keys (session auth only)
 
 These endpoints require admin session authentication — API keys cannot manage other keys.

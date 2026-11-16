@@ -1,34 +1,21 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
-import { validateTaxId } from '@/lib/validation/nip';
-import { classifyTaxId } from '@/lib/validation/tax-id';
-import { taxIdErrorCode } from '@/lib/checkout/invoice-form-logic';
-import { lookupCompanyByNip } from '@/lib/gus/lookup';
-import type { GusCompanyData } from '@/lib/gus/lookup';
+import { useState, useEffect } from 'react';
 
-/** Narrow interface for InvoiceFields component — only what it needs */
+/**
+ * Buyer data saved in the signed-in buyer's profile (name, company, address). The invoice section
+ * (standard checkout and checkout profile) takes the company from here once; the company lookup
+ * and the tax id rules live in useInvoiceSection (W223b).
+ * @see ./useInvoiceSection.ts
+ */
 export interface InvoiceFieldsData {
   nip: string;
-  setNip: (v: string) => void;
-  nipError: string | null;
-  isLoadingGUS: boolean;
-  gusError: string | null;
-  gusSuccess: boolean;
-  gusData: GusCompanyData | null;
   companyName: string;
-  setCompanyName: (v: string) => void;
   address: string;
-  setAddress: (v: string) => void;
   city: string;
-  setCity: (v: string) => void;
   postalCode: string;
-  setPostalCode: (v: string) => void;
   country: string;
   setCountry: (v: string) => void;
-  handleNIPBlur: () => Promise<void>;
-  resetNipFeedback: () => void;
 }
 
 export interface UseInvoiceDataReturn extends InvoiceFieldsData {
@@ -48,7 +35,6 @@ export function useInvoiceData(
   email: string | undefined,
   options: UseInvoiceDataOptions = {},
 ): UseInvoiceDataReturn {
-  const t = useTranslations('checkout');
 
   const { initialFullName } = options;
 
@@ -60,11 +46,6 @@ export function useInvoiceData(
   const [city, setCity] = useState('');
   const [postalCode, setPostalCode] = useState('');
   const [country, setCountry] = useState('PL');
-  const [nipError, setNipError] = useState<string | null>(null);
-  const [isLoadingGUS, setIsLoadingGUS] = useState(false);
-  const [gusError, setGusError] = useState<string | null>(null);
-  const [gusSuccess, setGusSuccess] = useState(false);
-  const [gusData, setGusData] = useState<GusCompanyData | null>(null);
 
   // Auto-load profile for logged-in users
   useEffect(() => {
@@ -107,93 +88,5 @@ export function useInvoiceData(
     return () => { controller.abort(); ignore = true; };
   }, [email]);
 
-  const translateNipError = useCallback((error: string | undefined): string => {
-    if (!error) return t('nipValidation.invalidFormat');
-    if (error.includes('Invalid Polish NIP checksum')) return t('nipValidation.invalidChecksum');
-    if (error.includes('Polish NIP must be 10 digits')) return t('nipValidation.mustBe10Digits');
-    if (error.includes('Tax ID is required')) return t('nipValidation.required');
-    return t('nipValidation.invalidFormat');
-  }, [t]);
-
-  const resetNipFeedback = useCallback(() => {
-    setNipError(null);
-    setGusError(null);
-    setGusSuccess(false);
-    setGusData(null);
-  }, []);
-
-  const handleNIPBlur = useCallback(async () => {
-    if (!nip || nip.trim().length === 0) return;
-
-    // Same rule as the profile checkout: the company country decides (PL NIP / EU VAT / other).
-    const validation = classifyTaxId(nip, country);
-
-    if (!validation.valid) {
-      setNipError(country === 'PL' ? translateNipError(validateTaxId(nip, true).error) : t(`profile.errors.${taxIdErrorCode(country)}`));
-      setGusError(null);
-      setGusSuccess(false);
-      return;
-    }
-
-    setNipError(null);
-
-    if (validation.type === 'pl_nip') {
-      setIsLoadingGUS(true);
-      setGusError(null);
-      setGusSuccess(false);
-
-      // The fields stay editable during the lookup; anything the buyer types meanwhile
-      // wins over the GUS answer, and a failed lookup never touches them (W146 B9).
-      const before = { companyName, address, city, postalCode };
-      const result = await lookupCompanyByNip(validation.normalized);
-
-      if (result.ok) {
-        const data = result.data;
-        const fill = (start: string, value: string) => (current: string) => (current === start || !current.trim() ? value : current);
-        setGusData(data);
-        setCompanyName(fill(before.companyName, data.nazwa));
-        let addressStr = `${data.ulica} ${data.nrNieruchomosci}`;
-        if (data.nrLokalu) addressStr += `/${data.nrLokalu}`;
-        setAddress(fill(before.address, addressStr.trim()));
-        setCity(fill(before.city, data.miejscowosc));
-        setPostalCode(fill(before.postalCode, data.kodPocztowy));
-        setCountry('PL');
-        setGusSuccess(true);
-      } else if (result.code === 'rate_limit') setGusError(t('gusRateLimitExceeded'));
-      else if (result.code === 'not_found') setGusError(t('gusNotFound'));
-      else if (result.code === 'not_configured') setGusError(null);
-      else if (result.code === 'security') setGusError(t('gusSecurityError'));
-      else setGusError(t('gusFetchError'));
-
-      setIsLoadingGUS(false);
-    } else {
-      setGusError(null);
-      setGusSuccess(false);
-    }
-  }, [nip, country, companyName, address, city, postalCode, t, translateNipError, setCompanyName, setAddress, setCity, setPostalCode, setCountry]);
-
-  return {
-    isLoadingProfile,
-    fullName,
-    setFullName,
-    nip,
-    setNip,
-    nipError,
-    isLoadingGUS,
-    gusError,
-    gusSuccess,
-    gusData,
-    companyName,
-    setCompanyName,
-    address,
-    setAddress,
-    city,
-    setCity,
-    postalCode,
-    setPostalCode,
-    country,
-    setCountry,
-    handleNIPBlur,
-    resetNipFeedback,
-  };
+  return { isLoadingProfile, fullName, setFullName, nip, companyName, address, city, postalCode, country, setCountry };
 }

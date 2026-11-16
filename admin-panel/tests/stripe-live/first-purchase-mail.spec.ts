@@ -108,7 +108,7 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
       expect((await rows('payment_transactions', 'product_id', product.id))[0].status).toBe('awaiting_payment');
     } else if (kind === 'coupon') {
       await page.locator('input[type="email"]').fill(email);
-      for (const checkbox of await page.locator('input[type="checkbox"]').all()) if (await checkbox.isVisible()) await checkbox.check();
+      for (const checkbox of await page.locator('input[type="checkbox"]:not(#wantInvoice):not(#wantRecipient)').all()) if (await checkbox.isVisible()) await checkbox.check();
       await page.getByRole('button', { name: /Send magic link/i }).click();
     } else {
       await startNativeCheckout(page);
@@ -123,7 +123,7 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
       }
       if (await page.locator('#checkoutEmail').isVisible()) await page.locator('#checkoutEmail').fill(email);
       if (await page.locator('#fullName').isVisible()) await page.locator('#fullName').fill('First Mail Buyer');
-      for (const checkbox of await page.locator('input[type="checkbox"]').all()) if (await checkbox.isVisible()) await checkbox.check();
+      for (const checkbox of await page.locator('input[type="checkbox"]:not(#wantInvoice):not(#wantRecipient)').all()) if (await checkbox.isVisible()) await checkbox.check();
       const frame = page.frameLocator('iframe[src*="elements-inner-payment"]');
       await expect(frame.locator('input[name="number"]')).toBeVisible({ timeout: 60000 });
       await frame.locator('input[name="number"]').fill('4242424242424242');

@@ -2,7 +2,7 @@ import type Stripe from 'stripe';
 import { EU_COUNTRY_CODES } from '@/lib/checkout/eu-countries';
 
 /**
- * The BUYER's tax identity, collected by Sellf's own InvoiceFields (the on-site checkout
+ * The BUYER's tax identity, collected by Sellf's own invoice section (the on-site checkout
  * form). `country` is the buyer's country — NOT the shop's — because Stripe Tax determines
  * the jurisdiction from the customer's location, and EU B2B reverse charge depends on the
  * buyer being in a different EU country than the seller's registration.

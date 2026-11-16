@@ -64,7 +64,7 @@ async function checkout(page: Page, slug: string, email: string, coupon?: string
   await startNativeCheckout(page);
   await expect(page.locator('#checkoutEmail')).toBeVisible({ timeout: 90000 });
   await page.locator('#checkoutEmail').fill(email); await page.locator('#fullName').fill('Affiliate Test Buyer');
-  for (const c of await page.locator('input[type="checkbox"]').all()) if (await c.isVisible()) await c.check();
+  for (const c of await page.locator('input[type="checkbox"]:not(#wantInvoice):not(#wantRecipient)').all()) if (await c.isVisible()) await c.check();
   await card(page); await page.locator('button[type="submit"]').click();
   await page.waitForURL(/\/pl\/p\/.*payment-status.*session_id=/, { timeout: 120000 });
   await expect(page.getByText(/Potwierdzamy zakup produktu/)).toBeVisible({ timeout: 60000 });
