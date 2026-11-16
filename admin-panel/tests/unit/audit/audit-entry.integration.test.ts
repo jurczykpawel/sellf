@@ -1,7 +1,8 @@
 /**
  * DB TEST: audit entries against the real audit_log (W256c). performed_by references auth.users, so
- * an e-mail never lands there; the writer reports that instead of the caller silently going on, and
- * an entry written before a change that then failed can be taken back.
+ * an e-mail never lands there; the writer reports that instead of the caller silently going on.
+ * (Entries are never taken back since W256d: database changes audit inside their RPC, see
+ * audit-sigkill.integration.test.ts.)
  *
  * REQUIRES: the local Supabase stack (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY).
  * @see src/lib/audit/audit-entry.ts
@@ -9,7 +10,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 
-import { discardAuditEntry, recordAuditEntry, type AuditClient } from '@/lib/audit/audit-entry';
+import { recordAuditEntry, type AuditClient } from '@/lib/audit/audit-entry';
 
 const admin = createClient(process.env.SUPABASE_URL ?? '', process.env.SUPABASE_SERVICE_ROLE_KEY ?? '');
 const client = admin as unknown as AuditClient;
@@ -46,13 +47,5 @@ describe('audit entries in audit_log', () => {
   it('reports a refused entry: an operation outside INSERT/UPDATE/DELETE is not saved', async () => {
     const saved = await recordAuditEntry(client, { table_name: 'system', operation: 'system_upgrade_triggered' as 'UPDATE', performed_by: adminUserId });
     expect(saved.ok).toBe(false);
-  });
-
-  it('takes an entry back when the change it described did not happen', async () => {
-    const saved = await recordAuditEntry(client, { table_name: 'system', operation: 'UPDATE', performed_by: adminUserId, new_values: { action: 'w256c_discard' } });
-    if (!saved.ok) throw new Error(saved.error);
-    await discardAuditEntry(client, saved.id);
-    const row = await admin.from('audit_log').select('id').eq('id', saved.id).maybeSingle();
-    expect(row.data).toBeNull();
   });
 });

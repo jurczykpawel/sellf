@@ -27,3 +27,28 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.record_invoice_correction(uuid,uuid) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.record_invoice_correction(uuid,uuid) TO service_role;
+
+-- ===== W256d: invoice settings + their audit entry in ONE transaction =====
+-- Replaces "audit entry first, update, take the entry back on error" in actions/invoicing.ts: a process
+-- killed between the two requests left an UPDATE entry while the settings stayed unchanged (W256cr P2,
+-- measured with SIGKILL). p_token is the already encrypted token (app-side APP_ENCRYPTION_KEY); NULL
+-- keeps the saved one. Validation of the values stays in the table's CHECK constraints.
+CREATE FUNCTION public.save_invoicing_config(p_settings jsonb, p_token jsonb, p_performed_by uuid)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  IF (SELECT auth.role()) IS DISTINCT FROM 'service_role' THEN RAISE EXCEPTION 'Service role required' USING ERRCODE='42501'; END IF;
+  IF p_performed_by IS NULL OR jsonb_typeof(p_settings) IS DISTINCT FROM 'object'
+     OR (p_token IS NOT NULL AND jsonb_typeof(p_token) <> 'object') THEN
+    RAISE EXCEPTION 'Invalid invoice settings' USING ERRCODE='22023';
+  END IF;
+  UPDATE public.invoicing_config SET
+    provider = p_settings->>'provider', domain = p_settings->>'domain', mode = p_settings->>'mode',
+    exemption = p_settings->>'exemption', template = p_settings->>'template',
+    token = CASE WHEN p_token IS NULL THEN token ELSE p_token END
+  WHERE id;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Invoice settings unavailable' USING ERRCODE='P0002'; END IF;
+  INSERT INTO public.audit_log(table_name, operation, performed_by, new_values)
+    VALUES('invoicing_config', 'UPDATE', p_performed_by, jsonb_build_object('provider', p_settings->>'provider'));
+END $$;
+REVOKE ALL ON FUNCTION public.save_invoicing_config(jsonb, jsonb, uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.save_invoicing_config(jsonb, jsonb, uuid) TO service_role;

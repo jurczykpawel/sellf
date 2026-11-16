@@ -1,8 +1,9 @@
 /**
  * Seller-initiated license issuance (admin panel and API v1): validates the request
- * against the product, issues the license, audits it and mails the buyer the key.
- * license.issued is captured by the issued_licenses insert trigger.
- * @see supabase/migrations/20261110235905_release_2026_11_0_fulfillment_core.sql
+ * against the product, issues the license with its audit entry in one transaction and mails the
+ * buyer the key. license.issued is captured by the issued_licenses insert trigger, inside the same
+ * transaction (issue_license_with_audit), so a refused audit entry leaves no license and no event.
+ * @see supabase/migrations/20261111110000_access_licenses.sql
  */
 import 'server-only';
 import { randomUUID } from 'crypto';
@@ -66,13 +67,16 @@ export async function issueRequestedLicense(
 
   let locale: 'pl' | 'en';
   let result;
+  const action = ctx.source === 'api' ? 'API_LICENSE_ISSUED' : 'MANUAL_LICENSE_ISSUED';
   try {
     locale = await resolveBuyerLocale(admin, input.email, input.locale);
+    // The license, its license.issued event and the audit entry commit together: when audit_log
+    // refuses the entry (e.g. the actor is no auth user), no license exists and no event is queued.
     result = await issueLicense(admin, {
       productId: input.productId, email: input.email, userId: ctx.userId ?? null, orderId: ctx.accessGrantId ? `access_${ctx.accessGrantId}` : `${ctx.source}_${randomUUID()}`,
       accessGrantId: ctx.accessGrantId,
       customFieldValues: values.values, source: ctx.source, locale,
-    });
+    }, { audit: { performedBy: ctx.actorUserId, values: { action } } });
   } catch (error) {
     console.error('[license-request] Issuance failed:', error instanceof Error ? error.message : 'Unknown error');
     return { ok: false, status: 500, error: 'License issuance failed' };
@@ -80,18 +84,19 @@ export async function issueRequestedLicense(
   if (!result?.id) return { ok: false, status: 409, error: 'Product is not configured for license issuance or no active signing key exists' };
 
   const claims = parseLicenseClaims(result.token);
-  const audit = await recordAuditEntry(createPlatformClient(), {
-    table_name: 'issued_licenses',
-    operation: 'INSERT',
-    performed_by: ctx.actorUserId,
-    new_values: { ...(ctx.accessGrantId ? { access_grant_id: ctx.accessGrantId } : {}), action: ctx.source === 'api' ? 'API_LICENSE_ISSUED' : 'MANUAL_LICENSE_ISSUED', license_id: result.id, product_id: input.productId, email: input.email, domain: claims?.domain ?? null, kid: result.kid },
-  });
-
-  // No key leaves without its audit entry (grant, manual and API alike): the caller gets no token
-  // and no mail goes out, so the unrecorded license reaches nobody.
-  if (!audit.ok) {
-    console.error('[license-request] Audit entry refused:', audit.error);
-    return { ok: false, status: 500, error: 'License audit could not be saved' };
+  if (result.reused) {
+    // An already issued key (retry of an access grant) is handed out again: nothing changes in the
+    // database, so this entry records the hand-out itself. No entry, no key and no mail.
+    const audit = await recordAuditEntry(createPlatformClient(), {
+      table_name: 'issued_licenses',
+      operation: 'INSERT',
+      performed_by: ctx.actorUserId,
+      new_values: { ...(ctx.accessGrantId ? { access_grant_id: ctx.accessGrantId } : {}), action, reused: true, license_id: result.id, product_id: input.productId, email: input.email, domain: claims?.domain ?? null, kid: result.kid },
+    });
+    if (!audit.ok) {
+      console.error('[license-request] Audit entry refused:', audit.error);
+      return { ok: false, status: 500, error: 'License audit could not be saved' };
+    }
   }
 
   let emailSent = false;

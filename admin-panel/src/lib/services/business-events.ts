@@ -7,7 +7,7 @@ import { buildLicenseRevokeWebhookData, buildLicenseRestoreWebhookData, buildLic
 import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 import type { RevokedLicenseRow } from '@/lib/services/license-revoke-webhook-payload';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/types/database';
+import type { Database, Json } from '@/types/database';
 import type { AuthResult } from '@/lib/api';
 
 export interface EventActor { type: 'user' | 'api_key'; id: string }
@@ -16,6 +16,14 @@ export function accessActor(auth: AuthResult): EventActor {
 }
 export function mutateAccess(db: SupabaseClient<Database>, action: 'grant' | 'update' | 'revoke', userId: string, actor: EventActor, values: Record<string, string | number | boolean | null> = {}, accessId?: string, productId?: string) {
   return db.rpc('mutate_access', { p_action: action, p_user_id: userId, p_actor: { ...actor }, p_values: values, p_access_id: accessId, p_product_id: productId });
+}
+/**
+ * Admin access change and its audit_log entry in ONE transaction (mutate_access_audited): the entry is
+ * written only when a row changed, and never without the change. `audit` lands in new_values (grant,
+ * update) or old_values (revoke). The actor must be the admin's auth user.
+ */
+export function mutateAccessAudited(db: SupabaseClient<Database>, action: 'grant' | 'update' | 'revoke', userId: string, adminUserId: string, audit: Record<string, Json>, values: Record<string, string | number | boolean | null> = {}, accessId?: string, productId?: string) {
+  return db.rpc('mutate_access_audited', { p_action: action, p_user_id: userId, p_actor: { type: 'user', id: adminUserId }, p_values: values, p_access_id: accessId, p_product_id: productId, p_audit: audit });
 }
 const DETECTION_STEPS = ['capture_expired_access', 'capture_expired_licenses', 'capture_due_renewal_notices'] as const;
 

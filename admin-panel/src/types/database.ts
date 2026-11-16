@@ -6189,6 +6189,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      issue_license_with_audit: {
+        Args: { p_audit_values?: Json; p_license: Json; p_performed_by: string }
+        Returns: string
+      }
       jsonschema_subset_matches: {
         Args: { instance: Json; schema: Json }
         Returns: boolean
@@ -6281,6 +6285,39 @@ export type Database = {
           p_access_id?: string
           p_action: string
           p_actor?: Json
+          p_product_id?: string
+          p_user_id: string
+          p_values?: Json
+        }
+        Returns: {
+          access_duration_days: number | null
+          access_expires_at: string | null
+          access_granted_at: string
+          created_at: string
+          custom_field_values: Json
+          expiry_notified_at: string | null
+          grant_source: string
+          id: string
+          license_requested: boolean
+          product_id: string
+          subscription_id: string | null
+          transfer_transaction_id: string | null
+          user_id: string
+          version: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "user_product_access"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      mutate_access_audited: {
+        Args: {
+          p_access_id?: string
+          p_action: string
+          p_actor?: Json
+          p_audit?: Json
           p_product_id?: string
           p_user_id: string
           p_values?: Json
@@ -6733,6 +6770,10 @@ export type Database = {
       }
       save_bank_transfer_config: {
         Args: { p_actor: string; p_config: Json }
+        Returns: undefined
+      }
+      save_invoicing_config: {
+        Args: { p_performed_by: string; p_settings: Json; p_token: Json }
         Returns: undefined
       }
       save_template_credential: {

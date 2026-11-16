@@ -80,7 +80,7 @@ describe('issueLicense — replay safety (already_had_access / already_processed
     const insert = vi.fn();
     const existing = { license_key: 'EXISTING.SIGNED.TOKEN', kid: key.kid, seller_id: SELLER };
     const result = await issue(adminMock({ product: product(), existing, insert }));
-    expect(result).toEqual({ id: undefined, token: 'EXISTING.SIGNED.TOKEN', kid: key.kid, sellerId: SELLER, expiresAt: null });
+    expect(result).toEqual({ id: undefined, token: 'EXISTING.SIGNED.TOKEN', kid: key.kid, sellerId: SELLER, expiresAt: null, reused: true });
     expect(insert).not.toHaveBeenCalled();
   });
 
@@ -92,7 +92,7 @@ describe('issueLicense — replay safety (already_had_access / already_processed
     const replay = await issueLicense(adminMock({ product: product(), existing: saved, insert: replayInsert }) as never,
       { productId: PRODUCT, email: 'buyer@example.com', userId: 'user-uuid', orderId: 'pi_abc123' },
       { now: new Date(NOW.getTime() + 86400000) });
-    expect(replay).toEqual(first);
+    expect(replay).toEqual({ ...first, reused: true });
     expect(replay!.expiresAt).toBe(duration === null ? null : new Date(NOW.getTime() + duration * 86400000).toISOString());
     const verified = verifyLicense(replay!.token, key.publicKeyPem, { now: NOW });
     expect(verified).toMatchObject({ valid: true, claims: { exp: duration === null ? null : Math.floor(NOW.getTime() / 1000) + duration * 86400 } });

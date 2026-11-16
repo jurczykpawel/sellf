@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
 import { normalizePurchaseEmail } from '@/lib/checkout/normalize-email';
+import type { Json } from '@/types/database';
 
 import { signLicense, type LicenseClaims } from '@/lib/license-keys/format';
 import { normalizeLicenseDomain } from '@/lib/license-keys/domain';
@@ -40,6 +41,19 @@ export interface IssueLicenseResult {
   kid: string;
   sellerId: string;
   expiresAt: string | null;
+  /** The license already existed for this order (idempotent retry or a lost race): nothing new was written. */
+  reused?: boolean;
+}
+
+/**
+ * Seller-initiated issuance (panel, API v1): the license row, its license.issued event (insert
+ * trigger) and this audit entry commit in ONE transaction (issue_license_with_audit). The RPC adds
+ * license_id, product_id, email, domain, kid and access_grant_id to `values`.
+ */
+export interface IssueLicenseAudit {
+  /** Auth user UUID of the admin (audit_log.performed_by references auth.users). */
+  performedBy: string;
+  values: Record<string, Json>;
 }
 
 /**
@@ -52,7 +66,7 @@ export interface IssueLicenseResult {
 export async function issueLicense(
   admin: SupabaseClient,
   input: IssueLicenseInput,
-  opts: { now?: Date; scopeToProductFields?: boolean } = {},
+  opts: { now?: Date; scopeToProductFields?: boolean; audit?: IssueLicenseAudit } = {},
 ): Promise<IssueLicenseResult | null> {
   input = { ...input, email: normalizePurchaseEmail(input.email) };
   if (!(await checkFeature('license-key-issuance', { dataClient: admin }))) return null;
@@ -64,7 +78,7 @@ export async function issueLicense(
     .eq('product_id', input.productId)
     .maybeSingle();
   const existing = (existingResult.data ?? null) as { id?: string; license_key: string; kid: string; seller_id: string; expires_at?: string | null } | null;
-  if (existing) return { id: existing.id, token: existing.license_key, kid: existing.kid, sellerId: existing.seller_id, expiresAt: existing.expires_at ?? null };
+  if (existing) return { id: existing.id, token: existing.license_key, kid: existing.kid, sellerId: existing.seller_id, expiresAt: existing.expires_at ?? null, reused: true };
 
   const productResult = await admin
     .from('products')
@@ -130,7 +144,7 @@ export async function issueLicense(
   // license.issued is captured by the insert trigger (20261103160000_license_events.sql).
   // Expiry changes are captured by the license.updated database trigger.
   const licenseId = randomUUID();
-  const { error } = await admin.from('issued_licenses').insert({
+  const row = {
     id: licenseId,
     seller_id: product.seller_id,
     // Frozen at issuance: keeps the JWKS/CRL lookup working for this license even if
@@ -147,7 +161,10 @@ export async function issueLicense(
     expires_at: exp ? new Date(exp * 1000).toISOString() : null,
     issuance_source: input.source ?? 'purchase',
     license_domain: claims.domain ?? null,
-  });
+  };
+  const { error } = opts.audit
+    ? await admin.rpc('issue_license_with_audit', { p_license: row, p_performed_by: opts.audit.performedBy, p_audit_values: opts.audit.values })
+    : await admin.from('issued_licenses').insert(row);
 
   if (error) {
     // 23505 = unique_violation: concurrent webhook delivered the same event.
@@ -160,7 +177,7 @@ export async function issueLicense(
         .eq('product_id', input.productId)
         .maybeSingle();
       const winner = (raceResult.data ?? null) as { id?: string; license_key: string; kid: string; seller_id: string; expires_at?: string | null } | null;
-      if (winner) return { id: winner.id, token: winner.license_key, kid: winner.kid, sellerId: winner.seller_id, expiresAt: winner.expires_at ?? null };
+      if (winner) return { id: winner.id, token: winner.license_key, kid: winner.kid, sellerId: winner.seller_id, expiresAt: winner.expires_at ?? null, reused: true };
     }
     throw new Error(`issueLicense: ${error.message}`);
   }

@@ -1,11 +1,19 @@
 /**
- * audit_log writer that reports whether the entry was saved (W256c).
+ * audit_log writer that reports whether the entry was saved (W256c, W256d).
+ *
+ * USE ONLY FOR A REQUEST WHOSE EFFECT IS OUTSIDE THE DATABASE (system upgrade, invoice at the provider,
+ * handing out an existing key). Such an entry records the INTENT — the admin asked for it — written
+ * before anything starts, so a refused entry starts nothing. It is not proof the effect happened, so
+ * name the action as a request (`*_requested`) and record a failure as a separate outcome entry; never
+ * delete it (a killed process could not, and a deletion would erase a real request).
+ *
+ * A CHANGE IN THE DATABASE must write its entry in the same transaction as the change (an RPC such as
+ * save_invoicing_config, mutate_access_audited, issue_license_with_audit):
+ * "entry first, change, take it back on error" leaves a false entry when the process dies in between.
  *
  * performed_by / user_id reference auth.users: pass the admin's auth user UUID (for an API key, the
  * key owner's), never an e-mail. operation accepts only INSERT/UPDATE/DELETE (audit_log_operation_check);
- * the kind of action goes into new_values. Callers write the entry BEFORE the change it describes and
- * change nothing when it is refused; when the change itself then fails, discardAuditEntry takes the
- * entry back, so an entry exists exactly when the change happened.
+ * the kind of action goes into new_values.
  *
  * @see supabase/migrations/20250101000000_core_schema.sql (audit_log)
  */
@@ -34,15 +42,5 @@ export async function recordAuditEntry(client: AuditClient, entry: AuditEntry): 
     return { ok: true, id: data.id };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : 'Unknown error' };
-  }
-}
-
-/** Takes back an entry written for a change that then failed. Never throws. */
-export async function discardAuditEntry(client: AuditClient, id: string): Promise<void> {
-  try {
-    const { error } = await client.from('audit_log').delete().eq('id', id);
-    if (error) console.error('[discardAuditEntry] Error:', error.message);
-  } catch (error) {
-    console.error('[discardAuditEntry] Error:', error instanceof Error ? error.message : 'Unknown error');
   }
 }
