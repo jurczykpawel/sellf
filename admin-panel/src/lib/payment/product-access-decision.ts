@@ -65,7 +65,7 @@ export function decideProductAccessOutcome(
   return { kind: 'redirect-checkout' };
 }
 
-/** Whether existing buyers may open the content: active products and archived ones (owner decision 2026-11-14). */
+/** Whether existing buyers may open the content: active products and archived ones. */
 export function servesBuyerContent(product: { is_active: boolean; archived_at?: string | null }): boolean {
   return product.is_active || Boolean(product.archived_at);
 }

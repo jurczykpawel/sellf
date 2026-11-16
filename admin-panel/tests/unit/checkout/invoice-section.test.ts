@@ -1,5 +1,5 @@
 /**
- * W223a: the checkout invoice section (accepted mockup v3, owner 10.11). One field "NIP or EU VAT
+ * The checkout invoice section. One field "NIP or EU VAT
  * number" decides the company country; the manual path covers buyers without a NIP and companies
  * outside the EU; the recipient (another institution) is a shop setting and always carries a NIP.
  * The same validation runs in the browser and on the server.
@@ -120,8 +120,8 @@ describe('validateInvoiceSection: what reaches the order', () => {
   });
 });
 
-describe('W223b: one source of truth for formats and limits', () => {
-  it.each(['IE1+23456A', 'IE1*23456A'])('%s: characters are judged by the country pattern, as in classifyTaxId (W223ar #6)', input => {
+describe('one source of truth for formats and limits', () => {
+  it.each(['IE1+23456A', 'IE1*23456A'])('%s: characters are judged by the country pattern, as in classifyTaxId', input => {
     expect(detectTaxId(input)).toEqual({ status: 'valid', type: 'eu_vat', country: 'IE', normalized: input });
   });
 
@@ -129,7 +129,7 @@ describe('W223b: one source of truth for formats and limits', () => {
     expect(detectTaxId('118+169728')).toEqual({ status: 'invalid', code: 'not_tax_id' });
   });
 
-  it('one length limit: 40 characters accepted whole, 41 refused with a clear code (W223ar #5)', () => {
+  it('one length limit: 40 characters accepted whole, 41 refused with a clear code', () => {
     const ok = 'A'.repeat(40);
     const okResult = validateInvoiceSection(section({ mode: 'manual', buyer: { tax_id: ok, country: 'US', ...ADDRESS } }), { recipientEnabled: false });
     expect(okResult.ok && okResult.buyer?.nip).toBe(ok);

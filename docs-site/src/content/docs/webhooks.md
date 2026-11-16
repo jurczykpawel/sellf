@@ -387,7 +387,7 @@ recorded dispute owner and require a separate seller decision.
 
 The event time stays in the payload body (`timestamp`).
 
-> **Breaking change (v2026.6.4):** `X-Sellf-Signature` switched from a bare body-only hex digest to the timestamped, versioned `t=…,v1=…` scheme below, and the separate unsigned `X-Sellf-Timestamp` header was removed (it was not covered by the MAC, so it could be replayed/tampered freely). Update receivers to the verifier below.
+> **Breaking change (v2026.6.4):** `X-Sellf-Signature` switched from a bare body-only hex digest to the timestamped, versioned `t=…,v1=…` scheme below, and the separate `X-Sellf-Timestamp` header was removed (the timestamp is now part of the signed value). Update receivers to the verifier below.
 
 ### Signing verification (Node example)
 

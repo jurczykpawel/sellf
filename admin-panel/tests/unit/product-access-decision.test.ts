@@ -166,7 +166,7 @@ describe('decideProductAccessOutcome', () => {
   });
 });
 
-describe('archived product (owner decision 2026-11-14: archive stops sales, keeps buyer access)', () => {
+describe('archived product (archive stops sales, keeps buyer access)', () => {
   const archived = { id: 'p1', is_active: false, archived_at: '2026-11-14T00:00:00Z', available_from: null, available_until: null };
   const access = { access_expires_at: null, access_duration_days: null, granted_at: '2026-01-01T00:00:00Z' };
 

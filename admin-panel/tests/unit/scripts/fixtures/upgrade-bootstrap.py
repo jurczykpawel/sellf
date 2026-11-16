@@ -194,12 +194,12 @@ exec ''' + shlex.quote(curl) + ''' "${args[@]}"''')
         archive = buffer.getvalue()
         checksum = hashlib.sha256(archive).hexdigest()
         manifest = f'version=2026.11.0\nsha256={checksum}\n'.encode()
-        assets['sellf-build.tar.gz'] = archive + (b'tampered' if bad_checksum else b'')
+        assets['sellf-build.tar.gz'] = archive + (b'corrupted' if bad_checksum else b'')
         for asset, content in [('sellf-build.manifest', manifest), ('sellf-build.v2.manifest', manifest + f'min_updater_version={minimum}\n'.encode())]:
             file = folder / asset
             file.write_bytes(content)
             sig = subprocess.check_output(['openssl', 'pkeyutl', '-sign', '-inkey', str(key), '-rawin', '-in', str(file)])
-            assets[asset] = content + (b'tampered\n' if bad_signature else b'')
+            assets[asset] = content + (b'corrupted\n' if bad_signature else b'')
             assets[asset + '.sig'] = sig
         token = str(uuid.uuid4())
         if real_pm2:

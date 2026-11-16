@@ -1,5 +1,5 @@
 /**
- * DB TEST (W223c, W223br P2): the shop setting "collect a different invoice recipient" and its audit
+ * DB TEST: the shop setting "collect a different invoice recipient" and its audit
  * entry are saved together. A refused audit entry leaves the setting exactly as it was, and a failing
  * call never undoes a parallel, successful one (the old compensating rollback did). Panel and API v1
  * share this function.

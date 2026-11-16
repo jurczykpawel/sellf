@@ -260,7 +260,7 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
       }
     }
     if (s.profile) {
-      // Organization and recipient use the standard invoice section (W223b); GUS answers "not found".
+      // Organization and recipient use the standard invoice section; GUS answers "not found".
       await page.route('**/api/gus/fetch-company-data', route => route.fulfill({ status: 404, json: { success: false, code: 'NOT_FOUND' } }));
       for (const prefix of ['', 'recipient']) {
         if (prefix) await page.getByLabel('Invoice for another institution (recipient)').check();

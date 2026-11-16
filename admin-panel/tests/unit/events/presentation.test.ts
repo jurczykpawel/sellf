@@ -84,7 +84,7 @@ it('formats Polish mail dates in Polish using the event timezone', () => {
   expect(eventMailData([event], 'pl').event_date).toContain('18:00');
 });
 
-describe('tier seats never exceed the session pool (W146 U11)', () => {
+describe('tier seats never exceed the session pool', () => {
   it('caps the advertised seats to what the pool still holds', async () => {
     const { projectEventSessions } = await import('@/lib/events/presentation');
     const raw = { id: 's', starts_at: '2036-01-01T10:00:00Z', ends_at: null, timezone: 'Europe/Warsaw', title: null, venue: null, extra_days: null,

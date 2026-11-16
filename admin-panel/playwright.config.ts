@@ -249,7 +249,9 @@ export default defineConfig({
       command: isRateLimitTestMode
         ? `NODE_OPTIONS=--max-old-space-size=8192 E2E_MODE=true NEXT_PUBLIC_TURNSTILE_TEST_MODE=${APP_COMMAND === 'start' ? 'false' : 'true'} CURRENCY_ECB_BASE_URL=${APP_COMMAND === 'start' ? '' : FX_STUB_BASE_URL} PORT=${APP_PORT} RATE_LIMIT_TEST_MODE=true bun run ${APP_COMMAND}`
         : `NODE_OPTIONS=--max-old-space-size=8192 E2E_MODE=true NEXT_PUBLIC_TURNSTILE_TEST_MODE=${APP_COMMAND === 'start' ? 'false' : 'true'} CURRENCY_ECB_BASE_URL=${APP_COMMAND === 'start' ? '' : FX_STUB_BASE_URL} PORT=${APP_PORT} bun run ${APP_COMMAND}`,
-      env: templateAuthorEnvironment(),
+      // The server's canonical origin is the address the tests reach it at, whatever .env.local says:
+      // the same-origin guards on session writes compare the request Origin with SITE_URL.
+      env: { SITE_URL: `http://localhost:${APP_PORT}`, ...templateAuthorEnvironment() },
       url: `http://localhost:${APP_PORT}`,
       // Never reuse — port 3000 may be occupied by another project (e.g. ReelStack)
       reuseExistingServer: !isTemplateAuthorMode && process.env.PW_REUSE_SERVER === '1',

@@ -53,7 +53,7 @@ it.each(['success', 'failure'])('retains edits when an earlier initial read comp
   expect((screen.getByRole('button', { name: 'save', exact: true }) as HTMLButtonElement).disabled).toBe(false);
 });
 
-it('links a published offer to its public address (W224-B3)', async () => {
+it('links a published offer to its public address', async () => {
   const published = { enabled: true, content: {}, settings: { density: 'comfortable' }, tokens: null };
   mocks.action.mockResolvedValue({ success: true, data: { productName: 'Live offer', productSlug: 'live-offer', revision: 3, draft: null, published } });
   render(createElement(OfferEditor, { initialProductId: '10000000-0000-4000-8000-000000000001' }));
@@ -61,7 +61,7 @@ it('links a published offer to its public address (W224-B3)', async () => {
   expect(link.getAttribute('href')).toBe('/offer/live-offer');
   expect(link.getAttribute('target')).toBe('_blank');
 });
-it('offers no public address before the offer is published (W224-B3)', async () => {
+it('offers no public address before the offer is published', async () => {
   mocks.action.mockResolvedValue({ success: true, data: { productName: 'Draft offer', productSlug: 'draft-offer', revision: 1, draft: null, published: null } });
   render(createElement(OfferEditor, { initialProductId: '10000000-0000-4000-8000-000000000001' }));
   await screen.findByRole('heading', { name: 'Draft offer' });

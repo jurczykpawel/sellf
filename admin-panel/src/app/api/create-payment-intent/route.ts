@@ -594,7 +594,7 @@ export async function POST(request: NextRequest) {
     });
 
     const totalAmount = toStripeCents(pricing.totalGross, product.currency);
-    // W146 B6: a legacy product priced under Stripe's minimum must not end in a generic 500.
+    // A legacy product priced under Stripe's minimum must not end in a generic 500.
     if (isBelowMinimumCharge(totalAmount, product.currency)) {
       console.error(`[create-payment-intent] Total below Stripe minimum charge: product=${product.id} amount=${totalAmount} ${product.currency}`);
       return NextResponse.json({ error: 'Product price is below the minimum charge', code: 'AMOUNT_BELOW_MINIMUM' }, { status: 422 });
@@ -929,7 +929,7 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       );
     }
-    // Defense in depth for minimums the local table does not know (W146 B6, measured for PLN).
+    // Defense in depth for minimums the local table does not know (measured for PLN).
     if (isStripeAmountTooSmall(error)) {
       console.error('[create-payment-intent] Stripe amount_too_small:', error instanceof Error ? error.message : error);
       return NextResponse.json({ error: 'Product price is below the minimum charge', code: 'AMOUNT_BELOW_MINIMUM' }, { status: 422 });

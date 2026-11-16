@@ -24,7 +24,7 @@ test('private preview matrix and history rollback', async ({ page, browser }) =>
     const revision = original.revision + 1;
     const url = `/template-preview/${revision}?locale=en&fixture=standard`;
     const requests: string[] = []; page.on('request', request => requests.push(request.url()));
-    // W148-10: the preview CSP blocks Next's scripts by design (inert, never hydrated); nothing else may be blocked.
+    // The preview CSP blocks Next's scripts by design (inert, never hydrated); nothing else may be blocked.
     const cspViolations: string[] = []; page.on('console', message => { if (/Content Security Policy/i.test(message.text())) cspViolations.push(message.text()); });
     for (const locale of ['en', 'pl']) for (const mode of ['light', 'dark'] as const) for (const fixture of ['standard', 'empty', 'long', 'unavailable', 'published-products']) {
       await page.emulateMedia({ colorScheme: mode, reducedMotion: 'reduce' });
@@ -58,7 +58,7 @@ test('private preview matrix and history rollback', async ({ page, browser }) =>
       }
     }
     expect(requests.filter(url => /stripe|checkout|grant|experiment|\/api\/(?!storefront\/preview-font)/i.test(url))).toEqual([]);
-    console.log(`[W148-10] CSP violations in preview: ${cspViolations.length}; non-script: ${cspViolations.filter(text => !/script/i.test(text)).length}`);
+    console.log(`[preview-csp] CSP violations in preview: ${cspViolations.length}; non-script: ${cspViolations.filter(text => !/script/i.test(text)).length}`);
     expect(cspViolations.filter(text => !/script/i.test(text))).toEqual([]);
     await page.goto(`/template-preview/${revision}?locale=pl&fixture=standard`);
     await expect(page.getByRole('note')).toContainText('Podgląd statyczny');

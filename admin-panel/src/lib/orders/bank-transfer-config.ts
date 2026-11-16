@@ -10,7 +10,7 @@ export function normalizeBankAccount(value: string): string | null {
   for (const digit of digits) remainder = (remainder * 10 + Number(digit)) % 97;
   return remainder === 1 ? iban : null;
 }
-// No control characters and no markup: these values reach the buyer's page and mail (W146 B3).
+// No control characters and no markup: these values reach the buyer's page and mail.
 const text = z.string().trim().max(200, { message: 'too_long' }).regex(/^[^\u0000-\u001f\u007f]*$/, { message: 'control_chars' }).regex(/^[^<>]*$/, { message: 'markup' });
 const hours = (min: number, max: number, fallback: number) => z.number({ message: 'range' }).int({ message: 'range' }).min(min, { message: 'range' }).max(max, { message: 'range' }).default(fallback);
 export const bankTransferConfigSchema = z.object({

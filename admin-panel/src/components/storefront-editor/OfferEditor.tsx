@@ -63,7 +63,7 @@ export default function OfferEditor({ initialProductId }: { initialProductId?: s
   const prefix = locale === 'pl' ? '/pl' : '';
   return <div data-offer-editor className="mx-auto max-w-6xl space-y-6 text-sf-heading">
     <header className="space-y-2"><h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t('title')}</h1><p className="max-w-2xl text-sm text-sf-muted">{t('intro')}</p></header>
-    {/* The tutorial starts on the product choice too and carries over to the chosen product's editor (W148-1). */}
+    {/* The tutorial starts on the product choice too and carries over to the chosen product's editor. */}
     {!productId && <><TutorialTrigger id="offer-page" /><section data-tour="offer-product" className="rounded-2xl border border-sf-border bg-sf-base p-5"><BindingPicker label={t('chooseProduct')} kind="products" selectedIds={[]} maxItems={1} onChange={ids => { if (ids[0]) router.push(`?product=${ids[0]}${tutorials?.isRunning('offer-page') ? '&tutorial=offer-page' : ''}`); }} /></section></>}
     {error && <div role="alert" className="rounded-xl border border-sf-danger bg-sf-danger-soft p-4 text-sm">{t(error === 'CONFLICT' ? 'conflict' : error === 'INVALID' ? 'invalid' : 'failure')}</div>}
     {productId && !snapshot && <button type="button" className={editorButton} disabled={busy} onClick={() => void reload()}>{busy ? t('loading') : shared('reload')}</button>}

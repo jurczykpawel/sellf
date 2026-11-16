@@ -1,5 +1,5 @@
 /**
- * W223a: the standard checkout's invoice section (accepted mockup v3, owner 10.11). Every buyer type
+ * The standard checkout's invoice section. Every buyer type
  * goes from the browser to the order (order_details + Stripe metadata); one real card payment on the
  * Stripe sandbox proves the recipient reaches the signed purchase.completed delivery.
  * GUS answers are mocked in the browser (the register itself is never called).

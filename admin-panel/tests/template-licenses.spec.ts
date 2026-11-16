@@ -37,7 +37,7 @@ test('independent license scopes, bounded inputs and EN/PL key entry', async ({ 
     expect(await response.json()).toEqual({ templateId: 'storefront-a', state: 'unknown', verifiedAt: null });
     expect(response.headers()['cache-control']).toContain('no-store');
     expect((await request.post(endpoint, { headers: { 'x-api-key': write }, data: { templateId: 'storefront-a', token: 'x'.repeat(16384) } })).status()).toBe(422);
-    // W148-6: a typo or another template's key never replaces the stored key.
+    // A typo or another template's key never replaces the stored key.
     for (const bad of ['synthetic-private-template-key', `${claims('storefront-b')}.c3ludGhldGlj`]) expect((await request.post(endpoint, { headers: { 'x-api-key': write }, data: { templateId: 'storefront-a', token: bad } })).status()).toBe(422);
     const statuses = await request.get(endpoint, { headers: { authorization: `Bearer ${read}` } });
     expect(statuses.status()).toBe(200); expect(await statuses.text()).not.toContain(token);

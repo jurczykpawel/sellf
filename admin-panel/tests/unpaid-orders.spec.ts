@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 import { loginAsAdmin, supabaseAdmin as db } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
+import { fillInvoiceParty, mockGusNotFound } from './helpers/invoice-section';
 import { MAILPIT_URL } from './helpers/mailpit';
 import { signTransferToken } from '@/lib/orders/transfer-token';
 import { readBuyerPayload } from '@/lib/webhooks/buyer-payload-storage';
@@ -73,10 +74,11 @@ test.afterAll(async () => {
 });
 
 async function placeInCheckout(page: Page) {
-  await acceptAllCookies(page); await page.goto(`/pl/checkout/${event.slug}`);
+  await mockGusNotFound(page); await acceptAllCookies(page); await page.goto(`/pl/checkout/${event.slug}`);
   await page.getByLabel('Typ nabywcy').selectOption('organization');
   await page.getByRole('radio', { name: /Przelew tradycyjny/ }).check();
-  for (const [key, value] of Object.entries({ first_name: 'Anna', last_name: 'Testowa', company_name: 'Testowa firma', nip: '5260250274', address: 'Prosta 1', postal_code: '00-001', city: 'Warszawa' })) await page.locator(`[id="buyer.${key}"]`).fill(value);
+  for (const [key, value] of Object.entries({ first_name: 'Anna', last_name: 'Testowa' })) await page.locator(`[id="buyer.${key}"]`).fill(value);
+  await fillInvoiceParty(page);
   await page.getByLabel('Email', { exact: true }).fill(buyer);
   const terms = page.getByRole('checkbox', { name: /Zgadzam/ }); if (await terms.count()) await terms.check();
   const submit = page.getByRole('button', { name: 'Zamawiam z obowiązkiem zapłaty' }); await expect(submit).toBeEnabled({ timeout: 30000 });
@@ -170,7 +172,7 @@ test('an unpaid order past its window is released: seat back on sale, buyer and 
   expect(await checked(await db.from('order_payment_attempts').select('id').eq('transaction_id', orderId))).toHaveLength(0);
   // The order page says the deadline passed, without "reserved until <past date>" and without the transfer details.
   await page.goto(new URL(payUrl).pathname + new URL(payUrl).search);
-  await expect(page.getByRole('alert')).toContainText('Termin płatności minął — zamówienie zostanie wkrótce anulowane');
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('Termin płatności minął — zamówienie zostanie wkrótce anulowane');
   await expect(page.getByText(/zarezerwowane do/)).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Dane do przelewu' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Zapłać online/ })).toHaveCount(0);
@@ -185,7 +187,7 @@ test('an unpaid order past its window is released: seat back on sale, buyer and 
   const cancelledMail = await untilMail(request, buyer, 'Zamówienie anulowane');
   expect(cancelledMail.HTML).toContain('nie otrzymaliśmy wpłaty w terminie');
   await page.goto(new URL(payUrl).pathname + new URL(payUrl).search);
-  await expect(page.getByRole('alert')).toContainText('Anulowane');
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('Anulowane');
   await expect(page.getByRole('button', { name: 'Wysłałem przelew' })).toHaveCount(0);
   // The buyer cannot pay a cancelled order in any way, whether the timer or the administrator cancelled it.
   const { data: adminUser } = await db.from('admin_users').select('user_id').limit(1).single();

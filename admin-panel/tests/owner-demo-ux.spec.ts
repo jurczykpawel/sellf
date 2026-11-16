@@ -1,4 +1,4 @@
-/** Owner demo feedback: funnel readability, compact participants, phone requirement. @see priv/tasks/2026-10-29-owner-demo-feedback.md */
+/** Checkout UX: funnel readability, compact participants, phone requirement. */
 import { randomUUID } from 'node:crypto';
 import { expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';

@@ -113,7 +113,7 @@ const baseShape = {
   license_duration_days: z.number().int().positive().max(MAX_LICENSE_DURATION_DAYS).nullable().optional(),
 };
 
-/** W146 B6: a paid price Stripe cannot charge must never be stored (buyers got a 500). 0 = free. */
+/** A paid price Stripe cannot charge must never be stored. 0 = free. */
 function refineChargeablePrice(p: { price?: number; currency?: string }, ctx: z.RefinementCtx): void {
   if (p.price != null && p.price > 0 && p.price < minimumChargeAmount(p.currency ?? '')) {
     ctx.addIssue({ code: 'custom', path: ['price'], message: `price must be 0 or at least ${minimumChargeAmount(p.currency ?? '')}` });

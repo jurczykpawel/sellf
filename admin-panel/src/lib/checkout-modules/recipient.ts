@@ -1,4 +1,4 @@
-/** Recipient module: an institution with a Polish NIP, the same rules as the standard checkout (W223b). @see ./buyer.ts */
+/** Recipient module: an institution with a Polish NIP, the same rules as the standard checkout. @see ./buyer.ts */
 import { z } from 'zod';
 import { validateInvoiceRecipient } from '@/lib/checkout/invoice-section';
 import { addInvoiceIssues, invoicePartyInput, invoicePartyShape } from '@/lib/checkout-modules/buyer';

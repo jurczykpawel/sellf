@@ -6,7 +6,7 @@ export function formatTransferAccount(account: unknown): string {
 /**
  * The one deadline a transfer buyer must meet: the reservation end while it runs (the order is
  * cancelled then, see release_unpaid_transfer), otherwise the seller's payment term. Used by the
- * order page and every transfer mail so both always show the same date (W146).
+ * order page and every transfer mail so both always show the same date.
  */
 export function transferDeadline(tx: { release_at?: string | null; payment_due_at?: string | null }): string | null {
   return tx.release_at ?? tx.payment_due_at ?? null;

@@ -58,7 +58,7 @@ async function pendingOrder(orderDetails: unknown, customFieldValues: unknown = 
   }).select('id').single();
   if (tx.error) throw tx.error;
   const line = await db.from('payment_line_items').insert({
-    transaction_id: tx.data.id, product_id: productId, item_type: 'main_product', product_name: 'W223d',
+    transaction_id: tx.data.id, product_id: productId, item_type: 'main_product', product_name: 'Order details',
     quantity: 100, unit_price: 10, total_price: 1000, discounted_total: 1000, currency: 'PLN',
   });
   if (line.error) throw line.error;
@@ -69,7 +69,7 @@ const row = async (id: string) =>
   (await db.from('payment_transactions').select('order_details, custom_field_values').eq('id', id).single()).data!;
 
 beforeAll(async () => {
-  const inserted = await db.from('products').insert({ id: productId, name: 'W223d order details', slug: `w223d-details-${stamp}`, price: 10, currency: 'PLN', is_active: true });
+  const inserted = await db.from('products').insert({ id: productId, name: 'Order details product', slug: `order-details-${stamp}`, price: 10, currency: 'PLN', is_active: true });
   if (inserted.error) throw inserted.error;
 });
 

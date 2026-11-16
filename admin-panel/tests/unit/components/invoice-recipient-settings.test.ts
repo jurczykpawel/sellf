@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-/** W223a: the shop setting "collect a different invoice recipient" starts OFF and is saved at once. @J622 */
+/** The shop setting "collect a different invoice recipient" starts OFF and is saved at once. @J622 */
 import { createElement } from 'react';
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';

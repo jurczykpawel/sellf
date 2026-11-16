@@ -42,7 +42,7 @@ it('identifies invalid nested FAQ answers', () => {
   expect(screen.getByRole('textbox', { name: 'sectionNames.faq · PL · answer' }).getAttribute('aria-invalid')).toBe('true');
   expect(screen.getByRole('textbox', { name: 'sectionNames.faq · PL · question' }).getAttribute('aria-invalid')).toBe('false');
 });
-it('shows the field limit and flags overflow at the field instead of cutting text (W148-7)', () => {
+it('shows the field limit and flags overflow at the field instead of cutting text', () => {
   const heading = 'x'.repeat(161);
   const { container } = render(createElement(SlotEditor, { id: 'home.hero', value: { sourceLocale: 'pl', pl: { kind: 'hero', heading, eyebrow: 'abc', body: '', steps: [] } }, onChange: vi.fn() }));
   const input = screen.getByRole('textbox', { name: 'sectionNames.hero · PL · heading' }) as HTMLInputElement;
@@ -56,7 +56,7 @@ it('shows the field limit and flags overflow at the field instead of cutting tex
   expect(container.querySelector(`[id="${eyebrow.getAttribute('aria-describedby')}"]`)?.textContent).toBe('charCount');
 });
 
-it('explains at the section list when the opening section is moved away from the top (W224-B1)', async () => {
+it('explains at the section list when the opening section is moved away from the top', async () => {
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
   const { fireEvent } = await import('@testing-library/react');
   const { default: StorefrontEditor } = await import('@/components/storefront-editor/StorefrontEditor');

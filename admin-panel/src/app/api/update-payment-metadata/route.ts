@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
       // Validated with requireAll=true so required fields must be filled
       // before checkout.confirm() is allowed to proceed.
       customFieldValues,
-      // W223a invoice section of the standard checkout; when present it replaces the flat fields above.
+      // Invoice section of the standard checkout; when present it replaces the flat fields above.
       invoice,
     } = await readJsonBody<any>(request);
 
@@ -241,11 +241,11 @@ export async function POST(request: NextRequest) {
     }
     // The rules follow the product configuration on the server, never the shape of the request:
     // a checkout profile validates its modules; every other checkout runs the invoice section,
-    // also when an older client sends the flat fields (W223ar #2).
+    // also when an older client sends the flat fields.
     const usesProfile = !isSubscription && profileProduct?.checkout_profile != null;
     let standard: { buyer: BuyerDetails; metadata: Record<string, string>; recipientToStore: StoredRecipient | null } | null = null;
     if (!usesProfile) {
-      // A subscription has no pending order row to keep a recipient on, so it never takes one (W223ar #7).
+      // A subscription has no pending order row to keep a recipient on, so it never takes one.
       const recipientEnabled = !isSubscription && await readInvoiceRecipientEnabled(createAdminClient());
       const section = validateInvoiceSection(
         invoice !== undefined ? invoice : invoiceSectionFromFlatFields({ needsInvoice, nip, companyName, address, city, postalCode, country }),

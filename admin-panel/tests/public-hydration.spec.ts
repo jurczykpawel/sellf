@@ -91,7 +91,7 @@ for (const locale of ['pl', 'en'] as const) {
       await expect(buyer).toBeEnabled();
       await buyer.selectOption('organization');
       await page.locator('[id="buyer.first_name"]').fill('Jan');
-      // The organization uses the standard invoice section (W223b): manual path for the company.
+      // The organization uses the standard invoice section: manual path for the company.
       await page.getByRole('button', { name: locale === 'pl' ? 'Nie mam NIP albo firma jest spoza UE' : 'I have no NIP or the company is outside the EU' }).click();
       await page.locator('#companyName').fill('Example workshop');
       await page.locator('#phone').fill('500100200');

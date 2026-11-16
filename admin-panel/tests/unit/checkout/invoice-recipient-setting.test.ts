@@ -1,6 +1,6 @@
 /**
- * W223a: "collect the invoice recipient" is a shop setting, OFF by default (owner 10.11: rare,
- * mostly public institutions). Stored in shop_config.custom_settings without touching other keys
+ * "Collect the invoice recipient" is a shop setting, OFF by default (rarely needed,
+ * mostly by public institutions). Stored in shop_config.custom_settings without touching other keys
  * (the database side is covered by invoice-recipient-setting.integration.test.ts).
  * @see src/lib/checkout/invoice-recipient-setting.ts
  */
@@ -26,7 +26,7 @@ describe('invoice recipient shop setting @J622', () => {
     expect(await readInvoiceRecipientEnabled(db)).toBe(false);
   });
 
-  it('saving goes through the one atomic database call, never a direct table write (W223c)', async () => {
+  it('saving goes through the one atomic database call, never a direct table write', async () => {
     const { db, rpc, from } = client({ id: 'cfg', custom_settings: { default_locale: 'pl' } });
     expect(await changeInvoiceRecipientEnabled(db, true, { performedBy: '00000000-0000-4000-8000-000000000001', details: { auth: 'session' } })).toEqual({ ok: true });
     expect(rpc).toHaveBeenCalledWith('set_invoice_recipient_enabled', { p_enabled: true, p_performed_by: '00000000-0000-4000-8000-000000000001', p_details: { auth: 'session' } });

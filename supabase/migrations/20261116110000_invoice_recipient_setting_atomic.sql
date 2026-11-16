@@ -1,9 +1,8 @@
--- W223c (release 11.1): the shop setting "collect a different invoice recipient" and its audit entry
+-- The shop setting "collect a different invoice recipient" and its audit entry
 -- are saved in ONE transaction. The shop_config row is locked, only the one key in custom_settings is
 -- changed (jsonb_set — other keys and parallel changes of other settings stay), and the audit_log
 -- insert runs in the same statement: when it fails (e.g. performed_by is not an auth user) nothing is
--- saved and the caller gets the error. Replaces the compensating rollback, which could undo a parallel,
--- successful change (W223br P2). Shared by the panel action and PATCH /api/v1/settings/checkout.
+-- saved and the caller gets the error. Shared by the panel action and PATCH /api/v1/settings/checkout.
 --
 -- @see admin-panel/src/lib/checkout/invoice-recipient-setting.ts
 

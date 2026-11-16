@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { productOptionLabel } from '@/lib/access/product-option-label';
 
 const text = { free: 'Darmowy', subscription: 'Subskrypcja' };
-it('labels a free product in the interface language (W224-B11)', () => {
+it('labels a free product in the interface language', () => {
   expect(productOptionLabel({ name: 'Ebook', price: 0, currency: 'PLN', product_type: 'one_time' }, 'pl', text)).toBe('Ebook (Darmowy)');
 });
 it('does not call a subscription with a zero start price free', () => {

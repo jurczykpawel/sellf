@@ -27,6 +27,26 @@ it.each(['awaiting_payment', 'cancelled'])('associates a mismatched booked amoun
   expect(amount.getAttribute('aria-invalid')).toBe('false');
   expect(screen.queryByText('amountMismatch')).toBeNull();
 });
+it.each(['awaiting_payment', 'cancelled'])('brings a mismatched booked amount into view and focus for %s', async status => {
+  const scrolled: Element[] = [];
+  const scroll = vi.spyOn(Element.prototype, 'scrollIntoView').mockImplementation(function (this: Element) { scrolled.push(this); });
+  try {
+    render(createElement(BankTransferSection, { transaction: { id: 'tx', amount: 10000, currency: 'PLN', payment_provider: 'bank_transfer', status, created_at: '2026-11-01' } as PaymentTransaction, onRefresh: vi.fn() }));
+    const amount = screen.getByRole('spinbutton');
+    fireEvent.change(amount, { target: { value: '99.99' } });
+    fireEvent.change(screen.getByLabelText('paidAt'), { target: { value: '2026-11-09' } });
+    if (status === 'cancelled') fireEvent.change(screen.getByLabelText('lateReason'), { target: { value: 'Received late' } });
+    await act(async () => { fireEvent.submit(amount.closest('form')!); });
+    const error = document.getElementById(amount.getAttribute('aria-describedby')!);
+    expect(document.activeElement).toBe(amount);
+    expect(scrolled).toContain(error);
+    // A second refused attempt brings it back again.
+    amount.blur(); scrolled.length = 0;
+    await act(async () => { fireEvent.submit(amount.closest('form')!); });
+    expect(document.activeElement).toBe(amount);
+    expect(scrolled).toHaveLength(1);
+  } finally { scroll.mockRestore(); }
+});
 it.each([
   ['awaiting_payment', 'markPaid'], ['awaiting_payment', 'cancel'],
   ['awaiting_payment', 'markInvoiceIssued'], ['cancelled', 'acceptLate'],

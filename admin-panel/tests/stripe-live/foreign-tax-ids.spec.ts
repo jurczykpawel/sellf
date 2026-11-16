@@ -8,7 +8,7 @@ import { validateModuleValues } from '@/lib/checkout-modules/registry';
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 for (const [country, nip] of [['DE', 'DE000000000'], ['PL', '5252248481']] as const) {
   test(`profile ${country} sends the buyer country and VAT number to Stripe Customer`, async () => {
-    const result = validateModuleValues(checkoutProfileSchema.parse({ v: 1, modules: [{ id: 'buyer', types: ['organization'], gus: false }] }),
+    const result = validateModuleValues(checkoutProfileSchema.parse({ v: 1, modules: [{ id: 'buyer', types: ['organization'] }] }),
       { buyer: { type: 'organization', company_name: 'Test Company', country, nip, address: 'Street 1', city: 'City', postal_code: country === 'DE' ? '10115' : '00-001' } },
       { locale: 'en', currency: 'PLN', quantity: 1 });
     expect(result.success).toBe(true);

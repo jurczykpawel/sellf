@@ -219,7 +219,7 @@ export function validatePrice(price: unknown): ValidationResult {
 }
 
 /** Zero-decimal currencies (JPY, KRW, VND...) cannot carry fractional prices: Stripe would charge a different amount than stored. */
-/** Longest license validity a product may declare (100 years); `null` = no expiry. W146 B7. */
+/** Longest license validity a product may declare (100 years); `null` = no expiry. */
 export const MAX_LICENSE_DURATION_DAYS = 36500;
 export function licenseDurationError(days: number | null | undefined): 'license_duration' | null {
   if (days == null) return null;

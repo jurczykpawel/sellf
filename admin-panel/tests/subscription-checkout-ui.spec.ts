@@ -261,7 +261,7 @@ test.describe('guest checkout variants', () => {
     await page.locator('input#checkoutEmail').fill(`subscription-checkout-${Date.now()}@gmail.com`);
     await expect(page.locator('input#fullName')).toBeVisible({ timeout: 30000 });
     await page.locator('input#fullName').fill('Subscription Buyer');
-    const termsCb = page.locator('input[type="checkbox"]').first();
+    const termsCb = page.getByRole('checkbox', { name: /Zgadzam|I agree|Akceptuję/ });
     if ((await termsCb.count()) > 0) await termsCb.check();
     // Subscription CTA must say "Subskrybuj", NOT "Zapłać" — recurrence signal.
     const cta = page.getByRole('button', { name: /Subskrybuj|Subscribe/i });
@@ -283,7 +283,7 @@ test.describe('guest checkout variants', () => {
     await expect(page.locator('input#checkoutEmail')).toBeVisible({ timeout: 30000 });
     await page.locator('input#checkoutEmail').fill(`paid-${Date.now()}@gmail.com`);
     await page.locator('input#fullName').fill('Paid Buyer');
-    const termsCb = page.locator('input[type="checkbox"]').first();
+    const termsCb = page.getByRole('checkbox', { name: /Zgadzam|I agree|Akceptuję/ });
     if ((await termsCb.count()) > 0) await termsCb.check();
     const cta = page.getByRole('button', { name: /Zapłać|Pay/i });
     await expect(cta).toBeVisible({ timeout: 30000 });
@@ -320,7 +320,7 @@ test.describe('guest checkout variants', () => {
     await expect(page.locator('input#checkoutEmail')).toBeVisible({ timeout: 30000 });
     await page.locator('input#checkoutEmail').fill('buyer@mailinator.com');
     await page.locator('input#fullName').fill('Buyer Testowy');
-    const termsCb = page.locator('input[type="checkbox"]').first();
+    const termsCb = page.getByRole('checkbox', { name: /Zgadzam|I agree|Akceptuję/ });
     if ((await termsCb.count()) > 0) await termsCb.check();
     await page.getByRole('button', { name: /Zapłać|Pay|Subskrybuj|Subscribe/i }).click();
 

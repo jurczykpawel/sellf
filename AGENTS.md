@@ -252,8 +252,7 @@ control availability. Checkout shares buyer state across payment methods.
 61 days, with no login and no indexing. Auth access mails carry `transfer_text` via
 `prepare_event_mail`; each preparation clears older instructions.
 
-**Unpaid transfer lifecycle** (migration `20261110235905_release_2026_11_0_fulfillment_core.sql`, owner decisions
-2026-11-03): event transfer orders get a seller-configured timed reservation (`reminder_at`/`release_at`,
+**Unpaid transfer lifecycle** (migration `20261110235905_release_2026_11_0_fulfillment_core.sql`): event transfer orders get a seller-configured timed reservation (`reminder_at`/`release_at`,
 `bank_transfer_config.reservation_*`, default 24 h / 48 h); `payment_due_at` stays the due-days term. Cron
 `transfer-reservations` (every 5 min) sends `order.payment_reminder` + reminder mail, then
 `release_unpaid_transfer(id, now)` cancels with `cancel_reason='payment_window_expired'` (seat, coupon and
@@ -525,7 +524,7 @@ Use `createClient()` from appropriate Supabase client:
 7. **Error Handling**: Never expose sensitive information in error messages
 8. **No Workarounds**: NEVER implement quick fixes or workarounds just to make something work. Always find and fix the root cause. Follow best practices and maintain code quality. Update dependencies when needed instead of patching around issues.
 
-### Integrations: webhooks, not direct integrations (owner 2026-10-28)
+### Integrations: webhooks, not direct integrations
 
 Sellf does **not** build direct integrations with external systems (invoicing, CRM, mailing, accounting…) — every
 system has too many cases to support. Sellf emits a signed webhook for **every** business event and status change
@@ -595,7 +594,7 @@ Manual license domains follow the product's `_sellf_license_domain` definition; 
 
 ### Database Migrations
 
-#### Release migration policy (MANDATORY — owner decision 2026-11-11)
+#### Release migration policy (MANDATORY)
 
 Sellers update Sellf themselves from the admin panel, so an upgrade must be all-or-nothing and
 the migration history must stay reviewable. Rules:
@@ -628,7 +627,7 @@ the migration history must stay reviewable. Rules:
    insert or change such rows, the proof is the upgrade rehearsal on a copy of production data
    (point 9 and the sellf-release skill).
 5. **Shared test environments (TEST, demo) never get migrations applied or registered by hand.**
-   Never mark migrations as applied in their registry (owner decision 2026-11-11: it hides failures).
+   Never mark migrations as applied in their registry (it hides failures).
    They get a real update with the release runner: a candidate goes there only as a real upgrade,
    and an environment that received unreleased migrations is reset to the released schema and
    upgraded for real.
@@ -1401,7 +1400,7 @@ Python (Flask + Django), and cURL.
 ### Purchase attribution (where purchases came from)
 
 Every order stores an **immutable source snapshot** (`public.purchase_attribution`, one row per
-transaction, plus `kind='free'` rows for free grants). Owner decisions 2026-11-03:
+transaction, plus `kind='free'` rows for free grants). Rules:
 no cookie consent → source only from the URL that opened the checkout; analytics consent → first
 and last touch kept by the collector in the seller's own `localStorage`; ad click ids only with
 marketing consent, erased after `attribution_settings.click_id_retention_days` (default 30);

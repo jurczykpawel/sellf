@@ -1,8 +1,8 @@
 /**
- * W223b part 2 (i)+(ii): the checkout profile (online payment and bank transfer) uses the same
+ * The checkout profile (online payment and bank transfer) uses the same
  * invoice rules and error codes as the standard checkout section: on the NIP path the number decides
  * the country, the manual path checks a chosen country, the address is always complete, and a
- * different recipient (an institution) always carries a Polish NIP (owner decision c, 16.11).
+ * different recipient (an institution) always carries a Polish NIP.
  *
  * @see src/lib/checkout/invoice-section.ts
  * @see src/lib/checkout-modules/buyer.ts

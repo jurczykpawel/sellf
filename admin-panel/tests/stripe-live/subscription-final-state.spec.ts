@@ -61,7 +61,7 @@ test('paid subscription delivers its license, full refund ends management and a 
 
     const disputeEmail = `dispute-final-${run}@example.com`;
     expect((await db.from('products').insert({id:disputeProductId,name:'Dispute workshop',slug:`dispute-${run}`,price:11,currency:'PLN',is_active:true,auto_grant_duration_days:30})).error).toBeNull();
-    disputeIntent = await stripe.paymentIntents.create({amount:1100,currency:'pln',payment_method:'pm_card_createDispute',payment_method_types:['card'],confirm:true});
+    disputeIntent = await stripe.paymentIntents.create({amount:1100,currency:'pln',payment_method:'pm_card_createDispute',automatic_payment_methods:{enabled:true,allow_redirects:'never'},confirm:true});
     expect(disputeIntent.status).toBe('succeeded');
     const charge = typeof disputeIntent.latest_charge === 'string' ? disputeIntent.latest_charge : disputeIntent.latest_charge!.id;
     const transaction = await db.from('payment_transactions').insert({product_id:disputeProductId,customer_email:disputeEmail,session_id:disputeIntent.id,

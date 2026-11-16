@@ -1,5 +1,5 @@
 /**
- * Shop setting "collect a different invoice recipient" (owner 10.11): OFF by default, switched on
+ * Shop setting "collect a different invoice recipient": OFF by default, switched on
  * by the seller (mostly public institutions: the municipality buys, the school receives). Lives in
  * shop_config.custom_settings, which anon cannot read; the checkout reads it with the service role.
  *

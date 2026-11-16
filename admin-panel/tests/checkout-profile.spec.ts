@@ -55,7 +55,7 @@ async function open(page: Page, quantity = 1) {
   await page.route('https://api.stripe.com/**/confirm', route => route.abort());
   return (await response.json()).checkoutSessionId as string;
 }
-/** The organization buyer and the recipient use the standard invoice section (W223b). GUS is mocked as "not found". */
+/** The organization buyer and the recipient use the standard invoice section. GUS is mocked as "not found". */
 const SECTION_IDS = {
   buyer: { nip: 'nip', company_name: 'companyName', address: 'address', postal_code: 'postalCode', city: 'city' },
   recipient: { nip: 'recipientNip', company_name: 'recipientCompanyName', address: 'recipientAddress', postal_code: 'recipientPostalCode', city: 'recipientCity' },
@@ -375,7 +375,7 @@ test('product without profile retains the original form', async ({ page }) => {
   expect((await db.from('products').update({ checkout_profile: null }).eq('id', product.id)).error).toBeNull();
   await open(page);
   await expect(page.locator('#fullName')).toBeVisible();
-  // The standard invoice section (W223a) opens the NIP field with "I want a company invoice".
+  // The standard invoice section opens the NIP field with "I want a company invoice".
   await expect(page.locator('#wantInvoice')).toBeVisible();
   await page.locator('#wantInvoice').check();
   await expect(page.locator('#nip')).toBeVisible();

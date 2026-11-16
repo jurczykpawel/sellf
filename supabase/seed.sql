@@ -66,7 +66,7 @@ ON CONFLICT DO NOTHING;
 -- ================================
 -- Inserted AFTER the admin so the first-user-becomes-admin trigger has
 -- already fired. Used by tests/api/pentest-regression.test.ts to assert
--- RLS / IDOR / cross-tenant boundaries from a regular buyer's perspective.
+-- RLS and per-user access boundaries from a regular buyer's perspective.
 -- Credentials: buyer@demo.sellf.app / demo1234
 
 INSERT INTO auth.users (

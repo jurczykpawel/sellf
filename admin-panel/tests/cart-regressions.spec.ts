@@ -32,7 +32,7 @@ function remember(body: { checkoutSessionId?: string; sessionId?: string }) {
   const id = body.checkoutSessionId ?? body.sessionId;
   if (id?.startsWith('cs_')) sessions.add(id);
 }
-/** The organization fills the standard invoice section (W223b); GUS answers "not found", so the address is typed. */
+/** The organization fills the standard invoice section; GUS answers "not found", so the address is typed. */
 async function fillBuyer(page: Page) {
   await page.route('**/api/gus/fetch-company-data', route => route.fulfill({ status: 404, json: { success: false, code: 'NOT_FOUND' } }));
   await page.locator('#nip').fill(company.nip);

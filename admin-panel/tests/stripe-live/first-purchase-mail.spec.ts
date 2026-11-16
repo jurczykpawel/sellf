@@ -186,7 +186,7 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
       expect(mail.HTML).toContain('https://example.com/first-mail-room');
     }
     if (kind === 'transfer') {
-      expect(mail.HTML).toContain('PL61 1090 1014 0000 0712 1981 2874'); // grouped in fours since W137
+      expect(mail.HTML).toContain('PL61 1090 1014 0000 0712 1981 2874'); // grouped in fours
       expect(mail.HTML).toContain('Bank transfer instructions');
     }
     let paidEnd: number | undefined;
