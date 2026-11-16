@@ -20,6 +20,14 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
   const [amount, setAmount] = useState(String(fromMinorUnits(tx.amount, tx.currency))), [paidAt, setPaidAt] = useState(''), [reason, setReason] = useState('');
   const amountErrorId = useId();
   const [amountError, setAmountError] = useState('');
+  const amountRef = useRef<HTMLInputElement>(null), amountErrorRef = useRef<HTMLParagraphElement>(null);
+  const [amountRefusals, setAmountRefusals] = useState(0);
+  // Every refused amount is shown where the seller looks: the field takes focus and its message scrolls into view.
+  useEffect(() => {
+    if (!amountRefusals) return;
+    amountRef.current?.focus({ preventScroll: true });
+    amountErrorRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [amountRefusals]);
   const [lateReason, setLateReason] = useState('');
   const lock = useRef(false);
   const [pending, setPending] = useState<string | null>(null);
@@ -48,7 +56,7 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
     if (lock.current) return;
     setMessage('');
     setAmountError('');
-    if ((action === 'mark-paid' || action === 'accept-late') && toMinorUnits(Number(amount), tx.currency) !== tx.amount) { setAmountError(t('amountMismatch')); return; }
+    if ((action === 'mark-paid' || action === 'accept-late') && toMinorUnits(Number(amount), tx.currency) !== tx.amount) { setAmountError(t('amountMismatch')); setAmountRefusals(n => n + 1); return; }
     if ((action === 'mark-paid' || action === 'accept-late') && orderDay && paidAt && paidAt < orderDay) { setMessage(failure('paid_at_before_order')); return; }
     if ((action === 'mark-paid' || action === 'accept-late') && paidAt > today) { setMessage(failure('paid_at_future')); return; }
     lock.current = true;
@@ -69,8 +77,8 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
   }
   if (tx.payment_provider !== 'bank_transfer') return null;
   const paidFields = <>
-    <div><label>{t('bookedAmount')} ({tx.currency})<input className={input} type="number" min="0" step={currencyExponent(tx.currency) === 0 ? '1' : '0.01'} required value={amount} aria-invalid={!!amountError} aria-describedby={amountError ? amountErrorId : undefined} onChange={e => { setAmount(e.target.value); setAmountError(''); }} /></label>
-    {amountError && <p id={amountErrorId} role="alert" className="mt-1 text-sm text-sf-danger">{amountError}</p>}</div>
+    <div><label>{t('bookedAmount')} ({tx.currency})<input ref={amountRef} className={input} type="number" min="0" step={currencyExponent(tx.currency) === 0 ? '1' : '0.01'} required value={amount} aria-invalid={!!amountError} aria-describedby={amountError ? amountErrorId : undefined} onChange={e => { setAmount(e.target.value); setAmountError(''); }} /></label>
+    {amountError && <p ref={amountErrorRef} id={amountErrorId} role="alert" className="mt-1 text-sm text-sf-danger">{amountError}</p>}</div>
     <label>{t('paidAt')}<input className={input} type="date" required min={orderDay} max={today} value={paidAt} onChange={e => setPaidAt(e.target.value)} /></label>
   </>;
   return <section aria-label={t('title')}>
