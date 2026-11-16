@@ -11,13 +11,32 @@ For Claude Code, Claude Desktop, Codex and Cursor setup with scoped keys and tes
 
 **Features:**
 - 60+ endpoints covering all admin operations
-- Fine-grained API keys with 13 permission scopes
+- Fine-grained API keys with per-area permission scopes
 - Zero-downtime key rotation with grace period
 - Per-key rate limiting (1–1000 req/min)
 - Cursor-based pagination
-- OpenAPI 3.1 specification
+- OpenAPI 3.1 description at `/api/v1/openapi.json` (see [API description for agents](#api-description-for-agents))
 
 Customer checkout, embedded checkout, Stripe webhook, waitlist signup, and subscription self-service routes live outside `/api/v1` because they use browser sessions, public tokens, or Stripe signatures instead of API keys.
+
+---
+
+## API description for agents
+
+Every instance publishes a machine-readable description of this API:
+
+```
+GET https://your-domain.com/api/v1/openapi.json
+```
+
+It is OpenAPI 3.1, public (no key needed), contains no data or secrets, and is cached for five minutes (`ETag` supported). Point an agent or code generator at it instead of copying endpoint lists:
+
+- each operation has a stable `operationId` (e.g. `create_product`, `update_offer_draft`, `publish_template`) and belongs to a group (`tags`) with a short description;
+- `x-required-scope` names the API key scope the operation needs; calls use `Authorization: Bearer sf_live_...`;
+- request bodies and responses for products, product offers and storefront templates are full JSON Schemas generated from the same validators the server uses; other groups document parameters, and bodies where a validator exists;
+- `x-mcp: { exclude: true }` marks operations an agent should not call (key management, CSV export, the description itself).
+
+The description is generated from one registry in the code. A CI test fails when a route has no entry there, or when the documented scope or query parameters differ from what the route checks, so the file stays in step with the release you run.
 
 ---
 

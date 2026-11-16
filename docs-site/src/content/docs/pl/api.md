@@ -5,6 +5,23 @@ description: "Jednostki kwot i zgodność danych wejściowych API Sellf v1."
 
 API administracyjne Sellf jest dostępne pod adresem `https://twoja-domena.pl/api/v1`. Wysyłaj klucz API w nagłówku `Authorization: Bearer sf_live_...` lub `X-API-Key`. [Pełna lista endpointów, uprawnień i przykładów (EN)](/api/).
 
+## Opis API dla agentów
+
+Każda instancja publikuje maszynowy opis tego API:
+
+```
+GET https://twoja-domena.pl/api/v1/openapi.json
+```
+
+To OpenAPI 3.1: publiczny (bez klucza), bez danych i sekretów, buforowany przez pięć minut (obsługuje `ETag`). Wskaż go agentowi albo generatorowi klienta zamiast przepisywać listę endpointów:
+
+- każda operacja ma stały `operationId` (np. `create_product`, `update_offer_draft`, `publish_template`) i należy do grupy (`tags`) z krótkim opisem;
+- `x-required-scope` podaje uprawnienie klucza API potrzebne do operacji; wywołania z nagłówkiem `Authorization: Bearer sf_live_...`;
+- treść żądań i odpowiedzi dla produktów, ofert produktów i szablonów sklepu to pełne schematy JSON generowane z tych samych walidatorów, których używa serwer; pozostałe grupy opisują parametry, a treść żądania tam, gdzie istnieje walidator;
+- `x-mcp: { exclude: true }` oznacza operacje, których agent nie powinien wywoływać (zarządzanie kluczami, eksport CSV, sam opis).
+
+Opis powstaje z jednego rejestru w kodzie. Test w CI nie przepuści trasy bez wpisu w rejestrze ani różnicy między opisanym uprawnieniem lub parametrami zapytania a tym, co trasa faktycznie sprawdza, więc plik zgadza się z wersją, którą masz zainstalowaną.
+
 ## Ustawienia koszyka
 
 `GET /settings/checkout` (`system:read`) zwraca `{ "invoice_recipient_enabled": false }`.

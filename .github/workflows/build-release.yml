@@ -75,6 +75,10 @@ jobs:
         working-directory: ./admin-panel
         run: bun run lint
 
+      - name: API contract (OpenAPI registry matches every v1 route)
+        working-directory: ./admin-panel
+        run: bun run test:api-contract
+
       - name: Dependency audit (admin-panel)
         working-directory: ./admin-panel
         # Blocking: audits the real bun.lock (not a generated package-lock.json)

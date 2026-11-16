@@ -113,6 +113,7 @@ const PUBLIC_ROUTES = new Set([
   'gus/fetch-company-data/route.ts',          // NIP autofill for checkout — public, rate-limited
   'loginwall/login.js/route.ts',              // Login wall loader script — per-product, rate-limited, no secrets
   'licenses/jwks/route.ts',                   // Seller license public keys — public keys only, rate-limited
+  'v1/openapi.json/route.ts',                 // OpenAPI description of API v1 — no data or secrets, rate-limited
   'licenses/revoked/route.ts',                // Seller revocation list — public, rate-limited
   'loginwall/gate.js/route.ts',               // Element gating runtime script — per-product, rate-limited, no secrets
 ]);
@@ -152,7 +153,8 @@ const allRoutes = findRoutes(API_DIR);
 function isAdminRoute(rel: string): boolean {
   return ADMIN_ROUTE_PREFIXES.some(p => rel.startsWith(p)) &&
     !CRON_OR_SECRET_ROUTES.has(rel) &&
-    !SPECIAL_AUTH_ROUTES.has(rel);
+    !SPECIAL_AUTH_ROUTES.has(rel) &&
+    !PUBLIC_ROUTES.has(rel); // explicitly public, even under an admin prefix (v1/openapi.json)
 }
 
 function isKnownRoute(rel: string): boolean {

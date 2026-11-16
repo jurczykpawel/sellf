@@ -130,6 +130,35 @@ export const ProductCategoriesSchema = z.array(z.string().uuid()).max(50).option
 export const ProductTagsSchema = z.array(z.string().uuid()).max(50).optional();
 export const BundleItemIdsSchema = z.array(z.string().uuid()).max(100).optional();
 
+/** Relation fields accepted next to the product columns on POST/PATCH; stored in junction tables. */
+export const ProductRelationsDTO = z.object({
+  categories: ProductCategoriesSchema.describe('Category UUIDs (PATCH replaces the whole set)'),
+  tags: ProductTagsSchema.describe('Tag UUIDs (PATCH replaces the whole set)'),
+  bundleItemIds: BundleItemIdsSchema.describe('Component product UUIDs of a bundle (is_bundle: true)'),
+});
+
+const embeddedTerm = z.object({ id: z.uuid(), name: z.string(), slug: z.string() }).loose();
+
+/** GET /api/v1/products/:id/deletion-impact (SQL product_deletion_impact). */
+export const ProductDeletionImpactDTO = z.object({
+  orders: z.number().int(), invoices: z.number().int(), licenses: z.number().int(), accesses: z.number().int(), subscriptions: z.number().int(),
+  hasHistory: z.boolean().describe('true: DELETE archives the product instead of deleting it'),
+});
+
+/** DELETE /api/v1/products/:id of a product with history: archived, not deleted (200). */
+export const ProductArchivedDTO = z.object({ id: z.uuid(), status: z.literal('archived'), impact: ProductDeletionImpactDTO });
+
+/** Product as returned by /api/v1/products (the writable columns plus server-managed fields). */
+export const ProductResponseDTO = z.object(baseShape).extend({
+  id: z.uuid(),
+  archived_at: z.string().nullable().optional().describe('Set when the product is archived (DELETE of a product with history)'),
+  created_at: z.string(),
+  updated_at: z.string(),
+  categories: z.array(embeddedTerm).optional().describe('Present with ?embed=categories'),
+  tags: z.array(embeddedTerm).optional().describe('Present with ?embed=tags'),
+  bundle_item_count: z.number().int().optional().describe('List rows: number of bundle components'),
+}).loose();
+
 const DATE_FIELDS = ['available_from', 'available_until', 'sale_price_until'] as const;
 
 function normaliseEmptyDates(row: Record<string, unknown>): Record<string, unknown> {

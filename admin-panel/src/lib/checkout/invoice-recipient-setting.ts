@@ -9,12 +9,18 @@
  * @see supabase/migrations/20261116110000_invoice_recipient_setting_atomic.sql (atomic change + audit)
  */
 
+import { z } from 'zod';
 import type { createAdminClient } from '@/lib/supabase/admin';
 import type { Json } from '@/types/database';
 
 export const INVOICE_RECIPIENT_SETTING = 'invoice_recipient_enabled';
 
 /** Service-role client (set_invoice_recipient_enabled is service_role only). */
+/** Checkout settings as read and written by /api/v1/settings/checkout (PATCH body, GET data). */
+export const checkoutSettingsSchema = z.object({
+  invoice_recipient_enabled: z.boolean().describe('Collect a separate invoice recipient (institutions, always with a NIP). Off by default.'),
+}).strict();
+
 export type SettingsClient = Pick<ReturnType<typeof createAdminClient>, 'from' | 'rpc'>;
 
 function asObject(value: unknown): Record<string, unknown> {

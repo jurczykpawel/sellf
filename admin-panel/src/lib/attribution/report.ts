@@ -28,7 +28,8 @@ export interface AttributionReportQuery {
 }
 
 const isoDate = z.string().max(40).refine(v => !Number.isNaN(Date.parse(v)), 'Invalid date');
-const querySchema = z.object({
+/** Query of GET /api/v1/analytics/attribution; also documents it in OpenAPI. */
+export const attributionQuerySchema = z.object({
   days: z.coerce.number().int().min(1).max(MAX_RANGE_DAYS).optional(),
   from: isoDate.optional(),
   to: isoDate.optional(),
@@ -41,9 +42,9 @@ export type ParseResult<T> = { ok: true; value: T } | { ok: false; error: string
 
 /** Parses `days | from,to`, `touch`, `group_by` (CSV) and `product_id`. Default: last 30 days. */
 export function parseAttributionQuery(params: URLSearchParams, now = new Date()): ParseResult<AttributionReportQuery> {
-  const raw = Object.fromEntries(['days', 'from', 'to', 'touch', 'group_by', 'product_id']
+  const raw = Object.fromEntries(Object.keys(attributionQuerySchema.shape)
     .map(k => [k, params.get(k) ?? undefined]).filter(([, v]) => v !== undefined && v !== ''));
-  const parsed = querySchema.safeParse(raw);
+  const parsed = attributionQuerySchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? 'Invalid query' };
   const q = parsed.data;
   const to = q.to ? new Date(q.to) : now;

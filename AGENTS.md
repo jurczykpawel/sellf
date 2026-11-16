@@ -988,6 +988,21 @@ endpoints. Unknown policies/keys cannot activate. Q2 still blocks real sale pins
 synthetic fixtures grant no shipped A/B/C entry. Key rotation requires reviewed
 operator pins; background revocation requests use bounded bodies/timeouts.
 
+### API v1 operation registry (OpenAPI)
+
+Every `/api/v1` route handler has one entry in `admin-panel/src/lib/api/openapi/operations.ts`
+(`operationId`, group, `x-required-scope`, summary, query, body, response). Bodies, queries and
+responses reference the route's own zod validators — never a hand-written copy; routes that still
+validate by hand carry a short `bodyHint`. `src/lib/api/openapi/spec.ts` turns the registry into
+OpenAPI 3.1, served publicly at `GET /api/v1/openapi.json` (relative server URL, ETag, 5-min cache).
+
+**Adding or changing a v1 route = updating its registry entry.** `bun run test:api-contract`
+(in PR CI and the release build) fails on a route without an entry or a stale entry, on a scope
+or query parameter that differs from what the route source checks/reads (static rules in
+`tests/unit/lib/api/route-inventory.ts`), and on an invalid OpenAPI document. A validator you
+want in the document must be exported from `src/lib/` (route files may only export handlers).
+The generated MCP layer (W221b) reads `operationId`, `x-required-scope` and `x-mcp.exclude`.
+
 ### Runtime Configuration
 
 **RuntimeConfig API** (`/api/runtime-config`):

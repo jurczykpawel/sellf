@@ -21,6 +21,7 @@
     "test:ui": "playwright test --ui",
     "test:smoke": "playwright test tests/smoke --project=chromium --workers=2",
     "test:unit": "vitest run",
+    "test:api-contract": "vitest run tests/unit/lib/api/openapi-contract.test.ts tests/unit/lib/api/openapi-route.test.ts",
     "test:upgrade-matrix": "scripts/run-upgrade-matrix.sh",
     "test:unit:watch": "vitest",
     "test:unit:coverage": "vitest run --coverage",
@@ -81,6 +82,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "^1.65.0",
+    "@seriousme/openapi-schema-validator": "2.11.0",
     "@testing-library/react": "^16.3.3",
     "@types/node": "^26.6.6",
     "@types/react": "19.3.0",

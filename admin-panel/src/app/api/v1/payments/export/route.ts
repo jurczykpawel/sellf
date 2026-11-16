@@ -5,7 +5,6 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 import {
   handleCorsPreFlight,
   apiError,
@@ -17,21 +16,11 @@ import {
   getApiCorsHeaders,
 } from '@/lib/api';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limiting';
-import { paymentSearchQuery, VALID_PAYMENT_STATUSES } from '@/lib/payments/search';
+import { paymentSearchQuery, VALID_PAYMENT_STATUSES, exportFiltersSchema } from '@/lib/payments/search';
 import { currencyExponent, fromMinorUnits } from '@/lib/currency/minor-units';
 import { resolveCurrentTier } from '@/lib/license/resolve';
 import { hasFeature } from '@/lib/license/features';
 import { buildCsv } from '@/lib/csv/sanitize';
-
-const exportFiltersSchema = z.object({
-  status: z.string().optional(),
-  searchTerm: z.string().max(200).optional(),
-  search: z.string().max(200).optional(),
-  product_id: z.uuid().optional(),
-  date_from: z.string().refine(value => Number.isFinite(Date.parse(value))).optional(),
-  date_to: z.string().refine(value => Number.isFinite(Date.parse(value))).optional(),
-  dateRange: z.string().refine(value => value === 'all' || (/^\d+$/.test(value) && Number(value) > 0 && Number(value) <= 3650)).optional(),
-});
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
