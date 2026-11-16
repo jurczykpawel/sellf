@@ -107,5 +107,5 @@ BEGIN
   WHERE id = tx.id;
   RETURN 1;
 END $$;
-REVOKE ALL ON FUNCTION public.set_payment_order_details(jsonb, uuid, integer, text, text, jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.set_payment_order_details(jsonb, uuid, integer, text, text, jsonb) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.set_payment_order_details(jsonb, uuid, integer, text, text, jsonb) TO service_role;
