@@ -2022,8 +2022,44 @@
           "exitDiscard": "Odrzuć",
           "exitKeepEditing": "Kontynuuj edycję"
         },
+        "summary": {
+          "label": "Kupujący otrzyma:",
+          "sentence": "{text}.",
+          "access": "{what} {payment}",
+          "forDays": "{what} na {days, plural, one {# dzień} other {# dni}}",
+          "withoutDates": "{list}, bez wyboru terminu i uczestników",
+          "what": {
+            "product": "dostęp do produktu",
+            "content": "dostęp do {count, plural, one {# materiału} other {# materiałów}}",
+            "redirect": "przekierowanie do materiału",
+            "bundle": "dostęp do {count, plural, one {# produktu} other {# produktów}} z pakietu"
+          },
+          "payment": {
+            "oneTime": "po jednorazowej płatności",
+            "subscription": "w abonamencie",
+            "customPrice": "po wpłacie wybranej przez siebie kwoty",
+            "free": "za darmo"
+          },
+          "extras": {
+            "license": "klucz licencyjny",
+            "date": "wybór terminu",
+            "seats": "liczbę miejsc",
+            "buyer": "dane nabywcy",
+            "buyerAndRecipient": "dane nabywcy i odbiorcy",
+            "participantsLater": "możliwość późniejszego podania uczestników",
+            "participants": "listę uczestników do podania przed zapłatą",
+            "participantsOptional": "możliwość podania uczestników",
+            "transfer": "przelew tradycyjny",
+            "transferOrganization": "przelew dla organizacji",
+            "transferPerson": "przelew dla osób prywatnych"
+          }
+        },
         "sections": {
           "nav": "Sekcje produktu",
+          "counts": {
+            "fields": "{count, plural, one {# pole} few {# pola} many {# pól} other {# pola}}",
+            "dates": "{count, plural, one {# termin} few {# terminy} many {# terminów} other {# terminu}}"
+          },
           "basics": {
             "title": "Podstawy",
             "effect": "Nazwa, adres strony i cena. Kupujący widzi je na stronie produktu i w koszyku."
@@ -6072,7 +6108,7 @@
   },
   "events": {
     "modeUnavailable": "Tryb wydarzenia działa tylko dla produktu jednorazowego bez dowolnej ceny, który nie jest zestawem. Zmień typ produktu lub wyłącz dowolną cenę, aby go włączyć.",
-    "errors": {"starts_at": "Podaj datę i godzinę początku.", "ends_at": "Koniec musi być po początku.", "timezone": "Nieznana strefa czasowa (np. Europe/Warsaw).", "online_url": "Podaj pełny link zaczynający się od https://.", "capacity": "Pula miejsc musi być liczbą całkowitą większą od zera.", "sort": "Kolejność: liczba całkowita 0–10000.", "tiers": "Dodaj przynajmniej jeden próg cenowy.", "tier_price": "Cena nie może być ujemna.", "tier_seats": "Miejsca w progu: liczba całkowita większa od zera.", "tier_seats_capacity": "Próg nie może mieć więcej miejsc niż pula terminu.", "tier_sort": "Kolejność progów musi być unikalna (0–10000).", "tier_sale_ends_at": "Nieprawidłowa data końca sprzedaży.", "invalid": "Nieprawidłowa wartość."},
+    "errors": {"starts_at": "Podaj datę i godzinę początku.", "ends_at": "Koniec musi być po początku.", "timezone": "Nieznana strefa czasowa (np. Europe/Warsaw).", "online_url": "Podaj pełny link zaczynający się od https://.", "capacity": "Pula miejsc musi być liczbą całkowitą większą od zera.", "sort": "Kolejność: liczba całkowita 0–10000.", "tiers": "Dodaj przynajmniej jeden próg cenowy.", "tier_price": "Cena nie może być ujemna.", "tier_price_whole": "Cena w tej walucie musi być liczbą całkowitą.", "tier_seats": "Miejsca w progu: liczba całkowita większa od zera.", "tier_seats_capacity": "Próg nie może mieć więcej miejsc niż pula terminu.", "tier_sort": "Kolejność progów musi być unikalna (0–10000).", "tier_sale_ends_at": "Nieprawidłowa data końca sprzedaży.", "invalid": "Nieprawidłowa wartość."},
     "csvFilename": "uczestnicy",
     "csvPhone": "Telefon",
     "repeat": "Pozwól na ponowny zakup",

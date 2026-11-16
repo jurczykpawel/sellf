@@ -210,10 +210,11 @@ export function ContentDeliverySection({
       <div className="space-y-4">
         {/* Delivery type selector */}
         <div>
-          <label className="block text-sm font-medium text-sf-body mb-2">
+          <label htmlFor="content_delivery_type" className="block text-sm font-medium text-sf-body mb-2">
             {t('contentDeliveryType')}
           </label>
           <select
+            id="content_delivery_type"
             value={formData.content_delivery_type}
             onChange={handleContentTypeChange}
             className="w-full px-3 py-2.5 border-2 border-sf-border-medium focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent bg-sf-input text-sf-heading"
@@ -226,26 +227,28 @@ export function ContentDeliverySection({
         {/* Redirect URL input */}
         {formData.content_delivery_type === 'redirect' && (
           <div>
-            <label className="block text-sm font-medium text-sf-body mb-2">
+            <label htmlFor="redirect_url" className="block text-sm font-medium text-sf-body mb-2">
               {t('redirectUrl')}
             </label>
             <input
               type="text"
+              id="redirect_url"
+              aria-describedby="redirect_url-description"
               placeholder={t('redirectPlaceholder')}
               value={(formData.content_config as { redirect_url?: string })?.redirect_url || ''}
               onChange={handleRedirectUrlChange}
               className="w-full px-3 py-2.5 border-2 border-sf-border-medium focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent bg-sf-input text-sf-heading"
             />
-            <p className="mt-1 text-xs text-sf-muted">{t('redirectDescription')}</p>
+            <p id="redirect_url-description" className="mt-1 text-xs text-sf-muted">{t('redirectDescription')}</p>
           </div>
         )}
 
         {/* Content items list */}
         {formData.content_delivery_type === 'content' && (
           <div>
-            <label className="block text-sm font-medium text-sf-body mb-2">
+            <p className="block text-sm font-medium text-sf-body mb-2">
               {t('contentItems')}
-            </label>
+            </p>
 
             {hasVideoEmbeds && (
               <InfoBanner

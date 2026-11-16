@@ -2022,8 +2022,44 @@
           "exitDiscard": "Discard",
           "exitKeepEditing": "Keep Editing"
         },
+        "summary": {
+          "label": "Buyer gets:",
+          "sentence": "{text}.",
+          "access": "{what} {payment}",
+          "forDays": "{what} for {days, plural, one {# day} other {# days}}",
+          "withoutDates": "{list}, with no date or participants to choose",
+          "what": {
+            "product": "access to the product",
+            "content": "access to {count, plural, one {# item} other {# items}}",
+            "redirect": "a redirect to the material",
+            "bundle": "access to {count, plural, one {# product} other {# products}} in the bundle"
+          },
+          "payment": {
+            "oneTime": "after a one-time payment",
+            "subscription": "on a subscription",
+            "customPrice": "after paying an amount of their choice",
+            "free": "for free"
+          },
+          "extras": {
+            "license": "a license key",
+            "date": "a choice of date",
+            "seats": "a choice of seats",
+            "buyer": "buyer details to fill in",
+            "buyerAndRecipient": "buyer and recipient details to fill in",
+            "participantsLater": "the option to add participants after paying",
+            "participants": "a participant list to fill in before paying",
+            "participantsOptional": "the option to add participants",
+            "transfer": "bank transfer",
+            "transferOrganization": "bank transfer for organisations",
+            "transferPerson": "bank transfer for private buyers"
+          }
+        },
         "sections": {
           "nav": "Product sections",
+          "counts": {
+            "fields": "{count, plural, one {# field} other {# fields}}",
+            "dates": "{count, plural, one {# date} other {# dates}}"
+          },
           "basics": {
             "title": "Basics",
             "effect": "Name, page address and price. The buyer sees them on the product page and in the checkout."
@@ -6072,7 +6108,7 @@
   },
   "events": {
     "modeUnavailable": "Event mode works only for a one-time product that is not a bundle and has no pay-what-you-want price. Change the product type or turn off the custom price to use it.",
-    "errors": {"starts_at": "Enter the start date and time.", "ends_at": "End must be after the start.", "timezone": "Unknown time zone (e.g. Europe/Warsaw).", "online_url": "Enter a full link starting with https://.", "capacity": "Seat pool must be a whole number above zero.", "sort": "Order: a whole number 0–10000.", "tiers": "Add at least one price tier.", "tier_price": "Price cannot be negative.", "tier_seats": "Tier seats: a whole number above zero.", "tier_seats_capacity": "A tier cannot have more seats than the session pool.", "tier_sort": "Tier order must be unique (0–10000).", "tier_sale_ends_at": "Invalid sale end date.", "invalid": "Invalid value."},
+    "errors": {"starts_at": "Enter the start date and time.", "ends_at": "End must be after the start.", "timezone": "Unknown time zone (e.g. Europe/Warsaw).", "online_url": "Enter a full link starting with https://.", "capacity": "Seat pool must be a whole number above zero.", "sort": "Order: a whole number 0–10000.", "tiers": "Add at least one price tier.", "tier_price": "Price cannot be negative.", "tier_price_whole": "Price must be a whole number in this currency.", "tier_seats": "Tier seats: a whole number above zero.", "tier_seats_capacity": "A tier cannot have more seats than the session pool.", "tier_sort": "Tier order must be unique (0–10000).", "tier_sale_ends_at": "Invalid sale end date.", "invalid": "Invalid value."},
     "csvFilename": "participants",
     "csvPhone": "Phone",
     "repeat": "Allow repeat purchase",

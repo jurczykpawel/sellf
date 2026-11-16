@@ -34,7 +34,7 @@ function validateProductForm(input: VatValidationInputWithPrice): Record<string,
   if (!input.description.trim()) errors.description = 'required'
   if (input.priceDisplayValue === '') errors.price = 'required'
 
-  // VAT validation — mirrors useProductForm.validateRequiredFields
+  // VAT validation — mirrors useProductForm.collectSaveErrors
   if (input.taxMode === 'local' && (input.price > 0 || input.allow_custom_price) && input.price_includes_vat && input.vat_rate == null) {
     errors.vat_rate = 'required'
   }
