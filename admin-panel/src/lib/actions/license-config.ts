@@ -14,7 +14,6 @@ import {
   loadActivePublicKeyInfo,
 } from '@/lib/license-keys/keys'
 import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url'
-import type { SupabaseClient } from '@supabase/supabase-js'
 
 export interface ProductLicenseConfigInput {
   enabled: boolean
@@ -72,21 +71,9 @@ export async function setProductLicenseConfig(
 }
 
 /**
- * Retires the seller's current signing key. A retired key stops signing but stays
- * published at the JWKS URL, so licenses it signed keep verifying.
- */
-async function retirePriorKeys(admin: SupabaseClient, sellerId: string): Promise<void> {
-  const { error } = await admin
-    .from('seller_license_keys')
-    .update({ is_active: false })
-    .eq('seller_id', sellerId)
-    .eq('is_active', true)
-  if (error) throw new Error(`retirePriorKeys: ${error.message}`)
-}
-
-/**
- * MANAGED custody: generate a fresh keypair, retire the prior active key,
- * store the new one. Returns the public key + kid only — never the private key.
+ * MANAGED custody: generate a fresh keypair and make it the signing key. The prior
+ * key is retired in the same transaction and stays published at the JWKS URL, so
+ * licenses it signed keep verifying. Returns the public key + kid only — never the private key.
  */
 export async function generateSellerLicenseKey(): Promise<ActionResponse<{ kid: string; publicKeyPem: string }>> {
   if (isDemoMode()) return { success: false, error: DEMO_MODE_ERROR, errorCode: 'DEMO_MODE' }
@@ -97,7 +84,6 @@ export async function generateSellerLicenseKey(): Promise<ActionResponse<{ kid: 
     const admin = createAdminClient()
     try {
       const keypair = generateSellerKeypair()
-      await retirePriorKeys(admin, user.id)
       const { kid } = await storeSellerKey(admin, {
         sellerId: user.id,
         publicKeyPem: keypair.publicKeyPem,
@@ -114,8 +100,9 @@ export async function generateSellerLicenseKey(): Promise<ActionResponse<{ kid: 
 }
 
 /**
- * BYOK custody: validate + import a seller-supplied private key, retire the
- * prior active key. Returns the kid only — never echoes the private key back.
+ * BYOK custody: validate + import a seller-supplied private key as the signing key
+ * (the prior key is retired in the same transaction). Returns the kid only — never
+ * echoes the private key back.
  */
 export async function uploadSellerLicenseKey(
   privateKeyPem: string,
@@ -127,8 +114,7 @@ export async function uploadSellerLicenseKey(
   if (privateKeyPem.length > 8192) {
     return { success: false, error: 'Private key is too large', errorCode: 'INVALID_INPUT' }
   }
-  // Validate key format before touching the database — prevents retiring the
-  // existing key when the user pastes something invalid.
+  // Validate key format before touching the database.
   try {
     publicFromPrivate(privateKeyPem.trim())
   } catch {
@@ -140,7 +126,6 @@ export async function uploadSellerLicenseKey(
     }
     const admin = createAdminClient()
     try {
-      await retirePriorKeys(admin, user.id)
       const { kid } = await importSellerKey(admin, { sellerId: user.id, privateKeyPem: privateKeyPem.trim() })
       revalidatePath('/[locale]/dashboard/settings', 'page')
       return { success: true, data: { kid } }

@@ -30,6 +30,8 @@ Potem panel pokazuje:
 - **Identyfikator klucza**: wartość `kid`, zapisywaną w każdym kluczu licencyjnym.
 - **Adres JWKS**: `https://your-sellf.example/api/licenses/jwks?seller=<id-sprzedawcy>`. Stąd aplikacja pobiera klucze publiczne. Wartość `seller` to Twój identyfikator sprzedawcy; będzie potrzebny w aplikacji.
 
+Każdy klucz pod adresem JWKS to zwykły klucz publiczny w formacie JWK (`kty: "EC"`, `crv: "P-256"`, `x`, `y`, `kid`, `alg: "ES256"`, `use: "sig"`), więc wczyta go każda biblioteka kryptograficzna. Ma też dwa pola Sellfa: `pem` (ten sam klucz jako tekst PEM, z niego korzystają przykłady na tej stronie) i `status` (`active` albo `retired`). Sam klucz licencji nie jest tokenem JWT, więc biblioteka do JWT go nie sprawdzi, nawet z właściwym kluczem. Użyj kodu poniżej.
+
 :::note[Zmiana klucza]
 Klucz podpisujący możesz zmienić w każdej chwili: kliknij jeszcze raz **Wygeneruj klucz** albo **Wgraj klucz**. Od tej chwili nowe licencje są podpisywane nowym kluczem. Stary klucz jest **wycofany**, nie unieważniony: zostaje pod adresem JWKS ze statusem `"status": "retired"`, więc licencje nim podpisane dalej działają. Aplikacji nie trzeba zmieniać, bo wybiera klucz po `kid` z tej samej listy.
 

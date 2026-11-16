@@ -30,6 +30,8 @@ After that the panel shows:
 - **Key ID**: the `kid` written into every key.
 - **JWKS URL**: `https://your-sellf.example/api/licenses/jwks?seller=<seller-id>`. Your application downloads public keys from here. The `seller` value is your seller ID; you will need it in the application.
 
+Each key at the JWKS URL is a standard public key in JWK format (`kty: "EC"`, `crv: "P-256"`, `x`, `y`, `kid`, `alg: "ES256"`, `use: "sig"`), so any crypto library can load it. It also has two Sellf fields: `pem` (the same key as PEM text, used by the examples on this page) and `status` (`active` or `retired`). The license key itself is not a JWT, so a JWT library will not check it, even with the right key. Use the code below.
+
 :::note[Changing the key]
 You can change the signing key at any time: click **Generate key** or **Upload key** again. From then on new licenses are signed with the new key. The old key is **retired**, not cancelled: it stays at the JWKS URL with `"status": "retired"`, so licenses signed with it keep working. Your application needs no change, because it picks the key by `kid` from the same list.
 

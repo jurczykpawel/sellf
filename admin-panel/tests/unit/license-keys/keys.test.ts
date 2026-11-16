@@ -18,8 +18,8 @@ import {
 
 const SELLER = '33333333-3333-3333-3333-333333333333';
 
-function adminMock(opts: { row?: Record<string, unknown> | null; upsert?: ReturnType<typeof vi.fn> }) {
-  const upsert = opts.upsert ?? vi.fn().mockResolvedValue({ error: null });
+function adminMock(opts: { row?: Record<string, unknown> | null; rpc?: ReturnType<typeof vi.fn> }) {
+  const rpc = opts.rpc ?? vi.fn().mockResolvedValue({ data: null, error: null });
   const chain = {
     select: () => chain,
     eq: () => chain,
@@ -27,7 +27,7 @@ function adminMock(opts: { row?: Record<string, unknown> | null; upsert?: Return
     limit: () => chain,
     maybeSingle: () => Promise.resolve({ data: opts.row ?? null, error: null }),
   };
-  return { from: vi.fn(() => ({ ...chain, upsert })) };
+  return { from: vi.fn(() => chain), rpc };
 }
 
 beforeEach(() => {
@@ -44,7 +44,7 @@ describe('license key management', () => {
     const { publicFromPrivate: pfp } = await import('@/lib/license-keys/keys');
     expect(() => pfp(rsa.privateKey)).toThrow();
     expect(() => pfp(p384.privateKey)).toThrow();
-    await expect(importSellerKey(adminMock({ insert: vi.fn() }) as never, { sellerId: SELLER, privateKeyPem: rsa.privateKey })).rejects.toThrow();
+    await expect(importSellerKey(adminMock({}) as never, { sellerId: SELLER, privateKeyPem: rsa.privateKey })).rejects.toThrow();
   });
 
   it('generates an EC P-256 keypair with a deterministic kid', () => {
@@ -60,44 +60,45 @@ describe('license key management', () => {
     expect(publicFromPrivate(k.privateKeyPem).trim()).toBe(k.publicKeyPem.trim());
   });
 
-  it('storeSellerKey encrypts the private key and upserts on (seller_id, kid)', async () => {
+  it('storeSellerKey encrypts the private key, then replaces the active key in one database call', async () => {
     const k = generateSellerKeypair();
-    const upsert = vi.fn().mockResolvedValue({ error: null });
-    const admin = adminMock({ upsert });
+    const order: string[] = [];
+    vi.mocked(encryptSecret).mockImplementation(async () => { order.push('encrypt'); return { encryptedKey: 'ENC', iv: 'IV', tag: 'TAG' }; });
+    const rpc = vi.fn(async () => { order.push('rpc'); return { data: k.kid, error: null }; });
+    const admin = adminMock({ rpc });
     const res = await storeSellerKey(admin as never, { sellerId: SELLER, publicKeyPem: k.publicKeyPem, privateKeyPem: k.privateKeyPem, custody: 'managed' });
     expect(vi.mocked(encryptSecret)).toHaveBeenCalledWith(k.privateKeyPem);
-    expect(upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        seller_id: SELLER, kid: k.kid, public_key: k.publicKeyPem,
-        encrypted_key: 'ENC', encryption_iv: 'IV', encryption_tag: 'TAG',
-        custody: 'managed', is_active: true,
-      }),
-      { onConflict: 'seller_id,kid' },
-    );
+    expect(order).toEqual(['encrypt', 'rpc']);
+    expect(rpc).toHaveBeenCalledWith('replace_seller_license_key', {
+      p_seller_id: SELLER, p_kid: k.kid, p_public_key: k.publicKeyPem,
+      p_encrypted_key: 'ENC', p_encryption_iv: 'IV', p_encryption_tag: 'TAG', p_custody: 'managed',
+    });
+    expect(admin.from).not.toHaveBeenCalled();
     expect(res.kid).toBe(k.kid);
   });
 
-  it('storeSellerKey re-upload of same key reactivates (upsert idempotent)', async () => {
+  it('storeSellerKey does not touch the database when encryption fails', async () => {
     const k = generateSellerKeypair();
-    const upsert = vi.fn().mockResolvedValue({ error: null });
-    const admin = adminMock({ upsert });
-    // First store
-    await storeSellerKey(admin as never, { sellerId: SELLER, publicKeyPem: k.publicKeyPem, privateKeyPem: k.privateKeyPem, custody: 'byok' });
-    // Second store — same key, same kid — must not throw
-    const res = await storeSellerKey(admin as never, { sellerId: SELLER, publicKeyPem: k.publicKeyPem, privateKeyPem: k.privateKeyPem, custody: 'byok' });
-    expect(upsert).toHaveBeenCalledTimes(2);
-    expect(res.kid).toBe(k.kid);
+    vi.mocked(encryptSecret).mockRejectedValue(new Error('no encryption key'));
+    const admin = adminMock({});
+    await expect(storeSellerKey(admin as never, { sellerId: SELLER, publicKeyPem: k.publicKeyPem, privateKeyPem: k.privateKeyPem, custody: 'managed' })).rejects.toThrow();
+    expect(admin.rpc).not.toHaveBeenCalled();
+    expect(admin.from).not.toHaveBeenCalled();
+  });
+
+  it('storeSellerKey reports a failed save', async () => {
+    const k = generateSellerKeypair();
+    const admin = adminMock({ rpc: vi.fn().mockResolvedValue({ data: null, error: { message: 'write failed' } }) });
+    await expect(storeSellerKey(admin as never, { sellerId: SELLER, publicKeyPem: k.publicKeyPem, privateKeyPem: k.privateKeyPem, custody: 'byok' })).rejects.toThrow(/write failed/);
   });
 
   it('importSellerKey derives the public key and stores as byok', async () => {
     const k = generateSellerKeypair();
-    const upsert = vi.fn().mockResolvedValue({ error: null });
-    const admin = adminMock({ upsert });
+    const admin = adminMock({});
     await importSellerKey(admin as never, { sellerId: SELLER, privateKeyPem: k.privateKeyPem });
-    expect(upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ public_key: expect.stringContaining('BEGIN PUBLIC KEY'), custody: 'byok' }),
-      expect.objectContaining({ onConflict: 'seller_id,kid' }),
-    );
+    expect(admin.rpc).toHaveBeenCalledWith('replace_seller_license_key', expect.objectContaining({
+      p_public_key: expect.stringContaining('BEGIN PUBLIC KEY'), p_kid: k.kid, p_custody: 'byok',
+    }));
   });
 
   it('loadActiveSellerKey decrypts and returns pems + kid', async () => {

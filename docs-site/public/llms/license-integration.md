@@ -67,7 +67,7 @@ Example decoded payload:
 }
 ```
 
-## 3. Public keys (JWKS-like endpoint)
+## 3. Public keys (JWKS endpoint)
 
 ```
 GET https://your-sellf.example/api/licenses/jwks?seller=<seller-uuid>
@@ -79,12 +79,25 @@ GET https://your-sellf.example/api/licenses/jwks?seller=<seller-uuid>
 - `200`:
   ```json
   { "keys": [
-    { "kid": "3f9a1c0b7e2d4a65", "alg": "ES256", "pem": "-----BEGIN PUBLIC KEY-----\n…\n-----END PUBLIC KEY-----\n", "status": "active" },
-    { "kid": "9b1e44d07c3a2f18", "alg": "ES256", "pem": "-----BEGIN PUBLIC KEY-----\n…\n-----END PUBLIC KEY-----\n", "status": "retired" }
+    { "kty": "EC", "crv": "P-256", "x": "<base64url>", "y": "<base64url>",
+      "kid": "3f9a1c0b7e2d4a65", "alg": "ES256", "use": "sig",
+      "pem": "-----BEGIN PUBLIC KEY-----\n…\n-----END PUBLIC KEY-----\n", "status": "active" },
+    { "kty": "EC", "crv": "P-256", "x": "<base64url>", "y": "<base64url>",
+      "kid": "9b1e44d07c3a2f18", "alg": "ES256", "use": "sig",
+      "pem": "-----BEGIN PUBLIC KEY-----\n…\n-----END PUBLIC KEY-----\n", "status": "retired" }
   ] }
   ```
-  `pem` is an SPKI PEM of an EC P-256 public key. `status` is `active` (signs new tokens) or
-  `retired` (replaced by a newer key; still valid for tokens it signed). The active key comes first. Header `Cache-Control: public, max-age=300, s-maxage=300`.
+  Each entry is a standard EC P-256 public JWK (RFC 7517/7518): `kty` = `"EC"`, `crv` = `"P-256"`,
+  `x` and `y` = base64url coordinates, `kid`, `alg` = `"ES256"`, `use` = `"sig"`. Two extra fields:
+  `pem` is the same key as an SPKI PEM (what the reference verifiers below use), and `status` is
+  `active` (signs new tokens) or `retired` (replaced by a newer key; still valid for tokens it
+  signed). Import the key from either form, e.g. Node `crypto.createPublicKey({ key, format: 'jwk' })`
+  or `crypto.createPublicKey(key.pem)`. The active key comes first. Header
+  `Cache-Control: public, max-age=300, s-maxage=300`. Older Sellf versions return only `kid`,
+  `alg` and `pem`; read the JWK fields as optional if you support them.
+  A license token is not a JWT/JWS: the signature is DER-encoded ECDSA over the base64url payload
+  (section 1), so JOSE JWT verifiers reject it even with the right key. Use the verification
+  steps in this document.
 - `400 {"error":"Bad request"}` when `seller` is missing or not a UUID.
 - `429 {"error":"Rate limited"}` above 60 requests per minute per client.
 - `500 {"error":"Server error"}`.

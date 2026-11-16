@@ -32,28 +32,27 @@ export function publicFromPrivate(privateKeyPem: string): string {
   return keyObject.export({ type: 'spki', format: 'pem' }).toString();
 }
 
+/**
+ * Makes the given key the seller's signing key. The private key is encrypted first; then one
+ * server-only database call retires the current active key and saves this one in a single
+ * transaction, so a failed save leaves the current key signing. Saving a key the seller
+ * already has makes it active again.
+ */
 export async function storeSellerKey(
   admin: SupabaseClient,
   input: { sellerId: string; publicKeyPem: string; privateKeyPem: string; custody: Custody },
 ): Promise<{ kid: string }> {
   const kid = deriveKid(input.publicKeyPem);
   const enc = await encryptSecret(input.privateKeyPem);
-  const { error } = await admin.from('seller_license_keys').upsert(
-    {
-      seller_id: input.sellerId,
-      // Frozen at write time: the buyer's verifier keeps using this id for the life of
-      // the license, even if the seller's account is later deleted (seller_id -> NULL).
-      original_seller_id: input.sellerId,
-      kid,
-      public_key: input.publicKeyPem,
-      encrypted_key: enc.encryptedKey,
-      encryption_iv: enc.iv,
-      encryption_tag: enc.tag,
-      custody: input.custody,
-      is_active: true,
-    },
-    { onConflict: 'seller_id,kid' },
-  );
+  const { error } = await admin.rpc('replace_seller_license_key', {
+    p_seller_id: input.sellerId,
+    p_kid: kid,
+    p_public_key: input.publicKeyPem,
+    p_encrypted_key: enc.encryptedKey,
+    p_encryption_iv: enc.iv,
+    p_encryption_tag: enc.tag,
+    p_custody: input.custody,
+  });
   if (error) throw new Error(`storeSellerKey: ${error.message}`);
   return { kid };
 }

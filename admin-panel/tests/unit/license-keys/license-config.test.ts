@@ -59,14 +59,6 @@ function productsUpdateChain(opts: { error?: unknown; rows?: Array<{ id: string 
   return { update, eq, select };
 }
 
-/** A deactivation chain: update().eq().eq() resolving to {error}. */
-function deactivateChain(error: unknown = null) {
-  const inner = { eq: vi.fn().mockResolvedValue({ error }) };
-  const eq1 = vi.fn(() => inner);
-  const update = vi.fn(() => ({ eq: eq1 }));
-  return { update };
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
   process.env.SITE_URL = 'https://shop.example.com';
@@ -130,17 +122,15 @@ describe('setProductLicenseConfig', () => {
 });
 
 describe('generateSellerLicenseKey', () => {
-  it('generates, deactivates prior keys, stores managed, returns kid + publicKey (never private)', async () => {
+  it('generates a managed key and stores it as the signing key, returns kid + publicKey (never private)', async () => {
     vi.mocked(generateSellerKeypair).mockReturnValue(KEYPAIR);
-    const deact = deactivateChain();
-    adminFromMock.mockReturnValue(deact);
     vi.mocked(storeSellerKey).mockResolvedValue({ kid: KEYPAIR.kid });
 
     const res = await generateSellerLicenseKey();
 
     expect(res.success).toBe(true);
-    expect(adminFromMock).toHaveBeenCalledWith('seller_license_keys');
-    expect(deact.update).toHaveBeenCalledWith({ is_active: false });
+    // The prior key is retired inside storeSellerKey's single transaction, not by a separate write here.
+    expect(adminFromMock).not.toHaveBeenCalled();
     expect(vi.mocked(storeSellerKey)).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ sellerId: SELLER, custody: 'managed', publicKeyPem: KEYPAIR.publicKeyPem }),
@@ -148,30 +138,26 @@ describe('generateSellerLicenseKey', () => {
     expect(res.data).toEqual({ kid: KEYPAIR.kid, publicKeyPem: KEYPAIR.publicKeyPem });
     expect(JSON.stringify(res)).not.toContain('PRIVATE');
   });
-});
 
-describe('planned key change', () => {
-  it('does not store a new key when retiring the current one fails', async () => {
+  it('returns KEY_GENERATION_FAILED when saving the new key fails', async () => {
     vi.mocked(generateSellerKeypair).mockReturnValue(KEYPAIR);
-    adminFromMock.mockReturnValue(deactivateChain({ message: 'db down' }));
+    vi.mocked(storeSellerKey).mockRejectedValue(new Error('db down'));
 
     const res = await generateSellerLicenseKey();
 
     expect(res).toMatchObject({ success: false, errorCode: 'KEY_GENERATION_FAILED' });
-    expect(vi.mocked(storeSellerKey)).not.toHaveBeenCalled();
+    expect(adminFromMock).not.toHaveBeenCalled();
   });
 });
 
 describe('uploadSellerLicenseKey', () => {
-  it('imports a BYOK key, deactivates prior, returns kid (never private)', async () => {
-    const deact = deactivateChain();
-    adminFromMock.mockReturnValue(deact);
+  it('imports a BYOK key as the signing key, returns kid (never private)', async () => {
     vi.mocked(importSellerKey).mockResolvedValue({ kid: KEYPAIR.kid });
 
     const res = await uploadSellerLicenseKey(KEYPAIR.privateKeyPem);
 
     expect(res.success).toBe(true);
-    expect(deact.update).toHaveBeenCalledWith({ is_active: false });
+    expect(adminFromMock).not.toHaveBeenCalled();
     expect(vi.mocked(importSellerKey)).toHaveBeenCalledWith(
       expect.anything(),
       { sellerId: SELLER, privateKeyPem: KEYPAIR.privateKeyPem.trim() },
@@ -179,7 +165,7 @@ describe('uploadSellerLicenseKey', () => {
     expect(res.data).toEqual({ kid: KEYPAIR.kid });
   });
 
-  it('rejects an invalid PEM before deactivating prior keys (early validation)', async () => {
+  it('rejects an invalid PEM before touching the database (early validation)', async () => {
     vi.mocked(publicFromPrivate).mockImplementation(() => { throw new Error('bad pem'); });
     const res = await uploadSellerLicenseKey('not-a-key');
     expect(res.success).toBe(false);
@@ -190,8 +176,6 @@ describe('uploadSellerLicenseKey', () => {
 
   it('returns STORE_FAILED when the key is valid but DB insert fails', async () => {
     vi.mocked(publicFromPrivate).mockReturnValue('-----BEGIN PUBLIC KEY-----\nPUB\n-----END PUBLIC KEY-----\n');
-    const deact = deactivateChain();
-    adminFromMock.mockReturnValue(deact);
     vi.mocked(importSellerKey).mockRejectedValue(new Error('db error'));
 
     const res = await uploadSellerLicenseKey(KEYPAIR.privateKeyPem);

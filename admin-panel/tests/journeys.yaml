@@ -5240,11 +5240,32 @@
       "end_state": {
         "buyer": "A license issued before the key change still verifies offline against the JWKS URL.",
         "seller": "The new key signs every new license; the previous key stays published with status retired, and the panel says so.",
-        "integrator": "JWKS lists the active key first and every retired key after it, each with kid, alg, pem and status."
+        "integrator": "JWKS lists the active key first and every retired key after it, each as a standard EC P-256 JWK (kty, crv, x, y, kid, alg, use) plus pem and status."
       },
       "layers": [
         "integration",
         "e2e"
+      ]
+    },
+    {
+      "id": "J631",
+      "title": "A key change that fails or runs twice at once never leaves the store without a signing key",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "license",
+        "payment": "none",
+        "moment": "after_retry",
+        "operation": "manage_key"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Licenses keep being issued on purchase with the current key while a key change fails.",
+        "seller": "A failed Generate or Upload shows an error and the current key stays active; simultaneous changes end with exactly one active key.",
+        "integrator": "Every key that was ever active stays in JWKS; exactly one has status active."
+      },
+      "layers": [
+        "integration"
       ]
     }
   ],

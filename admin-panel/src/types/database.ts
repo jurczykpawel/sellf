@@ -6736,6 +6736,18 @@ export type Database = {
         }
         Returns: Json
       }
+      replace_seller_license_key: {
+        Args: {
+          p_custody: string
+          p_encrypted_key: string
+          p_encryption_iv: string
+          p_encryption_tag: string
+          p_kid: string
+          p_public_key: string
+          p_seller_id: string
+        }
+        Returns: string
+      }
       restore_product_as: {
         Args: { actor_id: string; event_actor: Json; p_product_id: string }
         Returns: Json

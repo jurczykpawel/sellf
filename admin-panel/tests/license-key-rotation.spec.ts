@@ -1,5 +1,5 @@
 /** Seller changes the license signing key in the panel; a license signed before the change still verifies through the JWKS URL. */
-import { randomUUID } from 'node:crypto';
+import { createPublicKey, randomUUID } from 'node:crypto';
 import { test, expect, type Page } from '@playwright/test';
 import { createTestAdmin, setAuthSession, supabaseAdmin as db } from './helpers/admin-auth';
 import { issueLicense } from '@/lib/license-keys/issue';
@@ -53,6 +53,10 @@ test('seller changes the signing key; the old key stays published as retired and
   const { keys } = await res.json();
   expect(keys.map((k: { kid: string; status: string }) => [k.kid, k.status])).toEqual([[second.kid, 'active'], [first.kid, 'retired']]);
   expect(verifySellfLicense(before!.token, { keys })).toMatchObject({ valid: true });
+  for (const key of keys) {
+    expect(key).toMatchObject({ kty: 'EC', crv: 'P-256', alg: 'ES256', use: 'sig' });
+    expect(createPublicKey({ key, format: 'jwk' }).export({ type: 'spki', format: 'pem' })).toBe(key.pem);
+  }
 
   await page.getByRole('button', { name: 'How to use' }).click();
   const dialog = page.getByRole('dialog');
