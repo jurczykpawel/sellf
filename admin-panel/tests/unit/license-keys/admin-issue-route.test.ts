@@ -46,7 +46,7 @@ beforeEach(() => {
   // The key mail claims its retry-queue row first (claim_license_mail), then sends.
   mocks.rpc.mockImplementation(async (name: string) => name === 'claim_license_mail' ? { data: 'retry-1', error: null } : { error: null });
   mocks.mail.mockResolvedValue({ ok: true });
-  mocks.platform.mockReturnValue({ from: () => ({ insert: vi.fn().mockResolvedValue({ error: null }) }) });
+  mocks.platform.mockReturnValue({ from: () => ({ insert: () => ({ select: () => ({ single: vi.fn().mockResolvedValue({ data: { id: 'audit-1' }, error: null }) }) }) }) });
   mocks.issue.mockResolvedValue({ id: LICENSE, token: 'payload.signature', kid: 'kid-1', sellerId: SELLER });
 });
 

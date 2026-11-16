@@ -520,7 +520,7 @@ Use `createClient()` from appropriate Supabase client:
 2. **Test RLS Policies**: Changes to database schema require testing RLS policies
 3. **Validate Inputs**: All user inputs must be validated client-side AND server-side
 4. **Rate Limiting**: New public endpoints must enforce rate limits
-5. **Audit Logging**: Admin actions should be logged to `audit_log` table
+5. **Audit Logging**: Admin actions are logged to `audit_log` through `recordAuditEntry` (`admin-panel/src/lib/audit/audit-entry.ts`): `performed_by` is the admin's auth user UUID (never an e-mail), the entry is written before the change, a refused entry changes nothing, and `discardAuditEntry` takes it back when the change fails
 6. **TypeScript Strict**: All TypeScript must pass strict mode checks
 7. **Error Handling**: Never expose sensitive information in error messages
 8. **No Workarounds**: NEVER implement quick fixes or workarounds just to make something work. Always find and fix the root cause. Follow best practices and maintain code quality. Update dependencies when needed instead of patching around issues.
