@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Twórz fakturę KSeF przy każdym zakupie w Sellf\n\n### Jak to działa\nTen workflow reaguje na [Sellf](https://github.com/jurczykpawel/sellf) - self-hostowaną platformę checkoutu do produktów cyfrowych - która wysyła podpisany webhook `purchase.completed` przy każdym opłaconym zamówieniu. Weryfikuje nagłówek `X-Sellf-Signature`, sprawdza, czy klient poprosił o fakturę i podał NIP, buduje gotowy payload KSeF i wysyła go do Twojego self-hostowanego [KSeF Gateway](https://github.com/jurczykpawel/ksef-gateway) - niewielkiej nakładki HTTP na oficjalne API polskiego e-fakturowania. Przy sukcesie zwrócony `ksefNumber` jest zapisywany; przy błędzie zapisywana jest treść błędu, żebyś mógł na nią zareagować.\n\n### Konfiguracja\n1. Wdróż instancję KSeF Gateway (Docker, Render albo StackPilot - patrz README projektu) i zanotuj jej adres URL. Nowy w KSeF albo potrzebujesz certyfikatu (tokeny KSeF będą wycofywane)? Zobacz [główny README](https://github.com/jurczykpawel/ksef-gateway#certificate-based-auth-alternative-to-tokens).\n2. Otwórz **Configuration (EDIT ME)** i uzupełnij URL bramki, klucz API bramki, dane sprzedawcy oraz sekret podpisujący webhooki z Sellf → Ustawienia → Webhooks.\n3. Wklej Production URL node'a **Sellf Webhook** w tym samym miejscu w ustawieniach Sellf.\n4. Zobacz czerwoną notatkę przy **Verify Signature** - jedno wymagane ustawienie środowiska n8n.\n\n### Wskazówki dotyczące personalizacji\nPodłącz **Log Error** do Slacka, maila albo bazy danych, żeby dostawać alert o nieudanych zgłoszeniach do KSeF.",
+        "content": "## Konfiguracja\nWybierz credential Header Auth (X-Api-Key) w Send to KSeF Gateway. Przeczytaj README: wykonania muszą być sekwencyjne; awaria procesu wymaga uzgodnienia z KSeF.\n\n## Sekret webhooka\nUstaw SELLF_WEBHOOK_SECRET lub webhookSecret w Configuration (EDIT ME). Zmienna środowiskowa ma pierwszeństwo. W n8n 2.x dostęp do $env jest domyślnie zablokowany.\nSekret w polu webhookSecret jest widoczny w wyniku Configuration i eksporcie workflow. Preferuj zmienną środowiskową (`N8N_BLOCK_ENV_ACCESS_IN_NODE=false`) lub własny credential/węzeł weryfikacji; nie udostępniaj eksportu workflow. Zapis danych wykonań (sukces, błąd, ręczne i postęp) jest wyłączony — sprawdź po imporcie.",
         "height": 720,
         "width": 700,
         "color": 1
@@ -35,7 +35,7 @@
     },
     {
       "parameters": {
-        "content": "## Potwierdzenie i wyodrębnienie\nOdpowiada natychmiast, a potem filtruje opłacone zakupy, w których poproszono o fakturę z NIP-em.",
+        "content": "## Filtruj zakup\nWybiera opłacone zakupy wymagające faktury. Brak lub błędny identyfikator firmy zwraca „pominięto: <powód>”, bez rezerwacji i wysyłki.",
         "height": 350,
         "width": 820,
         "color": 7
@@ -51,9 +51,9 @@
     },
     {
       "parameters": {
-        "content": "## Budowa faktury\nSkłada gotowy payload faktury KSeF z danych sprzedawcy i zamówienia.",
-        "height": 350,
-        "width": 520,
+        "content": "## Budowa faktury\nPL (również brak kraju): NIP → defaultVatRate. UE: VAT UE → euB2bVatRate (domyślnie np II). Poza UE: taxId → exportVatRate (domyślnie np I). Grecja: GR/EL, Irlandia Północna: XI. GB to kraj poza UE.\nStawki: liczby 23/8/5/0 lub napisy np II, np I, 0 WDT, 0 EX, zw. Stawka zw wymaga dodania exemptionBasis do Configuration; 0 WDT wymaga VAT UE. Dla np I/np II: netto = netAmount ?? amount.\nZagraniczny B2C/OSS jest poza zakresem. Brak użytecznego ID lub niespójność → pominięto z powodem, bez POST. Dobór nie sprawdza rejestracji VAT ani uprawnień podatkowych; skonfiguruj stawki dla swojej sprzedaży.",
+        "height": 650,
+        "width": 620,
         "color": 7
       },
       "id": "sticky-section-c",
@@ -67,9 +67,9 @@
     },
     {
       "parameters": {
-        "content": "## Wysyłka i zapis wyniku\nWysyła fakturę do Twojego KSeF Gateway i zapisuje zwrócony numer KSeF albo błąd, jeśli się nie uda.",
-        "height": 670,
-        "width": 820,
+        "content": "## Rezerwacja, rozbudzenie i wysyłka\nStan global blokuje ponowną wysyłkę. Niepewny wynik wymaga uzgodnienia z KSeF. Ograniczenia trwałości: README.",
+        "height": 800,
+        "width": 2900,
         "color": 7
       },
       "id": "sticky-section-d",
@@ -78,7 +78,7 @@
       "typeVersion": 1,
       "position": [
         1940,
-        360
+        390
       ]
     },
     {
@@ -159,15 +159,21 @@
               "type": "number"
             },
             {
-              "id": "a7",
+              "id": "webhook-secret",
               "name": "webhookSecret",
-              "value": "change-me-webhook-secret",
+              "value": "your-webhook-secret",
               "type": "string"
             },
             {
-              "id": "a8",
-              "name": "gatewayApiKey",
-              "value": "your-gateway-api-key",
+              "id": "eu-b2b-vat-rate",
+              "name": "euB2bVatRate",
+              "value": "np II",
+              "type": "string"
+            },
+            {
+              "id": "export-vat-rate",
+              "name": "exportVatRate",
+              "value": "np I",
               "type": "string"
             }
           ]
@@ -189,7 +195,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const crypto = require('crypto');\nconst config = $('Configuration (EDIT ME)').first().json;\nconst item = $input.first();\n\nconst header = (item.json.headers && item.json.headers['x-sellf-signature']) || '';\nconst rawBody = item.binary && item.binary.data\n  ? Buffer.from(item.binary.data.data, 'base64').toString('utf8')\n  : JSON.stringify(item.json.body || {});\n\nlet t = null;\nlet v1 = null;\nfor (const part of header.split(',')) {\n  const eq = part.indexOf('=');\n  if (eq === -1) continue;\n  const key = part.slice(0, eq).trim();\n  const value = part.slice(eq + 1).trim();\n  if (key === 't') t = value;\n  else if (key === 'v1') v1 = value;\n}\n\nlet valid = false;\nif (t && v1 && config.webhookSecret) {\n  const expected = crypto.createHmac('sha256', config.webhookSecret).update(`${t}.${rawBody}`).digest('hex');\n  const withinTolerance = Math.abs(Math.floor(Date.now() / 1000) - Number(t)) <= 300;\n  const sameLength = expected.length === v1.length;\n  valid = withinTolerance && sameLength && crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(v1, 'hex'));\n}\n\nreturn [{ json: { valid, body: JSON.parse(rawBody) } }];"
+        "jsCode": "const crypto = require('crypto');\nconst item = $input.first();\nconst deny = () => [{ json: { valid: false } }];\nlet secret;\ntry { secret = $env.SELLF_WEBHOOK_SECRET; } catch { /* n8n 2.x blocks environment access by default. */ }\nif (typeof secret !== 'string' || !secret.trim()) {\n  secret = $('Configuration (EDIT ME)').first().json.webhookSecret;\n}\nif (typeof secret !== 'string' || !secret.trim() || secret.trim() === 'your-webhook-secret') {\n  console.warn('Webhook secret is missing or still a placeholder; configure environment or Configuration (EDIT ME).');\n  return deny();\n}\nif (!item.binary?.data) return deny();\nlet raw;\ntry { raw = await this.helpers.getBinaryDataBuffer(0, 'data'); } catch { return deny(); }\nconst header = item.json.headers?.['x-sellf-signature'];\nif (typeof header !== 'string') return deny();\nconst match = /^t=(\\d+),v1=([a-fA-F0-9]{64})$/.exec(header);\nif (!match || Math.abs(Math.floor(Date.now() / 1000) - Number(match[1])) > 300) return deny();\nconst supplied = Buffer.from(match[2], 'hex');\nconst expected = crypto.createHmac('sha256', secret).update(match[1] + '.').update(raw).digest();\nif (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) return deny();\ntry { return [{ json: { valid: true, body: JSON.parse(raw.toString('utf8')) } }]; }\ncatch { return deny(); }\n"
       },
       "id": "code-verify",
       "name": "Verify Signature",
@@ -253,14 +259,17 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "{\"status\":\"ok\"}"
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 200
+        }
       },
       "id": "res-1",
       "name": "Respond OK",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        500,
+        4400,
         710
       ],
       "notes": "Responds immediately; the rest of the workflow keeps running afterwards to build and send the invoice."
@@ -294,7 +303,7 @@
           ]
         },
         "options": {
-          "fallbackOutput": "none"
+          "fallbackOutput": "extra"
         }
       },
       "id": "sw-1",
@@ -308,7 +317,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const data = $input.first().json.body.data;\n\nreturn [{\n  json: {\n    email: data.customer.email,\n    firstName: data.customer.firstName || '',\n    productName: data.product.name,\n    amount: data.order.amount / 100,\n    currency: data.order.currency.toUpperCase(),\n    sessionId: data.order.sessionId,\n    paymentIntentId: data.order.paymentIntentId,\n    needsInvoice: data.invoice?.needsInvoice || false,\n    invoiceNip: data.invoice?.nip || null,\n    invoiceCompany: data.invoice?.companyName || null,\n    invoiceAddress: data.invoice?.address || null,\n    invoiceCity: data.invoice?.city || null,\n    invoicePostalCode: data.invoice?.postalCode || null,\n    invoiceCountry: data.invoice?.country || 'PL'\n  }\n}];"
+        "jsCode": "const data = $input.first().json.body.data;\n\nreturn [{\n  json: {\n    email: data.customer.email,\n    firstName: data.customer.firstName || '',\n    productName: data.product.name,\n    amount: data.order.amount / 100,\n    netAmount: data.order.netTotal != null ? Number(data.order.netTotal) / 100 : null,\n    currency: data.order.currency.toUpperCase(),\n    sessionId: data.order.sessionId,\n    paymentIntentId: data.order.paymentIntentId,\n    needsInvoice: data.invoice?.needsInvoice || false,\n    invoiceNip: data.invoice?.nip || null,\n    invoiceCompany: data.invoice?.companyName || null,\n    invoiceAddress: data.invoice?.address || null,\n    invoiceCity: data.invoice?.city || null,\n    invoicePostalCode: data.invoice?.postalCode || null,\n    invoiceCountry: data.invoice?.country || 'PL'\n  }\n}];"
       },
       "id": "code-1",
       "name": "Extract Purchase Data",
@@ -339,14 +348,6 @@
                       "type": "boolean",
                       "operation": "true"
                     }
-                  },
-                  {
-                    "leftValue": "={{ $json.invoiceNip }}",
-                    "rightValue": "",
-                    "operator": {
-                      "type": "string",
-                      "operation": "notEquals"
-                    }
                   }
                 ]
               },
@@ -356,7 +357,7 @@
           ]
         },
         "options": {
-          "fallbackOutput": "none"
+          "fallbackOutput": "extra"
         }
       },
       "id": "sw-2",
@@ -371,7 +372,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst config = $('Configuration (EDIT ME)').first().json;\nconst today = new Date().toISOString().split('T')[0];\n\n// Build invoice number from session ID suffix - adjust this scheme if you have your own\nconst suffix = (d.sessionId || 'XXXX').slice(-4).toUpperCase();\nconst invoiceNumber = `FV/${today.replace(/-/g, '/')}/${suffix}`;\n\nconst buyerCity = d.invoicePostalCode\n  ? `${d.invoicePostalCode} ${d.invoiceCity}`\n  : d.invoiceCity || '-';\n\nconst seller = {\n  nip: config.sellerNip,\n  name: config.sellerName,\n  address: {\n    street: config.sellerStreet,\n    city: config.sellerCity\n  }\n};\n\nreturn [{\n  json: {\n    invoiceNumber,\n    issueDate: today,\n    saleDate: today,\n    issuePlace: seller.address.city.split(' ').slice(1).join(' ') || 'Warszawa',\n    currency: d.currency || 'PLN',\n    type: 'VAT',\n    seller,\n    buyer: {\n      nip: d.invoiceNip,\n      name: d.invoiceCompany || d.email,\n      address: {\n        street: d.invoiceAddress || '-',\n        city: buyerCity,\n        country: d.invoiceCountry || 'PL'\n      }\n    },\n    items: [\n      {\n        name: d.productName,\n        unit: 'szt.',\n        quantity: 1,\n        unitPrice: d.amount,\n        vatRate: config.defaultVatRate\n      }\n    ],\n    payment: {\n      paid: true,\n      date: today,\n      method: 'transfer'\n    },\n    // Pass-through for error logging\n    _meta: {\n      sessionId: d.sessionId,\n      paymentIntentId: d.paymentIntentId,\n      buyerEmail: d.email\n    }\n  }\n}];"
+        "jsCode": "const d = $input.first().json;\nconst config = $('Configuration (EDIT ME)').first().json;\n// Pure classification: FA(3) EU VAT prefixes (EL = Greece, XI = Northern Ireland).\nfunction classifyBuyer(country, rawId, config) {\n  const euCodes = 'AT BE BG CY CZ DK EE FI FR DE EL HR HU IE IT LV LT LU MT NL PL PT RO SK SI ES SE XI'.split(' ');\n  const countryCodes = 'AF AX AL DZ AD AO AI AQ AG AN SA AR AM AW AU AT AZ BS BH BD BB BE BZ BJ BM BT BY BO BQ BA BW BR BN IO BG BF BI XC CL CN HR CW CY TD ME DK DM DO DJ EG EC ER EE ET FK FJ PH FI FR TF GA GM GH GI GR GD GL GE GU GG GY GF GP GT GN GQ GW HT ES HN HK IN ID IQ IR IE IS IL JM JP YE JE JO KY KH CM CA QA KZ KE KG KI CO KM CG CD KP XK CR CU KW LA LS LB LR LY LI LT LV LU MK MG YT MO MW MV MY ML MT MP MA MQ MR MU MX XL FM UM MD MC MN MS MZ MM NA NR NP NL DE NE NG NI NU NF NO NC NZ PS OM PK PW PA PG PY PE PN PF PL GS PT PR CF CZ KR ZA RE RU RO RW EH BL KN LC MF VC SV WS AS SM SN RS SC SL SG SK SI SO LK PM US SZ SD SS SR SJ SH SY CH SE TJ TH TW TZ TG TK TO TT TN TR TM TV UG UA UY UZ VU WF VA HU VE GB VN IT TL CI BV CX IM SX CK VI VG HM CC MH FO SB ST TC ZM CV ZW AE XI'.split(' ');\n  country = typeof country === 'string' ? country.trim().toUpperCase() : '';\n  country = country || 'PL';\n  if (country === 'EL') country = 'GR';\n  if (!countryCodes.includes(country)) return { reason: 'nieprawidłowy kraj nabywcy' };\n  const rates = { defaultVatRate: config.defaultVatRate, euB2bVatRate: config.euB2bVatRate ?? 'np II', exportVatRate: config.exportVatRate ?? 'np I' };\n  const allowedRates = [23, 8, 5, 0, 'zw', 'np II', 'np I', '0 WDT', '0 EX'];\n  for (const [key, rate] of Object.entries(rates)) {\n    if (!allowedRates.includes(rate)) return { reason: `nieprawidłowa stawka ${key}` };\n  }\n  if (typeof rawId !== 'string' || !rawId.trim()) return { reason: 'brak identyfikatora firmy; B2C/OSS poza zakresem' };\n  let identity, vatRate;\n  const id = rawId.trim().toUpperCase();\n  const compact = id.replace(/[\\s-]/g, '');\n  const prefix = country === 'GR' ? 'EL' : country;\n  if (country === 'PL') {\n    const nip = compact.replace(/^PL/, '');\n    if (!/^[0-9]{10}$/.test(nip)) return { reason: 'nieprawidłowy NIP (wymagane 10 cyfr)' };\n    identity = { nip };\n    vatRate = rates.defaultVatRate;\n  } else if (euCodes.includes(prefix)) {\n    const suppliedPrefix = compact.slice(0, 2);\n    if (euCodes.includes(suppliedPrefix) && suppliedPrefix !== prefix) return { reason: 'prefiks VAT UE niezgodny z krajem' };\n    const number = compact.startsWith(prefix) ? compact.slice(2) : compact;\n    if (!/^[A-Z0-9+*]{1,12}$/.test(number) || !/[0-9]/.test(number)) return { reason: 'nieprawidłowy numer VAT UE' };\n    identity = { euVatNumber: prefix + number };\n    vatRate = rates.euB2bVatRate;\n  } else {\n    if (id.length > 50 || !/[A-Z0-9]/.test(id) || /[\\x00-\\x1f\\x7f]/.test(id)) return { reason: 'nieprawidłowy zagraniczny identyfikator podatkowy' };\n    identity = { taxId: rawId.trim() };\n    vatRate = rates.exportVatRate;\n  }\n  if (vatRate === '0 WDT' && !identity.euVatNumber) return { reason: 'stawka 0 WDT wymaga numeru VAT UE' };\n  if (vatRate === 'zw' && (typeof config.exemptionBasis !== 'string' || !config.exemptionBasis.trim())) return { reason: 'stawka zw wymaga exemptionBasis' };\n  return { country, identity, vatRate };\n}\nconst buyer = classifyBuyer(d.invoiceCountry, d.invoiceNip, config);\nif (d.needsInvoice === false || buyer.reason) {\n  return [{ json: { success: true, skipped: true, reason: `pominięto: ${d.needsInvoice === false ? 'nie zamówiono faktury' : buyer.reason}` } }];\n}\n\nconst today = new Date().toISOString().split('T')[0];\n\nif (!d.sessionId) throw new Error('Missing sessionId');\nconst invoiceNumber = `FV/${d.sessionId}`;\n\nconst buyerCity = d.invoicePostalCode\n  ? `${d.invoicePostalCode} ${d.invoiceCity}`\n  : d.invoiceCity || '-';\n\nconst seller = {\n  nip: config.sellerNip,\n  name: config.sellerName,\n  address: {\n    street: config.sellerStreet,\n    city: config.sellerCity\n  }\n};\n\nreturn [{\n  json: { eventKey: `sellf:${d.sessionId}`, invoice: {\n    invoiceNumber,\n    issueDate: today,\n    saleDate: today,\n    issuePlace: seller.address.city.split(' ').slice(1).join(' ') || 'Warszawa',\n    currency: d.currency || 'PLN',\n    type: 'VAT',\n    seller,\n    buyer: {\n      ...buyer.identity,\n      name: d.invoiceCompany || d.email,\n      address: {\n        street: d.invoiceAddress || '-',\n        city: buyerCity,\n        country: buyer.country\n      }\n    },\n    items: [\n      {\n        name: d.productName,\n        unit: 'szt.',\n        quantity: 1,\n        unitPrice: Math.round((d.netAmount ?? d.amount / (1 + (typeof buyer.vatRate === 'number' ? buyer.vatRate : 0) / 100)) * 100) / 100,\n        vatRate: buyer.vatRate\n      }\n    ],\n    ...(buyer.vatRate === 'zw' ? { exemptionBasis: config.exemptionBasis } : {}),\n    payment: {\n      paid: true,\n      date: today,\n      method: 'transfer'\n    },\n    // Pass-through for error logging\n    _meta: {\n      sessionId: d.sessionId,\n      paymentIntentId: d.paymentIntentId,\n      buyerEmail: d.email\n    }\n  } }\n}];"
       },
       "id": "code-2",
       "name": "Build KSeF Payload",
@@ -385,25 +386,20 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $('Configuration (EDIT ME)').item.json.ksefGatewayUrl }}/ksef/invoice",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "name": "X-Api-Key",
-              "value": "={{ $('Configuration (EDIT ME)').item.json.gatewayApiKey }}"
-            }
-          ]
-        },
+        "url": "={{ $('Configuration (EDIT ME)').first().json.ksefGatewayUrl + '/ksef/invoice' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ invoiceNumber: $json.invoiceNumber, issueDate: $json.issueDate, saleDate: $json.saleDate, issuePlace: $json.issuePlace, currency: $json.currency, type: $json.type, seller: $json.seller, buyer: $json.buyer, items: $json.items, payment: $json.payment }) }}",
+        "jsonBody": "={{ JSON.stringify($('Reserve Invoice').first().json.invoice) }}",
         "options": {
-          "timeout": 120000
+          "timeout": 120000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
         }
       },
       "id": "http-1",
@@ -411,119 +407,279 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
+        3500,
+        710
+      ],
+      "notes": "The gateway authenticates with KSeF internally - no auth headers needed here.",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "d2b65089-7c50-5753-8b5a-34eeb2af1939",
+      "name": "Respond Skipped",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2400,
+        1150
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, skipped: true, reason: $json.reason || 'pominięto: nie zamówiono faktury' }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "4c8cd6c6-bfcd-5afb-8771-d6fc09a22649",
+      "name": "Reserve Invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
         2000,
         710
       ],
-      "notes": "The gateway authenticates with KSeF internally - no auth headers needed here."
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst sd = $getWorkflowStaticData('global');\nsd.invoices ??= [];\nconst key = input.eventKey;\nif (!key) return [{ json: { success: false, error: 'missing order identifier' } }];\nconst previous = sd.invoices.find(entry => entry.key === key);\nif (previous) return [{ json: { success: previous.status === 'sent', duplicate: true, status: previous.status, ksefNumber: previous.ksefNumber || null } }];\n// Do not evict unresolved sends: capacity exhaustion requires operator reconciliation.\nif (sd.invoices.length >= 1000) {\n  const index = sd.invoices.findIndex(entry => entry.status === 'sent');\n  if (index < 0) return [{ json: { success: false, error: 'deduplication capacity reached; reconcile unresolved invoices' } }];\n  sd.invoices.splice(index, 1);\n}\nsd.invoices.push({ key, status: 'in_progress' });\nreturn [{ json: { ...input, send: true } }];\n"
+      }
     },
     {
+      "id": "6a0e31b2-067e-5789-9969-d48468940d08",
+      "name": "Send Invoice?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2300,
+        710
+      ],
       "parameters": {
         "conditions": {
           "options": {
-            "caseSensitive": true,
-            "leftValue": "",
             "typeValidation": "strict"
           },
-          "combinator": "and",
           "conditions": [
             {
-              "leftValue": "={{ $json.success }}",
+              "leftValue": "={{ $json.send === true }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
                 "operation": "true"
               }
             }
-          ]
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "fef113f4-c8a2-5ba0-841a-6c25a154d852",
+      "name": "Wake Gateway",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2600,
+        710
+      ],
+      "parameters": {
+        "url": "={{ $('Configuration (EDIT ME)').first().json.ksefGatewayUrl + '/health' }}",
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "f8da8704-11e8-5e44-a7c0-9574a1432250",
+      "name": "Check Health",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2900,
+        710
+      ],
+      "parameters": {
+        "jsCode": "const ready = $input.first().json.status === 'ok';\nreturn [{ json: { ready, again: !ready && $runIndex < 8 } }];"
+      }
+    },
+    {
+      "id": "47a2a5ac-9365-539d-bdd9-554abf1f71f5",
+      "name": "Gateway Ready?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3200,
+        710
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.ready }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "884a1770-2644-5093-a134-a6fe4205f71e",
+      "name": "Wake Again?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3200,
+        950
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.again }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "f0972f0d-97de-5b90-9ee1-ee338ca06281",
+      "name": "Wait Wake",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2900,
+        950
+      ],
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": 30,
+        "unit": "seconds"
+      },
+      "webhookId": "9a64ecb6-7345-5c68-8f64-4a875f5f568b"
+    },
+    {
+      "id": "bb167fc8-4d08-577e-a6f4-d4429b226069",
+      "name": "Wake Failed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3500,
+        950
+      ],
+      "parameters": {
+        "jsCode": "const sd = $getWorkflowStaticData('global');\nconst entry = sd.invoices.find(e => e.key === $('Reserve Invoice').first().json.eventKey);\nentry.status = 'not_accepted';\nreturn [{ json: { success: false, status: entry.status, error: 'Gateway unavailable; reconcile before manual resend' } }];"
+      }
+    },
+    {
+      "id": "de38027d-67b4-5139-80b4-d2b004e37c4e",
+      "name": "Record Send Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3800,
+        710
+      ],
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst reserved = $('Reserve Invoice').first().json;\nconst sd = $getWorkflowStaticData('global');\nconst entry = sd.invoices.find(e => e.key === reserved.eventKey);\nconst attempt = $runIndex;\nconst code = Number(response.statusCode);\nconst body = response.body;\nconst retryAfter = response.headers?.['retry-after'] ?? response.headers?.['Retry-After'];\nlet delay = /^\\d+$/.test(String(retryAfter)) ? Number(retryAfter) : (Date.parse(retryAfter) - Date.now()) / 1000;\n// A gateway JSON 503 may come AFTER starting an invoice: never retry it.\n// Only a recognizable upstream HTML 503 (or an empty 503) is eligible.\nconst upstream503 = code === 503 && (body === '' || (typeof body === 'string' && /^\\s*(<!doctype html|<html)/i.test(body)));\nconst throttled = code === 429 && Number.isFinite(delay) && delay >= 0 && delay <= 300;\nconst safe = upstream503 || throttled;\nif (safe && attempt < 2) {\n  delay = throttled ? Math.max(1, Math.ceil(delay)) : 5 * (2 ** attempt);\n  return [{ json: { retry: true, delay } }];\n}\nconst success = code >= 200 && code < 300 && body?.success === true && !!body?.data?.ksefNumber;\nentry.status = success ? 'sent' : safe ? 'not_accepted' : 'uncertain';\nif (success) entry.ksefNumber = body.data.ksefNumber;\nreturn [{ json: { success, status: entry.status, ksefNumber: entry.ksefNumber || null,\n  error: success ? null : 'Reconcile in KSeF before any manual resend' } }];\n"
+      }
+    },
+    {
+      "id": "7ce883df-22ed-561e-bfcb-fb5637b84e24",
+      "name": "Retry Safe?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        4100,
+        710
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.retry === true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "2a597b6c-733c-537b-a03e-59dde3d28467",
+      "name": "Wait Retry",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3800,
+        470
+      ],
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": "={{ $json.delay }}",
+        "unit": "seconds"
+      },
+      "webhookId": "ec0f3f16-cbbb-5d69-8b7b-65a9de3c53e0"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.skipped !== true }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
         },
         "options": {}
       },
-      "id": "if-1",
-      "name": "Success?",
+      "id": "invoice-valid",
+      "name": "Invoice Valid?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        2300,
-        710
+        1830,
+        950
       ]
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "ksefNumber",
-              "name": "ksefNumber",
-              "value": "={{ $json.data.ksefNumber }}",
-              "type": "string"
-            },
-            {
-              "id": "status",
-              "name": "status",
-              "value": "={{ $json.data.status }}",
-              "type": "string"
-            },
-            {
-              "id": "sessionId",
-              "name": "sessionId",
-              "value": "={{ $('Build KSeF Payload').item.json._meta.sessionId }}",
-              "type": "string"
-            },
-            {
-              "id": "buyerEmail",
-              "name": "buyerEmail",
-              "value": "={{ $('Build KSeF Payload').item.json._meta.buyerEmail }}",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "set-1",
-      "name": "Extract KSeF Result",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        2600,
-        550
-      ],
-      "notes": "ksefNumber - save this to your DB (Supabase payment_transactions) for audit trail.\nOptionally chain a Supabase node here to persist it."
-    },
-    {
-      "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "error",
-              "name": "error",
-              "value": "={{ $json.error || JSON.stringify($json) }}",
-              "type": "string"
-            },
-            {
-              "id": "sessionId",
-              "name": "sessionId",
-              "value": "={{ $('Build KSeF Payload').item.json._meta.sessionId }}",
-              "type": "string"
-            },
-            {
-              "id": "invoiceNumber",
-              "name": "invoiceNumber",
-              "value": "={{ $('Build KSeF Payload').item.json.invoiceNumber }}",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "set-2",
-      "name": "Log Error",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        2600,
-        870
-      ],
-      "notes": "TODO: Connect to Slack / email / Supabase audit_log to alert on failed KSeF submissions."
     }
   ],
   "connections": {
@@ -564,7 +720,7 @@
       "main": [
         [
           {
-            "node": "Respond OK",
+            "node": "Is Purchase?",
             "type": "main",
             "index": 0
           }
@@ -578,22 +734,18 @@
         ]
       ]
     },
-    "Respond OK": {
-      "main": [
-        [
-          {
-            "node": "Is Purchase?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Is Purchase?": {
       "main": [
         [
           {
             "node": "Extract Purchase Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Skipped",
             "type": "main",
             "index": 0
           }
@@ -619,6 +771,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Respond Skipped",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -626,7 +785,7 @@
       "main": [
         [
           {
-            "node": "Send to KSeF Gateway",
+            "node": "Invoice Valid?",
             "type": "main",
             "index": 0
           }
@@ -637,25 +796,174 @@
       "main": [
         [
           {
-            "node": "Success?",
+            "node": "Record Send Result",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Success?": {
+    "Reserve Invoice": {
       "main": [
         [
           {
-            "node": "Extract KSeF Result",
+            "node": "Send Invoice?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Invoice?": {
+      "main": [
+        [
+          {
+            "node": "Wake Gateway",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Log Error",
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wake Gateway": {
+      "main": [
+        [
+          {
+            "node": "Check Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Health": {
+      "main": [
+        [
+          {
+            "node": "Gateway Ready?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gateway Ready?": {
+      "main": [
+        [
+          {
+            "node": "Send to KSeF Gateway",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wake Again?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wake Again?": {
+      "main": [
+        [
+          {
+            "node": "Wait Wake",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wake Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Wake": {
+      "main": [
+        [
+          {
+            "node": "Wake Gateway",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wake Failed": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Send Result": {
+      "main": [
+        [
+          {
+            "node": "Retry Safe?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retry Safe?": {
+      "main": [
+        [
+          {
+            "node": "Wait Retry",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Retry": {
+      "main": [
+        [
+          {
+            "node": "Send to KSeF Gateway",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Invoice Valid?": {
+      "main": [
+        [
+          {
+            "node": "Reserve Invoice",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Skipped",
             "type": "main",
             "index": 0
           }
@@ -664,7 +972,11 @@
     }
   },
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "none",
+    "saveManualExecutions": false,
+    "saveExecutionProgress": false
   },
   "pinData": {},
   "meta": {
