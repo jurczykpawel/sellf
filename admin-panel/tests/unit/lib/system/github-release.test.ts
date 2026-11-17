@@ -27,6 +27,7 @@ describe('fetchLatestReleaseTag', () => {
   it.each([
     ['another repository', 'https://github.com/someone/else/releases/tag/v2026.11.2'],
     ['a malformed tag', 'https://github.com/jurczykpawel/sellf/releases/tag/v2026.11.2/../../x'],
+    ['a release candidate', 'https://github.com/jurczykpawel/sellf/releases/tag/v2026.11.2-rc.1'],
     ['a prerelease suffix', 'https://github.com/jurczykpawel/sellf/releases/tag/v2026.11.2-rc1'],
   ])('rejects a redirect to %s', async (_, location) => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(redirect(location)));

@@ -157,10 +157,10 @@ read_installed_version() {
   if [ -f "$INSTALL_DIR/version.txt" ]; then
     version=$(head -n 1 "$INSTALL_DIR/version.txt" | tr -d '[:space:]')
   fi
-  if ! [[ "$version" =~ ^v?[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}$ ]] && [ -f "$INSTALL_DIR/package.json" ]; then
+  if ! [[ "$version" =~ ^v?[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}(-rc\.[1-9][0-9]{0,8})?$ ]] && [ -f "$INSTALL_DIR/package.json" ]; then
     version=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('version',''))" "$INSTALL_DIR/package.json" 2>/dev/null | tr -d '[:space:]' || true)
   fi
-  if [[ "$version" =~ ^v?[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}$ ]]; then
+  if [[ "$version" =~ ^v?[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}(-rc\.[1-9][0-9]{0,8})?$ ]]; then
     printf '%s\n' "$version"
   fi
 }
@@ -587,16 +587,24 @@ if [ -z "$INSTALLED_VERSION" ]; then
   fail_unchanged installed_version_unknown "Could not determine the installed version (version.txt / package.json in ${INSTALL_DIR}) — refusing to install."
 fi
 
-# Prints -1, 0 or 1 for $1 <, =, > $2 (both already validated as [v]N.N.N).
+# Prints -1, 0 or 1 for $1 <, =, > $2; an installed RC precedes stable.
 compare_calver() {
   local -a a b
   local i
-  IFS=. read -r -a a <<< "${1#v}"
-  IFS=. read -r -a b <<< "${2#v}"
+  local av="${1#v}" bv="${2#v}" ar br
+  ar="${av#*-rc.}"; br="${bv#*-rc.}"
+  IFS=. read -r -a a <<< "${av%%-rc.*}"
+  IFS=. read -r -a b <<< "${bv%%-rc.*}"
   for i in 0 1 2; do
     if (( 10#${a[i]} < 10#${b[i]} )); then echo -1; return; fi
     if (( 10#${a[i]} > 10#${b[i]} )); then echo 1; return; fi
   done
+  if [[ "$av" == *-rc.* ]] && [[ "$bv" != *-rc.* ]]; then echo -1; return; fi
+  if [[ "$av" != *-rc.* ]] && [[ "$bv" == *-rc.* ]]; then echo 1; return; fi
+  if [[ "$av" == *-rc.* ]]; then
+    if (( 10#$ar < 10#$br )); then echo -1; return; fi
+    if (( 10#$ar > 10#$br )); then echo 1; return; fi
+  fi
   echo 0
 }
 

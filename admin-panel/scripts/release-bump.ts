@@ -2,7 +2,7 @@
 /**
  * Release version bump: one command changes the Sellf version everywhere it is written.
  *
- *   bun run release:bump 2026.11.2      — check the version (CalVer YYYY.M.patch, newer than the
+ *   bun run release:bump 2026.11.2      — check the version (CalVer YYYY.M.patch[-rc.N], newer than the
  *                                          current one, new month starts at .0, no existing tag,
  *                                          all files agree today) and write it to every location.
  *   bun run release:bump --check [ver]  — exit 1 unless every location holds the same valid CalVer
@@ -20,7 +20,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const VERSION = String.raw`\d{4}\.\d{1,2}\.\d+`;
+const VERSION = String.raw`\d{4}\.\d{1,2}\.\d+(?:-rc\.[1-9]\d*)?`;
 
 interface VersionFile {
   file: string;
@@ -32,7 +32,7 @@ interface VersionFile {
 export const VERSION_FILES: VersionFile[] = [
   { file: 'package.json', pattern: new RegExp(String.raw`^(  "version": ")(${VERSION})(",)$`, 'm') },
   { file: 'admin-panel/package.json', pattern: new RegExp(String.raw`^(  "version": ")(${VERSION})(",)$`, 'm') },
-  { file: 'README.md', pattern: new RegExp(String.raw`(img\.shields\.io/badge/version-)(${VERSION})(-blue)`) },
+  { file: 'README.md', pattern: new RegExp(String.raw`(img\.shields\.io/badge/version-)(${VERSION.replace('-rc', '--rc')})(-blue)`) },
   { file: 'docker-compose.yml', pattern: new RegExp(String.raw`(ghcr\.io/jurczykpawel/sellf:\$\{SELLF_VERSION:-)(${VERSION})(\})`) },
   { file: '.env.docker.example', pattern: new RegExp(String.raw`^(# SELLF_VERSION=)(${VERSION})(\b)`, 'm') },
 ];
@@ -41,16 +41,21 @@ export interface CalVer {
   year: number;
   month: number;
   patch: number;
+  rc?: number;
 }
 
 export function parseCalVer(version: string): CalVer | null {
-  const match = /^(\d{4})\.([1-9]|1[0-2])\.(0|[1-9]\d*)$/.exec(version);
+  const match = /^(\d{4})\.([1-9]|1[0-2])\.(0|[1-9]\d*)(?:-rc\.([1-9]\d*))?$/.exec(version);
   if (!match) return null;
-  return { year: Number(match[1]), month: Number(match[2]), patch: Number(match[3]) };
+  return { year: Number(match[1]), month: Number(match[2]), patch: Number(match[3]), ...(match[4] ? { rc: Number(match[4]) } : {}) };
 }
 
 function compareCalVer(a: CalVer, b: CalVer): number {
-  return a.year - b.year || a.month - b.month || a.patch - b.patch;
+  const base = a.year - b.year || a.month - b.month || a.patch - b.patch;
+  if (base || a.rc === b.rc) return base;
+  if (a.rc === undefined) return 1;
+  if (b.rc === undefined) return -1;
+  return a.rc - b.rc;
 }
 
 export function readVersions(root: string): Record<string, string | null> {
@@ -60,13 +65,13 @@ export function readVersions(root: string): Record<string, string | null> {
     const content = existsSync(path) ? readFileSync(path, 'utf8') : '';
     const global = new RegExp(pattern.source, `${pattern.flags}g`);
     const matches = [...content.matchAll(global)];
-    result[file] = matches.length === 1 ? matches[0][2] : null;
+    result[file] = matches.length === 1 ? (file === 'README.md' ? matches[0][2].replace('--rc.', '-rc.') : matches[0][2]) : null;
   }
   return result;
 }
 
 function notCalVer(version: string): string {
-  return `${version} is not CalVer YYYY.M.patch (no "v", no leading zeros, month 1-12)`;
+  return `${version} is not CalVer YYYY.M.patch[-rc.N] (no "v", no leading zeros, month 1-12)`;
 }
 
 /** Errors when the files disagree (or `expected` is given and differs), or the version is not CalVer. */
@@ -90,11 +95,15 @@ export function checkBump(versions: Record<string, string | null>, next: string,
   const currentRaw = versions['admin-panel/package.json'];
   const current = currentRaw ? parseCalVer(currentRaw) : null;
   if (current) {
-    if (compareCalVer(target, current) <= 0) errors.push(`${next} must be newer than ${currentRaw}`);
+    const candidateFromBase = current.rc === undefined && target.rc !== undefined &&
+      target.year === current.year && target.month === current.month && target.patch === current.patch;
+    if (!candidateFromBase && compareCalVer(target, current) <= 0) errors.push(`${next} must be newer than ${currentRaw}`);
     else if ((target.year !== current.year || target.month !== current.month) && target.patch !== 0) {
       errors.push(`${next}: a new month starts at patch 0 (${target.year}.${target.month}.0)`);
     }
   }
+  const stableTag = `v${target.year}.${target.month}.${target.patch}`;
+  if (target.rc !== undefined && tags.includes(stableTag)) errors.push(`tag ${stableTag} already exists`);
   if (tags.includes(`v${next}`)) errors.push(`tag v${next} already exists`);
   return errors;
 }
@@ -102,7 +111,7 @@ export function checkBump(versions: Record<string, string | null>, next: string,
 export function applyBump(root: string, next: string): void {
   for (const { file, pattern } of VERSION_FILES) {
     const path = join(root, file);
-    writeFileSync(path, readFileSync(path, 'utf8').replace(pattern, `$1${next}$3`));
+    writeFileSync(path, readFileSync(path, 'utf8').replace(pattern, `$1${file === 'README.md' ? next.replace('-rc.', '--rc.') : next}$3`));
   }
 }
 
@@ -131,7 +140,7 @@ function main(): void {
 
   const next = positional[0];
   if (!next) {
-    console.error('Usage: bun run release:bump <YYYY.M.patch> | --check [version]');
+    console.error('Usage: bun run release:bump <YYYY.M.patch[-rc.N]> | --check [version]');
     process.exit(2);
   }
   const errors = checkBump(versions, next, args.includes('--no-tag-check') ? [] : gitTags(root));

@@ -7,13 +7,13 @@ version="${1:?version required}"
 archive="${2:?archive required}"
 output="${3:?output directory required}"
 updater="${4:-$(dirname "$0")/../upgrade.sh}"
-[[ "$version" =~ ^[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}$ ]] || { echo 'Invalid version' >&2; exit 1; }
+[[ "$version" =~ ^[0-9]{4}\.([1-9]|1[0-2])\.(0|[1-9][0-9]*)(-rc\.[1-9][0-9]*)?$ ]] || { echo 'Invalid version' >&2; exit 1; }
 minimum=$(sed -n 's/^MIN_UPDATER_VERSION=//p' "$updater")
 [[ "$minimum" =~ ^[1-9][0-9]{0,8}$ ]] || { echo 'Invalid min_updater_version' >&2; exit 1; }
 checksum=$(sha256sum "$archive" | awk '{print $1}')
 mkdir -p "$output"
 printf 'version=%s\nsha256=%s\nmin_updater_version=%s\n' "$version" "$checksum" "$minimum" > "$output/sellf-build.v2.manifest"
-if [ "$minimum" = 1 ]; then
+if [ "$minimum" = 1 ] && [[ "$version" != *-rc.* ]]; then
   printf 'version=%s\nsha256=%s\n' "$version" "$checksum" > "$output/sellf-build.manifest"
 else
   rm -f "$output/sellf-build.manifest" "$output/sellf-build.manifest.sig"

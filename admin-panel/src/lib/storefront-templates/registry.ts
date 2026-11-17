@@ -7,20 +7,22 @@ import { A_TOKENS, B_TOKENS, C_TOKENS, D_TOKENS } from '@/lib/storefront-templat
 import type { ZodIssue } from 'zod';
 import type { SlotContent, StorefrontConfig, TemplateRegistryEntry } from '@/lib/storefront-templates/schemas';
 import type { ValidationIssue, ValidationResult } from '@/lib/storefront-templates/json';
-import { version } from '../../../package.json';
+import { APP_VERSION, baseVersion } from '@/lib/version';
+
+const MIN_SELLF = baseVersion(APP_VERSION);
 
 export const CORE_SETTINGS = { density: { default: 'comfortable', values: ['comfortable', 'compact'] } } as const;
 export const STOREFRONT_TEMPLATES = {
   default: {
     sectionDescriptors: SECTION_DESCRIPTORS.default,
-    id: 'default', label: { en: 'Default', pl: 'Domyślny' }, minSellf: version, entitlement: { kind: 'free' }, tokens: null, settings: [],
+    id: 'default', label: { en: 'Default', pl: 'Domyślny' }, minSellf: MIN_SELLF, entitlement: { kind: 'free' }, tokens: null, settings: [],
     defaults: { format: 1, surface: 'storefront', shell: 'store/1', sections: [
       { id: 'catalogue', type: 'catalogue/1', variant: 'default-groups', source: 'listed-products', filters: ['category', 'price-kind', 'format'], pageSize: 12, density: { setting: 'density' } },
     ] },
   },
   d: {
     sectionDescriptors: SECTION_DESCRIPTORS.d,
-    id: 'd', label: { en: 'Process storefront', pl: 'Sklep z procesem' }, minSellf: version, entitlement: { kind: 'pro' }, tokens: D_TOKENS,
+    id: 'd', label: { en: 'Process storefront', pl: 'Sklep z procesem' }, minSellf: MIN_SELLF, entitlement: { kind: 'pro' }, tokens: D_TOKENS,
     settings: [
       { id: 'heroProduct', label: { en: 'Featured offer', pl: 'Główna oferta' }, kind: 'product', required: true },
       { id: 'starterProducts', label: { en: 'Three starts', pl: 'Trzy starty' }, kind: 'products', required: false, maxItems: 3 },
@@ -39,7 +41,7 @@ export const STOREFRONT_TEMPLATES = {
   },
   'storefront-a': {
     sectionDescriptors: SECTION_DESCRIPTORS['storefront-a'],
-    id: 'storefront-a', label: { en: 'Offer-led storefront', pl: 'Sklep z główną ofertą' }, minSellf: version,
+    id: 'storefront-a', label: { en: 'Offer-led storefront', pl: 'Sklep z główną ofertą' }, minSellf: MIN_SELLF,
     entitlement: { kind: 'template-key', templateId: 'storefront-a' }, tokens: A_TOKENS,
     settings: [
       { id: 'heroProduct', label: { en: 'Featured offer', pl: 'Główna oferta' }, kind: 'product', required: true },
@@ -60,7 +62,7 @@ export const STOREFRONT_TEMPLATES = {
   },
   'storefront-b': {
     sectionDescriptors: SECTION_DESCRIPTORS['storefront-b'],
-    id: 'storefront-b', label: { en: 'Search-led storefront', pl: 'Sklep z wyszukiwarką' }, minSellf: version,
+    id: 'storefront-b', label: { en: 'Search-led storefront', pl: 'Sklep z wyszukiwarką' }, minSellf: MIN_SELLF,
     entitlement: { kind: 'template-key', templateId: 'storefront-b' }, tokens: B_TOKENS,
     settings: [
       { id: 'featuredProducts', label: { en: 'Six featured products', pl: 'Sześć polecanych produktów' }, kind: 'products', required: false, maxItems: 6 },
@@ -79,7 +81,7 @@ export const STOREFRONT_TEMPLATES = {
   },
   'storefront-c': {
     sectionDescriptors: SECTION_DESCRIPTORS['storefront-c'],
-    id: 'storefront-c', label: { en: 'Author-led storefront', pl: 'Sklep twórcy' }, minSellf: version,
+    id: 'storefront-c', label: { en: 'Author-led storefront', pl: 'Sklep twórcy' }, minSellf: MIN_SELLF,
     entitlement: { kind: 'template-key', templateId: 'storefront-c' }, tokens: C_TOKENS,
     settings: [
       { id: 'starterProducts', label: { en: 'Three starting points', pl: 'Trzy punkty startowe' }, kind: 'products', required: false, maxItems: 3 },

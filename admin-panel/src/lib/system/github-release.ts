@@ -96,7 +96,7 @@ async function request(url: string, redirect: RequestRedirect): Promise<Response
   }
 }
 
-/** Tag of the latest published release, read from the github.com redirect. */
+/** Latest stable release via github.com; reject any prerelease redirect as well. */
 export async function fetchLatestReleaseTag(): Promise<string> {
   const response = await request(`${GITHUB_BASE}/releases/latest`, 'manual');
   if (response.status < 300 || response.status >= 400) {

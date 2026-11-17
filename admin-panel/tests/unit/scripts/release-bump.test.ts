@@ -17,10 +17,10 @@ const REPO = path.resolve(__dirname, '../../../..');
 const SCRIPT = path.resolve(__dirname, '../../../scripts/release-bump.ts');
 
 describe('parseCalVer', () => {
-  it.each(['2026.11.1', '2026.1.0', '2027.12.15'])('accepts %s', (v) => {
+  it.each(['2026.11.1', '2026.1.0', '2027.12.15', '2026.11.1-rc.1'])('accepts %s', (v) => {
     expect(parseCalVer(v)).not.toBeNull();
   });
-  it.each(['v2026.11.1', '2026.11', '2026.13.0', '2026.0.1', '2026.01.1', '2026.11.01', '2026.11.1-rc.1', '26.11.1'])('rejects %s', (v) => {
+  it.each(['v2026.11.1', '2026.11', '2026.13.0', '2026.0.1', '2026.01.1', '2026.11.01', '2026.11.1-rc.0', '2026.11.1-beta.1', '2026.11.1-rc.01', '2026.11.1-rc.1.2', '2026.11.1-rc', '26.11.1'])('rejects %s', (v) => {
     expect(parseCalVer(v)).toBeNull();
   });
 });
@@ -32,6 +32,17 @@ describe('checkBump', () => {
     expect(checkBump(consistent('2026.11.1'), '2026.11.2', [])).toEqual([]);
     expect(checkBump(consistent('2026.11.1'), '2026.12.0', [])).toEqual([]);
     expect(checkBump(consistent('2026.12.3'), '2027.1.0', [])).toEqual([]);
+  });
+
+  it('orders release candidates before stable and by candidate number', () => {
+    expect(checkBump(consistent('2026.11.0'), '2026.11.1-rc.1', [])).toEqual([]);
+    expect(checkBump(consistent('2026.11.1-rc.1'), '2026.11.1-rc.2', [])).toEqual([]);
+    expect(checkBump(consistent('2026.11.1-rc.2'), '2026.11.1', [])).toEqual([]);
+    expect(checkBump(consistent('2026.11.1'), '2026.11.1-rc.1', [])).toEqual([]);
+    expect(checkBump(consistent('2026.11.1'), '2026.11.1-rc.2', ['v2026.11.1-rc.1'])).toEqual([]);
+    expect(checkBump(consistent('2026.11.1'), '2026.11.1-rc.1', ['v2026.11.1']).join('\n')).toContain('tag v2026.11.1 already exists');
+    expect(checkBump(consistent('2026.11.1-rc.1'), '2026.11.1-rc.2', ['v2026.11.1']).join('\n')).toContain('tag v2026.11.1 already exists');
+    expect(checkBump(consistent('2026.11.2'), '2026.11.1-rc.1', []).length).toBeGreaterThan(0);
   });
 
   it('rejects a malformed version', () => {
@@ -101,7 +112,8 @@ describe('applyBump on a copy of the real files', () => {
   it('changes exactly the version in every location and nothing else', () => {
     const before = Object.fromEntries(VERSION_FILES.map(({ file }) => [file, readFileSync(path.join(dir, file), 'utf8')]));
     const current = readVersions(dir)['package.json']!;
-    applyBump(dir, '2099.1.0');
+    const stable = spawnSync('bun', [SCRIPT, '2099.1.0', '--root', dir, '--no-tag-check'], { encoding: 'utf8' });
+    expect(stable.status, stable.stderr).toBe(0);
     expect(new Set(Object.values(readVersions(dir)))).toEqual(new Set(['2099.1.0']));
     for (const { file } of VERSION_FILES) {
       const after = readFileSync(path.join(dir, file), 'utf8');
@@ -119,6 +131,17 @@ describe('applyBump on a copy of the real files', () => {
     expect(ok.status, ok.stderr).toBe(0);
     const check = spawnSync('bun', [SCRIPT, '--check', '2099.1.0', '--root', dir], { encoding: 'utf8' });
     expect(check.status, check.stderr).toBe(0);
+  });
+
+  it('round trips rc in every real version file, then promotes to stable', () => {
+    const rc = spawnSync('bun', [SCRIPT, '2099.1.0-rc.1', '--root', dir, '--no-tag-check'], { encoding: 'utf8' });
+    expect(rc.status, rc.stderr).toBe(0);
+    expect(checkConsistent(readVersions(dir), '2099.1.0-rc.1')).toEqual([]);
+    expect(readFileSync(path.join(dir, 'README.md'), 'utf8')).toContain('version-2099.1.0--rc.1-blue');
+    expect(checkBump(readVersions(dir), '2099.1.0', [])).toEqual([]);
+    const stable = spawnSync('bun', [SCRIPT, '2099.1.0', '--root', dir, '--no-tag-check'], { encoding: 'utf8' });
+    expect(stable.status, stable.stderr).toBe(0);
+    expect(checkConsistent(readVersions(dir), '2099.1.0')).toEqual([]);
   });
 
   it('CLI --check fails on agreeing files with an invalid CalVer (2026.13.0)', () => {
