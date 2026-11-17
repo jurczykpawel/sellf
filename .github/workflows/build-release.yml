@@ -16,8 +16,7 @@ on:
         type: boolean
 
 permissions:
-  contents: write
-  packages: write
+  contents: read
 
 jobs:
   # Hard stop: Dependabot PRs that must ride in a release (runtime/major bumps labelled
@@ -93,7 +92,7 @@ jobs:
         run: bun audit --audit-level=high --ignore=GHSA-vfj7-8cjw-p6xm
 
       - name: Scan for leaked secrets
-        uses: trufflesecurity/trufflehog@ea68ca03c865c5f324e86e849ced20ed3cf9dbbb # v3.99.8
+        uses: trufflesecurity/trufflehog@3bd2b5887eb0efb8fa18bfd1d296032924e4ffdc # v3.99.9
         with:
           extra_args: --results verified,unknown
 
@@ -170,11 +169,13 @@ jobs:
           echo "pinned playerstack commit: $PS_SHA"
 
       - name: Clone playerstack repo at pinned SHA
+        env:
+          PLAYERSTACK_SHA: ${{ steps.pin.outputs.ps_sha }}
         run: |
           set -euo pipefail
           git clone --no-checkout git@github.com:jurczykpawel/playerstack.git /tmp/playerstack
           cd /tmp/playerstack
-          git checkout --detach ${{ steps.pin.outputs.ps_sha }}
+          git checkout --detach "$PLAYERSTACK_SHA"
           echo "checked out: $(git rev-parse HEAD)"
 
       - name: Install playerstack dependencies
@@ -186,6 +187,8 @@ jobs:
         run: bun run build
 
       - name: Verify bundle files match sellf source of truth
+        env:
+          PLAYERSTACK_SHA: ${{ steps.pin.outputs.ps_sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -200,7 +203,7 @@ jobs:
           fi
 
           SELLF_DIR="admin-panel/public$(dirname "$SELLF_BUNDLE_PATH_REL")"
-          if [[ "$(basename "$SELLF_DIR")" != "$(echo "${{ steps.pin.outputs.ps_sha }}" | cut -c1-7)" ]]; then
+          if [[ "$(basename "$SELLF_DIR")" != "$(echo "$PLAYERSTACK_SHA" | cut -c1-7)" ]]; then
             echo "::error::$SELLF_DIR is not named after the pinned playerstack commit" >&2
             exit 1
           fi
@@ -239,13 +242,15 @@ jobs:
             fi
           done
 
-          echo "✓ bundle matches playerstack@${{ steps.pin.outputs.ps_sha }}"
+          echo "✓ bundle matches playerstack@$PLAYERSTACK_SHA"
           echo "  dir: $SELLF_DIR"
           echo "  sri: $SELLF_SRI"
 
   build:
     runs-on: ubuntu-latest
-    needs: [test, migrations, verify-playerstack-bundle]  # Only build if tests + migration gate pass AND playerstack bundle is fresh
+    needs: [test, migrations, verify-playerstack-bundle]
+    outputs:
+      version: ${{ steps.version.outputs.VERSION }}
 
     steps:
       - name: Checkout code
@@ -379,25 +384,12 @@ jobs:
           sha256sum sellf-build.tar.gz > sellf-build.tar.gz.sha256
           cat sellf-build.tar.gz.sha256
 
-      # Legacy signed release manifest: exactly two lines, `version=<YYYY.M.patch>` and
-      # `sha256=<hex of sellf-build.tar.gz>`, plus an Ed25519 signature over
-      # it (sellf-build.manifest.sig). upgrade.sh verifies the signature with
-      # the public key embedded in the already-installed script, refuses a
-      # version older than the installed one, and checks the tarball against
-      # the hash, so one signature covers origin, version and contents.
-      # V2 also binds min_updater_version; legacy assets exist only for minimum 1.
-      - name: Write and sign release manifest
+      - name: Write release manifests
         env:
-          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
           RELEASE_VERSION: ${{ steps.version.outputs.VERSION }}
           PRERELEASE: ${{ (github.event_name == 'release' && github.event.release.prerelease == true) || (github.event_name == 'workflow_dispatch' && inputs.prerelease == true) }}
         run: |
           set -euo pipefail
-          if [ -z "${RELEASE_SIGNING_KEY:-}" ]; then
-            echo "::error::RELEASE_SIGNING_KEY secret is not set — refusing to publish an unsigned release"
-            exit 1
-          fi
-
           # The tag must be CalVer (optional v prefix) and match
           # admin-panel/package.json, which becomes the installed version.txt
           # the next upgrade compares against.
@@ -419,43 +411,111 @@ jobs:
           bash admin-panel/scripts/ci/write-release-manifests.sh "$MANIFEST_VERSION" sellf-build.tar.gz .
           cat sellf-build*.manifest
 
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: release-package
+          if-no-files-found: error
+          retention-days: 1
+          path: |
+            sellf-build.tar.gz
+            sellf-build.tar.gz.sha256
+
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: build-manifests
+          if-no-files-found: error
+          retention-days: 1
+          path: |
+            sellf-build*.manifest
+
+  sign-build:
+    runs-on: ubuntu-latest
+    needs: build
+    environment: release
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: build-manifests
+
+      - name: Sign manifests
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RELEASE_SIGNING_KEY:-}" ]; then
+            echo "::error::RELEASE_SIGNING_KEY secret is not set"
+            exit 1
+          fi
           umask 077
           KEY_FILE="$(mktemp)"
-          PUB_FILE="$(mktemp)"
-          trap 'rm -f "$KEY_FILE" "$PUB_FILE"' EXIT
+          trap 'rm -f "$KEY_FILE"' EXIT
           printf '%s\n' "$RELEASE_SIGNING_KEY" > "$KEY_FILE"
           for manifest in sellf-build*.manifest; do
             openssl pkeyutl -sign -inkey "$KEY_FILE" -rawin -in "$manifest" -out "$manifest.sig"
           done
 
-          # Verify against the key installed servers trust: the one embedded
-          # in upgrade.sh. Catches a secret/public-key mismatch before publishing.
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: build-signatures
+          if-no-files-found: error
+          retention-days: 1
+          path: |
+            sellf-build*.manifest.sig
+
+  publish-build:
+    runs-on: ubuntu-latest
+    needs: [build, sign-build]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          sparse-checkout: admin-panel/scripts
+
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: release-package
+
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: build-manifests
+
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: build-signatures
+
+      - name: Verify release manifests
+        run: |
+          set -euo pipefail
+          PUB_FILE="$(mktemp)"
+          trap 'rm -f "$PUB_FILE"' EXIT
           sed -n '/^# release-signing-key:start/,/^# release-signing-key:end/p' admin-panel/scripts/upgrade.sh \
             | sed -n '/^-----BEGIN PUBLIC KEY-----$/,/^-----END PUBLIC KEY-----$/p' > "$PUB_FILE"
-          if grep -q 'REPLACE_WITH_RELEASE_SIGNING_PUBLIC_KEY' "$PUB_FILE"; then
-            echo "::error::admin-panel/scripts/upgrade.sh still holds the placeholder release signing public key"
-            exit 1
-          fi
+          cmp "$PUB_FILE" admin-panel/scripts/release-signing-key.pub.pem
+          sha256sum -c sellf-build.tar.gz.sha256
           for manifest in sellf-build*.manifest; do
-            openssl pkeyutl -verify -pubin -inkey "$PUB_FILE" -rawin -in "$manifest" -sigfile "$manifest.sig"
+            bash admin-panel/scripts/ci/sign-manifest.sh verify "$manifest" "$manifest.sig"
+            grep -qx "sha256=$(sha256sum sellf-build.tar.gz | awk '{print $1}')" "$manifest"
           done
-          cmp -s "$PUB_FILE" admin-panel/scripts/release-signing-key.pub.pem || {
-            echo "::error::admin-panel/scripts/release-signing-key.pub.pem differs from the key embedded in upgrade.sh"
-            exit 1
-          }
 
       - name: Upload artifact to release
         if: github.event_name == 'release'
-        run: gh release upload "${{ steps.version.outputs.VERSION }}" sellf-build.tar.gz sellf-build.tar.gz.sha256 sellf-build*.manifest sellf-build*.manifest.sig --clobber
+        run: gh release upload "$RELEASE_VERSION" sellf-build.tar.gz sellf-build.tar.gz.sha256 sellf-build*.manifest sellf-build*.manifest.sig --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+          GH_REPO: ${{ github.repository }}
 
       - name: Create release (manual dispatch)
         if: github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3
         with:
-          tag_name: ${{ steps.version.outputs.VERSION }}
-          name: Sellf ${{ steps.version.outputs.VERSION }}
+          tag_name: ${{ needs.build.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: Sellf ${{ needs.build.outputs.version }}
           draft: false
           prerelease: ${{ inputs.prerelease }}
           files: |
@@ -464,13 +524,13 @@ jobs:
             sellf-build*.manifest
             sellf-build*.manifest.sig
           body: |
-            ## Sellf ${{ steps.version.outputs.VERSION }}
+            ## Sellf ${{ needs.build.outputs.version }}
 
             ### Installation
 
             ```bash
             # Download and extract
-            curl -L https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/sellf-build.tar.gz | tar -xz -C ~/sellf-admin
+            curl -L https://github.com/${{ github.repository }}/releases/download/${{ needs.build.outputs.version }}/sellf-build.tar.gz | tar -xz -C ~/sellf-admin
 
             # Configure environment
             cd ~/sellf-admin
@@ -500,10 +560,15 @@ jobs:
             - Stripe account (for payments)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+          GH_REPO: ${{ github.repository }}
 
   # Build and push Docker image to GHCR
   docker:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     needs: [test, migrations, verify-playerstack-bundle]
     outputs:
       digest: ${{ steps.build.outputs.digest }}
@@ -584,53 +649,91 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Verify the pushed digest resolves on GHCR
+      - name: Write image manifest
+        env:
+          IMAGE_OWNER: ${{ github.repository_owner }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+          RELEASE_VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
           set -euo pipefail
-          OWNER_LOWER="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
-          docker buildx imagetools inspect "ghcr.io/${OWNER_LOWER}/sellf@${{ steps.build.outputs.digest }}"
+          if ! [[ "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::docker job did not produce a valid image digest"
+            exit 1
+          fi
+          OWNER_LOWER="$(printf '%s' "$IMAGE_OWNER" | tr '[:upper:]' '[:lower:]')"
+          docker buildx imagetools inspect "ghcr.io/${OWNER_LOWER}/sellf@${IMAGE_DIGEST}"
+          MANIFEST_VERSION="${RELEASE_VERSION#v}"
+          printf 'version=%s\nimage=ghcr.io/%s/sellf@%s\n' "$MANIFEST_VERSION" "$OWNER_LOWER" "$IMAGE_DIGEST" > sellf-image.manifest
 
-  # Sign the pushed image's digest so stackpilot can pin + verify it instead
-  # of trusting the mutable `latest` tag. Runs after both `build` (which
-  # creates the GitHub release on a manual dispatch) and `docker` (which
-  # produces the digest), so a release always exists and the digest is known.
-  # If `docker` fails, only this job is skipped — the tarball release stays
-  # valid, and a Docker install refuses cleanly for lacking a signed image.
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: image-manifests
+          if-no-files-found: error
+          retention-days: 1
+          path: |
+            sellf-image.manifest
+
   sign-image:
     runs-on: ubuntu-latest
     needs: [build, docker]
-
+    environment: release
+    permissions:
+      contents: read
     steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: image-manifests
 
-      - name: Write and sign image manifest
+      - name: Sign manifests
         env:
           RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
-          RELEASE_VERSION: ${{ needs.docker.outputs.version }}
-          IMAGE_DIGEST: ${{ needs.docker.outputs.digest }}
         run: |
           set -euo pipefail
           if [ -z "${RELEASE_SIGNING_KEY:-}" ]; then
-            echo "::error::RELEASE_SIGNING_KEY secret is not set — refusing to publish an unsigned image manifest"
+            echo "::error::RELEASE_SIGNING_KEY secret is not set"
             exit 1
           fi
-          if ! [[ "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
-            echo "::error::docker job did not produce a valid image digest: '$IMAGE_DIGEST'"
-            exit 1
-          fi
+          umask 077
+          KEY_FILE="$(mktemp)"
+          trap 'rm -f "$KEY_FILE"' EXIT
+          printf '%s\n' "$RELEASE_SIGNING_KEY" > "$KEY_FILE"
+          for manifest in sellf-image.manifest; do
+            openssl pkeyutl -sign -inkey "$KEY_FILE" -rawin -in "$manifest" -out "$manifest.sig"
+          done
 
-          OWNER_LOWER="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
-          MANIFEST_VERSION="${RELEASE_VERSION#v}"
-          printf 'version=%s\nimage=ghcr.io/%s/sellf@%s\n' "$MANIFEST_VERSION" "$OWNER_LOWER" "$IMAGE_DIGEST" > sellf-image.manifest
-          cat sellf-image.manifest
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: image-signatures
+          if-no-files-found: error
+          retention-days: 1
+          path: |
+            sellf-image.manifest.sig
 
-          admin-panel/scripts/ci/sign-manifest.sh sign sellf-image.manifest sellf-image.manifest.sig
-          # Verify against the key installed servers trust, same as the
-          # tarball manifest — catches a secret/public-key mismatch before publishing.
-          admin-panel/scripts/ci/sign-manifest.sh verify sellf-image.manifest sellf-image.manifest.sig
+  publish-image:
+    runs-on: ubuntu-latest
+    needs: [docker, sign-image, publish-build]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          sparse-checkout: admin-panel/scripts
+
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: image-manifests
+
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: image-signatures
+
+      - name: Verify image manifest
+        run: bash admin-panel/scripts/ci/sign-manifest.sh verify sellf-image.manifest sellf-image.manifest.sig
 
       - name: Upload artifact to release
-        run: gh release upload "${{ needs.docker.outputs.version }}" sellf-image.manifest sellf-image.manifest.sig --clobber
+        run: gh release upload "$RELEASE_VERSION" sellf-image.manifest sellf-image.manifest.sig --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_VERSION: ${{ needs.docker.outputs.version }}

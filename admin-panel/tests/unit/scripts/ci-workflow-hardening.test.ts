@@ -10,6 +10,10 @@ const buildRelease = readFileSync(path.join(WORKFLOWS_DIR, 'build-release.yml'),
 const syncKsef = readFileSync(path.join(WORKFLOWS_DIR, 'sync-ksef-example.yml'), 'utf8');
 const lintMigrations = readFileSync(path.join(WORKFLOWS_DIR, 'lint-migrations.yml'), 'utf8');
 
+function jobSource(name: string): string {
+  return buildRelease.match(new RegExp(`\\n  ${name}:\\n[\\s\\S]*?(?=\\n  [\\w-]+:\\n|$)`))?.[0] ?? '';
+}
+
 // Every third-party action reference in these workflows must be pinned to a
 // full commit SHA ("owner/repo@<40-hex-chars>"), not a mutable tag — a tag
 // can be moved to point at different, unreviewed code after the workflow is
@@ -37,9 +41,9 @@ describe('build-release.yml hardening', () => {
     expect(buildRelease).toContain('MANIFEST_VERSION="${RELEASE_VERSION#v}"');
     expect(buildRelease).toContain('for manifest in sellf-build*.manifest; do');
     expect(buildRelease).toContain('-in "$manifest" -out "$manifest.sig"');
-    expect(buildRelease).toContain('-in "$manifest" -sigfile "$manifest.sig"');
+    expect(buildRelease).toContain('sign-manifest.sh verify "$manifest" "$manifest.sig"');
     expect(buildRelease).toContain(
-      'gh release upload "${{ steps.version.outputs.VERSION }}" sellf-build.tar.gz sellf-build.tar.gz.sha256 sellf-build*.manifest sellf-build*.manifest.sig',
+      'gh release upload "$RELEASE_VERSION" sellf-build.tar.gz sellf-build.tar.gz.sha256 sellf-build*.manifest sellf-build*.manifest.sig',
     );
     expect(buildRelease).toMatch(
       /files:\s*\|\s*\n\s*sellf-build\.tar\.gz\s*\n\s*sellf-build\.tar\.gz\.sha256\s*\n\s*sellf-build\*\.manifest\s*\n\s*sellf-build\*\.manifest\.sig/,
@@ -69,8 +73,7 @@ describe('build-release.yml hardening', () => {
 });
 
 describe('build-release.yml docker job hardening', () => {
-  // Job bodies, sliced by their top-level YAML keys (2-space indent). `docker`
-  // is followed immediately by the new `sign-image` job in the same file.
+  // Slice job bodies at their top-level YAML keys.
   const dockerJobStart = buildRelease.indexOf('\n  docker:\n');
   const signImageJobStart = buildRelease.indexOf('\n  sign-image:\n');
   const dockerJob = buildRelease.slice(dockerJobStart, signImageJobStart === -1 ? undefined : signImageJobStart);
@@ -104,8 +107,8 @@ describe('build-release.yml docker job hardening', () => {
 });
 
 describe('build-release.yml sign-image job', () => {
-  const signImageJobStart = buildRelease.indexOf('\n  sign-image:\n');
-  const signImageJob = signImageJobStart === -1 ? '' : buildRelease.slice(signImageJobStart);
+  const signImageJob = jobSource('sign-image');
+  const publishImageJob = jobSource('publish-image');
 
   it('exists and depends on both the build and docker jobs', () => {
     expect(signImageJob).not.toBe('');
@@ -118,20 +121,20 @@ describe('build-release.yml sign-image job', () => {
   });
 
   it('validates the image digest shape before writing the manifest', () => {
-    expect(signImageJob).toMatch(/\^sha256:\[0-9a-f\]\{64\}\$/);
+    expect(jobSource('docker')).toMatch(/\^sha256:\[0-9a-f\]\{64\}\$/);
   });
 
   it('writes a two-line image manifest with version and image digest reference', () => {
-    expect(signImageJob).toContain("printf 'version=%s\\nimage=ghcr.io/%s/sellf@%s\\n'");
+    expect(jobSource('docker')).toContain("printf 'version=%s\\nimage=ghcr.io/%s/sellf@%s\\n'");
   });
 
   it('signs the image manifest and verifies it against the embedded release key before upload', () => {
-    expect(signImageJob).toContain('sign-manifest.sh sign sellf-image.manifest sellf-image.manifest.sig');
-    expect(signImageJob).toContain('sign-manifest.sh verify sellf-image.manifest sellf-image.manifest.sig');
+    expect(signImageJob).toContain('openssl pkeyutl -sign -inkey "$KEY_FILE" -rawin -in "$manifest" -out "$manifest.sig"');
+    expect(publishImageJob).toContain('sign-manifest.sh verify sellf-image.manifest sellf-image.manifest.sig');
   });
 
   it('uploads both the image manifest and its signature to the release', () => {
-    expect(signImageJob).toMatch(/gh release upload[\s\S]*sellf-image\.manifest[\s\S]*sellf-image\.manifest\.sig/);
+    expect(publishImageJob).toMatch(/gh release upload[\s\S]*sellf-image\.manifest[\s\S]*sellf-image\.manifest\.sig/);
   });
 
   it('pins every third-party action to a full commit SHA', () => {

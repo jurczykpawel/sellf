@@ -1,10 +1,7 @@
 #!/usr/bin/env bash
-# Shared Ed25519 sign/verify primitive for release manifests (see AGENTS.md
-# "Release signing"). Every manifest CI publishes — the tarball manifest and
-# the image manifest — is signed the same way with $RELEASE_SIGNING_KEY, and
-# verified in CI against the public key embedded in scripts/upgrade.sh, the
-# same key already-installed servers trust. Keeping the sign/verify commands
-# in one script avoids two copies drifting apart as more manifests are added.
+# Ed25519 manifest helper for local signing and CI publication verification.
+# CI signing jobs use inline OpenSSL on separate release runners; publication
+# verifies against the public key embedded in upgrade.sh.
 #
 # Usage:
 #   sign-manifest.sh sign   <manifest-file> <sig-file>
