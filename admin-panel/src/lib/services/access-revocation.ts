@@ -9,7 +9,7 @@
  * 1. Main product — user_product_access
  * 2. Bump products — user_product_access (via payment_line_items)
  * 3. Bundle components the order granted — user_product_access (via revoke_order_bundle_components;
- *    components the buyer holds through another live order or an independent grant stay)
+ *    components the buyer still holds through another paid order or another live bundle access stay)
  * 4. Main product — guest_purchases
  * 5. Bump products — guest_purchases (via payment_line_items)
  *
