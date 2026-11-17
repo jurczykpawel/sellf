@@ -31,9 +31,11 @@ jobs:
           if jq -e '.labels[].name | select(. == "security")' <<<"$pr" >/dev/null \
              || jq -e '.body | test("Vulnerabilities fixed|GHSA-[0-9a-z-]+|CVE-[0-9]{4}-[0-9]+")' <<<"$pr" >/dev/null; then
             kind=security
+          elif [ "$ECOSYSTEM" = "github_actions" ]; then
+            kind=ci
           elif jq -e 'any(.[]; .updateType == "version-update:semver-major")' <<<"$UPDATES" >/dev/null; then
             kind=release-batch
-          elif [ "$ECOSYSTEM" = "github_actions" ] || { [ "$ECOSYSTEM" = "npm_and_yarn" ] && [ "$dir" = "/docs-site" ]; }; then
+          elif [ "$ECOSYSTEM" = "npm_and_yarn" ] && [ "$dir" = "/docs-site" ]; then
             kind=safe
           else
             kind=release-batch
@@ -41,11 +43,11 @@ jobs:
           echo "ecosystem=$ECOSYSTEM dir=$dir kind=$kind"
           echo "kind=$kind" >> "$GITHUB_OUTPUT"
 
-      - name: Label PRs that ride in a release
+      - name: Label classified PRs
         if: steps.kind.outputs.kind != 'safe'
         env:
           LABEL: ${{ steps.kind.outputs.kind }}
         run: |
           gh label create "$LABEL" --force --color "$([ "$LABEL" = security ] && echo d73a4a || echo fbca04)" \
-            --description "Dependabot PR that must ship in the next release" >/dev/null
+            --description "Dependabot update classification" >/dev/null
           gh pr edit "$PR_URL" --add-label "$LABEL"
