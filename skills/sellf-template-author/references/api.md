@@ -12,17 +12,19 @@ in a private temporary directory outside the application checkout.
 All paths below start `/api/v1/templates/`. Scopes are independent, not hierarchical;
 each key must belong to the instance admin. Product-write grants no template scope.
 
-| Tool | Method/path | Body | Scope |
+| MCP tool (`operationId`) | Method/path | JSON body (MCP: under `body`) | Scope |
 |---|---|---|---|
-| templates_capabilities | GET capabilities | none | templates:read |
-| templates_read | GET config | none | templates:read |
-| templates_validate | POST validate | `{config,mode:"draft"}` or `"publish"` | templates:read |
-| templates_draft | PUT draft | `{expectedRevision,config}` | templates:write |
-| templates_preview | POST preview | `{revision,locale:"en",fixture:"standard"}` | templates:read |
-| templates_diff | POST diff | `{fromRevision,toRevision}` | templates:read |
-| templates_publish | POST publish | `{expectedRevision}` | templates:activate |
-| templates_rollback | POST rollback | `{expectedRevision,targetRevision}` | templates:activate |
-| templates_reset | POST reset | `{expectedRevision,templateId,field}` | templates:write |
+| get_template_capabilities | GET capabilities | none | templates:read |
+| get_template_config | GET config | none | templates:read |
+| validate_template | POST validate | `{config,mode:"draft"}` or `"publish"` | templates:read |
+| update_template_draft | PUT draft | `{expectedRevision,config}` | templates:write |
+| preview_template | POST preview | `{revision,locale:"en",fixture:"standard"}` | templates:read |
+| diff_template | POST diff | `{fromRevision,toRevision}` | templates:read |
+| publish_template | POST publish | `{expectedRevision}` | templates:activate |
+| rollback_template | POST rollback | `{expectedRevision,targetRevision}` | templates:activate |
+| reset_template_field | POST reset | `{expectedRevision,templateId,field}` | templates:write |
+
+Example MCP call: `{"name":"publish_template","arguments":{"body":{"expectedRevision":1}}}`.
 
 Capabilities expose `templates` (complete registry entries/recipes), `schemas`,
 `slots`, `coreSettings`, `resetPaths`, `limits`. Config reads include `revision`,

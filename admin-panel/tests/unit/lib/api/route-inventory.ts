@@ -8,14 +8,18 @@
  *
  * Detection rules (documented in docs-site "API description for agents"):
  * - handlers: `export function|const X`, `export { local as X }` for every HTTP method; only the
- *   standard CORS preflight OPTIONS (`handleCorsPreFlight` or an empty 204 response) is skipped.
+ *   standard CORS preflight OPTIONS (`handleCorsPreFlight`, or `new Response(null, { status: 204 })`
+ *   with CORS-only headers) is skipped.
  * - scope: `authenticate(request, [API_SCOPES.X])`, `authenticateApiKeyPrincipal(…)`,
  *   `requireScope(auth, API_SCOPES.X)`; `templateHttp(request, 'op')` maps through
  *   `templateOperationScope(op)`; `requireAdminApi(` means a session-only (panel) endpoint.
  * - query: `<searchParams>.get|getAll|has('name')`, where `<searchParams>` is any `.searchParams`
  *   or a const/destructured alias of it.
+ * - nested functions count only when the handler calls them by name or invokes them in place;
+ *   never-referenced ones are dead code and skipped.
  * Anything else (a computed scope list, a searchParams object passed on, a non-literal name, an
- * export that does not resolve to a function) lands in `unresolved`, which the contract test fails.
+ * export that does not resolve to a function, a nested function with checks that escapes — passed
+ * as a callback, returned, `void f`) lands in `unresolved`, which the contract test fails.
  *
  * @see ./openapi-contract.test.ts
  */
@@ -111,8 +115,27 @@ function exportedHandlers(sf: ts.SourceFile): Array<{ method: HttpMethod; impl: 
   return out;
 }
 
-/** The standard CORS preflight: `handleCorsPreFlight` itself, or a body that only returns it / an empty response. */
-function isPreflight(impl: ts.Node | null): boolean {
+const CORS_HEADER = /^access-control-[a-z-]+$/i;
+const propertyKey = (name: ts.PropertyName): string | null =>
+  ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNoSubstitutionTemplateLiteral(name) ? name.text : null;
+
+/** A headers object literal with CORS keys only: `'Access-Control-*': …` entries and spreads of such consts. */
+function isCorsHeaders(node: ts.Expression, sf: ts.SourceFile, depth = 2): boolean {
+  if (!ts.isObjectLiteralExpression(node)) return false;
+  return node.properties.every((prop) => {
+    if (ts.isPropertyAssignment(prop)) return CORS_HEADER.test(propertyKey(prop.name) ?? '');
+    if (!ts.isSpreadAssignment(prop) || !ts.isIdentifier(prop.expression) || depth === 0) return false;
+    const target = localDefinition(sf, prop.expression.text);
+    return !!target && ts.isExpression(target) && isCorsHeaders(target, sf, depth - 1);
+  });
+}
+
+/**
+ * The standard CORS preflight: `handleCorsPreFlight` itself, a body that only returns it, or an
+ * empty `new (Next)Response(null, { status: 204[, headers: <CORS headers only>] })`. Any other
+ * OPTIONS handler (other status, extra init or non-CORS headers) needs a registry entry.
+ */
+function isPreflight(impl: ts.Node | null, sf: ts.SourceFile): boolean {
   if (!impl) return false;
   if (ts.isIdentifier(impl)) return impl.text === 'handleCorsPreFlight';
   if (!isFunctionLike(impl) || !impl.body) return false;
@@ -121,8 +144,17 @@ function isPreflight(impl: ts.Node | null): boolean {
     : impl.body;
   if (!expr) return false;
   if (ts.isCallExpression(expr)) return calleeName(expr) === 'handleCorsPreFlight';
-  return ts.isNewExpression(expr) && ts.isIdentifier(expr.expression) && ['Response', 'NextResponse'].includes(expr.expression.text)
-    && expr.arguments?.[0]?.kind === ts.SyntaxKind.NullKeyword;
+  if (!ts.isNewExpression(expr) || !ts.isIdentifier(expr.expression) || !['Response', 'NextResponse'].includes(expr.expression.text)) return false;
+  const [body, init, ...rest] = expr.arguments ?? [];
+  if (body?.kind !== ts.SyntaxKind.NullKeyword || rest.length || !init || !ts.isObjectLiteralExpression(init)) return false;
+  let status = false;
+  for (const prop of init.properties) {
+    if (!ts.isPropertyAssignment(prop)) return false;
+    const key = propertyKey(prop.name);
+    if (key === 'status' && ts.isNumericLiteral(prop.initializer) && prop.initializer.text === '204') status = true;
+    else if (!(key === 'headers' && isCorsHeaders(prop.initializer, sf))) return false;
+  }
+  return status;
 }
 
 const scopeName = (node: ts.Expression): string | null =>
@@ -160,7 +192,44 @@ function detect(impl: ts.Node, sf: ts.SourceFile, requestName: string | null, de
       || ts.isBindingElement(parent) || ts.isParameter(parent) || (ts.isVariableDeclaration(parent) && parent.name === node));
   };
 
+  let sink = found;
+  // Nested functions run only when the handler calls them by name or invokes them in place.
+  const called = new Set<string>();
+  const referenced = new Map<string, number>();
+  const indexCalls = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) called.add(node.expression.text);
+    if (ts.isIdentifier(node)) referenced.set(node.text, (referenced.get(node.text) ?? 0) + 1);
+    ts.forEachChild(node, indexCalls);
+  };
+  indexCalls(impl);
+
+  const nested = (fn: FunctionLike): void => {
+    let outer: ts.Node = fn;
+    while (ts.isParenthesizedExpression(outer.parent)) outer = outer.parent;
+    const parent = outer.parent;
+    const name = ts.isFunctionDeclaration(fn) ? fn.name?.text
+      : ts.isVariableDeclaration(parent) && parent.initializer === outer && ts.isIdentifier(parent.name) ? parent.name.text : undefined;
+    if ((ts.isCallExpression(parent) && parent.expression === outer) || (name && called.has(name))) {
+      ts.forEachChild(fn, visit);
+      return;
+    }
+    // Not proven to run: dead code (never referenced) is skipped; one that escapes (passed on,
+    // returned, `void f`) is unresolved when it would change what the reader reports.
+    const probe: Detected = { scopes: new Set(), session: false, templateOperation: null, query: new Set(), unresolved: [] };
+    const saved = sink;
+    sink = probe;
+    ts.forEachChild(fn, visit);
+    sink = saved;
+    const matters = probe.scopes.size || probe.session || probe.templateOperation || probe.query.size || probe.unresolved.length;
+    const escapes = !name || (referenced.get(name) ?? 0) > 1;
+    if (matters && escapes) sink.unresolved.push(`execution: nested function ${name ?? '(anonymous)'} is not proven to run`);
+  };
+
   const visit = (node: ts.Node): void => {
+    if (node !== impl && isFunctionLike(node)) {
+      nested(node);
+      return;
+    }
     if (ts.isVariableDeclaration(node)) {
       // Aliases: `const sp = <searchParams>` and `const { searchParams[: alias] } = …`.
       if (ts.isIdentifier(node.name) && node.initializer && isSearchParams(node.initializer)) {
@@ -181,16 +250,16 @@ function detect(impl: ts.Node, sf: ts.SourceFile, requestName: string | null, de
       const name = calleeName(node);
       if (name && AUTH_CALLS.has(name)) {
         const list = node.arguments[1];
-        if (list && !(ts.isArrayLiteralExpression(list) && list.elements.every((el) => scopeName(el)))) found.unresolved.push(`scope: ${name}() with a non-literal scope list`);
-        else if (list) for (const el of (list as ts.ArrayLiteralExpression).elements) found.scopes.add(scopeName(el)!);
+        if (list && !(ts.isArrayLiteralExpression(list) && list.elements.every((el) => scopeName(el)))) sink.unresolved.push(`scope: ${name}() with a non-literal scope list`);
+        else if (list) for (const el of (list as ts.ArrayLiteralExpression).elements) sink.scopes.add(scopeName(el)!);
       } else if (name === 'requireScope') {
         const scope = node.arguments[1] && scopeName(node.arguments[1]);
-        if (scope) found.scopes.add(scope); else found.unresolved.push('scope: requireScope() with a non-literal scope');
+        if (scope) sink.scopes.add(scope); else sink.unresolved.push('scope: requireScope() with a non-literal scope');
       } else if (name === 'templateHttp') {
         const op = stringLiteral(node.arguments[1]);
-        if (op) found.templateOperation = op; else found.unresolved.push('scope: templateHttp() with a non-literal operation');
+        if (op) sink.templateOperation = op; else sink.unresolved.push('scope: templateHttp() with a non-literal operation');
       } else if (name === 'requireAdminApi') {
-        found.session = true;
+        sink.session = true;
       } else if (name && depth > 0 && requestName) {
         // Follow functions handed this handler's request, one level.
         const index = node.arguments.findIndex((arg) => ts.isIdentifier(arg) && arg.text === requestName);
@@ -198,15 +267,15 @@ function detect(impl: ts.Node, sf: ts.SourceFile, requestName: string | null, de
         const target = index === -1 ? null : local ? { sf, node: local } : importedDefinition(sf, name);
         if (target && isFunctionLike(target.node)) {
           const param = target.node.parameters[index]?.name;
-          detect(target.node, target.sf, param && ts.isIdentifier(param) ? param.text : null, depth - 1, found);
+          detect(target.node, target.sf, param && ts.isIdentifier(param) ? param.text : null, depth - 1, sink);
         }
       }
       // Query reads: `<searchParams>.get('literal')`.
       const callee = node.expression;
       if (ts.isPropertyAccessExpression(callee) && isSearchParams(callee.expression)) {
         const key = stringLiteral(node.arguments[0]);
-        if (QUERY_METHODS.has(callee.name.text) && key) found.query.add(key);
-        else found.unresolved.push(`query: ${callee.name.text}() on searchParams${key ? '' : ' with a non-literal name'}`);
+        if (QUERY_METHODS.has(callee.name.text) && key) sink.query.add(key);
+        else sink.unresolved.push(`query: ${callee.name.text}() on searchParams${key ? '' : ' with a non-literal name'}`);
         if (ts.isPropertyAccessExpression(callee.expression)) visit(callee.expression.expression);
         node.arguments.forEach(visit);
         return;
@@ -214,7 +283,7 @@ function detect(impl: ts.Node, sf: ts.SourceFile, requestName: string | null, de
     }
     // Any other use of a searchParams value escapes the reader.
     if (isSearchParams(node)) {
-      found.unresolved.push(`query: searchParams passed on (${ts.SyntaxKind[node.parent.kind]})`);
+      sink.unresolved.push(`query: searchParams passed on (${ts.SyntaxKind[node.parent.kind]})`);
       return;
     }
     ts.forEachChild(node, visit);
@@ -226,7 +295,7 @@ export function inventoryRoutes(root = V1_DIR): RouteHandler[] {
   return walk(root).sort().flatMap((file) => {
     const sf = parse(file);
     return exportedHandlers(sf).flatMap(({ method, impl }) => {
-      if (method === 'OPTIONS' && isPreflight(impl)) return [];
+      if (method === 'OPTIONS' && isPreflight(impl, sf)) return [];
       const found: Detected = { scopes: new Set(), session: false, templateOperation: null, query: new Set(), unresolved: [] };
       const fn = impl && ts.isIdentifier(impl) ? localDefinition(sf, impl.text) : impl;
       if (isFunctionLike(fn)) {

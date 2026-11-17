@@ -10,6 +10,7 @@
  * @see src/app/api/mcp/route.ts
  */
 import { hasScope } from '@/lib/api/api-keys';
+import type { Tool } from '@modelcontextprotocol/server';
 import type { ApiScope } from '@/lib/api/scope-constants';
 
 type Json = Record<string, unknown>;
@@ -38,6 +39,22 @@ export interface McpOperation {
   inputSchema: Json & { type: 'object' };
   annotations: { title: string; readOnlyHint: boolean; destructiveHint?: boolean };
 }
+
+/** `/api/mcp?mode=compact`: two tools instead of one per operation (the full list is large). */
+export const COMPACT_TOOLS: Tool[] = [
+  {
+    name: 'search_operations',
+    description: 'Search the Sellf API operations this key may call. Every word must match the operation name, path, summary, description or group; an empty query matches all; at most 20 results. Returns each operation\'s operationId and input schema for call_operation.',
+    inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'], additionalProperties: false },
+    annotations: { title: 'Search API operations', readOnlyHint: true },
+  },
+  {
+    name: 'call_operation',
+    description: 'Call an API operation found with search_operations. `params` follows that operation\'s input schema (path and query parameters by name, JSON request body under `body`).',
+    inputSchema: { type: 'object', properties: { operationId: { type: 'string' }, params: { type: 'object' } }, required: ['operationId'], additionalProperties: false },
+    annotations: { title: 'Call an API operation', readOnlyHint: false },
+  },
+];
 
 const METHODS = ['get', 'post', 'put', 'patch', 'delete'] as const;
 

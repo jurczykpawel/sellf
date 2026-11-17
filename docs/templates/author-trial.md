@@ -152,7 +152,7 @@ screenshots. No time target; undocumented intervention or missing capability fai
 
 | Check | Required evidence |
 | --- | --- |
-| Discovery | templates_capabilities offers IDs/slots/reset paths and generated offer-config/recipe schemas; selected product resolved by name from public bindings. No guessed product UUIDs or config fields. |
+| Discovery | get_template_capabilities (MCP tool; HTTP GET /api/v1/templates/capabilities) offers IDs/slots/reset paths and generated offer-config/recipe schemas; selected product resolved by name from public bindings. No guessed product UUIDs or config fields. |
 | Scope boundaries | Coordinator separately verifies product-only key denied read/draft/preview/publish/rollback; READ cannot draft/publish; WRITE cannot read/publish; ACTIVATE cannot read/draft. Anonymous access denied. No key/session/env handed to browser storage. |
 | Complete flow | Read product r0 null → save enabled draft r1 (public offer still 404) → validate publish → current private previews → diff r0/r1 → publish expected r1 yields r2 → read published equals candidate → rollback target r0 expected r2 yields r3 with null publication and public offer 404. History descending [3,2,1,0], same-product targets only. Reconcile actual revisions if setup differs. |
 | Retention | Second product remains r0/null; storefront unchanged; selected product price/slug/visibility unchanged; copy persists through appearance/density reset; history appended, never rewritten. |

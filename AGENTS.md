@@ -991,15 +991,26 @@ OpenAPI 3.1, served publicly at `GET /api/v1/openapi.json` (relative server URL,
 
 **Adding or changing a v1 route = updating its registry entry.** `bun run test:api-contract`
 (in PR CI and the release build) fails on a route without an entry or a stale entry (any HTTP
-method and export form; only the standard CORS preflight OPTIONS is skipped), on a scope or query
+method and export form; only the standard CORS preflight OPTIONS — `handleCorsPreFlight` or an empty
+204 with CORS-only headers — is skipped), on a scope or query
 parameter that differs from what the route source checks/reads, on a flow the reader cannot follow
 (computed scope list, searchParams passed on, non-literal name — declare `queryFromRoute` or make
-it literal), and on an invalid OpenAPI document. The reader works on the TypeScript AST
+it literal; a nested function with checks that is passed on instead of called), and on an invalid
+OpenAPI document. Nested functions count only when the handler calls them by name or invokes them
+in place. The reader works on the TypeScript AST
 (`tests/unit/lib/api/route-inventory.ts`), so comments never count. Product responses are checked
 against the spec with Ajv (`openapi-product-responses.test.ts`, SQL nulls; `ProductResponseDTO` is a
 read schema mirroring `schema.snapshot.sql`, not the input validator); offers and the storefront
 against a running app in `tests/api/openapi-responses.test.ts`. A validator you
 want in the document must be exported from `src/lib/` (route files may only export handlers).
+
+The API part of both `llms.txt` files (`admin-panel/public/llms.txt`, `docs-site/public/llms.txt`) is
+generated from the same document (`src/lib/api/openapi/llms.ts`: agent instructions from `info`,
+group descriptions from `API_TAGS`, one line per operation) between `BEGIN/END GENERATED` markers;
+the rest of each file is hand-written. `tests/unit/lib/api/llms-txt.test.ts` (in `test:api-contract`)
+fails when a block is stale — run `bun run llms:update` in `admin-panel/`. Every MCP tool name written
+in docs-site, `skills/`, `docs/`, README, FEATURES, BACKLOG or llms.txt must exist in the generated
+list (`tests/unit/lib/mcp/tool-names-in-docs.test.ts`).
 
 ### MCP endpoint (generated from the registry)
 

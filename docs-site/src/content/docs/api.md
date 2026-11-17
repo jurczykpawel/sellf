@@ -38,7 +38,7 @@ It is OpenAPI 3.1, public (no key needed), contains no data or secrets, and is c
 
 The built-in MCP endpoint `/api/mcp` is generated from this description: one tool per operation the key may call, or `?mode=compact` for search + call. See [Connect your AI agent](/connect-ai-agent/).
 
-The description is generated from one registry in the code. A CI test fails when a route has no entry there, or when the documented scope or query parameters differ from what the route checks, so the file stays in step with the release you run.
+The description is generated from one registry in the code. A CI test fails when a route has no entry there, or when the documented scope or query parameters differ from what the route checks, so the file stays in step with the release you run. The API section of `/llms.txt` (on your instance and on docs.sellf.app) is generated from the same registry: agent instructions, group descriptions and one line per operation (method, path, `operationId`, scope, summary).
 
 ---
 
