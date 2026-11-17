@@ -19,6 +19,18 @@ describe('release migration sources', () => {
     expect(sources).toHaveLength(76);
     expect(new Set(sources).size).toBe(76);
   });
+  it('ships 11.1 as one ordered file and requires the 11.0 updater', () => {
+    const directory = new URL('../../../../supabase/migrations/', import.meta.url);
+    const files = readdirSync(directory).filter(file => file.endsWith('.sql') && file >= '20261111000000').sort();
+    expect(files).toEqual(['20261118000000_release_2026_11_1.sql']);
+    const sql = readFileSync(new URL(files[0], directory), 'utf8');
+    const sources = [...sql.matchAll(/^-- ===== Source: (.+) =====$/gm)].map(match => match[1]);
+    expect(sources).toHaveLength(15);
+    expect(new Set(sources).size).toBe(15);
+    expect(sources).toEqual([...sources].sort());
+    expect(readMigrationSource('20261117140000_order_entitlement_fixes.sql')).toContain('order_bundle_components');
+    expect(readFileSync(new URL('../../../scripts/upgrade.sh', import.meta.url), 'utf8')).toMatch(/^MIN_UPDATER_VERSION=2$/m);
+  });
   it('isolates the content repair from other fulfillment changes', () => {
     const sql = readMigrationSource('20261108170000_product_content_url_cleanup.sql');
     expect(sql).toContain('WITH repaired AS');
@@ -35,7 +47,7 @@ describe('release migration sources', () => {
   it('reports a missing source instead of returning an entire release file', () => {
     expect(() => readMigrationSource('20261111000000_absent.sql')).toThrow('Migration source not found');
   });
-  it('keeps each SQL file and its actual legacy jq payload under the argument limits', () => {
+  it('keeps the 11.0 bridge SQL and legacy jq payload under the argument limits', () => {
     const directory = new URL('../../../../supabase/migrations/', import.meta.url);
     for (const file of readdirSync(directory).filter(file => /^2026111023590[0-7]_/.test(file))) {
       const sql = readFileSync(new URL(file, directory), 'utf8');

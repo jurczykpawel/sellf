@@ -5,7 +5,7 @@
  * (only from the archive) never removes orders, invoices or licenses — they keep the
  * product name from the time of purchase.
  *
- * @see supabase/migrations/20261114100000_product_archive.sql
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql
  */
 import { execFileSync } from 'node:child_process';
 import { expect, it } from 'vitest';

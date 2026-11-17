@@ -4,7 +4,7 @@
  * Business events whose hand-off to webhook delivery failed on every attempt, with a retry
  * per event. Renders nothing while there are none.
  * @see src/app/api/v1/webhooks/events/route.ts
- * @see supabase/migrations/20261115100000_queue_retries.sql
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql
  */
 import { useCallback, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';

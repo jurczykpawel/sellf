@@ -3,7 +3,7 @@
  * amount, price and seat stay reserved. A cancelled order is never payable by the buyer,
  * whatever the reason; only the administrator can accept a late transfer (see late-transfer-preview.ts). Past the
  * reservation deadline no new online payment starts; the order waits for the release job.
- * @see migration 20261115110000_cancelled_order_no_payment.sql (open/complete_order_payment_attempt)
+ * @see migration 20261118000000_release_2026_11_1.sql (open/complete_order_payment_attempt)
  */
 import { fulfillTransfer } from '@/lib/orders/bank-transfer-service';
 import { expireOrderPaymentSessions } from '@/lib/orders/payment-attempt-sessions';

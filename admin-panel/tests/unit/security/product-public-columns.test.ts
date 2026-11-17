@@ -18,7 +18,7 @@ function grantedProductColumns(): string[] {
   const phase1 = readMigrationSource('20261016000000_release_2026_10_6.sql');
   const profiles = readMigrationSource('20261023001721_checkout_profiles.sql');
   const events = readMigrationSource('20261023080000_event_reservations.sql');
-  const archive = readFileSync(join(__dirname, '../../../../supabase/migrations/20261114100001_product_archive_owner_access.sql'), 'utf-8');
+  const archive = readMigrationSource('20261114100001_product_archive_owner_access.sql');
   const additions = [...(phase1 + profiles + events + archive).matchAll(/GRANT SELECT \(([^)]+)\) ON public\.products TO anon, authenticated/g)].flatMap(m => m[1].split(','));
   return [...match[1].split(','), ...additions].map(c => c.trim()).filter(Boolean);
 }

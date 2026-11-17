@@ -6,7 +6,7 @@
  * @see src/app/api/create-payment-intent/route.ts
  * @see src/app/api/update-payment-metadata/route.ts
  * @see src/lib/stripe/checkout-session-update.ts
- * @see supabase/migrations/20261117120000_replace_pending_order.sql
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';

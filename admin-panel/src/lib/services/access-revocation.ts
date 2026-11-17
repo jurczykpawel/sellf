@@ -14,7 +14,7 @@
  * 5. Bump products — guest_purchases (via payment_line_items)
  *
  * @see supabase/migrations/20260310175058_multi_order_bumps.sql — payment_line_items table
- * @see supabase/migrations/20261117140000_order_entitlement_fixes.sql — order_bundle_components
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql — order_bundle_components
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';

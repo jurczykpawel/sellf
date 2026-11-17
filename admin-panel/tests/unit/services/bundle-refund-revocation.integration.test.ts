@@ -6,7 +6,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readMigrationSource } from '../../../scripts/migration-source';
 import { createClient } from '@supabase/supabase-js';
 import { afterAll, describe, expect, it } from 'vitest';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
@@ -305,7 +305,7 @@ describe('full refund of a bundle order @J34', () => {
     const bundle = await product('bundle-historical-empty', { is_bundle: true });
     const buyer = await user();
     const tx = await paidOrder(buyer, bundle);
-    const migration = readFileSync(new URL('../../../../supabase/migrations/20261117140000_order_entitlement_fixes.sql', import.meta.url), 'utf8');
+    const migration = readMigrationSource('20261117140000_order_entitlement_fixes.sql');
     const start = migration.indexOf('DO $$\nDECLARE tx record;');
     expect(start).toBeGreaterThan(0);
     const backfill = migration.slice(start, migration.indexOf('END $$;', start) + 'END $$;'.length);

@@ -22,7 +22,7 @@ interface MigrationSourceFile {
 export function findMigrationSource(name: string, directory: URL = MIGRATIONS): MigrationSource {
   const marker = `-- ===== Source: ${name} =====\n`;
   let content = '';
-  const files = readdirSync(directory).filter(file => /^2026111023590[0-7]_.*\.sql$/.test(file)).sort().map(file => {
+  const files = readdirSync(directory).filter(file => /^(?:2026111023590[0-7]_.*|\d{14}_release_.*)\.sql$/.test(file)).sort().map(file => {
     const path = fileURLToPath(new URL(file, directory));
     const start = content.length;
     content += readFileSync(path, 'utf8');

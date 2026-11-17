@@ -215,8 +215,10 @@ afterEach(() => {
 });
 
 describe('upgrade migration safety', () => {
-  it('delivers SQL larger than MAX_ARG_STRLEN with a checksum of exactly the SQL sent', async () => {
-    const sql = `-- ${'x'.repeat(150000)}\nSELECT 'zażółć';\n\n`;
+  it.each([
+    ['large SQL', `-- ${'x'.repeat(150000)}\nSELECT 'zażółć';\n\n`],
+    ['release 11.1', readFileSync(path.resolve(__dirname, '../../../../supabase/migrations/20261118000000_release_2026_11_1.sql'), 'utf8')],
+  ])('delivers %s from files with a checksum of exactly the SQL sent', async (_, sql) => {
     const result = await runUpgrade({ sql });
     expect(result.code).toBe(0);
     expect(result.requests).toHaveLength(1);

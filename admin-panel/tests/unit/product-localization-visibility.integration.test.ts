@@ -3,7 +3,7 @@
  * (publication window, inactive, archive). Real local database and row level security; only the
  * cookie-based session client is replaced by a signed-in supabase-js client.
  * @see src/lib/actions/product-localization.ts
- * @see supabase/migrations/20261114100001_product_archive_owner_access.sql
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { afterAll, beforeAll, expect, it, vi } from 'vitest';

@@ -6,7 +6,7 @@
  * @see src/lib/actions/invoice-recipient-config.ts (panel)
  * @see src/app/api/v1/settings/checkout/route.ts (API v1)
  * @see src/app/api/update-payment-metadata/route.ts (server-side enforcement)
- * @see supabase/migrations/20261116110000_invoice_recipient_setting_atomic.sql (atomic change + audit)
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql (atomic change + audit)
  */
 
 import { z } from 'zod';

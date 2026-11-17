@@ -5,7 +5,7 @@
  *   - Requires scope webhooks:read
  *   - Business changes whose hand-off to webhook delivery failed on every attempt
  *     (newest first). The payload is not returned.
- * @see supabase/migrations/20261115100000_queue_retries.sql
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql
  */
 
 import { NextRequest } from 'next/server';

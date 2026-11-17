@@ -1,6 +1,6 @@
 /** Atomic order placement through the service RPC.
  * @see supabase/migrations/20261110235903_release_2026_11_0_orders_events.sql
- * @see supabase/migrations/20261117120000_replace_pending_order.sql (begin/finishPendingOrderUpdate)
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql (begin/finishPendingOrderUpdate)
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { OrderSnapshotLine } from '@/lib/services/checkout-line-items';

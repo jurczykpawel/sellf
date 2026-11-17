@@ -22,7 +22,7 @@ set -euo pipefail
 # Version 1 is the unversioned updater shipped through 2026.10.6.
 UPDATER_VERSION=2
 # CI emits a legacy manifest only while version-1 updaters are supported.
-MIN_UPDATER_VERSION=1
+MIN_UPDATER_VERSION=2
 # sellf-upgrade-stage2:1
 
 # Parse the main body before executing. Stage 2 runs from the private extraction;

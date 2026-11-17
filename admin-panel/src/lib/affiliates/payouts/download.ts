@@ -1,4 +1,4 @@
-/** Private CSV response adapter for the A1.8 route shell. @see reads.ts @see supabase/migrations/20261117100000_affiliate_cocreator.sql (affiliate_payout_exportable) */
+/** Private CSV response adapter for the A1.8 route shell. @see reads.ts @see supabase/migrations/20261118000000_release_2026_11_1.sql (affiliate_payout_exportable) */
 import 'server-only';
 import { getAffiliateLivemode } from '@/lib/stripe/affiliate-mode';
 import { AFFILIATE_PROGRAM_DEFAULTS } from '@/lib/affiliates/program-defaults';

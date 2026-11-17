@@ -5,7 +5,7 @@
  * events' timestamps back 62 s between ticks, which is what the queue sees when 62 s pass.
  * Also: abandonment after the last attempt, the admin listing and retry of abandoned events.
  * Real local database; nothing in the queue is stubbed.
- * @see supabase/migrations/20261115100000_queue_retries.sql
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql
  * @see src/lib/services/business-events.ts
  */
 import { execFileSync } from 'node:child_process';

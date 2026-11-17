@@ -8,7 +8,7 @@
  * other processes follow within the cache window. An unreachable database never switches the mode on.
  *
  * @see src/lib/maintenance/file.ts
- * @see supabase/migrations/20261117130000_maintenance_mode.sql
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql
  */
 import { cleanMaintenanceMessage, cleanTimestamp, readServerMaintenance } from '@/lib/maintenance/file';
 import { getRuntimeSupabaseAnonKey, getRuntimeSupabaseUrl } from '@/lib/config/runtime-env';

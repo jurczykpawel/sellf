@@ -2,7 +2,7 @@
  * A dispute on a bundle order suspends the components that order granted, not the bundle's current
  * composition: a component removed later is still suspended, and a component added later (which the
  * buyer owns from another purchase) stays active.
- * @see supabase/migrations/20261117140000_order_entitlement_fixes.sql
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql
  */
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';

@@ -4,7 +4,7 @@
  * GET /api/v1/products/:id/deletion-impact - Counts of orders, invoices, licenses, buyer
  * accesses and subscriptions. `hasHistory: true` means DELETE archives the product.
  *
- * @see supabase/migrations/20261114100000_product_archive.sql (product_deletion_impact)
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql (product_deletion_impact)
  */
 
 import { NextRequest } from 'next/server';

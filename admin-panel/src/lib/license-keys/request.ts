@@ -3,7 +3,7 @@
  * against the product, issues the license with its audit entry in one transaction and mails the
  * buyer the key. license.issued is captured by the issued_licenses insert trigger, inside the same
  * transaction (issue_license_with_audit), so a refused audit entry leaves no license and no event.
- * @see supabase/migrations/20261111110000_access_licenses.sql
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql
  */
 import 'server-only';
 import { randomUUID } from 'crypto';

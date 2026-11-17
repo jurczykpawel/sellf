@@ -4,8 +4,8 @@
  * anon and authenticated cannot call them.
  *
  * REQUIRES: the local Supabase stack (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / SUPABASE_ANON_KEY).
- * @see supabase/migrations/20261111010000_manual_invoice_correction.sql (save_invoicing_config)
- * @see supabase/migrations/20261111110000_access_licenses.sql (mutate_access_audited)
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql (save_invoicing_config)
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql (mutate_access_audited)
  */
 import { createClient } from '@supabase/supabase-js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
