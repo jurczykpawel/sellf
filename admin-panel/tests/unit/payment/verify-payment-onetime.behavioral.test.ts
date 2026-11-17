@@ -50,6 +50,7 @@ import * as adminModule from '@/lib/supabase/admin';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { ProductValidationService } from '@/lib/services/product-validation';
 import { generateSellerKeypair, storeSellerKey } from '@/lib/license-keys/keys';
+import { getStripeInstanceId } from '@/lib/stripe/instance-marker';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -896,6 +897,66 @@ describe.skipIf(!hasSupabase)('verify-payment — additional branch coverage', (
     expect(profile?.tax_id).toBe(nip);
     expect(profile?.company_name).toBe('ACME');
     expect(profile?.first_name).toBe('Jan');
+  });
+});
+
+// ==============================================================================================
+// Shared Stripe account: a payment marked by another Sellf installation is not completed here,
+// exactly as the webhook skips it; this installation's own marker completes as usual.
+describe.skipIf(!hasSupabase)('verify-payment — installation marker', () => {
+  const FOREIGN = 'foreign-fixture-marker';
+  function markedSession(cs: string, pi: string, productId: string, email: string, marker: string) {
+    return {
+      id: cs, status: 'complete', payment_status: 'paid', mode: 'payment', currency: 'usd',
+      amount_total: 1000, amount_subtotal: 1000, total_details: { amount_tax: 0 },
+      automatic_tax: { enabled: false }, payment_intent: pi,
+      customer_details: { email }, customer_email: email,
+      metadata: { product_id: productId, sellf_instance: marker }, created: 1, expires_at: 2,
+    };
+  }
+
+  it('does not complete a Checkout Session that carries another installation\'s marker', async () => {
+    const product = await createProduct();
+    const cs = uniq('cs'); const pi = uniq('pi');
+    const email = uniq('guest') + '@example.com'; createdEmails.push(email);
+    await seedPendingTx({ sessionId: cs, productId: product.id, email, pi });
+    h.stripe = makeStripeShim({ session: markedSession(cs, pi, product.id, email, FOREIGN) });
+
+    const r = await verifyPaymentSession(cs);
+    expect(r.access_granted).toBeFalsy();
+    expect(r.error).toBe('Payment belongs to another installation');
+    expect((await fetchTx(cs))?.status).toBe('pending');
+    expect(purchaseCalls()).toHaveLength(0);
+  });
+
+  it('completes a Checkout Session that carries this installation\'s marker', async () => {
+    const product = await createProduct();
+    const cs = uniq('cs'); const pi = uniq('pi');
+    const email = uniq('guest') + '@example.com'; createdEmails.push(email);
+    await seedPendingTx({ sessionId: cs, productId: product.id, email, pi });
+    h.stripe = makeStripeShim({ session: markedSession(cs, pi, product.id, email, await getStripeInstanceId()) });
+
+    const r = await verifyPaymentSession(cs);
+    expect(r.error).toBeUndefined();
+    expect((await fetchTx(cs))?.status).toBe('completed');
+  });
+
+  it('does not complete a PaymentIntent whose owning session carries another installation\'s marker', async () => {
+    const product = await createProduct();
+    const cs = uniq('cs'); const pi = uniq('pi');
+    const email = uniq('guest') + '@example.com'; createdEmails.push(email);
+    await seedPendingTx({ sessionId: cs, productId: product.id, email, pi });
+    h.stripe = makeStripeShim({
+      paymentIntent: { id: pi, status: 'succeeded', amount: 1000, currency: 'usd', receipt_email: email, metadata: { product_id: product.id }, created: 1 },
+      sessionsByPI: [{ id: cs, amount_subtotal: 1000, metadata: { product_id: product.id, sellf_instance: FOREIGN } }],
+      session: markedSession(cs, pi, product.id, email, FOREIGN),
+    });
+
+    const r = await verifyPaymentIntent(pi, null);
+    expect(r.access_granted).toBeFalsy();
+    expect(r.error).toBe('Payment belongs to another installation');
+    expect((await fetchTx(cs))?.status).toBe('pending');
+    expect(purchaseCalls()).toHaveLength(0);
   });
 });
 

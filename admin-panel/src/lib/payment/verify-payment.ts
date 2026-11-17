@@ -11,6 +11,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { fulfillStripeOrder } from '@/lib/services/fulfill-paid-order';
 import { backfillBuyerDetails } from '@/lib/payment/buyer-details';
 import { readCartVersion } from '@/lib/stripe/checkout-session-update';
+import { isForeignStripeMarker, readStripeInstanceMarker } from '@/lib/stripe/instance-marker';
 import { redactEmail } from '@/lib/logger';
 import type Stripe from 'stripe';
 import type { User } from '@supabase/supabase-js';
@@ -33,6 +34,9 @@ interface PaymentRpcResult {
   send_magic_link?: boolean;
   customer_email?: string;
 }
+
+/** Shared Stripe account: a payment another installation created is completed there, not here (as in the webhook). */
+const OTHER_INSTALLATION_ERROR = 'Payment belongs to another installation';
 
 /** The order owner recorded at checkout (`metadata.user_id`), ignoring empty placeholders. */
 function readOrderUserId(metadata: Stripe.Metadata | null | undefined): string | null {
@@ -484,6 +488,10 @@ export async function verifyPaymentSession(
       expires_at: session.expires_at,
     };
 
+    if (await isForeignStripeMarker(readStripeInstanceMarker(session) ?? readStripeInstanceMarker(session.payment_intent))) {
+      return { ...baseResponse, access_granted: false, error: OTHER_INSTALLATION_ERROR };
+    }
+
     // Subscription mode: customer.subscription.* webhooks handle persistence + access.
     // One-time RPC below would reject trials (amount=0) and paid subs (amount mismatch).
     if (
@@ -846,6 +854,10 @@ export async function verifyPaymentIntent(
           const ownerSession = ownerSessions.data[0];
           const canonicalSessionId = ownerSession?.id || paymentIntent.id;
           const piAmountSubtotal = ownerSession?.amount_subtotal ?? undefined;
+
+          if (await isForeignStripeMarker(readStripeInstanceMarker(paymentIntent) ?? readStripeInstanceMarker(ownerSession))) {
+            return { ...baseResponse, access_granted: false, error: OTHER_INSTALLATION_ERROR };
+          }
 
           const ownerUserId = readOrderUserId(paymentIntent.metadata) ?? readOrderUserId(ownerSession?.metadata);
           if (!isCallerOrderOwner(user, ownerUserId, customerEmail || ownerSession?.customer_details?.email)) {
