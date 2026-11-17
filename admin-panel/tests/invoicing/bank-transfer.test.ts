@@ -25,7 +25,7 @@ beforeAll(async () => {
     bank_transfer_grant_access_on_placement: false, bank_transfer_max_unpaid_per_email: 3,
   } }));
   productId = (await checked(await db.from('products').insert({ name: 'Transfer invoice test', slug: `transfer-invoice-${crypto.randomUUID()}`, price: 100, currency: 'PLN', is_active: true,
-    checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'], gus: false, bank_transfer_for: ['organization'] }] }, vat_exempt: true }).select('id').single())).id;
+    checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'], bank_transfer_for: ['organization'] }] }, vat_exempt: true }).select('id').single())).id;
   state.find.mockImplementation(async (key: string) => state.invoices.get(key) ?? null);
   state.issue.mockImplementation(async (input: InvoiceInput) => {
     const result = { success: true, id: String(1000 + state.invoices.size), number: `FV/${state.invoices.size + 1}`, viewUrl: 'https://fixture.fakturownia.pl/invoice/test', paid: Boolean(input.paidAt) };

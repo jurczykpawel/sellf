@@ -24,7 +24,7 @@ it('shows the server 422 module errors in the fields, as the online payment does
   const onModuleErrors = vi.fn();
   render(createElement(BankTransferForm, {
     collectTermsOfService: false, termsAccepted: false, onTermsAcceptedChange: vi.fn(), disabled: false,
-    onModuleErrors, product: { id: 'p', currency: 'PLN', checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['person'], gus: false }] } } as unknown as Product,
+    onModuleErrors, product: { id: 'p', currency: 'PLN', checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['person'] }] } } as unknown as Product,
     email: 'buyer@example.com', onEmailChange: vi.fn(),
     moduleValues: { buyer: { type: 'person', first_name: 'Jan', last_name: 'Nowak', email: 'buyer@example.com' } }, sessionId: null, bumpIds: [], fields: [], values: {}, onValuesChange: vi.fn(),
   }));

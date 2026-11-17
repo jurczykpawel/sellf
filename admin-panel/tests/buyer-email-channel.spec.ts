@@ -15,7 +15,7 @@ test.beforeAll(async () => {
   savedEmailSetting = (await checked(await db.from('shop_config').select('supabase_buyer_emails').single())).supabase_buyer_emails;
   await checked(await db.from('bank_transfer_config').update({ bank_transfer_enabled: true, bank_account_holder: 'Test Shop', bank_account_number: 'PL61109010140000071219812874', bank_name: 'Bank', bank_transfer_grant_access_on_placement: false }).eq('id', bank.id).select());
   product = await checked(await db.from('products').insert({ name: 'Buyer channel workshop', slug: `buyer-channel-${randomUUID()}`, price: 100, currency: 'PLN', vat_exempt: true, is_active: true,
-    checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['person', 'organization'], gus: false, bank_transfer_for: ['organization'] }] },
+    checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['person', 'organization'], bank_transfer_for: ['organization'] }] },
   }).select('id,slug').single());
   endpointId = (await checked(await db.from('webhook_endpoints').insert({ url: 'https://127.0.0.1/channel-fixture', events: ['order.placed','purchase.completed'], secret: 'test-only-secret', is_active: true }).select('id').single())).id;
 });

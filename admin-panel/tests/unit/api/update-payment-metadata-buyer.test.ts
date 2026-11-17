@@ -181,7 +181,7 @@ describe('subscription buyer details', () => {
 
 
 describe('profile order details', () => {
-  const profile = { v: 1, modules: [{ id: 'buyer', types: ['person'], gus: false }, { id: 'quantity', min: 1, max: 5, mode: 'checkout' }] };
+  const profile = { v: 1, modules: [{ id: 'buyer', types: ['person'] }, { id: 'quantity', min: 1, max: 5, mode: 'checkout' }] };
   const moduleValues = { buyer: { type: 'person', first_name: 'Jan', last_name: 'Nowak', email: 'jan@example.com' }, quantity: 2 };
   beforeEach(() => { mocks.productRead.mockResolvedValue({ data: { checkout_profile: profile, currency: 'PLN' }, error: null }); });
   it.each([SESSION_ID, PI_ID])('stores modules in one RPC before updating %s without personal metadata', async id => {
@@ -233,7 +233,7 @@ describe('profile order details', () => {
   });
   it('refuses order details over the stored limit before the first write, so 422 leaves nothing saved', async () => {
     // 100 participants valid for the modules, 100-character multi-byte names, long e-mails.
-    const bigProfile = { v: 1, modules: [{ id: 'buyer', types: ['person'], gus: false }, { id: 'quantity', min: 1, max: 100, mode: 'checkout' }, { id: 'participants', required: true, prefill_from_buyer: false }] };
+    const bigProfile = { v: 1, modules: [{ id: 'buyer', types: ['person'] }, { id: 'quantity', min: 1, max: 100, mode: 'checkout' }, { id: 'participants', required: true, prefill_from_buyer: false }] };
     mocks.productRead.mockResolvedValue({ data: { checkout_profile: bigProfile, currency: 'PLN', custom_checkout_fields: [] }, error: null });
     const name = '漢'.repeat(100);
     const participants = Array.from({ length: 100 }, (_, i) => ({ first_name: name, last_name: name, email: `${'u'.repeat(60)}${i}@${'d'.repeat(60)}.${'e'.repeat(60)}.example.com` }));
@@ -344,7 +344,7 @@ describe('profile tax identity routing', () => {
   it.each(['stripe_tax', 'local'] as const)('uses buyer rather than recipient in %s mode', async tax_mode => {
     vi.mocked(getCheckoutConfig).mockResolvedValueOnce({ tax_mode } as Awaited<ReturnType<typeof getCheckoutConfig>>);
     mocks.sessionsRetrieve.mockResolvedValue({ id: SESSION_ID, status: 'open', metadata: { product_id: PRODUCT_ID }, customer: 'cus_profile' });
-    mocks.productRead.mockResolvedValue({ data: { currency: 'PLN', checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'], gus: false }, { id: 'recipient', for: ['organization'] }] } }, error: null });
+    mocks.productRead.mockResolvedValue({ data: { currency: 'PLN', checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'] }, { id: 'recipient', for: ['organization'] }] } }, error: null });
     const party = { company_name: 'Company', address: 'Street 1', city: 'Berlin', postal_code: '10115' };
     const res = await POST(makeRequest(SESSION_ID, { moduleValues: {
       buyer: { ...party, type: 'organization', country: 'DE', nip: 'DE123456789' },
@@ -372,7 +372,7 @@ describe('optional VIES check of an EU buyer', () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ isValid: false, userError: 'MS_UNAVAILABLE' }), { status: 200 }));
     try {
       mocks.sessionsRetrieve.mockResolvedValue({ id: SESSION_ID, status: 'open', metadata: { product_id: PRODUCT_ID }, customer: 'cus_profile' });
-      mocks.productRead.mockResolvedValue({ data: { currency: 'EUR', checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'], gus: false }] } }, error: null });
+      mocks.productRead.mockResolvedValue({ data: { currency: 'EUR', checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'] }] } }, error: null });
       const res = await POST(makeRequest(SESSION_ID, { moduleValues: { buyer: { type: 'organization', company_name: 'GmbH', address: 'Str 1', city: 'Berlin', postal_code: '10115', country: 'DE', nip: '123456789' } } }));
       expect(res.status).toBe(200);
       expect(mocks.adminRpc).toHaveBeenCalledWith('set_payment_order_details', expect.objectContaining({ p_details: expect.objectContaining({ buyer: expect.objectContaining({ nip: 'DE123456789', tax_id_type: 'eu_vat', tax_id_country: 'DE', tax_id_vies: 'unavailable' }) }) }));

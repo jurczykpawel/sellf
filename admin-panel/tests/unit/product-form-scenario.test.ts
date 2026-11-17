@@ -10,7 +10,9 @@ import { createElement } from 'react';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ProductCreationWizard from '@/components/ProductFormModal/wizard/ProductCreationWizard';
-import { SCENARIOS, applyScenario, needsConfirmation, scenarioChanges, scenarioOf, scenarioWarnings } from '@/components/ProductFormModal/wizard/scenarios';
+import { SCENARIOS, applyScenario, needsConfirmation, scenarioChanges, scenarioFields, scenarioOf, scenarioWarnings } from '@/components/ProductFormModal/wizard/scenarios';
+import { UX_PRODUCT_TYPES_AVAILABLE, applyProductTypeDefaults } from '@/lib/product-defaults';
+import { isEventCompatible } from '@/lib/events/schema';
 import { initialFormData } from '@/components/ProductFormModal/types';
 import type { ProductFormData } from '@/components/ProductFormModal/types';
 import type { Product } from '@/types';
@@ -156,6 +158,73 @@ describe('difference before switching', () => {
   });
 });
 
+// ===== EVERY CHANGE IS SHOWN, AND A SCENARIO NEVER PRODUCES WHAT SAVING REFUSES =====
+
+/** Products of every kind a seller may open, including amounts and settings a scenario must not lose silently. */
+const STARTING_FORMS: Array<[string, ProductFormData]> = [
+  ['blank', form()],
+  ['download', form({ price: 149 })],
+  ['download with chosen amount', form({ price: 149, allow_custom_price: true, custom_price_min: 20, show_price_presets: true, custom_price_presets: [30, 50] })],
+  ['free', form({ ux_product_type: 'lead-magnet', price: 0 })],
+  ['subscription with trial', form({ ux_product_type: 'subscription', product_type: 'subscription', price: 0, recurring_price: 30, billing_interval: 'month', billing_interval_count: 1, trial_days: 14 })],
+  ['tuned donation', { ...applyScenario(form(), 'donation'), custom_price_min: 10, custom_price_presets: [20, 50] }],
+  ['bundle', form({ price: 99, is_bundle: true, bundleItemIds: ['a', 'b'] })],
+  ['event', form({ price: 149, event_mode: true, allow_repeat_purchase: true, sessions: [session] })],
+];
+const CASES = STARTING_FORMS.flatMap(([name, before]) => SCENARIOS.map(id => [name, id, before] as const));
+// An optional switch the form type leaves out (e.g. `event_mode` of a blank form) reads as off, like an empty value.
+const unset = (value: unknown) => (value === undefined || value === null || value === false ? null : value);
+const changedFields = (before: ProductFormData, after: ProductFormData) =>
+  (Object.keys({ ...before, ...after }) as Array<keyof ProductFormData>).filter(key => JSON.stringify(unset(before[key])) !== JSON.stringify(unset(after[key])));
+
+describe('the difference shows every changed setting', () => {
+  it.each(CASES)('%s → %s: each field the switch changes is in the preview', (_name, id, before) => {
+    const after = applyScenario(before, id);
+    const shown = new Set(scenarioChanges(before, after).flatMap(change => scenarioFields(change.key)));
+    expect(changedFields(before, after).filter(field => !shown.has(field))).toEqual([]);
+  });
+
+  it.each(UX_PRODUCT_TYPES_AVAILABLE)('every field the %s payment defaults set has a line in the preview', type => {
+    // Unusual values everywhere, so every field the defaults set differs from what was there.
+    const odd = form({ ux_product_type: 'unknown' as never, checkout_template: 'odd', product_type: 'odd' as never, allow_custom_price: 'odd' as never, price: -1,
+      billing_interval: 'odd' as never, billing_interval_count: -1, recurring_price: -1, trial_days: -1, custom_price_min: -1, show_price_presets: 'odd' as never,
+      custom_price_presets: [], custom_checkout_fields: [] });
+    const covered = new Set(scenarioFields());
+    expect(changedFields(odd, applyProductTypeDefaults(odd, type)).filter(field => !covered.has(field))).toEqual([]);
+  });
+
+  it('shows the trial period a switch removes, in Polish and English', () => {
+    const subscription = STARTING_FORMS.find(([name]) => name === 'subscription with trial')![1];
+    const trial = scenarioChanges(subscription, applyScenario(subscription, 'download')).find(change => change.key === 'trial');
+    expect(trial).toEqual({ key: 'trial', before: { key: 'trialDays', values: { count: 14 } }, after: { key: 'none' } });
+    for (const lang of ['pl', 'en'] as const) {
+      expect(lookup('admin.products.form.scenario.fields.trial', lang), lang).toBeTruthy();
+      expect(lookup('admin.products.form.scenario.values.trialDays', lang), lang).toBeTruthy();
+    }
+  });
+});
+
+describe('a scenario sets what its kind of product requires', () => {
+  it('an event turns off the amount chosen by the buyer, shows it, and keeps the price and suggestions', () => {
+    const before = STARTING_FORMS.find(([name]) => name === 'download with chosen amount')![1];
+    expect(scenarioOf(before)).toBe('download');
+    const after = applyScenario(before, 'event');
+    expect(after).toMatchObject({ event_mode: true, allow_custom_price: false, price: 149, custom_price_min: 20, show_price_presets: true, custom_price_presets: [30, 50] });
+    expect(isEventCompatible(after)).toBe(true);
+    expect(scenarioChanges(before, after).find(change => change.key === 'customPrice')).toEqual({ key: 'customPrice', before: { key: 'customPriceOn', values: { min: '20', presets: '30, 50' } }, after: { key: 'off' } });
+  });
+
+  it.each(CASES)('%s → %s: saving does not refuse the kind of product the scenario sets', (_name, id, before) => {
+    expect(isEventCompatible(applyScenario(before, id))).toBe(true);
+  });
+
+  it('warns about any setting saving refuses for an event, using the same rule as saving', () => {
+    const event = form({ price: 149, event_mode: true });
+    expect(scenarioWarnings(form({ price: 149 }), { ...event, allow_custom_price: true }, false)).toContain('eventIncompatible');
+    expect(scenarioWarnings(form({ price: 149 }), event, false)).toEqual([]);
+  });
+});
+
 // ===== THE FORM: create, change with preview, skip, edit =====
 
 async function openNew() {
@@ -296,6 +365,22 @@ describe('"What are you selling?" when editing', () => {
     expect(second).toEqual(first);
     const product = stored(extra) as unknown as Record<string, unknown>;
     for (const key of Object.keys(extra)) expect([key, (first as unknown as Record<string, unknown>)[key]]).toEqual([key, product[key]]);
+  });
+
+  it('a change confirmed after editing the form keeps the edit; the preview follows what the seller typed', async () => {
+    const onSubmit = await openStored({});
+    await act(async () => { fireEvent.click(within(bar()).getByRole('button', { name: s('changeLabel') })); });
+    await act(async () => { fireEvent.click(option('free')); });
+    const preview = () => screen.getByRole('region', { name: /Zmienić scenariusz/ });
+    const priceLine = () => within(preview()).getAllByRole('listitem').map(item => item.textContent).find(text => text?.startsWith(s('fields.price')));
+    expect(priceLine()).toMatch(/149.*→.*0/);
+    await act(async () => { fireEvent.change(document.getElementById('name')!, { target: { value: 'Nowa nazwa po podglądzie' } }); });
+    await act(async () => { fireEvent.change(document.getElementById('price')!, { target: { value: '99' } }); });
+    await act(async () => { fireEvent.blur(document.getElementById('price')!); });
+    expect(priceLine()).toMatch(/99.*→.*0/);
+    await act(async () => { fireEvent.click(within(preview()).getByRole('button', { name: s('confirm.apply') })); });
+    const sent = await save(onSubmit);
+    expect(sent).toMatchObject({ name: 'Nowa nazwa po podglądzie', price: 0, ux_product_type: 'lead-magnet' });
   });
 
   it('switching a stored event to a download shows the loss of dates first and keeps the dates in the form', async () => {

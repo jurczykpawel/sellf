@@ -72,7 +72,7 @@ describe.runIf(process.env.STRIPE_LIVE_API === '1')('real subscription first ema
       } else if (kind === 'transfer') {
         bankConfig = (await db.from('bank_transfer_config').select('*').single()).data!;
         expect((await db.from('bank_transfer_config').update({ bank_transfer_enabled: true, bank_account_holder: 'Local workshop', bank_account_number: 'PL61109010140000071219812874', bank_transfer_grant_access_on_placement: true }).eq('id', true)).error).toBeNull();
-        expect((await db.from('products').update({ checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['person'], gus: false, bank_transfer_for: ['person'] }] } }).eq('id', product.id)).error).toBeNull();
+        expect((await db.from('products').update({ checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['person'], bank_transfer_for: ['person'] }] } }).eq('id', product.id)).error).toBeNull();
         expect(await post('/api/orders/bank-transfer', { productId: product.id, email, locale: 'pl', termsAccepted: true, captchaToken: await captcha(), moduleValues: { buyer: { type: 'person', first_name: 'First', last_name: 'Buyer', email } } })).toMatchObject({ amount: 1700, currency: 'PLN' });
       } else {
         const checkout = await post('/api/create-payment-intent', { productId: product.id, email, locale: 'pl', termsAccepted: true, ...(eventSessionId ? { sessionId: eventSessionId } : {}) }); sessionId = checkout.checkoutSessionId;

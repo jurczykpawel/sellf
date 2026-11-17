@@ -4,13 +4,13 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import { useLocale } from 'next-intl';
 import TutorialHelpButton from '@/components/tutorials/TutorialHelpButton';
 import { SCENARIOS, applyScenario, needsConfirmation, scenarioChanges, scenarioOf, scenarioWarnings } from './scenarios';
-import type { ScenarioChange, ScenarioId, ScenarioValue, ScenarioWarning } from './scenarios';
+import type { ScenarioId, ScenarioValue } from './scenarios';
 import type { ProductFormData, TranslationFunction } from '../types';
 
 interface ScenarioBarProps {
   formData: ProductFormData;
-  /** Takes the product as the chosen scenario sets it. */
-  onApply: (next: ProductFormData) => void;
+  /** Sets the chosen scenario on the form as it is at that moment. */
+  onApply: (id: ScenarioId) => void;
   t: TranslationFunction;
   /** A blank new product starts with the choice open and may skip it. */
   startOpen: boolean;
@@ -21,7 +21,6 @@ interface ScenarioBarProps {
 }
 
 type Mode = 'choose' | 'summary' | 'confirm';
-interface Pending { id: ScenarioId; next: ProductFormData; changes: ScenarioChange[]; warnings: ScenarioWarning[] }
 
 const buttonClass = 'inline-flex min-h-11 items-center rounded px-2 text-sm font-medium text-sf-accent underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sf-accent';
 
@@ -34,7 +33,9 @@ export function ScenarioBar({ formData, onApply, t, startOpen, pristine, isStore
   // Until the seller picks a scenario or skips, the choice of a new product stays open.
   const [firstChoice, setFirstChoice] = useState(startOpen);
   const [manual, setManual] = useState(false);
-  const [pending, setPending] = useState<Pending | null>(null);
+  // Only the scenario waiting for confirmation: its difference is read from the form on every render, so edits made
+  // while it is shown update it, and confirming applies the scenario to the form as it is then.
+  const [pending, setPending] = useState<ScenarioId | null>(null);
   // Each request moves focus once to the panel just shown (a counter, so the same panel can be focused again).
   const [focusRequest, setFocusRequest] = useState<{ mode: Mode; count: number } | null>(null);
   const changeRef = useRef<HTMLButtonElement>(null);
@@ -70,19 +71,18 @@ export function ScenarioBar({ formData, onApply, t, startOpen, pristine, isStore
   const show = (next: Mode) => { setMode(next); setFocusRequest(request => ({ mode: next, count: (request?.count ?? 0) + 1 })); };
 
   const choose = (id: ScenarioId) => {
-    const next = applyScenario(formData, id);
-    if (needsConfirmation(formData, next, pristine)) {
-      setPending({ id, next, changes: scenarioChanges(formData, next, money), warnings: scenarioWarnings(formData, next, isStored) });
+    if (needsConfirmation(formData, applyScenario(formData, id), pristine)) {
+      setPending(id);
       show('confirm');
       return;
     }
-    onApply(next);
+    onApply(id);
     setFirstChoice(false);
     setManual(false);
     show('summary');
   };
   const confirm = () => {
-    if (pending) onApply(pending.next);
+    if (pending) onApply(pending);
     setPending(null);
     setFirstChoice(false);
     setManual(false);
@@ -92,6 +92,10 @@ export function ScenarioBar({ formData, onApply, t, startOpen, pristine, isStore
   const skip = () => { setFirstChoice(false); setManual(true); show('summary'); };
 
   const current = scenarioOf(formData);
+  const preview = pending && (() => {
+    const next = applyScenario(formData, pending);
+    return { changes: scenarioChanges(formData, next, money), warnings: scenarioWarnings(formData, next, isStored) };
+  })();
   return (
     <div data-tour="form-scenario" className="mb-6 border border-sf-border bg-sf-raised p-3 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
@@ -137,18 +141,18 @@ export function ScenarioBar({ formData, onApply, t, startOpen, pristine, isStore
         </div>
       )}
 
-      {mode === 'confirm' && pending && (
+      {mode === 'confirm' && pending && preview && (
         <section aria-labelledby={confirmId} className="space-y-2">
           <h3 id={confirmId} ref={confirmRef} tabIndex={-1} className="font-semibold text-sf-heading focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sf-accent">
-            {t('scenario.confirm.title', { name: name(pending.id) })}
+            {t('scenario.confirm.title', { name: name(pending) })}
           </h3>
           <p className="text-sf-body">{t('scenario.confirm.intro')}</p>
           <ul className="list-disc space-y-1 pl-5 text-sf-body">
-            {pending.changes.map(change => (
+            {preview.changes.map(change => (
               <li key={change.key}>{t(`scenario.fields.${change.key}`)}: {value(change.before)} → {value(change.after)}</li>
             ))}
           </ul>
-          {pending.warnings.map(warning => <p key={warning} className="text-sf-warning">{t(`scenario.warnings.${warning}`)}</p>)}
+          {preview.warnings.map(warning => <p key={warning} className="text-sf-warning">{t(`scenario.warnings.${warning}`)}</p>)}
           <p className="text-sf-muted">{t('scenario.confirm.rest')}</p>
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={confirm} className="min-h-11 bg-sf-accent-bg px-4 py-2 font-medium text-white hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sf-accent">

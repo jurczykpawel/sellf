@@ -169,3 +169,24 @@ test('phone and English: the choice fits 390 px and reads in English', async ({ 
   await expect(scenarioBar(page)).toContainText(`${E.current} ${E.options.subscription.name}`);
   await expect(page.locator('[data-buyer-summary]')).toContainText('for as long as the subscription is paid');
 });
+
+test('editing: a switch confirmed after typing keeps what was typed, and an event turns off the buyer-chosen amount it cannot sell', async ({ page }) => {
+  const product = await storedProduct('download', { price: 149, allow_custom_price: true, custom_price_min: 20, show_price_presets: true, custom_price_presets: [30, 50] });
+  const renamed = `${product.name} po podglądzie`;
+  await loginAsAdmin(page, admin.email, admin.password);
+  await page.goto('/pl/dashboard/products');
+  await page.getByPlaceholder(/Szukaj/i).first().fill(product.name);
+  await page.locator('tr').filter({ hasText: product.name }).locator('button[title*="Edytuj"]').first().click();
+  await scenarioBar(page).getByRole('button', { name: S.changeLabel }).click();
+  await picker(page).getByRole('button', { name: new RegExp(`^${S.options.event.name}`) }).click();
+  const preview = page.getByRole('region', { name: S.confirm.title.replace('{name}', S.options.event.name) });
+  await expect(preview.getByRole('listitem').filter({ hasText: S.fields.customPrice })).toHaveText(`${S.fields.customPrice}: od 20,00 zł, propozycje: 30,00 zł, 50,00 zł → ${S.values.off}`);
+  await expect(preview.getByText(S.warnings.eventIncompatible)).toHaveCount(0);
+
+  await page.locator('input#name').fill(renamed);
+  await preview.getByRole('button', { name: S.confirm.apply }).click();
+  await expect(page.locator('input#name')).toHaveValue(renamed);
+  await page.getByRole('button', { name: 'Aktualizuj produkt' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0, { timeout: 15_000 });
+  expect(await configuration(product.id)).toMatchObject({ name: renamed, event_mode: true, allow_custom_price: false, price: 149, custom_price_min: 20, custom_price_presets: [30, 50] });
+});

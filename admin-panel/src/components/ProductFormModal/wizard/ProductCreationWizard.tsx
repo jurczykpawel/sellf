@@ -14,6 +14,7 @@ import { FormSection } from './FormSection';
 import { FormSectionNav } from './FormSectionNav';
 import { BuyerSummary } from './BuyerSummary';
 import { ScenarioBar } from './ScenarioBar';
+import { applyScenario, type ScenarioId } from './scenarios';
 import { BasicsPanel } from './panels/BasicsPanel';
 import { DeliveryPanel } from './panels/DeliveryPanel';
 import { CartPanel } from './panels/CartPanel';
@@ -171,11 +172,12 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
     handleSubmit(syntheticEvent);
   }, [handleSubmit]);
 
-  // A scenario sets existing fields; the price field shows the amount it set.
-  const applyScenarioChange = useCallback((next: ProductFormData) => {
-    if (next.price !== formData.price) setPriceDisplayValue(next.price ? String(next.price).replace('.', ',') : '');
-    setFormData(next);
-  }, [formData.price, setFormData, setPriceDisplayValue]);
+  // A scenario sets existing fields on the form as it is now; the price field shows the amount it set.
+  const applyScenarioChange = useCallback((id: ScenarioId) => {
+    const price = applyScenario(formData, id).price;
+    if (price !== formData.price) setPriceDisplayValue(price ? String(price).replace('.', ',') : '');
+    setFormData(prev => applyScenario(prev, id));
+  }, [formData, setFormData, setPriceDisplayValue]);
 
   const priceBadge = headerPriceBadge(formData, priceDisplayValue, t('free'), locale);
 

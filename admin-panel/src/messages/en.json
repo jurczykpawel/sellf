@@ -2069,6 +2069,7 @@
             "payment": "How it is paid",
             "price": "Price",
             "billing": "Subscription",
+            "trial": "Trial period",
             "customPrice": "Amount chosen by the buyer",
             "customFields": "Extra checkout fields",
             "bundle": "Bundle",
@@ -2085,6 +2086,7 @@
             "amount": "{amount}",
             "billing": "{amount} every {interval}",
             "billingNoPrice": "every {interval}",
+            "trialDays": "{count, plural, one {# day} other {# days}}",
             "none": "none",
             "off": "off",
             "customPriceOn": "from {min}, suggestions: {presets}",
@@ -2102,6 +2104,7 @@
             "year": "{count, plural, one {year} other {# years}}"
           },
           "warnings": {
+            "eventIncompatible": "An event cannot be a subscription or a bundle, or let the buyer choose the amount. Saving it like this will be refused.",
             "checkoutProfile": "The “Checkout details” settings do not fit this scenario. They are kept, and saving will point you to them.",
             "paymentAfterSales": "How the product is paid cannot change once it has a sale or granted access. Saving is then refused."
           }

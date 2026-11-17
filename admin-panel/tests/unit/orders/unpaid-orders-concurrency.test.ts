@@ -11,7 +11,7 @@ beforeAll(async () => {
   config = (await db.from('bank_transfer_config').select('*').single()).data!;
   await db.from('bank_transfer_config').update({ bank_transfer_enabled: true, bank_account_holder: 'Concurrency shop', bank_account_number: 'PL61109010140000071219812874', bank_transfer_max_unpaid_per_email: 100 }).eq('id', true);
   productId = (await db.from('products').insert({ name: 'Concurrency workshop', slug: `unpaid-race-${randomUUID()}`, price: 50, currency: 'PLN', event_mode: true,
-    checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'], gus: false, bank_transfer_for: ['organization'] }] } }).select('id').single()).data!.id;
+    checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'], bank_transfer_for: ['organization'] }] } }).select('id').single()).data!.id;
   sessionId = (await db.from('product_sessions').insert({ product_id: productId, starts_at: '2099-01-01T10:00:00Z', capacity: 50 }).select('id').single()).data!.id;
   await db.from('product_price_tiers').insert({ session_id: sessionId, price: 50, sort: 0 });
 });

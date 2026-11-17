@@ -151,7 +151,7 @@ test.describe('unpaid transfer order', () => {
 
   test('guides the seller through settling an order that waits for a transfer @J215', async ({ page }) => {
     const session = await admin(page, 'tour-unpaid');
-    const product = await productFixture('Przelew samouczek', { vat_exempt: true, checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['person', 'organization'], gus: false, bank_transfer_for: ['organization'] }] } });
+    const product = await productFixture('Przelew samouczek', { vat_exempt: true, checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['person', 'organization'], bank_transfer_for: ['organization'] }] } });
     const buyer = `tour-unpaid-${randomUUID()}@example.com`;
     const lines = [{ product_id: product.id, item_type: 'main_product', quantity: 1, unit_price: 50, total_price: 50, discounted_total: 50, currency: 'PLN' }];
     const placed = await checked(await db.rpc('bank_transfer_order', { p_order: { product_id: product.id, currency: 'PLN', customer_email: buyer, order_details: { v: 1, buyer: { type: 'organization', terms_accepted: true } }, metadata: { locale: 'pl' } }, p_lines: lines })) as { transaction_id: string };

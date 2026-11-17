@@ -101,7 +101,7 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
     if (kind === 'transfer') {
       bankConfig = (await rows('bank_transfer_config', 'id', 'true'))[0];
       expect((await db.from('bank_transfer_config').update({ bank_transfer_enabled: true, bank_account_holder: 'Local workshop', bank_account_number: 'PL61109010140000071219812874', bank_transfer_grant_access_on_placement: true }).eq('id', true)).error).toBeNull();
-      expect((await db.from('products').update({ checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['person'], gus: false, bank_transfer_for: ['person'] }] } }).eq('id', product.id)).error).toBeNull();
+      expect((await db.from('products').update({ checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['person'], bank_transfer_for: ['person'] }] } }).eq('id', product.id)).error).toBeNull();
       const response = await page.request.post('/api/orders/bank-transfer', { data: { productId: product.id, email, termsAccepted: true, captchaToken: await captcha(page), moduleValues: { buyer: { type: 'person', first_name: 'First', last_name: 'Buyer', email } } } });
       expect(response.status(), await response.text()).toBe(200);
       expect(await response.json()).toMatchObject({ amount: 1700, currency: 'PLN' });

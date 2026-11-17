@@ -487,7 +487,7 @@ describe('event checkout', () => {
 it('attaches a customer and enables automatic tax for a profile in Stripe Tax mode', async () => {
   mocks.getUser.mockResolvedValue({ data: { user: null } });
   mocks.getOrCreateStripeCustomer.mockResolvedValue('cus_profile');
-  mocks.productOverride = { checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'], gus: false }] } };
+  mocks.productOverride = { checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'] }] } };
   vi.mocked(getCheckoutConfig).mockResolvedValueOnce({ tax_mode: 'stripe_tax', automatic_tax: { enabled: true }, tax_id_collection: { enabled: false }, billing_address_collection: 'auto', expires_hours: 24 } as Awaited<ReturnType<typeof getCheckoutConfig>>);
   expect((await POST(makeRequest({ email: 'company@example.com' }))).status).toBe(200);
   expect(mocks.sessionsCreate).toHaveBeenCalledWith(expect.objectContaining({ customer: 'cus_profile', automatic_tax: { enabled: true } }));

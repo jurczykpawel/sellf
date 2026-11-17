@@ -9,7 +9,7 @@ import { test, startNativeCheckout } from './helpers/checkout-intent';
 
 const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 const profile = { v: 1, modules: [
-  { id: 'buyer', types: ['person', 'organization'], gus: false },
+  { id: 'buyer', types: ['person', 'organization'] },
   { id: 'recipient', for: ['organization'] }, { id: 'phone', required: true },
   { id: 'quantity', min: 1, max: 5, mode: 'checkout' },
   { id: 'participants', required: true, prefill_from_buyer: true },
@@ -224,7 +224,7 @@ test('shared profile displays online and transfer validation errors', async ({ p
   expect(saved.error).toBeNull();
   try {
     expect((await db.from('bank_transfer_config').update({ bank_transfer_enabled: true, bank_account_holder: 'Test', bank_account_number: 'PL61109010140000071219812874' }).eq('id', true)).error).toBeNull();
-    const shared = { v: 1, modules: [{ id: 'buyer', types: ['person', 'organization'], gus: false, bank_transfer_for: ['person', 'organization'] }, { id: 'phone', required: true }] };
+    const shared = { v: 1, modules: [{ id: 'buyer', types: ['person', 'organization'], bank_transfer_for: ['person', 'organization'] }, { id: 'phone', required: true }] };
     expect((await db.from('products').update({ checkout_profile: shared }).eq('id', product.id)).error).toBeNull();
     const requests: string[] = [];
     page.on('request', request => {

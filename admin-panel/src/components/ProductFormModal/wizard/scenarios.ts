@@ -5,6 +5,7 @@
  * @see @/lib/product-defaults.ts
  */
 import { parseCheckoutProfile } from '@/lib/checkout-modules/profile';
+import { isEventCompatible } from '@/lib/events/schema';
 import { applyProductTypeDefaults, type UxProductType } from '@/lib/product-defaults';
 import type { ProductFormData } from '../types';
 
@@ -19,6 +20,14 @@ const PAYMENT: Record<ScenarioId, UxProductType> = {
   donation: 'tip-jar',
   bundle: 'standard',
   event: 'standard',
+};
+
+/**
+ * Settings a scenario's kind of product requires on top of its way of paying; saving refuses the product without them.
+ * An event cannot let the buyer choose the amount (`isEventCompatible`); its amount, minimum and suggestions stay as set.
+ */
+const REQUIRED: Partial<Record<ScenarioId, Partial<ProductFormData>>> = {
+  event: { allow_custom_price: false },
 };
 
 /** Scenario the product's fields describe now. */
@@ -46,46 +55,65 @@ export function applyScenario(form: ProductFormData, id: ScenarioId): ProductFor
     event_mode: event,
     // Same default as switching event mode on in "Dates and seats".
     ...(event && !form.event_mode ? { allow_repeat_purchase: true } : {}),
+    ...REQUIRED[id],
   };
 }
 
 /** Message key under `scenario.values` with its parameters. */
 export interface ScenarioValue { key: string; values?: Record<string, string | number> }
-export type ScenarioChangeKey = 'payment' | 'price' | 'billing' | 'customPrice' | 'customFields' | 'bundle' | 'event' | 'repeat';
+export type ScenarioChangeKey = 'payment' | 'price' | 'billing' | 'trial' | 'customPrice' | 'customFields' | 'bundle' | 'event' | 'repeat';
 export interface ScenarioChange { key: ScenarioChangeKey; before: ScenarioValue; after: ScenarioValue }
 export type MoneyFormat = (amount: number) => string;
 
 const plainMoney: MoneyFormat = amount => String(amount);
 
-/** Each setting a scenario can change, read as the seller sees it. */
-const READERS: Record<ScenarioChangeKey, (form: ProductFormData, money: MoneyFormat) => ScenarioValue> = {
-  payment: form => ({ key: `payment.${form.ux_product_type}` }),
-  price: (form, money) => ({ key: 'amount', values: { amount: money(form.price) } }),
-  billing: (form, money): ScenarioValue => {
-    if (form.product_type !== 'subscription' || !form.billing_interval) return { key: 'none' };
-    const values = { interval: form.billing_interval, count: form.billing_interval_count ?? 1 };
-    return form.recurring_price != null ? { key: 'billing', values: { amount: money(form.recurring_price), ...values } } : { key: 'billingNoPrice', values };
+interface Reader {
+  /** Product fields this line of the difference shows; together they cover every field a scenario may change. */
+  fields: Array<keyof ProductFormData>;
+  read: (form: ProductFormData, money: MoneyFormat) => ScenarioValue;
+}
+
+/** Each setting a scenario can change, read as the seller sees it, in form order. */
+const READERS: Record<ScenarioChangeKey, Reader> = {
+  payment: { fields: ['ux_product_type', 'checkout_template', 'product_type'], read: form => ({ key: `payment.${form.ux_product_type}` }) },
+  price: { fields: ['price'], read: (form, money) => ({ key: 'amount', values: { amount: money(form.price) } }) },
+  billing: {
+    fields: ['billing_interval', 'billing_interval_count', 'recurring_price'],
+    read: (form, money): ScenarioValue => {
+      if (form.product_type !== 'subscription' || !form.billing_interval) return { key: 'none' };
+      const values = { interval: form.billing_interval, count: form.billing_interval_count ?? 1 };
+      return form.recurring_price != null ? { key: 'billing', values: { amount: money(form.recurring_price), ...values } } : { key: 'billingNoPrice', values };
+    },
   },
-  customPrice: (form, money): ScenarioValue => {
-    if (!form.allow_custom_price) return { key: 'off' };
-    const min = money(form.custom_price_min ?? 0);
-    const presets = form.show_price_presets ? (form.custom_price_presets ?? []) : [];
-    return presets.length ? { key: 'customPriceOn', values: { min, presets: presets.map(money).join(', ') } } : { key: 'customPriceMin', values: { min } };
+  trial: { fields: ['trial_days'], read: form => (form.trial_days ? { key: 'trialDays', values: { count: form.trial_days } } : { key: 'none' }) },
+  customPrice: {
+    fields: ['allow_custom_price', 'custom_price_min', 'show_price_presets', 'custom_price_presets'],
+    read: (form, money): ScenarioValue => {
+      if (!form.allow_custom_price) return { key: 'off' };
+      const min = money(form.custom_price_min ?? 0);
+      const presets = form.show_price_presets ? (form.custom_price_presets ?? []) : [];
+      return presets.length ? { key: 'customPriceOn', values: { min, presets: presets.map(money).join(', ') } } : { key: 'customPriceMin', values: { min } };
+    },
   },
-  customFields: form => ({ key: 'fieldCount', values: { count: form.custom_checkout_fields.length } }),
-  bundle: form => (form.is_bundle ? { key: 'bundleOn', values: { count: form.bundleItemIds.length } } : { key: 'off' }),
-  event: form => (form.event_mode ? { key: 'eventOn', values: { count: form.sessions?.length ?? 0 } } : { key: 'off' }),
-  repeat: form => ({ key: form.allow_repeat_purchase ? 'yes' : 'no' }),
+  customFields: { fields: ['custom_checkout_fields'], read: form => ({ key: 'fieldCount', values: { count: form.custom_checkout_fields.length } }) },
+  bundle: { fields: ['is_bundle'], read: form => (form.is_bundle ? { key: 'bundleOn', values: { count: form.bundleItemIds.length } } : { key: 'off' }) },
+  event: { fields: ['event_mode'], read: form => (form.event_mode ? { key: 'eventOn', values: { count: form.sessions?.length ?? 0 } } : { key: 'off' }) },
+  repeat: { fields: ['allow_repeat_purchase'], read: form => ({ key: form.allow_repeat_purchase ? 'yes' : 'no' }) },
 };
 const CHANGE_KEYS = Object.keys(READERS) as ScenarioChangeKey[];
+
+/** Product fields behind a line of the difference, or behind all of them. */
+export function scenarioFields(key?: ScenarioChangeKey): ReadonlyArray<keyof ProductFormData> {
+  return key ? READERS[key].fields : CHANGE_KEYS.flatMap(change => READERS[change].fields);
+}
 
 const same = (a: ScenarioValue, b: ScenarioValue) => JSON.stringify(a) === JSON.stringify(b);
 
 /** Settings that differ between the product now and after the switch, in form order. */
 export function scenarioChanges(before: ProductFormData, after: ProductFormData, money: MoneyFormat = plainMoney): ScenarioChange[] {
   return CHANGE_KEYS.flatMap(key => {
-    const from = READERS[key](before, money);
-    const to = READERS[key](after, money);
+    const from = READERS[key].read(before, money);
+    const to = READERS[key].read(after, money);
     return same(from, to) ? [] : [{ key, before: from, after: to }];
   });
 }
@@ -98,14 +126,18 @@ export function needsConfirmation(before: ProductFormData, after: ProductFormDat
   const changes = scenarioChanges(before, after);
   if (!changes.length) return false;
   if (!pristine) return true;
-  return changes.some(change => !same(change.before, READERS[change.key](pristine, plainMoney)));
+  return changes.some(change => !same(change.before, READERS[change.key].read(pristine, plainMoney)));
 }
 
-export type ScenarioWarning = 'checkoutProfile' | 'paymentAfterSales';
+export type ScenarioWarning = 'eventIncompatible' | 'checkoutProfile' | 'paymentAfterSales';
 
-/** What the switch keeps but the scenario cannot use, and what the server may still refuse for a stored product. */
+/**
+ * What saving would refuse after the switch (the same checks as the form's save), and what the server may still refuse
+ * for a stored product.
+ */
 export function scenarioWarnings(before: ProductFormData, after: ProductFormData, isStored: boolean): ScenarioWarning[] {
   const warnings: ScenarioWarning[] = [];
+  if (!isEventCompatible(after)) warnings.push('eventIncompatible');
   if (after.checkout_profile && !parseCheckoutProfile(after.checkout_profile, { ...after }).success) warnings.push('checkoutProfile');
   if (isStored && before.product_type !== after.product_type) warnings.push('paymentAfterSales');
   return warnings;

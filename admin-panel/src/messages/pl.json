@@ -2069,6 +2069,7 @@
             "payment": "Sposób płatności",
             "price": "Cena",
             "billing": "Abonament",
+            "trial": "Okres próbny",
             "customPrice": "Kwota wybierana przez kupującego",
             "customFields": "Dodatkowe pola w koszyku",
             "bundle": "Pakiet",
@@ -2085,6 +2086,7 @@
             "amount": "{amount}",
             "billing": "{amount} co {interval}",
             "billingNoPrice": "co {interval}",
+            "trialDays": "{count, plural, one {# dzień} few {# dni} many {# dni} other {# dnia}}",
             "none": "brak",
             "off": "wyłączone",
             "customPriceOn": "od {min}, propozycje: {presets}",
@@ -2102,6 +2104,7 @@
             "year": "{count, plural, one {rok} few {# lata} many {# lat} other {# roku}}"
           },
           "warnings": {
+            "eventIncompatible": "Wydarzenie nie może być abonamentem, pakietem ani mieć kwoty wybieranej przez kupującego. W tej postaci zapis zostanie odrzucony.",
             "checkoutProfile": "Ustawienia „Dane w koszyku” nie pasują do tego scenariusza. Zostają zachowane, a przy zapisie formularz wskaże je do poprawy.",
             "paymentAfterSales": "Sposobu płatności nie da się zmienić, gdy produkt ma już sprzedaż albo przyznany dostęp. Wtedy zapis zostanie odrzucony."
           }
