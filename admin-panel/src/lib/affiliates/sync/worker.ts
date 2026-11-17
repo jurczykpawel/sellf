@@ -46,7 +46,10 @@ export async function drainAffiliateWork(limit = 25): Promise<DrainResult> {
             .select('coupon:coupons!inner(binding:affiliate_coupon_bindings!inner(id))')
             .eq('transaction_id', work.payment_id).limit(1).maybeSingle();
           if (binding.error) throw new Error('binding_read_failed');
-          if (!binding.data) {
+          // A co-creator share needs the session time too, even without a coupon.
+          const cocreator = binding.data ? null : await client.rpc('affiliate_cocreator_candidate', { p_payment: work.payment_id });
+          if (cocreator?.error) throw new Error('cocreator_read_failed');
+          if (!binding.data && cocreator?.data !== true) {
             const completed = await client.rpc('affiliate_complete_unbound_work', lease);
             if (completed.error || !completed.data) throw new Error('unbound_work_changed');
             result.applied++;

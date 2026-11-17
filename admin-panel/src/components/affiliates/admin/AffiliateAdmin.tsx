@@ -10,8 +10,10 @@ import { AFFILIATE_PROGRAM_DEFAULTS } from '@/lib/affiliates/program-defaults';
 import { SUPPORTED_CURRENCY_CODES } from '@/lib/constants';
 import TutorialTrigger from '@/components/tutorials/TutorialTrigger';
 import SyncWorkPanel from '@/components/affiliates/admin/SyncWorkPanel';
+import CreatorTermsSettings from '@/components/affiliates/admin/CreatorTermsSettings';
 import CaptchaWidget from '@/components/captcha/CaptchaWidget';
 import { affiliateAdminMessages } from '@/components/affiliates/admin/messages';
+import { cocreatorMessages } from '@/components/affiliates/products/messages';
 import { displayThreshold, parseThreshold } from '@/components/affiliates/admin/thresholds';
 import type { ReactNode } from 'react';
 import type { AdminOverview, AdminResult, ApplicationProgramInfo, MemberInfo, TermsInfo } from '@/lib/affiliates/admin/contracts';
@@ -79,6 +81,7 @@ export function AffiliateAdmin({ initial, locale }: { initial: AdminOverview; lo
         </div><div className="lg:col-span-2"><button className={primaryClass} disabled={busy}>{t.save}</button></div>
       </form>
     </details>
+    <CreatorTermsSettings locale={locale} />
     <Notice value={notice} error={error} />
     <SyncWorkPanel locale={locale} />
     <div data-tour="affiliates-applications" className="flex flex-wrap items-center justify-between gap-3"><h2 className="flex items-center gap-2 text-lg font-semibold"><Users size={20} aria-hidden="true" />{t.applications}</h2><div className="flex min-w-0 max-w-full flex-wrap gap-2"><label className="sr-only" htmlFor={`${id}-status`}>{t.status}</label><select id={`${id}-status`} className={`${fieldClass} !w-auto max-w-full`} value={filter} disabled={busy} onChange={event => { setFilter(event.target.value); void load(undefined, event.target.value); }}><option value="">{t.all}</option>{['pending', 'approved', 'rejected', 'suspended', 'terminated'].map(status => <option key={status} value={status}>{statusLabel(status, t)}</option>)}</select><button type="button" className={buttonClass} disabled={busy} onClick={() => void load()}>{t.refresh}</button></div></div>
@@ -114,7 +117,7 @@ function MemberDecision({ member, locale, onSaved }: { member: MemberInfo; local
       <Field label={t.reason}><input ref={reasonInput} className={fieldClass} value={reason} required maxLength={200} onChange={event => setReason(event.target.value)} /></Field>
       <div className="flex flex-wrap gap-2"><button className={primaryClass} disabled={busy}>{actionLabel(decision)}</button><button type="button" className={buttonClass} disabled={busy} onClick={() => { setDecision(null); setReason(''); setNotice(''); }}>{t.cancel}</button></div>
     </form> : <div ref={actionGroup} className="flex flex-wrap gap-2">{validActions.map(status => <button key={status} data-status={status} type="button" className={status === 'approved' ? primaryClass : buttonClass} disabled={busy} onClick={() => { if (status === 'approved') void decide(status); else { lastAction.current = status; setReason(''); setNotice(''); setDecision(status); } }}>{status === 'approved' && <Check size={16} aria-hidden="true" />}{actionLabel(status)}</button>)}</div>}
-    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-sf-border pt-3 text-xs text-sf-body"><time dateTime={member.accepted_at}>{new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(member.accepted_at))}</time><button type="button" className="cursor-pointer rounded text-sm font-medium text-sf-accent underline-offset-4 hover:underline focus-visible:outline-2" disabled={busy} onClick={() => void history()}>{t.history}</button></div>
+    {member.accepted_at ? <div className="flex flex-wrap items-center justify-between gap-2 border-t border-sf-border pt-3 text-xs text-sf-body"><time dateTime={member.accepted_at}>{new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(member.accepted_at))}</time><button type="button" className="cursor-pointer rounded text-sm font-medium text-sf-accent underline-offset-4 hover:underline focus-visible:outline-2" disabled={busy} onClick={() => void history()}>{t.history}</button></div> : <p className="border-t border-sf-border pt-3 text-xs text-sf-body">{cocreatorMessages[locale].memberCocreator}</p>}
     {terms && <div className="rounded-lg bg-sf-base p-3"><p className="mb-2 text-xs text-sf-body">{t.termsVersion}: {terms.terms_version}</p><p className="whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">{terms.terms[locale]}</p></div>}<Notice value={notice} error={error} />
   </article>;
 }

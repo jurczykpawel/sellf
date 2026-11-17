@@ -747,7 +747,7 @@ the receiver gets it once; still deduplicate by envelope `id`.
 | `invoicing.issued` | The invoicing provider (Fakturownia) issued the sales invoice. | `invoice.id/number/providerInvoiceId/viewUrl/attempt/paymentSynced`, `order` (ID, number, amount, currency), `customer`. |
 | `invoicing.failed` | An issue attempt failed. Sent once per attempt. | `invoice.attempt`, `invoice.error` (provider message), `invoice.willRetry` (`false` after the 5th attempt). |
 | `invoicing.corrected` | An issued invoice was marked as corrected. | `invoice.number`, `statusBefore/statusAfter`, `order`. |
-| `commission.accrued` | A partner earned a commission on a paid order. | `partner` (memberId, code, displayName, status), `commission.amount/currency/baseAmount/eligibleAt/paidAt/livemode`, `order`. |
+| `commission.accrued` | A partner (coupon) or a co-creator (fixed share of a product) earned a commission on a paid order. | `partner` (memberId, code, displayName, status), `commission.kind` (`referral` = partner via coupon, `cocreator` = co-creator share), `commission.amount/currency/baseAmount/eligibleAt/paidAt/livemode`, `order`. One purchase can send both kinds; they add up. |
 | `commission.reversed` | A refund reversed (part of) a commission. | `commission.amount` is negative; same identifiers. |
 | `payout.reserved` | The owner approved commissions into a payout (reservation). | `payout.id/amount/currency/cutoff/payeeReference/commissionIds`, `partner`. `product` is `null`. |
 | `payout.paid` | The payout was marked as paid. | `payout.bankReference/invoiceReference/bankAmount/paidAt`. |

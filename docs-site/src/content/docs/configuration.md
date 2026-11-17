@@ -101,8 +101,8 @@ the scheduler environment (do not put a real secret in a shared crontab example)
 ```
 
 This is a separate job from `webhook-deliveries-retry`; configure both if you use
-both features. The worker processes paid coupon orders and later refunds; it does
-not send bank transfers. Interrupted leases are recovered by later runs.
+both features. The worker processes paid coupon orders, paid orders of products with a
+co-creator, and later refunds; it does not send bank transfers. Interrupted leases are recovered by later runs.
 
 In **Dashboard → Affiliates → Commission processing**, pending work overdue by more than
 15 minutes triggers a warning. Check the scheduler and its HTTP results first.
@@ -116,6 +116,17 @@ Products with unlimited refunds create permanently held commissions: these canno
 be paid out, even through manual adjustments. Set a finite refund period before
 future sales if commissions should become payable; existing snapshots retain the
 original policy. Test-mode commissions are visible but excluded from real payouts.
+
+**Co-creator share.** In **Product → Sales and settlement → Co-creator share** you give one person (by the e-mail
+of their account) a percentage or fixed amount of every purchase of a one-time product, with or without a coupon.
+It adds up with the partner commission, also when it is the same person, and applies only to purchases made after
+saving. Publish the **creator terms** in **Dashboard → Affiliate program → Creator terms**: the person accepts them on
+**Partner earnings**, and only then do payouts include their co-creator shares (until then they show as held). Someone who
+is both a partner and a co-creator accepts both terms. The partner program switch controls partner sign-ups and coupon
+commissions only; co-creator shares need the program settings (hold days, thresholds) but not the switch. With the
+switch off, debt from partner commissions that were already paid out (for example after a refund) is still deducted.
+A co-creator who applies to the partner program waits for your approval like any other applicant; their co-creator
+shares keep accruing meanwhile, and payouts resume once you approve.
 
 For StackPilot installations and upgrades, add this schedule explicitly to your
 host or external scheduler and verify a successful call after restarting Sellf.

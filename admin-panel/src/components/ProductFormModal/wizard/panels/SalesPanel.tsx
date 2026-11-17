@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { AffiliateRuleEditor } from '@/components/affiliates/products/Settings';
+import { CocreatorEditor } from '@/components/affiliates/products/CocreatorSettings';
 import {
   AdvancedSection,
   AvailabilitySection,
@@ -73,6 +74,7 @@ export const SalesPanel: React.FC<SalesPanelProps> = ({
       </FormGroup>
       {currentProductId && <AffiliateRuleEditor key={currentProductId} productId={currentProductId} productType={formData.product_type}
         isRefundable={formData.is_refundable} refundPeriodDays={formData.refund_period_days} />}
+      {currentProductId && <CocreatorEditor key={`cocreator-${currentProductId}`} productId={currentProductId} productType={formData.product_type} />}
     </>
   );
 };

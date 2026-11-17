@@ -11,11 +11,12 @@ let snapshot: unknown;
 let sessionId: string;
 let bound: boolean;
 let offline: boolean;
+let cocreator: boolean;
 beforeEach(() => {
-  vi.resetAllMocks(); offline = false; snapshot = null; bound = true; sessionId = session.id;
+  vi.resetAllMocks(); offline = false; cocreator = false; snapshot = null; bound = true; sessionId = session.id;
   mocks.rpc.mockImplementation((name: string) => name === 'affiliate_claim_work'
     ? { select: vi.fn().mockResolvedValue({ data: [work], error: null }) }
-    : Promise.resolve({ data: true, error: null }));
+    : Promise.resolve({ data: name === 'affiliate_cocreator_candidate' ? cocreator : true, error: null }));
   mocks.from.mockImplementation((table: string) => {
     const query = { select: vi.fn(), eq: vi.fn(), limit: vi.fn(), maybeSingle: vi.fn() };
     query.select.mockReturnValue(query); query.eq.mockReturnValue(query); query.limit.mockReturnValue(query);
@@ -88,6 +89,14 @@ it('finishes unbound work without looking up Stripe', async () => {
   expect(mocks.list).not.toHaveBeenCalled();
   expect(mocks.rpc).toHaveBeenCalledWith('affiliate_complete_unbound_work', expect.objectContaining({ p_generation: work.requested_generation }));
   expect(mocks.rpc).not.toHaveBeenCalledWith('affiliate_apply_sync', expect.anything());
+});
+
+it('resolves the session for a co-creator line without any coupon @J640', async () => {
+  bound = false; cocreator = true;
+  expect(await drainAffiliateWork()).toMatchObject({ data: { applied: 1, failed: 0 } });
+  expect(mocks.rpc).toHaveBeenCalledWith('affiliate_cocreator_candidate', { p_payment: 'payment' });
+  expect(mocks.rpc).not.toHaveBeenCalledWith('affiliate_complete_unbound_work', expect.anything());
+  expect(mocks.rpc).toHaveBeenCalledWith('affiliate_apply_sync', expect.objectContaining({ p_session_created_at: '2026-01-02T00:00:00.000Z' }));
 });
 
 it('applies completed offline order facts without Stripe', async () => {

@@ -30,7 +30,7 @@ async function readData(client: SupabaseClient, member: { id: string; code: stri
   if (summary.error || page.error || !summary.data || !page.data) throw new Error('Read unavailable');
   const data: PortalData = {
     livemode, member: { code: member.code, status: member.status }, as_of,
-    ...summary.data as Pick<PortalData, 'balances' | 'codes' | 'rules' | 'sync_pending' | 'needs_review'>,
+    ...summary.data as Pick<PortalData, 'balances' | 'codes' | 'rules' | 'sync_pending' | 'needs_review' | 'is_partner' | 'creator'>,
     ...page.data as Pick<PortalData, 'commissions' | 'next_cursor'>,
   };
   if (admin) {

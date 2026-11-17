@@ -110,7 +110,9 @@ describe('POST /api/mcp', () => {
     const found = JSON.parse(text(await client.callTool({ name: 'search_operations', arguments: { query: 'create product' } })));
     expect(found.map((op: { operationId: string }) => op.operationId)).toContain('create_product');
     expect(found[0].inputSchema.properties.body).toBeDefined();
-    expect(JSON.parse(text(await client.callTool({ name: 'search_operations', arguments: { query: 'coupon' } })))).toEqual([]);
+    // Coupon operations are outside the key scope; product operations may still mention coupons.
+    const couponOps = JSON.parse(text(await client.callTool({ name: 'search_operations', arguments: { query: 'coupon' } }))) as { operationId: string }[];
+    expect(couponOps.map(op => op.operationId).filter(id => id.includes('coupon'))).toEqual([]);
 
     const created = await client.callTool({ name: 'call_operation', arguments: { operationId: 'create_product', params: { body: { name: 'x' } } } });
     expect(created.isError).toBe(false);

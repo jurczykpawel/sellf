@@ -87,12 +87,61 @@ export type Database = {
           },
         ]
       }
+      affiliate_cocreator_rules: {
+        Row: {
+          created_at: string
+          currency: string | null
+          fixed_minor: number | null
+          id: string
+          member_id: string | null
+          percentage_bps: number | null
+          product_id: string
+          revision: number
+        }
+        Insert: {
+          created_at?: string
+          currency?: string | null
+          fixed_minor?: number | null
+          id?: string
+          member_id?: string | null
+          percentage_bps?: number | null
+          product_id: string
+          revision: number
+        }
+        Update: {
+          created_at?: string
+          currency?: string | null
+          fixed_minor?: number | null
+          id?: string
+          member_id?: string | null
+          percentage_bps?: number | null
+          product_id?: string
+          revision?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_cocreator_rules_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "affiliate_memberships"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_cocreator_rules_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       affiliate_commissions: {
         Row: {
           accrued_minor: number
           base_minor: number
-          binding_id: string
+          binding_id: string | null
           buffer_days: number
+          cocreator_rule_id: string | null
           currency: string
           dispute_reviewed_at: string | null
           dispute_seen: boolean
@@ -100,6 +149,7 @@ export type Database = {
           hold_days: number
           id: string
           is_refundable: boolean
+          kind: string
           line_item_id: string
           livemode: boolean
           member_id: string
@@ -108,7 +158,7 @@ export type Database = {
           paid_at: string
           payment_id: string
           refund_period_days: number | null
-          rule_id: string
+          rule_id: string | null
           self_referral: boolean
           session_created_at: string
           version: number
@@ -116,8 +166,9 @@ export type Database = {
         Insert: {
           accrued_minor: number
           base_minor: number
-          binding_id: string
+          binding_id?: string | null
           buffer_days: number
+          cocreator_rule_id?: string | null
           currency: string
           dispute_reviewed_at?: string | null
           dispute_seen?: boolean
@@ -125,6 +176,7 @@ export type Database = {
           hold_days: number
           id?: string
           is_refundable: boolean
+          kind?: string
           line_item_id: string
           livemode: boolean
           member_id: string
@@ -133,7 +185,7 @@ export type Database = {
           paid_at: string
           payment_id: string
           refund_period_days?: number | null
-          rule_id: string
+          rule_id?: string | null
           self_referral: boolean
           session_created_at: string
           version?: number
@@ -141,8 +193,9 @@ export type Database = {
         Update: {
           accrued_minor?: number
           base_minor?: number
-          binding_id?: string
+          binding_id?: string | null
           buffer_days?: number
+          cocreator_rule_id?: string | null
           currency?: string
           dispute_reviewed_at?: string | null
           dispute_seen?: boolean
@@ -150,6 +203,7 @@ export type Database = {
           hold_days?: number
           id?: string
           is_refundable?: boolean
+          kind?: string
           line_item_id?: string
           livemode?: boolean
           member_id?: string
@@ -158,7 +212,7 @@ export type Database = {
           paid_at?: string
           payment_id?: string
           refund_period_days?: number | null
-          rule_id?: string
+          rule_id?: string | null
           self_referral?: boolean
           session_created_at?: string
           version?: number
@@ -169,6 +223,13 @@ export type Database = {
             columns: ["binding_id"]
             isOneToOne: false
             referencedRelation: "affiliate_coupon_bindings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_commissions_cocreator_rule_id_fkey"
+            columns: ["cocreator_rule_id"]
+            isOneToOne: false
+            referencedRelation: "affiliate_cocreator_rules"
             referencedColumns: ["id"]
           },
           {
@@ -242,6 +303,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      affiliate_creator_terms: {
+        Row: {
+          created_at: string
+          id: number
+          terms: Json
+          terms_version: string
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          terms: Json
+          terms_version: string
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          terms?: Json
+          terms_version?: string
+        }
+        Relationships: []
       }
       affiliate_ledger: {
         Row: {
@@ -338,37 +420,46 @@ export type Database = {
       }
       affiliate_memberships: {
         Row: {
-          accepted_at: string
-          accepted_terms_version: string
+          accepted_at: string | null
+          accepted_terms_version: string | null
           channel: string | null
           code: string
           created_at: string
+          creator_accepted_at: string | null
+          creator_terms_version: string | null
           display_name: string
           id: string
+          is_partner: boolean
           status: string
           user_id: string | null
           version: number
         }
         Insert: {
-          accepted_at: string
-          accepted_terms_version: string
+          accepted_at?: string | null
+          accepted_terms_version?: string | null
           channel?: string | null
           code: string
           created_at?: string
+          creator_accepted_at?: string | null
+          creator_terms_version?: string | null
           display_name: string
           id?: string
+          is_partner?: boolean
           status?: string
           user_id?: string | null
           version?: number
         }
         Update: {
-          accepted_at?: string
-          accepted_terms_version?: string
+          accepted_at?: string | null
+          accepted_terms_version?: string | null
           channel?: string | null
           code?: string
           created_at?: string
+          creator_accepted_at?: string | null
+          creator_terms_version?: string | null
           display_name?: string
           id?: string
+          is_partner?: boolean
           status?: string
           user_id?: string | null
           version?: number
@@ -5084,13 +5175,16 @@ export type Database = {
           p_user: string
         }
         Returns: {
-          accepted_at: string
-          accepted_terms_version: string
+          accepted_at: string | null
+          accepted_terms_version: string | null
           channel: string | null
           code: string
           created_at: string
+          creator_accepted_at: string | null
+          creator_terms_version: string | null
           display_name: string
           id: string
+          is_partner: boolean
           status: string
           user_id: string | null
           version: number
@@ -5170,6 +5264,38 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      affiliate_cocreator_candidate: {
+        Args: { p_payment: string }
+        Returns: boolean
+      }
+      affiliate_cocreator_set: {
+        Args: {
+          p_actor: string
+          p_currency: string
+          p_display_name: string
+          p_email: string
+          p_expected_revision: number
+          p_fixed_minor: number
+          p_percentage_bps: number
+          p_product: string
+        }
+        Returns: {
+          created_at: string
+          currency: string | null
+          fixed_minor: number | null
+          id: string
+          member_id: string | null
+          percentage_bps: number | null
+          product_id: string
+          revision: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "affiliate_cocreator_rules"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       affiliate_complete_unbound_work: {
         Args: { p_generation: number; p_payment: string; p_token: string }
         Returns: boolean
@@ -5195,6 +5321,61 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      affiliate_creator_accept: {
+        Args: { p_terms_version: string; p_user: string }
+        Returns: {
+          accepted_at: string | null
+          accepted_terms_version: string | null
+          channel: string | null
+          code: string
+          created_at: string
+          creator_accepted_at: string | null
+          creator_terms_version: string | null
+          display_name: string
+          id: string
+          is_partner: boolean
+          status: string
+          user_id: string | null
+          version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "affiliate_memberships"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      affiliate_creator_terms_publish: {
+        Args: {
+          p_actor: string
+          p_expected_version: string
+          p_terms: Json
+          p_terms_version: string
+        }
+        Returns: {
+          created_at: string
+          id: number
+          terms: Json
+          terms_version: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "affiliate_creator_terms"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      affiliate_entry_eligible: {
+        Args: {
+          p_amount: number
+          p_creator_ok: boolean
+          p_kind: string
+          p_previously_paid: boolean
+          p_ready: boolean
+          p_referral_ok: boolean
+        }
+        Returns: boolean
       }
       affiliate_lock_member: {
         Args: {
@@ -5283,13 +5464,16 @@ export type Database = {
           p_status: string
         }
         Returns: {
-          accepted_at: string
-          accepted_terms_version: string
+          accepted_at: string | null
+          accepted_terms_version: string | null
           channel: string | null
           code: string
           created_at: string
+          creator_accepted_at: string | null
+          creator_terms_version: string | null
           display_name: string
           id: string
+          is_partner: boolean
           status: string
           user_id: string | null
           version: number
@@ -5300,6 +5484,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      affiliate_payout_exportable: {
+        Args: { p_payout: string }
+        Returns: boolean
       }
       affiliate_portal_page: {
         Args: {

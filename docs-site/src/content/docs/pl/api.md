@@ -47,6 +47,7 @@ Jednostki pozostają częścią kontraktu v1 i nie są automatycznie przeliczane
 | `GET/POST /products`, `GET/PATCH /products/{id}` | `price`, `sale_price`, `recurring_price`, `custom_price_min`, każda wartość `custom_price_presets` | Główna |
 | `GET/POST /order-bumps`, `GET/PATCH /order-bumps/{id}` | `bump_price`, zagnieżdżone ceny produktów | Główna |
 | `GET/PUT /products/{id}/oto` | `discount_value`, `downsell_discount_value` | Główna dla odpowiedniego typu rabatu `fixed`; punkty procentowe dla `percentage` (`25` = 25%) |
+| `GET/PUT /products/{id}/cocreator` | `rule.fixed_minor` / `cocreator.fixed_minor` (tekst dziesiętny); `percentage_bps` | Najmniejsza; `percentage_bps` w punktach bazowych (`1000` = 10%) |
 | `GET/POST /coupons`, `GET/PATCH /coupons/{id}` | `discount_value` | Główna dla `fixed`; punkty procentowe dla `percentage` |
 | `GET /coupons/{id}/stats` | `summary.total_discount_amount`, `discount_amount` realizacji kuponu, `daily_usage[].amount`, `usage_by_product[].amount` | Główna |
 | `GET /payments`, `GET /payments/{id}`, `PATCH /payments/{id}` | `amount`, `refunded_amount`, `refund.amount`, `net_total`, `tax_total`, jeśli zwracane | Najmniejsza |
@@ -114,6 +115,35 @@ Zamówienia, faktury i licencje nigdy nie są usuwane razem z produktem.
 
 Webhooki: archiwizacja i przywrócenie wysyłają `product.updated` (`changedFields` zawiera `archivedAt`; archiwizacja aktywnego
 produktu wysyła też `product.unpublished`). Trwałe usunięcie wysyła dokładnie jedno `product.deleted`.
+
+## Udział współtwórcy
+
+Współtwórca to jedna osoba, która dostaje stały udział w każdej sprzedaży produktu **jednorazowego**, z kuponem
+lub bez (np. autor dzielący przychód ze sklepem). Udział **dolicza się** do prowizji partnera z tego samego zakupu,
+także gdy partner i współtwórca to ta sama osoba (20% + 10% = 30%).
+
+| Metoda | Ścieżka | Zakres | Co robi |
+|---|---|---|---|
+| GET | `/products/{id}/cocreator` | `products:read` | Odczyt współtwórcy i jego udziału |
+| PUT | `/products/{id}/cocreator` | `products:write` | Przypisanie współtwórcy albo zmiana udziału |
+| DELETE | `/products/{id}/cocreator` | `products:write` | Usunięcie współtwórcy dla przyszłych zakupów |
+
+```http
+PUT /api/v1/products/{id}/cocreator
+{ "email": "autor@example.com", "rule": { "percentage_bps": 1000 }, "expected_revision": 0 }
+```
+
+- `rule` to `{ "percentage_bps": 1..10000 }` (procent kwoty netto pozycji) albo
+  `{ "fixed_minor": "1500", "currency": "PLN" }` (jednostki najmniejsze, najwyżej kwota netto pozycji).
+- Osoba musi mieć konto: raz loguje się tym adresem. Nieznany e-mail: **404**. Subskrypcja albo brak ustawień
+  programu partnerskiego (okres wstrzymania, progi wypłat): **400**. Nieaktualne `expected_revision`: **409**
+  (pominięcie nadpisuje).
+- Nowy udział dostają tylko zakupy rozpoczęte po zmianie; wcześniejsze zachowują to, co miały. `DELETE` wyłącza
+  udział dla przyszłych zakupów (**204**); naliczone udziały zostają i podlegają zwrotom i sporom.
+- `GET` zwraca `revision`, `program_configured` i `cocreator` (`display_name`, `email`, udział, `since`,
+  `terms_accepted`). Udziały współtwórcy wypłacamy dopiero po akceptacji **regulaminu twórcy**
+  (Panel → Program partnerski → Regulamin twórcy; osoba akceptuje go na stronie swoich prowizji).
+- Webhooki `commission.accrued` / `commission.reversed` mają `commission.kind` (`referral` albo `cocreator`).
 
 ## Kupony „ustal cenę”
 

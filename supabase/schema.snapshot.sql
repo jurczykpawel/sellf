@@ -1324,14 +1324,19 @@ CREATE TABLE public.affiliate_memberships (
     status text DEFAULT 'pending'::text NOT NULL,
     display_name text NOT NULL,
     channel text,
-    accepted_terms_version text NOT NULL,
-    accepted_at timestamp with time zone NOT NULL,
+    accepted_terms_version text,
+    accepted_at timestamp with time zone,
     version bigint DEFAULT 1 NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT affiliate_memberships_accepted_terms_version_check CHECK (public.affiliate_valid_reference(accepted_terms_version)),
+    is_partner boolean DEFAULT true NOT NULL,
+    creator_terms_version text,
+    creator_accepted_at timestamp with time zone,
+    CONSTRAINT affiliate_memberships_accepted_terms_version_check CHECK (((accepted_terms_version IS NULL) OR public.affiliate_valid_reference(accepted_terms_version))),
     CONSTRAINT affiliate_memberships_channel_check CHECK ((length(channel) <= 500)),
     CONSTRAINT affiliate_memberships_code_check CHECK ((code ~ '^[a-z0-9_-]{3,40}$'::text)),
+    CONSTRAINT affiliate_memberships_creator_terms CHECK ((((creator_terms_version IS NULL) = (creator_accepted_at IS NULL)) AND ((creator_terms_version IS NULL) OR public.affiliate_valid_reference(creator_terms_version)))),
     CONSTRAINT affiliate_memberships_display_name_check CHECK (((length(display_name) >= 1) AND (length(display_name) <= 120))),
+    CONSTRAINT affiliate_memberships_partner_terms CHECK (((NOT is_partner) OR ((accepted_terms_version IS NOT NULL) AND (accepted_at IS NOT NULL)))),
     CONSTRAINT affiliate_memberships_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text, 'suspended'::text, 'terminated'::text]))),
     CONSTRAINT affiliate_memberships_version_check CHECK ((version > 0))
 );
@@ -1347,7 +1352,7 @@ CREATE FUNCTION public.affiliate_apply(p_user uuid, p_code text, p_display_name 
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO ''
     AS $$
-DECLARE result public.affiliate_memberships; prog public.affiliate_programs;
+DECLARE result public.affiliate_memberships; prog public.affiliate_programs; old public.affiliate_memberships;
 BEGIN
  IF (select auth.role()) IS DISTINCT FROM 'service_role' OR p_user IS NULL
   OR ((select auth.uid()) IS NOT NULL AND (select auth.uid())<>p_user)
@@ -1355,6 +1360,15 @@ BEGIN
   RAISE EXCEPTION 'Verified account required' USING ERRCODE='42501'; END IF;
  SELECT * INTO prog FROM public.affiliate_programs FOR SHARE;
  IF NOT prog.enabled OR prog.terms_version IS DISTINCT FROM p_terms_version THEN RAISE EXCEPTION 'Terms changed' USING ERRCODE='PT409'; END IF;
+ SELECT * INTO old FROM public.affiliate_memberships WHERE user_id=p_user FOR UPDATE;
+ IF old.id IS NOT NULL AND NOT old.is_partner THEN
+  UPDATE public.affiliate_memberships SET is_partner=true,status=CASE WHEN old.status='approved' THEN 'pending' ELSE old.status END,
+   code=p_code,display_name=p_display_name,channel=p_channel,
+   accepted_terms_version=p_terms_version,accepted_at=now(),version=version+1 WHERE id=old.id RETURNING * INTO result;
+  INSERT INTO public.affiliate_membership_events(member_id,version,status) VALUES(result.id,result.version,result.status);
+  PERFORM public.affiliate_audit('affiliate_memberships',to_jsonb(old),to_jsonb(result),p_user);
+  RETURN result;
+ END IF;
  INSERT INTO public.affiliate_memberships(user_id,code,display_name,channel,accepted_terms_version,accepted_at)
  VALUES(p_user,p_code,p_display_name,p_channel,p_terms_version,now()) RETURNING * INTO result;
  INSERT INTO public.affiliate_membership_events(member_id,version,status) VALUES(result.id,result.version,result.status);
@@ -1374,10 +1388,10 @@ CREATE FUNCTION public.affiliate_apply_sync(p_payment uuid, p_token uuid, p_gene
     SET search_path TO ''
     AS $$
 DECLARE pt public.payment_transactions; w public.affiliate_work; b public.affiliate_coupon_bindings;
- prog public.affiliate_programs; rule public.affiliate_rules;
+ prog public.affiliate_programs; rule public.affiliate_rules; cprog public.affiliate_programs; crule public.affiliate_cocreator_rules;
  c public.affiliate_commissions; li record; red public.coupon_redemptions; member_status text;
- base bigint; earned bigint; target bigint; automatic numeric; loss bigint; delta bigint;
- self_match boolean; mature timestamptz; waiting boolean:=false; net_missing boolean:=false; blocked boolean:=false;
+ base bigint; earned bigint; target bigint; automatic numeric; loss bigint; delta bigint; paid timestamptz;
+ self_match boolean; mature timestamptz; waiting boolean:=false; net_missing boolean:=false; blocked boolean:=false; creator_due boolean;
 BEGIN
  SELECT * INTO pt FROM public.payment_transactions WHERE id=p_payment FOR UPDATE;
  SELECT * INTO w FROM public.affiliate_work WHERE payment_id=p_payment FOR UPDATE;
@@ -1441,7 +1455,7 @@ BEGIN
     SELECT * INTO rule FROM public.affiliate_rules WHERE product_id=li.product_id AND created_at<=p_session_created_at
      ORDER BY created_at DESC,revision DESC LIMIT 1;
     IF rule.id IS NULL OR NOT rule.enabled OR (rule.currency IS NOT NULL AND rule.currency<>upper(li.currency)) THEN CONTINUE; END IF;
-    IF EXISTS(SELECT 1 FROM public.affiliate_commissions WHERE payment_id=p_payment AND line_item_id=li.id AND livemode=p_livemode) THEN CONTINUE; END IF;
+    IF EXISTS(SELECT 1 FROM public.affiliate_commissions WHERE payment_id=p_payment AND line_item_id=li.id AND livemode=p_livemode AND kind='referral') THEN CONTINUE; END IF;
     base:=li.net_amount;
     earned:=CASE WHEN self_match THEN 0 WHEN rule.percentage_bps IS NOT NULL THEN round(base::numeric*rule.percentage_bps/10000)::bigint ELSE least(base,rule.fixed_minor) END;
     mature:=CASE WHEN li.is_refundable AND li.refund_period_days IS NULL THEN NULL ELSE
@@ -1464,6 +1478,69 @@ BEGIN
    END LOOP;
   END IF;
  ELSIF b.id IS NOT NULL AND pt.status NOT IN ('completed','refunded','disputed') THEN waiting:=true;
+ END IF;
+ -- Co-creator shares: no coupon; the rule in force when the checkout session started (never retroactive).
+ -- Unpaid orders and pending fulfilment are queued again by the payment change itself.
+ SELECT EXISTS(SELECT 1 FROM public.payment_line_items l JOIN public.products p ON p.id=l.product_id
+  CROSS JOIN LATERAL (SELECT r.member_id,r.currency FROM public.affiliate_cocreator_rules r
+   WHERE r.product_id=l.product_id AND r.created_at<=p_session_created_at ORDER BY r.created_at DESC,r.revision DESC LIMIT 1) r
+  WHERE l.transaction_id=p_payment AND p.product_type='one_time' AND r.member_id IS NOT NULL
+   AND (r.currency IS NULL OR r.currency=upper(l.currency))
+   AND NOT EXISTS(SELECT 1 FROM public.affiliate_commissions x WHERE x.payment_id=p_payment AND x.line_item_id=l.id AND x.livemode=p_livemode AND x.kind='cocreator'))
+  INTO creator_due;
+ IF creator_due AND NOT waiting AND NOT net_missing AND pt.status IN ('completed','refunded','disputed') AND NOT pt.fulfillment_pending THEN
+  net_missing:=EXISTS(SELECT 1 FROM public.payment_line_items l JOIN public.products p ON p.id=l.product_id
+   CROSS JOIN LATERAL (SELECT r.member_id,r.currency FROM public.affiliate_cocreator_rules r
+    WHERE r.product_id=l.product_id AND r.created_at<=p_session_created_at ORDER BY r.created_at DESC,r.revision DESC LIMIT 1) r
+   WHERE l.transaction_id=p_payment AND p.product_type='one_time' AND r.member_id IS NOT NULL
+    AND (r.currency IS NULL OR r.currency=upper(l.currency)) AND l.net_amount IS NULL);
+  IF NOT net_missing THEN
+   SELECT v.program_id,true,v.enabled,v.version,v.hold_days,v.buffer_days,v.terms_version,v.terms,v.thresholds
+    INTO cprog FROM public.affiliate_program_versions v WHERE v.created_at<=p_session_created_at
+    ORDER BY v.created_at DESC,v.version DESC LIMIT 1;
+   IF cprog.id IS NULL THEN
+    UPDATE public.affiliate_work SET status='needs_review',lease_token=NULL,leased_until=NULL,last_error_code='history_unavailable'
+     WHERE payment_id=p_payment;
+    RETURN false;
+   END IF;
+   paid:=coalesce(red.redeemed_at,pt.paid_at,pt.created_at);
+   FOR li IN SELECT l.*,p.is_refundable,p.refund_period_days,p.product_type FROM public.payment_line_items l
+    JOIN public.products p ON p.id=l.product_id WHERE l.transaction_id=p_payment ORDER BY l.id LOOP
+    IF li.product_type<>'one_time' THEN CONTINUE; END IF;
+    crule:=NULL;
+    SELECT * INTO crule FROM public.affiliate_cocreator_rules WHERE product_id=li.product_id AND created_at<=p_session_created_at
+     ORDER BY created_at DESC,revision DESC LIMIT 1;
+    IF crule.id IS NULL OR crule.member_id IS NULL OR (crule.currency IS NOT NULL AND crule.currency<>upper(li.currency)) THEN CONTINUE; END IF;
+    IF EXISTS(SELECT 1 FROM public.affiliate_commissions WHERE payment_id=p_payment AND line_item_id=li.id AND livemode=p_livemode AND kind='cocreator') THEN CONTINUE; END IF;
+    member_status:=NULL;
+    SELECT e.status INTO member_status FROM public.affiliate_membership_events e
+     WHERE e.member_id=crule.member_id AND e.created_at<=p_session_created_at ORDER BY e.created_at DESC,e.version DESC LIMIT 1;
+    -- 'pending' here only means a co-creator's own partner application awaits the seller: shares keep accruing.
+    IF member_status IS NULL OR member_status NOT IN ('approved','pending') THEN CONTINUE; END IF;
+    PERFORM pg_advisory_xact_lock(hashtextextended(crule.member_id::text||upper(li.currency),0));
+    SELECT EXISTS(SELECT 1 FROM public.affiliate_memberships am JOIN auth.users u ON u.id=am.user_id
+     WHERE am.id=crule.member_id AND (u.id=pt.user_id OR lower(btrim(u.email))=lower(btrim(pt.customer_email)))) INTO self_match;
+    base:=li.net_amount;
+    earned:=CASE WHEN self_match THEN 0 WHEN crule.percentage_bps IS NOT NULL THEN round(base::numeric*crule.percentage_bps/10000)::bigint ELSE least(base,crule.fixed_minor) END;
+    mature:=CASE WHEN li.is_refundable AND li.refund_period_days IS NULL THEN NULL ELSE
+     paid+greatest(cprog.hold_days,CASE WHEN li.is_refundable THEN li.refund_period_days+cprog.buffer_days ELSE 0 END)*interval '1 day' END;
+    INSERT INTO public.affiliate_commissions(payment_id,line_item_id,member_id,kind,cocreator_rule_id,livemode,session_created_at,paid_at,
+     currency,base_minor,accrued_minor,self_referral,is_refundable,refund_period_days,hold_days,buffer_days,eligible_at,observed_refunded_gross,observed_status,dispute_seen)
+    VALUES(p_payment,li.id,crule.member_id,'cocreator',crule.id,p_livemode,p_session_created_at,paid,upper(li.currency),base,earned,self_match,
+     li.is_refundable,li.refund_period_days,cprog.hold_days,cprog.buffer_days,mature,coalesce(pt.refunded_amount,0)::bigint,pt.status,w.dispute_seen OR pt.status='disputed') RETURNING * INTO c;
+    PERFORM public.affiliate_audit('affiliate_commissions',NULL,to_jsonb(c),NULL);
+    IF earned>0 THEN
+     INSERT INTO public.affiliate_ledger(member_id,commission_id,kind,amount_minor,currency,economic_key)
+     VALUES(c.member_id,c.id,'accrual',earned,c.currency,'accrual:'||c.id);
+     loss:=CASE WHEN base=0 THEN 0 ELSE round(base::numeric*least(pt.amount,greatest(0,coalesce(pt.refunded_amount,0)))/pt.amount)::bigint END;
+     target:=CASE WHEN c.dispute_seen THEN 0 ELSE greatest(0,earned-round(earned::numeric*loss/base)::bigint) END;
+     IF target<earned THEN
+      INSERT INTO public.affiliate_ledger(member_id,commission_id,kind,amount_minor,currency,economic_key)
+      VALUES(c.member_id,c.id,'reversal',target-earned,c.currency,'sync:'||c.id||':'||p_generation);
+     END IF;
+    END IF;
+   END LOOP;
+  END IF;
  END IF;
  UPDATE public.affiliate_work SET processed_generation=CASE WHEN waiting OR net_missing THEN processed_generation ELSE p_generation END,
   status=CASE WHEN net_missing THEN 'needs_review' WHEN waiting OR requested_generation>p_generation THEN 'pending' ELSE 'done' END,
@@ -1503,7 +1580,7 @@ CREATE FUNCTION public.affiliate_binding_check() RETURNS trigger
     AS $$
 BEGIN
  PERFORM 1 FROM public.coupons WHERE id=NEW.coupon_id FOR UPDATE;
- IF TG_OP='INSERT' AND NOT EXISTS(SELECT 1 FROM public.affiliate_memberships WHERE id=NEW.member_id AND status='approved' AND user_id IS NOT NULL) THEN
+ IF TG_OP='INSERT' AND NOT EXISTS(SELECT 1 FROM public.affiliate_memberships WHERE id=NEW.member_id AND status='approved' AND is_partner AND user_id IS NOT NULL) THEN
   RAISE EXCEPTION 'Approved member required' USING ERRCODE='23514'; END IF;
  IF EXISTS(SELECT 1 FROM public.affiliate_coupon_bindings b WHERE b.coupon_id=NEW.coupon_id AND b.id<>NEW.id
   AND tstzrange(b.created_at,b.retired_at,'[)') && tstzrange(NEW.created_at,NEW.retired_at,'[)')) THEN
@@ -1587,7 +1664,13 @@ DECLARE c public.affiliate_commissions; p public.affiliate_payouts; l public.aff
 BEGIN
  IF TG_TABLE_NAME='affiliate_commissions' THEN
   SELECT * INTO c FROM public.affiliate_commissions WHERE id=NEW.id;
-  IF NOT EXISTS(SELECT 1 FROM public.payment_line_items li JOIN public.affiliate_rules r ON r.id=c.rule_id
+  IF c.kind='cocreator' THEN
+   IF NOT EXISTS(SELECT 1 FROM public.payment_line_items li JOIN public.affiliate_cocreator_rules r ON r.id=c.cocreator_rule_id
+    JOIN public.payment_transactions pt ON pt.id=c.payment_id
+    WHERE li.id=c.line_item_id AND li.transaction_id=c.payment_id AND li.product_id=r.product_id
+     AND upper(li.currency)=c.currency AND upper(pt.currency)=c.currency AND r.member_id=c.member_id) THEN
+    RAISE EXCEPTION 'Commission references differ' USING ERRCODE='23514'; END IF;
+  ELSIF NOT EXISTS(SELECT 1 FROM public.payment_line_items li JOIN public.affiliate_rules r ON r.id=c.rule_id
    JOIN public.affiliate_coupon_bindings b ON b.id=c.binding_id
    JOIN public.payment_transactions pt ON pt.id=c.payment_id
    WHERE li.id=c.line_item_id AND li.transaction_id=c.payment_id AND li.product_id=r.product_id
@@ -1676,6 +1759,88 @@ END $$;
 ALTER FUNCTION public.affiliate_claim_work(p_limit integer) OWNER TO postgres;
 
 --
+-- Name: affiliate_cocreator_candidate(uuid); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.affiliate_cocreator_candidate(p_payment uuid) RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+  SELECT EXISTS(SELECT 1 FROM public.payment_line_items l JOIN public.products p ON p.id = l.product_id
+    WHERE l.transaction_id = p_payment AND p.product_type = 'one_time'
+      AND EXISTS(SELECT 1 FROM public.affiliate_cocreator_rules r WHERE r.product_id = l.product_id AND r.member_id IS NOT NULL));
+$$;
+
+
+ALTER FUNCTION public.affiliate_cocreator_candidate(p_payment uuid) OWNER TO postgres;
+
+--
+-- Name: affiliate_cocreator_rules; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.affiliate_cocreator_rules (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    product_id uuid NOT NULL,
+    revision integer NOT NULL,
+    member_id uuid,
+    percentage_bps integer,
+    fixed_minor bigint,
+    currency text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT affiliate_cocreator_rules_check CHECK ((((member_id IS NULL) AND (percentage_bps IS NULL) AND (fixed_minor IS NULL) AND (currency IS NULL)) OR ((member_id IS NOT NULL) AND (((percentage_bps IS NOT NULL) AND (fixed_minor IS NULL) AND (currency IS NULL)) OR ((percentage_bps IS NULL) AND (fixed_minor IS NOT NULL) AND (currency IS NOT NULL)))))),
+    CONSTRAINT affiliate_cocreator_rules_currency_check CHECK ((currency ~ '^[A-Z]{3}$'::text)),
+    CONSTRAINT affiliate_cocreator_rules_fixed_minor_check CHECK ((fixed_minor > 0)),
+    CONSTRAINT affiliate_cocreator_rules_percentage_bps_check CHECK (((percentage_bps >= 1) AND (percentage_bps <= 10000))),
+    CONSTRAINT affiliate_cocreator_rules_revision_check CHECK ((revision > 0))
+);
+
+
+ALTER TABLE public.affiliate_cocreator_rules OWNER TO postgres;
+
+--
+-- Name: affiliate_cocreator_set(uuid, uuid, integer, text, text, integer, bigint, text); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.affiliate_cocreator_set(p_actor uuid, p_product uuid, p_expected_revision integer, p_email text, p_display_name text, p_percentage_bps integer, p_fixed_minor bigint, p_currency text) RETURNS public.affiliate_cocreator_rules
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+DECLARE result public.affiliate_cocreator_rules; revision integer; target uuid; m public.affiliate_memberships;
+BEGIN
+ PERFORM public.affiliate_admin(p_actor);
+ PERFORM 1 FROM public.products WHERE id=p_product AND product_type='one_time' FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION 'One-time product required' USING ERRCODE='22023'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.affiliate_programs) THEN RAISE EXCEPTION 'Program settings required' USING ERRCODE='22023'; END IF;
+ SELECT coalesce(max(r.revision),0) INTO revision FROM public.affiliate_cocreator_rules r WHERE r.product_id=p_product;
+ IF revision IS DISTINCT FROM p_expected_revision THEN RAISE EXCEPTION 'Revision changed' USING ERRCODE='PT409'; END IF;
+ IF p_email IS NOT NULL THEN
+  SELECT u.id INTO target FROM auth.users u WHERE lower(btrim(u.email))=lower(btrim(p_email)) AND u.deleted_at IS NULL
+   ORDER BY u.created_at LIMIT 1;
+  IF target IS NULL THEN RAISE EXCEPTION 'Account required' USING ERRCODE='P0002'; END IF;
+  SELECT * INTO m FROM public.affiliate_memberships WHERE user_id=target FOR UPDATE;
+  IF m.id IS NULL THEN
+   INSERT INTO public.affiliate_memberships(user_id,code,status,display_name,is_partner)
+    VALUES(target,'creator-'||replace(target::text,'-',''),'approved',
+     left(coalesce(nullif(btrim(p_display_name),''),split_part(btrim(p_email),'@',1)),120),false) RETURNING * INTO m;
+   INSERT INTO public.affiliate_membership_events(member_id,version,status) VALUES(m.id,m.version,m.status);
+   PERFORM public.affiliate_audit('affiliate_memberships',NULL,to_jsonb(m),p_actor);
+  -- The seller's own assignment is the approval of the creator role; a partner application still
+  -- awaiting review ('pending') does not block it, a rejected/suspended/terminated membership does.
+  ELSIF m.status NOT IN ('approved','pending') THEN RAISE EXCEPTION 'Approved member required' USING ERRCODE='22023';
+  END IF;
+ ELSIF p_percentage_bps IS NOT NULL OR p_fixed_minor IS NOT NULL OR p_currency IS NOT NULL THEN
+  RAISE EXCEPTION 'Person required' USING ERRCODE='22023';
+ END IF;
+ INSERT INTO public.affiliate_cocreator_rules(product_id,revision,member_id,percentage_bps,fixed_minor,currency)
+  VALUES(p_product,revision+1,m.id,p_percentage_bps,p_fixed_minor,p_currency) RETURNING * INTO result;
+ PERFORM public.affiliate_audit('affiliate_cocreator_rules',NULL,to_jsonb(result),p_actor);
+ RETURN result;
+END $$;
+
+
+ALTER FUNCTION public.affiliate_cocreator_set(p_actor uuid, p_product uuid, p_expected_revision integer, p_email text, p_display_name text, p_percentage_bps integer, p_fixed_minor bigint, p_currency text) OWNER TO postgres;
+
+--
 -- Name: affiliate_complete_unbound_work(uuid, uuid, bigint); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -1686,7 +1851,8 @@ CREATE FUNCTION public.affiliate_complete_unbound_work(p_payment uuid, p_token u
 BEGIN
  PERFORM 1 FROM public.payment_transactions WHERE id=p_payment FOR UPDATE;
  IF EXISTS(SELECT 1 FROM public.coupon_redemptions r JOIN public.affiliate_coupon_bindings b ON b.coupon_id=r.coupon_id WHERE r.transaction_id=p_payment)
-  OR EXISTS(SELECT 1 FROM public.affiliate_commissions WHERE payment_id=p_payment) THEN RETURN false; END IF;
+  OR EXISTS(SELECT 1 FROM public.affiliate_commissions WHERE payment_id=p_payment)
+  OR public.affiliate_cocreator_candidate(p_payment) THEN RETURN false; END IF;
  UPDATE public.affiliate_work SET processed_generation=p_generation,
   status=CASE WHEN requested_generation>p_generation THEN 'pending' ELSE 'done' END,
   lease_token=NULL,leased_until=NULL,last_error_code=NULL,attempts=0,next_attempt_at=now()
@@ -1743,6 +1909,101 @@ END $$;
 ALTER FUNCTION public.affiliate_coupon_bind(p_actor uuid, p_coupon uuid, p_member uuid, p_expected_version bigint) OWNER TO postgres;
 
 --
+-- Name: affiliate_creator_accept(uuid, text); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.affiliate_creator_accept(p_user uuid, p_terms_version text) RETURNS public.affiliate_memberships
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+DECLARE old public.affiliate_memberships; result public.affiliate_memberships; t public.affiliate_creator_terms;
+BEGIN
+ IF (select auth.role()) IS DISTINCT FROM 'service_role' OR p_user IS NULL
+  OR ((select auth.uid()) IS NOT NULL AND (select auth.uid())<>p_user) THEN
+  RAISE EXCEPTION 'Account required' USING ERRCODE='42501'; END IF;
+ SELECT * INTO old FROM public.affiliate_memberships WHERE user_id=p_user FOR UPDATE;
+ IF old.id IS NULL OR NOT EXISTS(SELECT 1 FROM public.affiliate_cocreator_rules WHERE member_id=old.id) THEN
+  RAISE EXCEPTION 'Co-creator required' USING ERRCODE='P0002'; END IF;
+ SELECT * INTO t FROM public.affiliate_creator_terms ORDER BY id DESC LIMIT 1;
+ IF t.id IS NULL OR t.terms_version IS DISTINCT FROM p_terms_version THEN RAISE EXCEPTION 'Terms changed' USING ERRCODE='PT409'; END IF;
+ IF old.creator_terms_version=p_terms_version THEN RETURN old; END IF;
+ UPDATE public.affiliate_memberships SET creator_terms_version=p_terms_version,creator_accepted_at=now(),version=version+1
+  WHERE id=old.id RETURNING * INTO result;
+ INSERT INTO public.affiliate_membership_events(member_id,version,status) VALUES(result.id,result.version,result.status);
+ PERFORM public.affiliate_audit('affiliate_memberships',to_jsonb(old),to_jsonb(result),p_user);
+ RETURN result;
+END $$;
+
+
+ALTER FUNCTION public.affiliate_creator_accept(p_user uuid, p_terms_version text) OWNER TO postgres;
+
+--
+-- Name: affiliate_valid_program(jsonb, jsonb); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.affiliate_valid_program(p_terms jsonb, p_thresholds jsonb) RETURNS boolean
+    LANGUAGE plpgsql IMMUTABLE
+    SET search_path TO ''
+    AS $_$
+BEGIN
+ IF octet_length(p_terms::text)>32768 OR octet_length(p_thresholds::text)>32768
+ OR jsonb_typeof(p_terms)<>'object' OR jsonb_typeof(p_thresholds)<>'object'
+ OR NOT (p_terms ?& ARRAY['en','pl']) OR (p_terms - ARRAY['en','pl'])<>'{}'::jsonb
+ OR jsonb_typeof(p_terms->'en')<>'string' OR jsonb_typeof(p_terms->'pl')<>'string'
+ OR length(btrim(p_terms->>'en'))=0 OR length(btrim(p_terms->>'pl'))=0 THEN RETURN false; END IF;
+ RETURN NOT EXISTS(SELECT 1 FROM jsonb_each(p_thresholds) t
+ WHERE t.key !~ '^[A-Z]{3}$' OR jsonb_typeof(t.value)<>'string' OR t.value#>>'{}' !~ '^[1-9][0-9]{0,18}$'
+ OR (t.value#>>'{}')::numeric>9223372036854775807);
+END $_$;
+
+
+ALTER FUNCTION public.affiliate_valid_program(p_terms jsonb, p_thresholds jsonb) OWNER TO postgres;
+
+--
+-- Name: affiliate_creator_terms; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.affiliate_creator_terms (
+    id bigint NOT NULL,
+    terms_version text NOT NULL,
+    terms jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT affiliate_creator_terms_terms_check CHECK (public.affiliate_valid_program(terms, '{}'::jsonb)),
+    CONSTRAINT affiliate_creator_terms_terms_version_check CHECK (public.affiliate_valid_reference(terms_version))
+);
+
+
+ALTER TABLE public.affiliate_creator_terms OWNER TO postgres;
+
+--
+-- Name: affiliate_creator_terms_publish(uuid, text, text, jsonb); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.affiliate_creator_terms_publish(p_actor uuid, p_expected_version text, p_terms_version text, p_terms jsonb) RETURNS public.affiliate_creator_terms
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+DECLARE current public.affiliate_creator_terms; result public.affiliate_creator_terms;
+BEGIN
+ PERFORM public.affiliate_admin(p_actor);
+ PERFORM pg_advisory_xact_lock(hashtextextended('affiliate_creator_terms',0));
+ SELECT * INTO current FROM public.affiliate_creator_terms ORDER BY id DESC LIMIT 1;
+ IF current.terms_version IS DISTINCT FROM p_expected_version THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='PT409'; END IF;
+ IF current.terms_version=p_terms_version THEN
+  IF current.terms<>p_terms THEN RAISE EXCEPTION 'Terms version changed' USING ERRCODE='PT409'; END IF;
+  RETURN current;
+ END IF;
+ IF EXISTS(SELECT 1 FROM public.affiliate_creator_terms WHERE terms_version=p_terms_version) THEN
+  RAISE EXCEPTION 'Terms version changed' USING ERRCODE='PT409'; END IF;
+ INSERT INTO public.affiliate_creator_terms(terms_version,terms) VALUES(p_terms_version,p_terms) RETURNING * INTO result;
+ PERFORM public.affiliate_audit('affiliate_creator_terms',NULL,to_jsonb(result),p_actor);
+ RETURN result;
+END $$;
+
+
+ALTER FUNCTION public.affiliate_creator_terms_publish(p_actor uuid, p_expected_version text, p_terms_version text, p_terms jsonb) OWNER TO postgres;
+
+--
 -- Name: affiliate_enqueue(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -1755,12 +2016,19 @@ BEGIN
  IF TG_TABLE_NAME='coupon_redemptions' THEN
   pid:=NEW.transaction_id;
   IF NOT EXISTS(SELECT 1 FROM public.affiliate_coupon_bindings WHERE coupon_id=NEW.coupon_id) THEN RETURN NEW; END IF;
+ ELSIF TG_TABLE_NAME='payment_line_items' THEN
+  pid:=NEW.transaction_id;
+  -- Unpaid orders are queued later by the payment status change.
+  IF NOT EXISTS(SELECT 1 FROM public.payment_transactions WHERE id=pid AND status IN ('completed','refunded','disputed'))
+   OR NOT EXISTS(SELECT 1 FROM public.products p WHERE p.id=NEW.product_id AND p.product_type='one_time'
+    AND EXISTS(SELECT 1 FROM public.affiliate_cocreator_rules r WHERE r.product_id=p.id AND r.member_id IS NOT NULL)) THEN RETURN NEW; END IF;
  ELSE
   IF NEW.status IS NOT DISTINCT FROM OLD.status AND NEW.refunded_amount IS NOT DISTINCT FROM OLD.refunded_amount
     AND NEW.fulfillment_pending IS NOT DISTINCT FROM OLD.fulfillment_pending THEN RETURN NEW; END IF;
   pid:=NEW.id;
   IF NOT EXISTS(SELECT 1 FROM public.coupon_redemptions r JOIN public.affiliate_coupon_bindings b ON b.coupon_id=r.coupon_id WHERE r.transaction_id=pid)
-   AND NOT EXISTS(SELECT 1 FROM public.affiliate_commissions WHERE payment_id=pid) THEN RETURN NEW; END IF;
+   AND NOT EXISTS(SELECT 1 FROM public.affiliate_commissions WHERE payment_id=pid)
+   AND NOT public.affiliate_cocreator_candidate(pid) THEN RETURN NEW; END IF;
  END IF;
  IF pid IS NULL THEN RETURN NEW; END IF;
  SELECT status='disputed' INTO disputed FROM public.payment_transactions WHERE id=pid;
@@ -1778,6 +2046,20 @@ END $$;
 
 
 ALTER FUNCTION public.affiliate_enqueue() OWNER TO postgres;
+
+--
+-- Name: affiliate_entry_eligible(text, bigint, boolean, boolean, boolean, boolean); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.affiliate_entry_eligible(p_kind text, p_amount bigint, p_previously_paid boolean, p_ready boolean, p_referral_ok boolean, p_creator_ok boolean) RETURNS boolean
+    LANGUAGE sql IMMUTABLE
+    SET search_path TO ''
+    AS $$
+ SELECT (p_amount<0 AND p_previously_paid) OR (p_ready AND CASE WHEN p_kind='cocreator' THEN p_creator_ok ELSE p_referral_ok END)
+$$;
+
+
+ALTER FUNCTION public.affiliate_entry_eligible(p_kind text, p_amount bigint, p_previously_paid boolean, p_ready boolean, p_referral_ok boolean, p_creator_ok boolean) OWNER TO postgres;
 
 --
 -- Name: affiliate_guard(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -1977,6 +2259,27 @@ END $$;
 ALTER FUNCTION public.affiliate_member_update(p_actor uuid, p_member uuid, p_expected_version bigint, p_status text, p_reason text) OWNER TO postgres;
 
 --
+-- Name: affiliate_payout_exportable(uuid); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.affiliate_payout_exportable(p_payout uuid) RETURNS boolean
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+ SELECT coalesce(bool_and(coalesce(public.affiliate_entry_eligible(c.kind,l.amount_minor,
+   EXISTS(SELECT 1 FROM public.affiliate_ledger e JOIN public.affiliate_payout_allocations pa ON pa.entry_id=e.id AND pa.released_at IS NULL
+    JOIN public.affiliate_payouts pp ON pp.id=pa.payout_id AND pp.status='paid' WHERE e.commission_id=c.id),
+   true,coalesce((SELECT enabled FROM public.affiliate_programs),false),m.creator_accepted_at IS NOT NULL),false)),false)
+ FROM public.affiliate_payouts p JOIN public.affiliate_memberships m ON m.id=p.member_id
+ JOIN public.affiliate_payout_allocations a ON a.payout_id=p.id AND a.released_at IS NULL
+ JOIN public.affiliate_ledger l ON l.id=a.entry_id JOIN public.affiliate_commissions c ON c.id=l.commission_id
+ WHERE p.id=p_payout;
+$$;
+
+
+ALTER FUNCTION public.affiliate_payout_exportable(p_payout uuid) OWNER TO postgres;
+
+--
 -- Name: affiliate_portal_page(uuid, text, uuid, integer, timestamp with time zone); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -1984,24 +2287,27 @@ CREATE FUNCTION public.affiliate_portal_page(p_member uuid, p_currency text DEFA
     LANGUAGE plpgsql STABLE SECURITY DEFINER
     SET search_path TO ''
     AS $$
-DECLARE result jsonb;
+DECLARE result jsonb; creator_ok boolean;
 BEGIN
  IF p_limit IS NULL OR p_limit NOT BETWEEN 1 AND 100 THEN RAISE EXCEPTION 'Invalid limit' USING ERRCODE='22023'; END IF;
+ SELECT coalesce((SELECT creator_accepted_at IS NOT NULL FROM public.affiliate_memberships WHERE id=p_member),false) INTO creator_ok;
  WITH page AS MATERIALIZED (
   SELECT c.* FROM public.affiliate_commissions c WHERE c.member_id=p_member AND (p_currency IS NULL OR c.currency=p_currency)
    AND (p_cursor IS NULL OR (c.paid_at,c.id)<(SELECT own.paid_at,own.id FROM public.affiliate_commissions own
     WHERE own.id=p_cursor AND own.member_id=p_member AND (p_currency IS NULL OR own.currency=p_currency)))
   ORDER BY c.paid_at DESC,c.id DESC LIMIT p_limit+1
  ), rows AS (
-  SELECT c.id,c.paid_at,jsonb_build_object('product',prod.name,'reference',c.id,'currency',c.currency,'paid_at',c.paid_at,
+  SELECT c.id,c.paid_at,jsonb_build_object('product',coalesce(prod.name,li.product_name),'reference',c.id,'kind',c.kind,'currency',c.currency,'paid_at',c.paid_at,
    'eligible_at',c.eligible_at,'accrued_minor',c.accrued_minor::text,'current_minor',l.current::text,'livemode',c.livemode,
+   'terms_required',c.kind='cocreator' AND NOT creator_ok,
    'status',CASE WHEN l.current<=0 THEN 'reversed' WHEN l.reserved THEN 'reserved' WHEN l.paid>=l.current THEN 'paid'
-    WHEN c.eligible_at<=p_as_of AND ((NOT c.dispute_seen AND pt.status<>'disputed') OR c.dispute_reviewed_at IS NOT NULL) THEN 'eligible' ELSE 'held' END,
+    WHEN c.eligible_at<=p_as_of AND ((NOT c.dispute_seen AND pt.status<>'disputed') OR c.dispute_reviewed_at IS NOT NULL)
+     AND (c.kind<>'cocreator' OR creator_ok) THEN 'eligible' ELSE 'held' END,
    'sync_pending',c.observed_status<>pt.status OR c.observed_refunded_gross<>coalesce(pt.refunded_amount,0)
     OR coalesce(w.status<>'done' OR w.requested_generation>w.processed_generation,false),
    'needs_review',coalesce(w.status='needs_review',false) OR (c.dispute_seen AND c.dispute_reviewed_at IS NULL)) AS row
   FROM (SELECT * FROM page ORDER BY paid_at DESC,id DESC LIMIT p_limit) c
-  JOIN public.affiliate_rules r ON r.id=c.rule_id JOIN public.products prod ON prod.id=r.product_id
+  JOIN public.payment_line_items li ON li.id=c.line_item_id LEFT JOIN public.products prod ON prod.id=li.product_id
   JOIN public.payment_transactions pt ON pt.id=c.payment_id LEFT JOIN public.affiliate_work w ON w.payment_id=c.payment_id
   CROSS JOIN LATERAL (
    SELECT coalesce(sum(e.amount_minor),0) AS current,coalesce(bool_or(p.status='reserved'),false) AS reserved,
@@ -2036,11 +2342,23 @@ CREATE FUNCTION public.affiliate_portal_summary(p_member uuid, p_as_of timestamp
   WHERE p.is_active AND p.product_type='one_time' AND EXISTS(SELECT 1 FROM bindings b WHERE b.is_active
    AND (coalesce(jsonb_array_length(b.allowed_product_ids),0)=0 OR b.allowed_product_ids ? r.product_id::text))
   ORDER BY r.product_id,r.revision DESC
- ) SELECT jsonb_build_object(
+ ), creator_rules AS (
+  SELECT cr.*,p.name FROM (SELECT DISTINCT ON (r.product_id) r.* FROM public.affiliate_cocreator_rules r
+   WHERE r.product_id IN (SELECT product_id FROM public.affiliate_cocreator_rules WHERE member_id=p_member)
+   ORDER BY r.product_id,r.revision DESC) cr JOIN public.products p ON p.id=cr.product_id WHERE cr.member_id=p_member
+ ), member AS (SELECT * FROM public.affiliate_memberships WHERE id=p_member),
+ terms AS (SELECT * FROM public.affiliate_creator_terms ORDER BY id DESC LIMIT 1)
+ SELECT jsonb_build_object(
+  'is_partner',coalesce((SELECT is_partner FROM member),true),
   'balances',coalesce((SELECT jsonb_agg(jsonb_build_object('currency',currency,'accrued',accrued,'reversed',reversed,'paid',paid,'reserved',reserved,
    'held',held_minor,'eligible',greatest(payable_minor::numeric,0)::text,'debt',greatest(-payable_minor::numeric,0)::text,'balance',balance) ORDER BY currency) FROM balances),'[]'::jsonb),
   'codes',coalesce((SELECT jsonb_agg(jsonb_build_object('code',code,'active',is_active) ORDER BY code) FROM bindings),'[]'::jsonb),
   'rules',coalesce((SELECT jsonb_agg(jsonb_build_object('product',name,'percentage_bps',percentage_bps,'fixed_minor',fixed_minor::text,'currency',currency,'enabled',enabled) ORDER BY name) FROM rules),'[]'::jsonb),
+  'creator',jsonb_build_object(
+   'active',EXISTS(SELECT 1 FROM public.affiliate_cocreator_rules WHERE member_id=p_member),
+   'rules',coalesce((SELECT jsonb_agg(jsonb_build_object('product',name,'percentage_bps',percentage_bps,'fixed_minor',fixed_minor::text,'currency',currency) ORDER BY name) FROM creator_rules),'[]'::jsonb),
+   'accepted_version',(SELECT creator_terms_version FROM member),'accepted_at',(SELECT creator_accepted_at FROM member),
+   'terms',(SELECT jsonb_build_object('version',terms_version,'en',terms->>'en','pl',terms->>'pl') FROM terms)),
   'sync_pending',EXISTS(SELECT 1 FROM balances WHERE sync_required),
   'needs_review',EXISTS(SELECT 1 FROM public.affiliate_payouts WHERE member_id=p_member AND livemode=p_livemode AND needs_review)
    OR EXISTS(SELECT 1 FROM public.affiliate_commissions c LEFT JOIN public.affiliate_work w ON w.payment_id=c.payment_id
@@ -2058,8 +2376,11 @@ CREATE FUNCTION public.affiliate_preview(p_member uuid, p_currency text, p_cutof
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO ''
     AS $$
- WITH facts AS MATERIALIZED (
-  SELECT c.id,c.eligible_at,c.dispute_seen,c.dispute_reviewed_at,pt.status,
+ WITH gate AS (
+  SELECT coalesce((SELECT enabled FROM public.affiliate_programs),false) AS referral_ok,
+   coalesce((SELECT creator_accepted_at IS NOT NULL FROM public.affiliate_memberships WHERE id=p_member),false) AS creator_ok
+ ), facts AS MATERIALIZED (
+  SELECT c.id,c.kind,c.eligible_at,c.dispute_seen,c.dispute_reviewed_at,pt.status,
    (c.observed_status<>pt.status OR c.observed_refunded_gross<>coalesce(pt.refunded_amount,0)
     OR coalesce(w.status<>'done' OR w.requested_generation>w.processed_generation,false)) AS dirty,
    EXISTS(SELECT 1 FROM public.affiliate_ledger l WHERE l.commission_id=c.id AND l.kind='accrual' AND l.created_at<=p_cutoff) AS earned,
@@ -2070,10 +2391,10 @@ CREATE FUNCTION public.affiliate_preview(p_member uuid, p_currency text, p_cutof
   WHERE c.member_id=p_member AND c.currency=p_currency AND c.livemode=p_livemode
  ), entries AS MATERIALIZED (
   SELECT l.id,l.commission_id,l.kind,l.amount_minor,p.status AS allocation_status,
-   coalesce(a.entry_id IS NULL AND ((f.earned AND f.eligible_at<=p_cutoff
-    AND ((NOT f.dispute_seen AND f.status<>'disputed') OR f.dispute_reviewed_at IS NOT NULL))
-    OR (l.amount_minor<0 AND f.previously_paid)),false) AS selectable
-  FROM public.affiliate_ledger l JOIN facts f ON f.id=l.commission_id
+   coalesce(a.entry_id IS NULL AND public.affiliate_entry_eligible(f.kind,l.amount_minor,f.previously_paid,
+    f.earned AND f.eligible_at<=p_cutoff AND ((NOT f.dispute_seen AND f.status<>'disputed') OR f.dispute_reviewed_at IS NOT NULL),
+    g.referral_ok,g.creator_ok),false) AS selectable
+  FROM public.affiliate_ledger l JOIN facts f ON f.id=l.commission_id CROSS JOIN gate g
   LEFT JOIN public.affiliate_payout_allocations a ON a.entry_id=l.id AND a.released_at IS NULL
   LEFT JOIN public.affiliate_payouts p ON p.id=a.payout_id
  ), totals AS (
@@ -2095,7 +2416,7 @@ CREATE FUNCTION public.affiliate_preview(p_member uuid, p_currency text, p_cutof
  ), readiness AS (SELECT coalesce(bool_or(dirty),false) AS dirty FROM facts)
  SELECT m.version::text,p.version::text,t.earnings::text,t.debt::text,(t.earnings-t.debt)::text,h.amount::text,
   p.thresholds->>p_currency,r.dirty,
-  m.status='approved' AND m.user_id IS NOT NULL AND p.enabled AND NOT r.dirty
+  m.status='approved' AND m.user_id IS NOT NULL AND NOT r.dirty
    AND p_cutoff IS NOT NULL AND p_cutoff<=now() AND p.thresholds ? p_currency
    AND t.earnings-t.debt>0 AND t.earnings-t.debt>=(p.thresholds->>p_currency)::bigint
    AND NOT EXISTS(SELECT 1 FROM public.affiliate_payouts ap WHERE ap.member_id=p_member AND ap.currency=p_currency AND ap.livemode=p_livemode AND ap.status='reserved'),
@@ -2106,28 +2427,6 @@ $$;
 
 
 ALTER FUNCTION public.affiliate_preview(p_member uuid, p_currency text, p_cutoff timestamp with time zone, p_livemode boolean) OWNER TO postgres;
-
---
--- Name: affiliate_valid_program(jsonb, jsonb); Type: FUNCTION; Schema: public; Owner: postgres
---
-
-CREATE FUNCTION public.affiliate_valid_program(p_terms jsonb, p_thresholds jsonb) RETURNS boolean
-    LANGUAGE plpgsql IMMUTABLE
-    SET search_path TO ''
-    AS $_$
-BEGIN
- IF octet_length(p_terms::text)>32768 OR octet_length(p_thresholds::text)>32768
- OR jsonb_typeof(p_terms)<>'object' OR jsonb_typeof(p_thresholds)<>'object'
- OR NOT (p_terms ?& ARRAY['en','pl']) OR (p_terms - ARRAY['en','pl'])<>'{}'::jsonb
- OR jsonb_typeof(p_terms->'en')<>'string' OR jsonb_typeof(p_terms->'pl')<>'string'
- OR length(btrim(p_terms->>'en'))=0 OR length(btrim(p_terms->>'pl'))=0 THEN RETURN false; END IF;
- RETURN NOT EXISTS(SELECT 1 FROM jsonb_each(p_thresholds) t
- WHERE t.key !~ '^[A-Z]{3}$' OR jsonb_typeof(t.value)<>'string' OR t.value#>>'{}' !~ '^[1-9][0-9]{0,18}$'
- OR (t.value#>>'{}')::numeric>9223372036854775807);
-END $_$;
-
-
-ALTER FUNCTION public.affiliate_valid_program(p_terms jsonb, p_thresholds jsonb) OWNER TO postgres;
 
 --
 -- Name: affiliate_programs; Type: TABLE; Schema: public; Owner: postgres
@@ -2207,7 +2506,7 @@ BEGIN
  SELECT * INTO m FROM public.affiliate_memberships WHERE id=p_member FOR SHARE;
  SELECT * INTO prog FROM public.affiliate_programs FOR SHARE;
  IF m.id IS NULL OR m.version IS DISTINCT FROM p_member_version OR prog.version IS DISTINCT FROM p_program_version THEN RAISE EXCEPTION 'Version changed' USING ERRCODE='PT409'; END IF;
- IF p_livemode IS NULL OR m.status<>'approved' OR m.user_id IS NULL OR NOT prog.enabled OR p_currency !~ '^[A-Z]{3}$'
+ IF p_livemode IS NULL OR m.status<>'approved' OR m.user_id IS NULL OR p_currency !~ '^[A-Z]{3}$'
   OR p_cutoff IS NULL OR p_cutoff>now() OR NOT(prog.thresholds ? p_currency) THEN
   RAISE EXCEPTION 'Payout unavailable' USING ERRCODE='22023'; END IF;
  SELECT * INTO preview FROM public.affiliate_preview(p_member,p_currency,p_cutoff,p_livemode);
@@ -3129,7 +3428,7 @@ BEGIN
     LEFT JOIN public.payment_line_items l ON l.id=c.line_item_id WHERE t.id=c.payment_id;
   PERFORM public.record_business_event('commission.'||event,pid,jsonb_build_object(
     'amountUnit','minor',
-    'commission',jsonb_build_object('id',c.id,'ledgerEntryId',NEW.id,'amount',NEW.amount_minor,'currency',NEW.currency,
+    'commission',jsonb_build_object('id',c.id,'ledgerEntryId',NEW.id,'kind',c.kind,'amount',NEW.amount_minor,'currency',NEW.currency,
       'baseAmount',c.base_minor,'accruedAmount',c.accrued_minor,'paidAt',c.paid_at,'eligibleAt',c.eligible_at,
       'selfReferral',c.self_referral,'livemode',c.livemode),
     'partner',public.business_event_partner(NEW.member_id),
@@ -10702,9 +11001,10 @@ CREATE FUNCTION public.product_deletion_impact(p_product_id uuid) RETURNS jsonb
       (SELECT count(*) FROM public.seat_reservations r JOIN public.product_sessions s ON s.id = r.session_id
         WHERE s.product_id = p_product_id AND coalesce(s.ends_at, s.starts_at) > now()
           AND (r.status = 'confirmed' OR (r.status = 'held' AND (r.expires_at IS NULL OR r.expires_at > now())))) AS future_reservations,
-      (SELECT count(*) FROM public.affiliate_rules WHERE product_id = p_product_id) AS affiliate_rules,
-      (SELECT count(*) FROM public.affiliate_commissions c JOIN public.affiliate_rules ar ON ar.id = c.rule_id
-        WHERE ar.product_id = p_product_id) AS affiliate_commissions,
+      (SELECT count(*) FROM public.affiliate_rules WHERE product_id = p_product_id)
+        + (SELECT count(*) FROM public.affiliate_cocreator_rules WHERE product_id = p_product_id) AS affiliate_rules,
+      (SELECT count(*) FROM public.affiliate_commissions c JOIN public.payment_line_items li ON li.id = c.line_item_id
+        WHERE li.product_id = p_product_id) AS affiliate_commissions,
       (SELECT count(*) FROM public.bundle_items WHERE component_product_id = p_product_id) AS bundles
   )
   SELECT jsonb_build_object('orders', orders, 'invoices', invoices, 'licenses', licenses, 'accesses', accesses,
@@ -13037,8 +13337,8 @@ CREATE TABLE public.affiliate_commissions (
     payment_id uuid NOT NULL,
     line_item_id uuid NOT NULL,
     member_id uuid NOT NULL,
-    rule_id uuid NOT NULL,
-    binding_id uuid NOT NULL,
+    rule_id uuid,
+    binding_id uuid,
     livemode boolean NOT NULL,
     session_created_at timestamp with time zone NOT NULL,
     paid_at timestamp with time zone NOT NULL,
@@ -13056,6 +13356,8 @@ CREATE TABLE public.affiliate_commissions (
     dispute_seen boolean DEFAULT false NOT NULL,
     dispute_reviewed_at timestamp with time zone,
     version bigint DEFAULT 1 NOT NULL,
+    kind text DEFAULT 'referral'::text NOT NULL,
+    cocreator_rule_id uuid,
     CONSTRAINT affiliate_commissions_base_minor_check CHECK ((base_minor >= 0)),
     CONSTRAINT affiliate_commissions_buffer_days_check CHECK (((buffer_days >= 0) AND (buffer_days <= 365))),
     CONSTRAINT affiliate_commissions_check CHECK (((accrued_minor >= 0) AND (accrued_minor <= base_minor))),
@@ -13068,13 +13370,29 @@ CASE
 END))::double precision * '1 day'::interval))))),
     CONSTRAINT affiliate_commissions_currency_check CHECK ((currency ~ '^[A-Z]{3}$'::text)),
     CONSTRAINT affiliate_commissions_hold_days_check CHECK (((hold_days >= 0) AND (hold_days <= 3650))),
+    CONSTRAINT affiliate_commissions_kind_check CHECK ((kind = ANY (ARRAY['referral'::text, 'cocreator'::text]))),
     CONSTRAINT affiliate_commissions_observed_refunded_gross_check CHECK ((observed_refunded_gross >= 0)),
     CONSTRAINT affiliate_commissions_refund_period_days_check CHECK (((refund_period_days >= 1) AND (refund_period_days <= 365))),
+    CONSTRAINT affiliate_commissions_source CHECK ((((kind = 'referral'::text) AND (rule_id IS NOT NULL) AND (binding_id IS NOT NULL) AND (cocreator_rule_id IS NULL)) OR ((kind = 'cocreator'::text) AND (rule_id IS NULL) AND (binding_id IS NULL) AND (cocreator_rule_id IS NOT NULL)))),
     CONSTRAINT affiliate_commissions_version_check CHECK ((version > 0))
 );
 
 
 ALTER TABLE public.affiliate_commissions OWNER TO postgres;
+
+--
+-- Name: affiliate_creator_terms_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.affiliate_creator_terms ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.affiliate_creator_terms_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
 
 --
 -- Name: affiliate_membership_events; Type: TABLE; Schema: public; Owner: postgres
@@ -15351,11 +15669,27 @@ ALTER TABLE ONLY public.admin_users
 
 
 --
--- Name: affiliate_commissions affiliate_commissions_payment_id_line_item_id_livemode_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+-- Name: affiliate_cocreator_rules affiliate_cocreator_rules_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.affiliate_cocreator_rules
+    ADD CONSTRAINT affiliate_cocreator_rules_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: affiliate_cocreator_rules affiliate_cocreator_rules_product_id_revision_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.affiliate_cocreator_rules
+    ADD CONSTRAINT affiliate_cocreator_rules_product_id_revision_key UNIQUE (product_id, revision);
+
+
+--
+-- Name: affiliate_commissions affiliate_commissions_line_kind; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.affiliate_commissions
-    ADD CONSTRAINT affiliate_commissions_payment_id_line_item_id_livemode_key UNIQUE (payment_id, line_item_id, livemode);
+    ADD CONSTRAINT affiliate_commissions_line_kind UNIQUE (payment_id, line_item_id, livemode, kind);
 
 
 --
@@ -15380,6 +15714,22 @@ ALTER TABLE ONLY public.affiliate_coupon_bindings
 
 ALTER TABLE ONLY public.affiliate_coupon_bindings
     ADD CONSTRAINT affiliate_coupon_bindings_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: affiliate_creator_terms affiliate_creator_terms_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.affiliate_creator_terms
+    ADD CONSTRAINT affiliate_creator_terms_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: affiliate_creator_terms affiliate_creator_terms_terms_version_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.affiliate_creator_terms
+    ADD CONSTRAINT affiliate_creator_terms_terms_version_key UNIQUE (terms_version);
 
 
 --
@@ -16404,10 +16754,31 @@ CREATE INDEX affiliate_binding_member ON public.affiliate_coupon_bindings USING 
 
 
 --
+-- Name: affiliate_cocreator_member; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX affiliate_cocreator_member ON public.affiliate_cocreator_rules USING btree (member_id);
+
+
+--
+-- Name: affiliate_cocreator_time; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX affiliate_cocreator_time ON public.affiliate_cocreator_rules USING btree (product_id, created_at DESC, revision DESC);
+
+
+--
 -- Name: affiliate_commission_binding; Type: INDEX; Schema: public; Owner: postgres
 --
 
 CREATE INDEX affiliate_commission_binding ON public.affiliate_commissions USING btree (binding_id);
+
+
+--
+-- Name: affiliate_commission_cocreator_rule; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX affiliate_commission_cocreator_rule ON public.affiliate_commissions USING btree (cocreator_rule_id);
 
 
 --
@@ -17981,6 +18352,13 @@ CREATE TRIGGER affiliate_binding_period BEFORE INSERT OR UPDATE ON public.affili
 
 
 --
+-- Name: affiliate_cocreator_rules affiliate_cocreator_rules_guard; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER affiliate_cocreator_rules_guard BEFORE DELETE OR UPDATE ON public.affiliate_cocreator_rules FOR EACH ROW EXECUTE FUNCTION public.affiliate_rule_guard();
+
+
+--
 -- Name: affiliate_commissions affiliate_commissions_guard; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
@@ -18002,6 +18380,13 @@ CREATE TRIGGER affiliate_coupon_bindings_guard BEFORE UPDATE ON public.affiliate
 
 
 --
+-- Name: affiliate_creator_terms affiliate_creator_terms_guard; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER affiliate_creator_terms_guard BEFORE DELETE OR UPDATE ON public.affiliate_creator_terms FOR EACH ROW EXECUTE FUNCTION public.affiliate_immutable();
+
+
+--
 -- Name: affiliate_ledger affiliate_ledger_guard; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
@@ -18013,6 +18398,13 @@ CREATE TRIGGER affiliate_ledger_guard BEFORE DELETE OR UPDATE ON public.affiliat
 --
 
 CREATE CONSTRAINT TRIGGER affiliate_ledger_relations AFTER INSERT OR UPDATE ON public.affiliate_ledger DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION public.affiliate_check_relations();
+
+
+--
+-- Name: payment_line_items affiliate_line_enqueue; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER affiliate_line_enqueue AFTER INSERT ON public.payment_line_items FOR EACH ROW EXECUTE FUNCTION public.affiliate_enqueue();
 
 
 --
@@ -18690,11 +19082,35 @@ ALTER TABLE ONLY public.admin_users
 
 
 --
+-- Name: affiliate_cocreator_rules affiliate_cocreator_rules_member_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.affiliate_cocreator_rules
+    ADD CONSTRAINT affiliate_cocreator_rules_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.affiliate_memberships(id);
+
+
+--
+-- Name: affiliate_cocreator_rules affiliate_cocreator_rules_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.affiliate_cocreator_rules
+    ADD CONSTRAINT affiliate_cocreator_rules_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE;
+
+
+--
 -- Name: affiliate_commissions affiliate_commissions_binding_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.affiliate_commissions
     ADD CONSTRAINT affiliate_commissions_binding_id_fkey FOREIGN KEY (binding_id) REFERENCES public.affiliate_coupon_bindings(id);
+
+
+--
+-- Name: affiliate_commissions affiliate_commissions_cocreator_rule_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.affiliate_commissions
+    ADD CONSTRAINT affiliate_commissions_cocreator_rule_id_fkey FOREIGN KEY (cocreator_rule_id) REFERENCES public.affiliate_cocreator_rules(id);
 
 
 --
@@ -20484,6 +20900,19 @@ ALTER TABLE public.admin_actions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_users ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: affiliate_cocreator_rules; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.affiliate_cocreator_rules ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: affiliate_cocreator_rules affiliate_cocreator_rules_service; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY affiliate_cocreator_rules_service ON public.affiliate_cocreator_rules TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
+
+
+--
 -- Name: affiliate_commissions; Type: ROW SECURITY; Schema: public; Owner: postgres
 --
 
@@ -20507,6 +20936,19 @@ ALTER TABLE public.affiliate_coupon_bindings ENABLE ROW LEVEL SECURITY;
 --
 
 CREATE POLICY affiliate_coupon_bindings_service ON public.affiliate_coupon_bindings TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
+
+
+--
+-- Name: affiliate_creator_terms; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.affiliate_creator_terms ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: affiliate_creator_terms affiliate_creator_terms_service; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY affiliate_creator_terms_service ON public.affiliate_creator_terms TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
 
 
 --
@@ -21825,11 +22267,21 @@ function | public.affiliate_cancel_payout(p_actor uuid, p_payout uuid, p_expecte
 function | public.affiliate_check_relations() | postgres | EXECUTE | postgres | -
 function | public.affiliate_claim_work(p_limit integer) | postgres | EXECUTE | postgres | -
 function | public.affiliate_claim_work(p_limit integer) | service_role | EXECUTE | postgres | -
+function | public.affiliate_cocreator_candidate(p_payment uuid) | postgres | EXECUTE | postgres | -
+function | public.affiliate_cocreator_candidate(p_payment uuid) | service_role | EXECUTE | postgres | -
+function | public.affiliate_cocreator_set(p_actor uuid, p_product uuid, p_expected_revision integer, p_email text, p_display_name text, p_percentage_bps integer, p_fixed_minor bigint, p_currency text) | postgres | EXECUTE | postgres | -
+function | public.affiliate_cocreator_set(p_actor uuid, p_product uuid, p_expected_revision integer, p_email text, p_display_name text, p_percentage_bps integer, p_fixed_minor bigint, p_currency text) | service_role | EXECUTE | postgres | -
 function | public.affiliate_complete_unbound_work(p_payment uuid, p_token uuid, p_generation bigint) | postgres | EXECUTE | postgres | -
 function | public.affiliate_complete_unbound_work(p_payment uuid, p_token uuid, p_generation bigint) | service_role | EXECUTE | postgres | -
 function | public.affiliate_coupon_bind(p_actor uuid, p_coupon uuid, p_member uuid, p_expected_version bigint) | postgres | EXECUTE | postgres | -
 function | public.affiliate_coupon_bind(p_actor uuid, p_coupon uuid, p_member uuid, p_expected_version bigint) | service_role | EXECUTE | postgres | -
+function | public.affiliate_creator_accept(p_user uuid, p_terms_version text) | postgres | EXECUTE | postgres | -
+function | public.affiliate_creator_accept(p_user uuid, p_terms_version text) | service_role | EXECUTE | postgres | -
+function | public.affiliate_creator_terms_publish(p_actor uuid, p_expected_version text, p_terms_version text, p_terms jsonb) | postgres | EXECUTE | postgres | -
+function | public.affiliate_creator_terms_publish(p_actor uuid, p_expected_version text, p_terms_version text, p_terms jsonb) | service_role | EXECUTE | postgres | -
 function | public.affiliate_enqueue() | postgres | EXECUTE | postgres | -
+function | public.affiliate_entry_eligible(p_kind text, p_amount bigint, p_previously_paid boolean, p_ready boolean, p_referral_ok boolean, p_creator_ok boolean) | postgres | EXECUTE | postgres | -
+function | public.affiliate_entry_eligible(p_kind text, p_amount bigint, p_previously_paid boolean, p_ready boolean, p_referral_ok boolean, p_creator_ok boolean) | service_role | EXECUTE | postgres | -
 function | public.affiliate_guard() | postgres | EXECUTE | postgres | -
 function | public.affiliate_immutable() | postgres | EXECUTE | postgres | -
 function | public.affiliate_lock_member(p_member uuid, p_currency text, p_payments uuid[], p_livemode boolean) | postgres | EXECUTE | postgres | -
@@ -21839,6 +22291,8 @@ function | public.affiliate_mark_paid(p_actor uuid, p_payout uuid, p_expected_ve
 function | public.affiliate_mark_paid(p_actor uuid, p_payout uuid, p_expected_version bigint, p_bank_reference text, p_invoice_reference text, p_bank_amount_minor bigint, p_currency text, p_paid_at timestamp with time zone, p_full_settlement boolean, p_reason text, p_evidence_reference text, p_livemode boolean) | service_role | EXECUTE | postgres | -
 function | public.affiliate_member_update(p_actor uuid, p_member uuid, p_expected_version bigint, p_status text, p_reason text) | postgres | EXECUTE | postgres | -
 function | public.affiliate_member_update(p_actor uuid, p_member uuid, p_expected_version bigint, p_status text, p_reason text) | service_role | EXECUTE | postgres | -
+function | public.affiliate_payout_exportable(p_payout uuid) | postgres | EXECUTE | postgres | -
+function | public.affiliate_payout_exportable(p_payout uuid) | service_role | EXECUTE | postgres | -
 function | public.affiliate_portal_page(p_member uuid, p_currency text, p_cursor uuid, p_limit integer, p_as_of timestamp with time zone) | postgres | EXECUTE | postgres | -
 function | public.affiliate_portal_page(p_member uuid, p_currency text, p_cursor uuid, p_limit integer, p_as_of timestamp with time zone) | service_role | EXECUTE | postgres | -
 function | public.affiliate_portal_summary(p_member uuid, p_as_of timestamp with time zone, p_livemode boolean) | postgres | EXECUTE | postgres | -
@@ -22462,6 +22916,14 @@ sequence | cron.runid_seq | PUBLIC | SELECT | supabase_admin | -
 sequence | cron.runid_seq | supabase_admin | SELECT | supabase_admin | -
 sequence | cron.runid_seq | supabase_admin | UPDATE | supabase_admin | -
 sequence | cron.runid_seq | supabase_admin | USAGE | supabase_admin | -
+sequence | public.affiliate_creator_terms_id_seq | anon | UPDATE | postgres | -
+sequence | public.affiliate_creator_terms_id_seq | authenticated | UPDATE | postgres | -
+sequence | public.affiliate_creator_terms_id_seq | authenticated | USAGE | postgres | -
+sequence | public.affiliate_creator_terms_id_seq | postgres | SELECT | postgres | -
+sequence | public.affiliate_creator_terms_id_seq | postgres | UPDATE | postgres | -
+sequence | public.affiliate_creator_terms_id_seq | postgres | USAGE | postgres | -
+sequence | public.affiliate_creator_terms_id_seq | service_role | UPDATE | postgres | -
+sequence | public.affiliate_creator_terms_id_seq | service_role | USAGE | postgres | -
 sequence | public.payment_order_number_seq | postgres | SELECT | postgres | -
 sequence | public.payment_order_number_seq | postgres | UPDATE | postgres | -
 sequence | public.payment_order_number_seq | postgres | USAGE | postgres | -
@@ -22993,6 +23455,15 @@ table | public.admin_users | service_role | SELECT | postgres | -
 table | public.admin_users | service_role | TRIGGER | postgres | -
 table | public.admin_users | service_role | TRUNCATE | postgres | -
 table | public.admin_users | service_role | UPDATE | postgres | -
+table | public.affiliate_cocreator_rules | postgres | DELETE | postgres | -
+table | public.affiliate_cocreator_rules | postgres | INSERT | postgres | -
+table | public.affiliate_cocreator_rules | postgres | REFERENCES | postgres | -
+table | public.affiliate_cocreator_rules | postgres | SELECT | postgres | -
+table | public.affiliate_cocreator_rules | postgres | TRIGGER | postgres | -
+table | public.affiliate_cocreator_rules | postgres | TRUNCATE | postgres | -
+table | public.affiliate_cocreator_rules | postgres | UPDATE | postgres | -
+table | public.affiliate_cocreator_rules | service_role | INSERT | postgres | -
+table | public.affiliate_cocreator_rules | service_role | SELECT | postgres | -
 table | public.affiliate_commissions | postgres | DELETE | postgres | -
 table | public.affiliate_commissions | postgres | INSERT | postgres | -
 table | public.affiliate_commissions | postgres | REFERENCES | postgres | -
@@ -23013,6 +23484,15 @@ table | public.affiliate_coupon_bindings | postgres | UPDATE | postgres | -
 table | public.affiliate_coupon_bindings | service_role | INSERT | postgres | -
 table | public.affiliate_coupon_bindings | service_role | SELECT | postgres | -
 table | public.affiliate_coupon_bindings | service_role | UPDATE | postgres | -
+table | public.affiliate_creator_terms | postgres | DELETE | postgres | -
+table | public.affiliate_creator_terms | postgres | INSERT | postgres | -
+table | public.affiliate_creator_terms | postgres | REFERENCES | postgres | -
+table | public.affiliate_creator_terms | postgres | SELECT | postgres | -
+table | public.affiliate_creator_terms | postgres | TRIGGER | postgres | -
+table | public.affiliate_creator_terms | postgres | TRUNCATE | postgres | -
+table | public.affiliate_creator_terms | postgres | UPDATE | postgres | -
+table | public.affiliate_creator_terms | service_role | INSERT | postgres | -
+table | public.affiliate_creator_terms | service_role | SELECT | postgres | -
 table | public.affiliate_ledger | postgres | DELETE | postgres | -
 table | public.affiliate_ledger | postgres | INSERT | postgres | -
 table | public.affiliate_ledger | postgres | REFERENCES | postgres | -
@@ -24513,8 +24993,10 @@ purchase-attribution-retention | 23 * * * * | t | postgres | postgres | localhos
 -- rows inserted by migrations, per public table (table | rows); content may hold random ids, counts do not
 admin_actions | 0
 admin_users | 0
+affiliate_cocreator_rules | 0
 affiliate_commissions | 0
 affiliate_coupon_bindings | 0
+affiliate_creator_terms | 0
 affiliate_ledger | 0
 affiliate_membership_events | 0
 affiliate_memberships | 0

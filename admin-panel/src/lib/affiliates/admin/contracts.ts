@@ -17,7 +17,9 @@ export function boundedInput(input: unknown): boolean {
 }
 export interface MemberInfo {
   id: string; code: string; display_name: string; email?: string | null; channel: string | null; status: string; version: string;
-  accepted_terms_version: string; accepted_at: string; created_at: string;
+  accepted_terms_version: string | null; accepted_at: string | null; created_at: string;
+  /** false: a co-creator the seller added, who never applied as a partner. */
+  is_partner?: boolean;
 }
 export interface ProgramInfo extends ProgramInput { id: string }
 export interface TermsInfo { terms_version: string; terms: { en: string; pl: string } }
