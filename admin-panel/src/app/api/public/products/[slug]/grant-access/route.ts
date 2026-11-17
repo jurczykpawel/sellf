@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { trackServerSideConversion } from '@/lib/tracking';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
+import { maintenanceErrorBody } from '@/lib/maintenance/guard';
 import { attributionRequestContext, recordFreeAttribution } from '@/lib/attribution/store';
 import {
   validateCustomFieldDefinitions,
@@ -121,6 +122,7 @@ export async function POST(
       ...(customFieldValues !== undefined ? { customFieldValues } : {}),
     });
 
+    if (accessResult.maintenance) return NextResponse.json(maintenanceErrorBody(), { status: 503 });
     if (!accessResult.accessGranted) {
       return NextResponse.json({ error: accessResult.error }, { status: 400 });
     }

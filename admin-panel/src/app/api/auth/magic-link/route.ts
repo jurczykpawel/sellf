@@ -101,6 +101,7 @@ const STATUS_BY_CODE: Record<MagicLinkErrorCode, number> = {
   invalid_email: 400,
   rate_limited: 429,
   send_failed: 502,
+  maintenance: 503,
 };
 
 export async function POST(request: Request) {

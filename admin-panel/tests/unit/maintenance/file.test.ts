@@ -31,6 +31,12 @@ describe('maintenance file path', () => {
     expect(getMaintenanceFilePath()).toBe('/opt/stacks/sellf-tsa/admin-panel/MAINTENANCE');
   });
 
+  it('resolves a relative SELLF_MAINTENANCE_FILE against the installation directory, as upgrade.sh does', () => {
+    vi.stubEnv('SELLF_MAINTENANCE_FILE', ' var/maintenance.flag ');
+    vi.spyOn(process, 'cwd').mockReturnValue('/opt/stacks/sellf-tsa/admin-panel/.next/standalone/admin-panel');
+    expect(getMaintenanceFilePath()).toBe('/opt/stacks/sellf-tsa/admin-panel/var/maintenance.flag');
+  });
+
   it('is <cwd>/MAINTENANCE outside a standalone release (dev, Docker)', () => {
     vi.stubEnv('SELLF_MAINTENANCE_FILE', '');
     vi.spyOn(process, 'cwd').mockReturnValue('/app');

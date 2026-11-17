@@ -158,7 +158,9 @@ export function useFreeAccess({
               ? tCompliance('securityVerificationRequired')
               : result.reason === 'invalid_email'
                 ? t('invalidEmail')
-                : t('unexpectedError');
+                : result.reason === 'maintenance'
+                  ? t('shopMaintenance')
+                  : t('unexpectedError');
         setPwywFreeMessage({ type: 'error', text });
         return;
       }

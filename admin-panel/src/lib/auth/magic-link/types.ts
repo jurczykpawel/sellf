@@ -12,7 +12,9 @@ export type MagicLinkErrorCode =
   | 'captcha_failed'
   | 'invalid_email'
   | 'rate_limited'
-  | 'send_failed';
+  | 'send_failed'
+  /** A new free-product request while the shop is down for maintenance. */
+  | 'maintenance';
 
 /** `fieldErrors` maps a rejected custom checkout field to its error code (@see lib/validations/custom-checkout-fields.ts). */
 /** `queued`: the auth mailer refused a purchase mail and cron will retry it (@see magic-link/retry.ts). */

@@ -13,7 +13,10 @@
  * Requires: npx supabase start + migrations applied.
  */
 
-import { describe, it, expect, afterAll, vi } from 'vitest';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { describe, it, expect, afterAll, afterEach, beforeEach, vi } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -388,5 +391,57 @@ describe('/auth/product-access — existing access', () => {
 
     const target = await runCallback(`http://localhost/auth/product-access?product=${product.slug}`);
     expect(target).toBe('https://content.example.com/course');
+  });
+});
+
+// ============================================================================
+// Maintenance mode: a new free grant is refused, a request made before the break completes
+// ============================================================================
+
+describe('/auth/product-access — during maintenance @J655', () => {
+  let dir = '';
+  beforeEach(() => {
+    dir = mkdtempSync(path.join(tmpdir(), 'sellf-cb-maintenance-'));
+    vi.stubEnv('SELLF_MAINTENANCE_FILE', path.join(dir, 'MAINTENANCE'));
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('refuses a new free grant with the 503 maintenance page and grants nothing', async () => {
+    const email = `cb-maint-new-${TS}@example.com`;
+    const user = await createUser(email);
+    userIds.push(user.id);
+    const product = await createProduct({ price: 0 });
+    productIds.push(product.id);
+    currentAuthedClient = await signInAs(email);
+    writeFileSync(path.join(dir, 'MAINTENANCE'), '');
+
+    redirectCalls.length = 0;
+    const response = await GET(new Request(`http://localhost/pl/auth/product-access?product=${product.slug}`) as any);
+    expect(response?.status).toBe(503);
+    expect(await response!.text()).toContain('Przerwa techniczna');
+    const { data: access } = await supabaseAdmin.from('user_product_access').select('id').eq('user_id', user.id).eq('product_id', product.id);
+    expect(access).toEqual([]);
+  });
+
+  it('completes the free-product request the buyer made before the break', async () => {
+    const email = `cb-maint-earlier-${TS}@example.com`;
+    const user = await createUser(email);
+    userIds.push(user.id);
+    const product = await createProduct({ price: 0 });
+    productIds.push(product.id);
+    const { prepareFreeGrantRequest } = await import('@/lib/services/free-grant-context');
+    const prepared = await prepareFreeGrantRequest(supabaseAdmin as any, email, product.slug, {});
+    expect(prepared).toMatchObject({ ok: true });
+    const requestId = (prepared as { requestId: string }).requestId;
+    currentAuthedClient = await signInAs(email);
+    writeFileSync(path.join(dir, 'MAINTENANCE'), '');
+
+    const target = await runCallback(`http://localhost/auth/product-access?product=${product.slug}&free_grant=${requestId}`);
+    expect(target).toBe(`/p/${product.slug}/payment-status`);
+    const { data: access } = await supabaseAdmin.from('user_product_access').select('id').eq('user_id', user.id).eq('product_id', product.id);
+    expect(access).toHaveLength(1);
   });
 });

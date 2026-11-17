@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { createTestUser, loginAsAdmin, supabaseAdmin } from './helpers/admin-auth';
+import { createTestUser, loginAsAdmin, setAuthSession, supabaseAdmin } from './helpers/admin-auth';
 import { clearPaidCheckout, paidCheckoutEvent, sendStripeEvent } from './helpers/stripe-test-events';
 import type Stripe from 'stripe';
 
@@ -9,6 +9,8 @@ import type Stripe from 'stripe';
  *   checkout answer 503 with the maintenance page / code, the admin panel keeps working, and
  *   switching it off reopens the shop. Both changes are audited.
  * - J651: a purchase paid before the break is completed by the Stripe webhook during the break.
+ * - J655: a signed-in buyer gets no new free access during the break; the free-product link of a
+ *   request made before the break still grants it.
  *
  * Serial and self-restoring: the switch is global, so every test turns it off again.
  * @see src/proxy.ts
@@ -114,5 +116,57 @@ test.describe('Maintenance mode', () => {
     expect(order).toEqual({ status: 'completed', customer_email: email });
 
     await setMaintenance(false);
+  });
+
+  test('no new free access during the break; a free-product request made before it still completes @J655', async ({ page, request }) => {
+    const buyer = await createTestUser('maintenance-free-buyer');
+    const createFree = async (name: string) => {
+      const slug = `maintenance-free-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const { data, error } = await supabaseAdmin.from('products')
+        .insert({ name, slug, price: 0, currency: 'USD', is_active: true, description: 'Maintenance free e2e' })
+        .select('id').single();
+      if (error) throw error;
+      return { id: data.id as string, slug };
+    };
+    const fresh = await createFree('Maintenance New Claim');
+    const earlier = await createFree('Maintenance Earlier Request');
+    const access = async (productId: string) =>
+      (await supabaseAdmin.from('user_product_access').select('id').eq('user_id', buyer.userId).eq('product_id', productId)).data ?? [];
+    try {
+      // Before the break the buyer asked for one free product (the request its email link carries).
+      const { data: requestId, error: prepareError } = await supabaseAdmin.rpc('prepare_free_grant', { p_email: buyer.email, p_product_id: earlier.id, p_values: {} });
+      if (prepareError) throw prepareError;
+
+      await setMaintenance(true, 'Aktualizacja, wracamy za chwilę');
+      await expect.poll(async () => (await request.get(`/pl/p/${fresh.slug}`)).status(), { timeout: 15000 }).toBe(503);
+      await setAuthSession(page, buyer.email, buyer.password);
+
+      // A new claim (the payment return page without a payment) grants nothing and says why.
+      await page.goto(`/pl/p/${fresh.slug}/payment-status`);
+      await expect(page.getByText('Sklep ma przerwę techniczną, więc teraz nie możemy dać darmowego dostępu.')).toBeVisible();
+      await page.screenshot({ path: 'test-results/maintenance-free-refused.png', fullPage: true });
+      expect(await access(fresh.id)).toEqual([]);
+      // The magic-link callback without an earlier request shows the maintenance page.
+      const callback = await page.goto(`/pl/auth/product-access?product=${fresh.slug}`);
+      expect(callback?.status()).toBe(503);
+      expect(await access(fresh.id)).toEqual([]);
+      for (const path of ['/api/leads/submit', '/api/waitlist/signup', `/api/public/products/${fresh.slug}/grant-access`]) {
+        expect((await request.post(path, { data: { productId: fresh.id, product: fresh.slug, email: buyer.email } })).status(), path).toBe(503);
+      }
+
+      // The link from the email of the earlier request completes it during the break.
+      await page.goto(`/pl/auth/product-access?product=${earlier.slug}&free_grant=${requestId}`);
+      await expect(page).toHaveURL(new RegExp(`/pl/p/${earlier.slug}/payment-status`));
+      await expect(page.getByRole('heading', { name: 'Dostęp przyznany' })).toBeVisible();
+      expect(await access(earlier.id)).toHaveLength(1);
+    } finally {
+      await setMaintenance(false);
+      for (const product of [fresh, earlier]) {
+        await supabaseAdmin.from('user_product_access').delete().eq('product_id', product.id);
+        await supabaseAdmin.from('free_grant_contexts').delete().eq('product_id', product.id);
+        await supabaseAdmin.from('products').delete().eq('id', product.id);
+      }
+      await buyer.cleanup();
+    }
   });
 });

@@ -6,6 +6,7 @@ import { sanitizeForLog } from '@/lib/logger';
 import { verifyCaptchaToken } from '@/lib/captcha/verify';
 import { isValidEmailFormat } from '@/lib/validations/email-format';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
+import { isMaintenanceActive, maintenanceErrorBody } from '@/lib/maintenance/guard';
 
 export async function POST(request: Request) {
   try {
@@ -17,6 +18,8 @@ export async function POST(request: Request) {
         { status: 415 }
       );
     }
+
+    if (await isMaintenanceActive()) return NextResponse.json(maintenanceErrorBody(), { status: 503 });
 
     // Rate limiting: 5 requests per 5 minutes (prevents webhook spam)
     const rateLimitOk = await checkRateLimit('waitlist_signup', 5, 300);

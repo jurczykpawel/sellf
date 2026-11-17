@@ -19,6 +19,13 @@ describe('POST /api/auth/magic-link', () => {
     requestMagicLink.mockReset();
   });
 
+  it('answers 503 when the free-product request is refused for maintenance', async () => {
+    requestMagicLink.mockResolvedValue({ ok: false, code: 'maintenance' });
+    const res = await POST(jsonRequest({ email: 'a@b.com', captchaToken: 't', flow: 'free_product', productSlug: 'course' }));
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ ok: false, code: 'maintenance' });
+  });
+
   it('accepts a partner application return path', async () => {
     requestMagicLink.mockResolvedValue({ ok: true });
     const res = await POST(jsonRequest({ email: 'a@b.com', captchaToken: 't', flow: 'login', redirectTo: '/pl/affiliates/apply' }));

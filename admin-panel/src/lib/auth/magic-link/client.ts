@@ -20,6 +20,7 @@ const KNOWN_ERROR_CODES: readonly MagicLinkErrorCode[] = [
   'invalid_email',
   'rate_limited',
   'send_failed',
+  'maintenance',
 ];
 
 function isKnownErrorCode(code: unknown): code is MagicLinkErrorCode {

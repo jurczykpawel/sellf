@@ -1597,11 +1597,21 @@ API v1, cron, health, payment return pages and Stripe webhooks keep working, so 
 paid complete. Products and settings never change.
 
 **Two sources (like WordPress `.maintenance`), on when either is on, the server source wins:**
-- **Server:** the file `<install>/MAINTENANCE` (next to `.env.local`; `SELLF_MAINTENANCE_FILE`
-  overrides the path) or `SELLF_MAINTENANCE=true`. Read with `fs` only, before any database request,
-  so it works while the database is down or an update runs. `scripts/upgrade.sh` creates the file
-  right before stopping PM2 and removes it on every exit (EXIT trap) except `migration_state_unknown`,
-  where it is rewritten with that reason and left on; a file the operator created is never touched.
+- **Server:** the file `<install>/MAINTENANCE` (next to `.env.local`) or `SELLF_MAINTENANCE=true`.
+  Path rule shared by the app (`file.ts`) and `upgrade.sh` (`maintenance_file_path`): env
+  `SELLF_MAINTENANCE_FILE`, else `.env.local`, else `MAINTENANCE`; relative = relative to the install
+  dir; upgrade.sh exports the resolved path to the app it starts. Read with `fs` only, before any
+  database request, so it works while the database is down or an update runs. `scripts/upgrade.sh`
+  creates the file (JSON with a random run token) right before stopping PM2 and removes it on every
+  exit (EXIT trap) except `migration_state_unknown`, where it is rewritten with that reason and left
+  on. It rewrites/removes only while the file holds exactly what this run wrote, so an operator file
+  (before or during the run, also token-less JSON) is never touched; a marker an earlier run left
+  stays during the rerun and is removed only after the health check passes.
+- **Free grants and submissions** are refused where they happen (`lib/maintenance/guard.ts`):
+  `grantFreeProductAccess` (new grant without a saved free-grant request; `completesSubmission` for
+  a verified lead token), `prepareFreeGrantRequest` (magic link / embed `free_product`), leads and
+  waitlist routes. A grant completing a request made before the break, and payment verification
+  with `session_id`/`payment_intent`, still work.
 - **Database:** singleton `public.maintenance_mode`, switched only through
   `set_maintenance_mode` (service role; change + `audit_log` entry in one transaction). The proxy
   reads it through the anon RPC `get_maintenance_mode` (message/time only while on), cached 5 s on

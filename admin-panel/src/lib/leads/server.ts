@@ -14,6 +14,7 @@ import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting
 import { createAdminClient } from '@/lib/supabase/admin';
 import { emitFreeAccessLead } from '@/lib/services/free-access-events';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
+import { isMaintenanceActive, maintenanceErrorBody } from '@/lib/maintenance/guard';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { LEAD_FORM_MESSAGES, consentForLocale, leadBodySchema, leadTokenSchema, productIdentifierSchema } from '@/lib/leads/config';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -66,6 +67,7 @@ export async function leadChallenge(request: Request): Promise<NextResponse> {
     const id = new URL(request.url).searchParams.get('product');
     const ctx = await context(id); origins = ctx.origins;
     if (!allowed(request, origins)) return reply(request, origins, 403, { error: 'Forbidden' });
+    if (await isMaintenanceActive()) return reply(request, origins, 503, maintenanceErrorBody());
     if (!await checkRateLimit('leads_challenge', 30, 1)) return reply(request, origins, 429, { error: 'Too many requests' });
     if (id && !available(ctx.product)) return reply(request, origins, 404, { error: 'Product is not available' });
     const hmacKey = process.env.ALTCHA_HMAC_KEY;
@@ -81,6 +83,11 @@ export async function leadSubmit(request: Request): Promise<NextResponse> {
   let origins: string[] = [];
   try {
     const raw = await readJsonBody<Record<string, unknown>>(request, 16_384);
+    // A new submission: refused during maintenance before anything is consumed or recorded.
+    if (await isMaintenanceActive()) {
+      origins = (await context(raw?.product)).origins;
+      return reply(request, origins, 503, maintenanceErrorBody());
+    }
     // The first attempt consumes the nonce even when another field is invalid.
     const client = createAdminClient();
     const nonce = leadTokenSchema.safeParse(raw?.nonce);
@@ -163,7 +170,8 @@ export async function confirmLead(token: string, user: { id: string; email?: str
     let sendMail = false;
     if (lead.product_slug) {
       if (!product) return { ok: false };
-      const grant = await grantFreeProductAccess(userClient, client, { product, user: { id: user.id, email: user.email }, deferLeadEvent: true });
+      // The token proves a submission recorded before, so this completes it even during maintenance.
+      const grant = await grantFreeProductAccess(userClient, client, { product, user: { id: user.id, email: user.email }, deferLeadEvent: true, completesSubmission: true });
       if (!grant.accessGranted) return { ok: false };
       sendMail = !grant.alreadyHadAccess && !lead.confirmed_at;
     }

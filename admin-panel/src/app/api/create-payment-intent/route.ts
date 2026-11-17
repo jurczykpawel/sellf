@@ -42,6 +42,7 @@ import { signCheckoutBinding } from '@/lib/security/checkout-binding';
 import { canRenewExpiredLicenseWithActiveAccess } from '@/lib/license-keys/renewal';
 import { findIssuedLicense } from '@/lib/license-keys/lookup';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
+import { maintenanceErrorBody } from '@/lib/maintenance/guard';
 import { placeOrder } from '@/lib/orders/place-order';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 import { ATTRIBUTION_REF_KEY, attributionRequestContext, recordFreeAttribution, storeCheckoutAttribution } from '@/lib/attribution/store';
@@ -612,6 +613,7 @@ export async function POST(request: NextRequest) {
         locale: checkoutLocale,
       });
 
+      if (grant.maintenance) return NextResponse.json(maintenanceErrorBody(), { status: 503 });
       if (!grant.accessGranted) {
         return NextResponse.json(
           { error: grant.error || 'Failed to grant access' },

@@ -1,6 +1,8 @@
 /**
  * What maintenance mode pauses: the shop pages, the checkout, embed checkout, the login wall and
- * every request that starts a NEW payment. Everything else keeps working: the admin panel and
+ * every request that starts a NEW payment or a new submission (lead, waitlist). Free grants are also
+ * refused where they happen (src/lib/maintenance/guard.ts), because the return page and the
+ * magic-link callback stay open here. Everything else keeps working: the admin panel and
  * sign-in, the buyer's account, Stripe webhooks, the payment return pages and payment confirmation
  * (so a purchase started before the break completes), API v1, cron, health and legal pages.
  *
@@ -34,6 +36,9 @@ const PAUSED_API: RegExp[] = [
   /^\/api\/coupons\//,
   /^\/api\/order-bumps(\/|$)/,
   /^\/api\/loginwall\//,
+  // New submissions without a payment: leads (PlayerStack) and waitlist signups.
+  /^\/api\/leads\/(submit|challenge)\/?$/,
+  /^\/api\/waitlist\/signup\/?$/,
 ];
 
 export function classifyMaintenancePath(pathname: string): MaintenanceSurface | null {

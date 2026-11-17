@@ -5486,6 +5486,29 @@
       "layers": [
         "unit"
       ]
+    },
+    {
+      "id": "J655",
+      "title": "During maintenance a signed-in buyer gets no new free access; a free-product request made before the break still completes",
+      "values": {
+        "persona": "signed_in",
+        "entry": "email_link",
+        "product": "free",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "maintenance"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "A new claim (payment return page without a payment, free-product link, lead form, waitlist) is refused with the maintenance notice and grants nothing; the email link of a request made before the break grants access as usual.",
+        "seller": "No new free access, lead or waitlist signup is recorded during the break; requests made before it are completed.",
+        "integrator": "Lead, waitlist, magic-link free-product and grant routes answer 503 with code MAINTENANCE; no access or lead webhook is sent for refused requests."
+      },
+      "layers": [
+        "e2e",
+        "integration",
+        "unit"
+      ]
     }
   ],
   "escapes": [

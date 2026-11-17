@@ -11,7 +11,11 @@ Maintenance mode puts the shop on a break. While it is on:
   with a `Retry-After` header, so search engines and browsers come back later;
 - no new payment can start: `/api/create-payment-intent`, `/api/embed/*`, `/api/orders/bank-transfer`,
   `/api/orders/{id}/pay`, free product claims, coupons and order bumps answer `503` with
-  `{ "code": "MAINTENANCE", "maintenance": { "message", "expected_end_at" } }`.
+  `{ "code": "MAINTENANCE", "maintenance": { "message", "expected_end_at" } }`;
+- nothing new is taken without a payment either: free access is not granted (also from the magic
+  link or the payment return page), and lead forms (`/api/leads/*`), waitlist signups and free-product
+  sign-up links answer `503`. A request the buyer made before the break still completes: the link
+  from the free-product email and the lead confirmation link grant access as usual.
 
 Nothing else changes. Products and settings stay as they are, you can sign in to the admin panel,
 API v1 works, buyers can open their accounts, and Stripe webhooks are accepted: a payment the buyer
@@ -29,7 +33,11 @@ Maintenance mode is on when **either** source is on. The server source wins.
 
 **Server file.** Sellf looks for a file named `MAINTENANCE` next to `.env.local` in a standalone
 installation (`<stack>/admin-panel/MAINTENANCE`, e.g. `/opt/stacks/sellf-tsa/admin-panel/MAINTENANCE`),
-otherwise in the app's working directory; `SELLF_MAINTENANCE_FILE` sets another path. It is checked
+otherwise in the app's working directory. `SELLF_MAINTENANCE_FILE` sets another path: put it in
+`.env.local` (an environment variable of the process wins over `.env.local`). A relative path is
+relative to the installation directory, the one with `.env.local`. The app and the update script use
+the same rule, so the update always writes the file the app reads; restart the app after changing
+the setting. It is checked
 before any database request, so it also works while the database is down, an update runs or a backup
 is restored. The file may be empty, hold a plain-text note for visitors, or JSON
 `{ "message": "…", "expected_end_at": "2026-11-17T14:00:00Z" }`.
@@ -51,12 +59,15 @@ audit log together with the change, in one database transaction.
 
 The in-place update (Settings → System) creates the server file right before it stops the running
 version and deletes it when the new version is up, or when it restores the previous version or stops
-early. A file you created yourself is left as it is.
+early. The file it writes carries a random token of that update run, and the update deletes or
+rewrites the file only while it still holds exactly that content. A file you created yourself, before
+or during the update, is left as it is, also JSON that looks like the update's file.
 
 When the update cannot tell whether the database migrations were applied (`migration_state_unknown`),
 the file stays: the shop takes no orders even if someone starts the application, until the database
-is checked. The update message names the file; a successful re-run of the update removes it,
-otherwise delete it yourself.
+is checked. The update message names the file. A re-run of the update keeps it during the run and
+removes it only after the new version is up; if the re-run fails, it stays. Otherwise delete it
+yourself.
 
 ## API v1
 

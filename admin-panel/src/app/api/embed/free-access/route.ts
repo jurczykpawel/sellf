@@ -10,6 +10,7 @@ import {
 } from '@/lib/embed/checkout-embed';
 import { DEMO_MODE_ERROR } from '@/lib/demo-guard';
 import { requestMagicLink } from '@/lib/auth/magic-link/request';
+import { maintenanceErrorBody } from '@/lib/maintenance/guard';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { attributionRequestContext, storeFreeCheckoutAttribution } from '@/lib/attribution/store';
@@ -144,6 +145,9 @@ export async function POST(request: Request) {
     }
     if (result.code === 'rate_limited') {
       return embedJson({ error: 'Too many requests' }, 429, origin, allowedOrigins);
+    }
+    if (result.code === 'maintenance') {
+      return embedJson(maintenanceErrorBody(), 503, origin, allowedOrigins);
     }
     return embedJson({ error: 'Failed to send access link' }, 500, origin, allowedOrigins);
   }

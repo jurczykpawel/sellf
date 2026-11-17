@@ -11,7 +11,11 @@ Przerwa w działaniu (tryb serwisowy) zatrzymuje sklep. Gdy jest włączona:
   odpowiada kodem HTTP `503` z nagłówkiem `Retry-After`, więc wyszukiwarki i przeglądarki wrócą później;
 - nie da się rozpocząć nowej płatności: `/api/create-payment-intent`, `/api/embed/*`,
   `/api/orders/bank-transfer`, `/api/orders/{id}/pay`, odbiór darmowych produktów, kupony i dodatki
-  do zamówienia odpowiadają `503` z `{ "code": "MAINTENANCE", "maintenance": { "message", "expected_end_at" } }`.
+  do zamówienia odpowiadają `503` z `{ "code": "MAINTENANCE", "maintenance": { "message", "expected_end_at" } }`;
+- bez płatności też nic nowego nie wchodzi: darmowy dostęp nie jest nadawany (także z linku w mailu
+  ani na stronie powrotu po płatności), a formularze leadów (`/api/leads/*`), zapisy na listę
+  oczekujących i prośby o link do darmowego produktu dostają `503`. Zgłoszenie złożone przed przerwą
+  dalej się kończy: link z maila darmowego produktu i link potwierdzający lead nadają dostęp jak zwykle.
 
 Poza tym nic się nie zmienia. Produkty i ustawienia zostają bez zmian, możesz zalogować się do panelu,
 API v1 działa, kupujący otwierają swoje konta, a webhooki Stripe są przyjmowane: płatność zrobiona
@@ -29,7 +33,11 @@ Przerwa jest włączona, gdy włączone jest **którekolwiek** źródło. Źród
 
 **Plik na serwerze.** Sellf szuka pliku `MAINTENANCE` obok `.env.local` w instalacji standalone
 (`<stack>/admin-panel/MAINTENANCE`, np. `/opt/stacks/sellf-tsa/admin-panel/MAINTENANCE`), a w innych
-instalacjach w katalogu roboczym aplikacji; `SELLF_MAINTENANCE_FILE` ustawia inną ścieżkę. Plik jest
+instalacjach w katalogu roboczym aplikacji. `SELLF_MAINTENANCE_FILE` ustawia inną ścieżkę: wpisz ją
+do `.env.local` (zmienna środowiskowa procesu ma pierwszeństwo przed `.env.local`). Ścieżka względna
+liczy się od katalogu instalacji, tego z `.env.local`. Aplikacja i skrypt aktualizacji stosują tę samą
+regułę, więc aktualizacja zawsze zapisuje plik, który czyta aplikacja; po zmianie ustawienia uruchom
+aplikację ponownie. Plik jest
 sprawdzany przed jakimkolwiek zapytaniem do bazy, więc działa też wtedy, gdy baza leży, trwa
 aktualizacja albo przywracanie kopii. Może być pusty, zawierać zwykły tekst dla odwiedzających
 albo JSON `{ "message": "…", "expected_end_at": "2026-11-17T14:00:00Z" }`.
@@ -51,12 +59,15 @@ go usuwa. Każda zmiana trafia do dziennika audytu razem ze zmianą, w jednej tr
 
 Aktualizacja z panelu (Ustawienia → System) tworzy plik tuż przed zatrzymaniem działającej wersji
 i usuwa go, gdy nowa wersja działa, a także gdy przywraca poprzednią wersję albo kończy się wcześniej.
-Plik utworzony przez Ciebie zostaje bez zmian.
+Zapisany plik zawiera losowy znacznik tego przebiegu aktualizacji, a aktualizacja usuwa albo
+nadpisuje plik tylko wtedy, gdy nadal ma dokładnie tę treść. Plik utworzony przez Ciebie, przed
+aktualizacją albo w jej trakcie, zostaje bez zmian, także JSON podobny do pliku aktualizacji.
 
 Gdy aktualizacja nie wie, czy migracje bazy zostały zastosowane (`migration_state_unknown`), plik
 zostaje: sklep nie przyjmuje zamówień, nawet jeśli ktoś uruchomi aplikację, dopóki baza nie zostanie
-sprawdzona. Komunikat aktualizacji podaje ścieżkę pliku; udana ponowna aktualizacja go usunie,
-w przeciwnym razie usuń go sam.
+sprawdzona. Komunikat aktualizacji podaje ścieżkę pliku. Ponowna aktualizacja zostawia go na czas
+przebiegu i usuwa dopiero wtedy, gdy nowa wersja działa; jeśli się nie uda, plik zostaje. W innym
+przypadku usuń go sam.
 
 ## API v1
 

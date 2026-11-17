@@ -3,9 +3,12 @@
  * SELLF_MAINTENANCE env flag. Read with the file system only, never the database, so it works while
  * the database is down or an update/restore runs. scripts/upgrade.sh creates and removes the file.
  *
- * File: SELLF_MAINTENANCE_FILE, else <install>/MAINTENANCE in a standalone release (next to
- * .env.local), else <cwd>/MAINTENANCE. Its content is optional: empty, plain text (the message), or
- * the JSON written by upgrade.sh ({ reason, started_at, message?, expected_end_at? }).
+ * Path, one rule shared with upgrade.sh (maintenance_file_path): SELLF_MAINTENANCE_FILE (the process
+ * environment, which Next.js fills from .env.local without overriding values already set), else
+ * MAINTENANCE; a relative path is relative to the installation directory (<install>, next to
+ * .env.local) in a standalone release, else to the working directory. Its content is optional:
+ * empty, plain text (the message), or JSON ({ reason, started_at, message?, expected_end_at? };
+ * upgrade.sh adds its run token).
  *
  * @see scripts/upgrade.sh (maintenance-file block)
  * @see src/lib/maintenance/state.ts
@@ -31,9 +34,8 @@ export interface ServerMaintenance {
 }
 
 export function getMaintenanceFilePath(): string {
-  const configured = process.env.SELLF_MAINTENANCE_FILE?.trim();
-  if (configured) return resolve(configured);
-  return resolve(getUpgradeInstallDir() ?? process.cwd(), MAINTENANCE_FILE_NAME);
+  const configured = process.env.SELLF_MAINTENANCE_FILE?.trim() || MAINTENANCE_FILE_NAME;
+  return resolve(getUpgradeInstallDir() ?? process.cwd(), configured);
 }
 
 /** A message a visitor may see: trimmed, non-empty, at most MAINTENANCE_MESSAGE_MAX characters. */
@@ -50,7 +52,7 @@ export function cleanTimestamp(value: unknown): string | null {
 function readHead(path: string): string | null {
   let fd: number | null = null;
   try {
-    fd = openSync(path, 'r');
+    fd = openSync(/*turbopackIgnore: true*/ path, 'r');
     const buffer = Buffer.alloc(MAX_FILE_BYTES);
     const length = readSync(fd, buffer, 0, MAX_FILE_BYTES, 0);
     return buffer.subarray(0, length).toString('utf8');
@@ -88,7 +90,8 @@ export function readServerMaintenance(): ServerMaintenance | null {
   // Any entry at the path counts, also one that cannot be read: the file fails closed.
   let present = false;
   try {
-    present = !!statSync(path, { throwIfNoEntry: false });
+    // Runtime path from server configuration, never a build input: keep it out of output tracing.
+    present = !!statSync(/*turbopackIgnore: true*/ path, { throwIfNoEntry: false });
   } catch (error) {
     console.error('[readServerMaintenance] Error:', error instanceof Error ? error.message : 'Unknown error');
   }
