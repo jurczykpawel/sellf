@@ -5366,6 +5366,17 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      affiliate_entry_eligible: {
+        Args: {
+          p_amount: number
+          p_creator_ok: boolean
+          p_kind: string
+          p_previously_paid: boolean
+          p_ready: boolean
+          p_referral_ok: boolean
+        }
+        Returns: boolean
+      }
       affiliate_lock_member: {
         Args: {
           p_currency: string
@@ -5473,6 +5484,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      affiliate_payout_exportable: {
+        Args: { p_payout: string }
+        Returns: boolean
       }
       affiliate_portal_page: {
         Args: {

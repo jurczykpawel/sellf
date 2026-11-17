@@ -20,6 +20,8 @@ vi.mock('@/lib/stripe/server', () => ({ getStripeServer: async () => ({ checkout
 } } }) }));
 import { drainAffiliateWork } from '@/lib/affiliates/sync/worker';
 import { previewPayout } from '@/lib/affiliates/payouts/reads';
+import { cancelPayout, markPayoutPaid, reservePayout } from '@/lib/affiliates/payouts/actions';
+import { downloadPayoutCsv } from '@/lib/affiliates/payouts/download';
 import { publishCreatorTerms, removeProductCocreator, setProductCocreator } from '@/lib/affiliates/cocreator/actions';
 import { DELETE, GET, PUT } from '@/app/api/v1/products/[id]/cocreator/route';
 import { DELETE as DELETE_PRODUCT } from '@/app/api/v1/products/[id]/route';
@@ -32,7 +34,9 @@ const partnerEmail = 'buyer@demo.sellf.app';
 const creatorEmail = 'anna.kowalska@example.com';
 const creatorUser = 'cccccccc-3333-4333-a333-333333333333';
 const coupon = 'af000000-0000-4000-a000-000000000005';
-const products = { split: randomUUID(), same: randomUUID(), fixed: randomUUID(), later: randomUUID(), sub: randomUUID(), api: randomUUID() };
+const partnerUser = 'bbbbbbbb-0000-4000-a000-000000000000';
+const products = { split: randomUUID(), same: randomUUID(), fixed: randomUUID(), later: randomUUID(), sub: randomUUID(), api: randomUUID(),
+  referralOnly: randomUUID(), partnerCreated: randomUUID() };
 
 function sql(statement: string): string {
   return execFileSync('docker', ['exec', '-i', getTestDatabaseContainer(), 'psql', '-U', 'postgres', '-At', '-v', 'ON_ERROR_STOP=1', '-c', statement], { encoding: 'utf8' }).trim();
@@ -71,13 +75,16 @@ beforeAll(async () => {
     ('${products.same}','Creator Same Person Course','creator-same-${products.same}',123,'PLN',true,false),
     ('${products.fixed}','Creator Fixed Course','creator-fixed-${products.fixed}',123,'PLN',true,false),
     ('${products.later}','Creator Later Course','creator-later-${products.later}',123,'PLN',true,false),
-    ('${products.api}','Creator API Course','creator-api-${products.api}',123,'PLN',true,false);
+    ('${products.api}','Creator API Course','creator-api-${products.api}',123,'PLN',true,false),
+    ('${products.referralOnly}','Partner Only Course','partner-only-${products.referralOnly}',123,'PLN',true,false),
+    ('${products.partnerCreated}','Partner Co-created Course','partner-created-${products.partnerCreated}',123,'PLN',true,false);
     INSERT INTO public.products(id,name,slug,price,currency,is_active,product_type,billing_interval,billing_interval_count,recurring_price)
     VALUES('${products.sub}','Creator Subscription','creator-sub-${products.sub}',10,'PLN',true,'subscription','month',1,10);
     ${asService}
     SELECT public.affiliate_program_update('${admin}',version,enabled,terms_version,terms,0,0,thresholds) FROM public.affiliate_programs;
     SELECT public.affiliate_rule_create('${admin}','${products.split}',0,true,2000,NULL,NULL);
-    SELECT public.affiliate_rule_create('${admin}','${products.same}',0,true,2000,NULL,NULL);`);
+    SELECT public.affiliate_rule_create('${admin}','${products.same}',0,true,2000,NULL,NULL);
+    SELECT public.affiliate_rule_create('${admin}','${products.referralOnly}',0,true,2000,NULL,NULL);`);
   await assign(products.split, creatorEmail, { percentage_bps: 1000 });
   await assign(products.same, partnerEmail, { percentage_bps: 1000 });
   await assign(products.fixed, creatorEmail, { fixed_minor: '1500', currency: 'PLN' });
@@ -169,11 +176,67 @@ describe('co-creator commission', () => {
     expect(rows.every(row => row.kind === 'cocreator' && !row.terms_required)).toBe(true);
     expect(rows.find(row => row.product === 'Creator Fixed Course')).toMatchObject({ status: 'eligible', current_minor: '1500' });
   });
-  it('keeps the creator role when that person later applies as a partner', async () => {
+  it('sends a co-creator partner application to the seller for approval and keeps the creator role', async () => {
     const member = memberOf(creatorUser);
     sql(`${asService} SELECT public.affiliate_apply('${creatorUser}','anna-partner','Anna',NULL,terms_version) FROM public.affiliate_programs;`);
     expect(sql(`SELECT id||':'||is_partner::text||':'||status||':'||(creator_accepted_at IS NOT NULL)::text FROM public.affiliate_memberships WHERE user_id='${creatorUser}'`))
-      .toBe(`${member}:true:approved:true`);
+      .toBe(`${member}:true:pending:true`);
+    // A pending partner application must not cost the co-creator any share of new sales.
+    await new Promise(resolve => setTimeout(resolve, 1100));
+    const id = payment(products.split); await drain();
+    expect(earned(id, 'cocreator')).toBe('1000');
+  });
+});
+
+describe('payout gates while the partner program is switched off', () => {
+  const cutoff = () => new Date(sql('SELECT clock_timestamp()')).toISOString();
+  const preview = () => previewPayout({ member_id: partnerMember, currency: 'PLN', cutoff: cutoff() });
+  const setProgram = (enabled: boolean) => sql(`${asService}
+    SELECT public.affiliate_program_update('${admin}',version,${enabled},terms_version,terms,0,0,thresholds) FROM public.affiliate_programs;`);
+  async function reserve(): Promise<{ id: string; version: string; earnings_minor: string }> {
+    const open = await preview();
+    const result = await reservePayout({ member_id: partnerMember, currency: 'PLN', cutoff: cutoff(), member_version: open.data!.member_version,
+      program_version: open.data!.program_version, payee_reference: 'partner-payee' });
+    expect(result).toMatchObject({ success: true });
+    return result.data!;
+  }
+  it('still offsets debt from a paid partner commission against co-creator shares, and exports that payout', async () => {
+    // The same person is a partner (coupon) and the co-creator of another product.
+    await assign(products.partnerCreated, partnerEmail, { fixed_minor: '5000', currency: 'PLN' });
+    const terms = sql('SELECT terms_version FROM public.affiliate_creator_terms ORDER BY id DESC LIMIT 1');
+    expect((await (state.client as ReturnType<typeof createClient>).rpc('affiliate_creator_accept', { p_user: partnerUser, p_terms_version: terms })).error).toBeNull();
+    await new Promise(resolve => setTimeout(resolve, 1100));
+    const referral = payment(products.referralOnly, { coupon: true }); await drain();
+    expect(earned(referral, 'referral')).toBe('2000');
+    // Settle everything earned so far, then refund the partner sale in full: 2000 of debt after an actual payout.
+    const settled = await reserve();
+    expect((await markPayoutPaid({ payout_id: settled.id, version: settled.version, bank_reference: 'bank-gate', invoice_reference: 'invoice-gate',
+      bank_amount_minor: settled.earnings_minor, currency: 'PLN', paid_at: new Date().toISOString(), full_settlement: true })).success).toBe(true);
+    sql(`UPDATE public.payment_transactions SET refunded_amount=12300 WHERE id='${referral}'`); await drain();
+    const share = payment(products.partnerCreated); await drain();
+    expect(earned(share, 'cocreator')).toBe('5000');
+    expect((await preview()).data).toMatchObject({ earnings_minor: '5000', debt_offset_minor: '2000', payable_minor: '3000' });
+    setProgram(false);
+    try {
+      expect((await preview()).data).toMatchObject({ earnings_minor: '5000', debt_offset_minor: '2000', payable_minor: '3000', available: true });
+      const payout = await reserve();
+      expect(payout.earnings_minor).toBe('3000');
+      const csv = await downloadPayoutCsv({ payout_id: payout.id, version: payout.version });
+      expect(csv.status).toBe(200);
+      expect(await csv.text()).toContain('5000,2000,3000,partner-payee');
+      // A reservation holding positive partner shares still cannot be exported while the program is off.
+      expect((await cancelPayout({ payout_id: payout.id, version: payout.version, no_transfer: true, reason: 'Gate check' })).success).toBe(true);
+      setProgram(true);
+      await new Promise(resolve => setTimeout(resolve, 1100));
+      const sale = payment(products.referralOnly, { coupon: true }); await drain();
+      expect(earned(sale, 'referral')).toBe('2000');
+      const withPartner = await reserve();
+      expect(withPartner.earnings_minor).toBe('5000');
+      setProgram(false);
+      expect((await downloadPayoutCsv({ payout_id: withPartner.id, version: withPartner.version })).status).toBe(409);
+    } finally {
+      setProgram(true);
+    }
   });
 });
 

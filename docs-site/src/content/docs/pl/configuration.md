@@ -127,7 +127,10 @@ sumuje się z prowizją partnera, także gdy to ta sama osoba, i dotyczy tylko z
 **regulamin twórcy** w **Panel → Program partnerski → Regulamin twórcy**: osoba akceptuje go na stronie **Moje prowizje**
 i dopiero wtedy wypłaty obejmują jej udziały (do tego czasu są wstrzymane). Kto jest partnerem i współtwórcą,
 akceptuje oba regulaminy. Przełącznik programu partnerskiego dotyczy tylko zapisów partnerów i prowizji z kuponów;
-udziały współtwórcy wymagają ustawień programu (okres wstrzymania, progi), ale nie przełącznika.
+udziały współtwórcy wymagają ustawień programu (okres wstrzymania, progi), ale nie przełącznika. Przy wyłączonym
+przełączniku dług z prowizji partnera, które już wypłaciłeś (np. po zwrocie), nadal jest potrącany. Współtwórca, który
+zgłosi się do programu partnerskiego, czeka na Twoją akceptację jak każdy zgłaszający; jego udziały współtwórcy w tym
+czasie dalej się naliczają, a wypłaty wracają po akceptacji.
 
 Przy instalacji lub aktualizacji przez StackPilot dodaj ten harmonogram jawnie
 na hoście lub w zewnętrznym schedulerze i sprawdź poprawne wywołanie po restarcie

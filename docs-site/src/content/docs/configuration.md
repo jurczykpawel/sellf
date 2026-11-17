@@ -123,7 +123,10 @@ It adds up with the partner commission, also when it is the same person, and app
 saving. Publish the **creator terms** in **Dashboard → Affiliate program → Creator terms**: the person accepts them on
 **Partner earnings**, and only then do payouts include their co-creator shares (until then they show as held). Someone who
 is both a partner and a co-creator accepts both terms. The partner program switch controls partner sign-ups and coupon
-commissions only; co-creator shares need the program settings (hold days, thresholds) but not the switch.
+commissions only; co-creator shares need the program settings (hold days, thresholds) but not the switch. With the
+switch off, debt from partner commissions that were already paid out (for example after a refund) is still deducted.
+A co-creator who applies to the partner program waits for your approval like any other applicant; their co-creator
+shares keep accruing meanwhile, and payouts resume once you approve.
 
 For StackPilot installations and upgrades, add this schedule explicitly to your
 host or external scheduler and verify a successful call after restarting Sellf.

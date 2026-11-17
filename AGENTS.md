@@ -1176,10 +1176,12 @@ percent of the line net or a fixed amount (capped at the net); subscriptions nev
 checkout session time decides, so assignments never apply to earlier purchases; refunds and disputes reverse it
 through the same correction loop. The person needs an account (assignment by e-mail via
 `affiliate_cocreator_set`); a person who never applied gets a membership with `is_partner=false` (no partner
-terms, cannot own coupons; applying later upgrades the same row). Payouts include co-creator entries only after
+terms, cannot own coupons; applying later upgrades the same row to `is_partner=true, status='pending'` for the seller to
+approve; co-creator shares keep accruing while pending, payouts wait for approval). Payouts include co-creator entries only after
 the person accepts the separate creator terms (`affiliate_creator_terms`, newest row current;
-`affiliate_creator_accept`, stored as `creator_terms_version/creator_accepted_at`); partner entries keep needing an
-enabled program. Paid line inserts of a co-creator product enqueue `affiliate_work`
+`affiliate_creator_accept`, stored as `creator_terms_version/creator_accepted_at`); positive partner entries keep needing an
+enabled program, while deductions from already-paid commissions always count. One rule
+(`affiliate_entry_eligible`) decides entries for preview, reservation and CSV export (`affiliate_payout_exportable`). Paid line inserts of a co-creator product enqueue `affiliate_work`
 (`affiliate_cocreator_candidate`); unpaid orders are queued by their later status change. Panel: product "Sales and
 settlement" (co-creator), Affiliate program (creator terms), Partner earnings `/my-affiliate` (acceptance). API: `/api/v1/products/{id}/cocreator`.
 `commission.*` webhooks carry `commission.kind`. Migration `20261117100000_affiliate_cocreator.sql`.

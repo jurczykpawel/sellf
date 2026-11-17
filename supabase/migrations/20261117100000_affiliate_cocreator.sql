@@ -332,7 +332,8 @@ BEGIN
     member_status:=NULL;
     SELECT e.status INTO member_status FROM public.affiliate_membership_events e
      WHERE e.member_id=crule.member_id AND e.created_at<=p_session_created_at ORDER BY e.created_at DESC,e.version DESC LIMIT 1;
-    IF member_status IS DISTINCT FROM 'approved' THEN CONTINUE; END IF;
+    -- 'pending' here only means a co-creator's own partner application awaits the seller: shares keep accruing.
+    IF member_status IS NULL OR member_status NOT IN ('approved','pending') THEN CONTINUE; END IF;
     PERFORM pg_advisory_xact_lock(hashtextextended(crule.member_id::text||upper(li.currency),0));
     SELECT EXISTS(SELECT 1 FROM public.affiliate_memberships am JOIN auth.users u ON u.id=am.user_id
      WHERE am.id=crule.member_id AND (u.id=pt.user_id OR lower(btrim(u.email))=lower(btrim(pt.customer_email)))) INTO self_match;
@@ -369,7 +370,8 @@ END $$;
 REVOKE EXECUTE ON FUNCTION public.affiliate_apply_sync(uuid,uuid,bigint,timestamptz,boolean) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.affiliate_apply_sync(uuid,uuid,bigint,timestamptz,boolean) TO service_role;
 
--- A co-creator who later applies as a partner keeps the same membership (and creator role).
+-- A co-creator who later applies as a partner keeps the same membership (and creator role); the
+-- application waits for the seller like any other ('pending'), so no coupon can be bound until approval.
 CREATE OR REPLACE FUNCTION public.affiliate_apply(p_user uuid,p_code text,p_display_name text,p_channel text,p_terms_version text)
 RETURNS public.affiliate_memberships LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE result public.affiliate_memberships; prog public.affiliate_programs; old public.affiliate_memberships;
@@ -382,7 +384,8 @@ BEGIN
  IF NOT prog.enabled OR prog.terms_version IS DISTINCT FROM p_terms_version THEN RAISE EXCEPTION 'Terms changed' USING ERRCODE='PT409'; END IF;
  SELECT * INTO old FROM public.affiliate_memberships WHERE user_id=p_user FOR UPDATE;
  IF old.id IS NOT NULL AND NOT old.is_partner THEN
-  UPDATE public.affiliate_memberships SET is_partner=true,code=p_code,display_name=p_display_name,channel=p_channel,
+  UPDATE public.affiliate_memberships SET is_partner=true,status=CASE WHEN old.status='approved' THEN 'pending' ELSE old.status END,
+   code=p_code,display_name=p_display_name,channel=p_channel,
    accepted_terms_version=p_terms_version,accepted_at=now(),version=version+1 WHERE id=old.id RETURNING * INTO result;
   INSERT INTO public.affiliate_membership_events(member_id,version,status) VALUES(result.id,result.version,result.status);
   PERFORM public.affiliate_audit('affiliate_memberships',to_jsonb(old),to_jsonb(result),p_user);
@@ -433,7 +436,9 @@ BEGIN
      left(coalesce(nullif(btrim(p_display_name),''),split_part(btrim(p_email),'@',1)),120),false) RETURNING * INTO m;
    INSERT INTO public.affiliate_membership_events(member_id,version,status) VALUES(m.id,m.version,m.status);
    PERFORM public.affiliate_audit('affiliate_memberships',NULL,to_jsonb(m),p_actor);
-  ELSIF m.status<>'approved' THEN RAISE EXCEPTION 'Approved member required' USING ERRCODE='22023';
+  -- The seller's own assignment is the approval of the creator role; a partner application still
+  -- awaiting review ('pending') does not block it, a rejected/suspended/terminated membership does.
+  ELSIF m.status NOT IN ('approved','pending') THEN RAISE EXCEPTION 'Approved member required' USING ERRCODE='22023';
   END IF;
  ELSIF p_percentage_bps IS NOT NULL OR p_fixed_minor IS NOT NULL OR p_currency IS NOT NULL THEN
   RAISE EXCEPTION 'Person required' USING ERRCODE='22023';
@@ -489,8 +494,18 @@ END $$;
 REVOKE EXECUTE ON FUNCTION public.affiliate_creator_accept(uuid,text) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.affiliate_creator_accept(uuid,text) TO service_role;
 
--- Payout balance: co-creator shares become payable only after the creator terms are accepted;
--- partner shares only while the partner program is enabled (unchanged meaning).
+-- One payout eligibility rule for preview, reservation and CSV export. A deduction from a commission
+-- that was already paid out always counts, so switching the program off never hides partner debt.
+-- Otherwise an entry needs its commission to be ready and its kind's gate open: co-creator shares
+-- after the creator terms are accepted, partner shares while the partner program is enabled.
+CREATE FUNCTION public.affiliate_entry_eligible(p_kind text,p_amount bigint,p_previously_paid boolean,p_ready boolean,
+ p_referral_ok boolean,p_creator_ok boolean)
+RETURNS boolean LANGUAGE sql IMMUTABLE SET search_path = '' AS $$
+ SELECT (p_amount<0 AND p_previously_paid) OR (p_ready AND CASE WHEN p_kind='cocreator' THEN p_creator_ok ELSE p_referral_ok END)
+$$;
+REVOKE EXECUTE ON FUNCTION public.affiliate_entry_eligible(text,bigint,boolean,boolean,boolean,boolean) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.affiliate_entry_eligible(text,bigint,boolean,boolean,boolean,boolean) TO service_role;
+
 CREATE OR REPLACE FUNCTION public.affiliate_preview(p_member uuid,p_currency text,p_cutoff timestamptz,p_livemode boolean DEFAULT true)
 RETURNS TABLE(member_version text,program_version text,earnings_minor text,debt_offset_minor text,payable_minor text,held_minor text,
  threshold_minor text,sync_required boolean,available boolean,entry_ids uuid[],accrued text,reversed text,paid text,reserved text,balance text)
@@ -510,10 +525,9 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
   WHERE c.member_id=p_member AND c.currency=p_currency AND c.livemode=p_livemode
  ), entries AS MATERIALIZED (
   SELECT l.id,l.commission_id,l.kind,l.amount_minor,p.status AS allocation_status,
-   coalesce(a.entry_id IS NULL AND CASE WHEN f.kind='cocreator' THEN g.creator_ok ELSE g.referral_ok END
-    AND ((f.earned AND f.eligible_at<=p_cutoff
-    AND ((NOT f.dispute_seen AND f.status<>'disputed') OR f.dispute_reviewed_at IS NOT NULL))
-    OR (l.amount_minor<0 AND f.previously_paid)),false) AS selectable
+   coalesce(a.entry_id IS NULL AND public.affiliate_entry_eligible(f.kind,l.amount_minor,f.previously_paid,
+    f.earned AND f.eligible_at<=p_cutoff AND ((NOT f.dispute_seen AND f.status<>'disputed') OR f.dispute_reviewed_at IS NOT NULL),
+    g.referral_ok,g.creator_ok),false) AS selectable
   FROM public.affiliate_ledger l JOIN facts f ON f.id=l.commission_id CROSS JOIN gate g
   LEFT JOIN public.affiliate_payout_allocations a ON a.entry_id=l.id AND a.released_at IS NULL
   LEFT JOIN public.affiliate_payouts p ON p.id=a.payout_id
@@ -577,6 +591,22 @@ BEGIN
 END $_$;
 REVOKE EXECUTE ON FUNCTION public.affiliate_reserve(uuid,uuid,text,timestamptz,bigint,bigint,text,boolean) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.affiliate_reserve(uuid,uuid,text,timestamptz,bigint,bigint,text,boolean) TO service_role;
+
+-- CSV export of a reserved payout: every allocated entry must still pass the shared eligibility rule
+-- (a reservation of co-creator shares exports while the partner program is off; partner shares do not).
+CREATE FUNCTION public.affiliate_payout_exportable(p_payout uuid)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+ SELECT coalesce(bool_and(coalesce(public.affiliate_entry_eligible(c.kind,l.amount_minor,
+   EXISTS(SELECT 1 FROM public.affiliate_ledger e JOIN public.affiliate_payout_allocations pa ON pa.entry_id=e.id AND pa.released_at IS NULL
+    JOIN public.affiliate_payouts pp ON pp.id=pa.payout_id AND pp.status='paid' WHERE e.commission_id=c.id),
+   true,coalesce((SELECT enabled FROM public.affiliate_programs),false),m.creator_accepted_at IS NOT NULL),false)),false)
+ FROM public.affiliate_payouts p JOIN public.affiliate_memberships m ON m.id=p.member_id
+ JOIN public.affiliate_payout_allocations a ON a.payout_id=p.id AND a.released_at IS NULL
+ JOIN public.affiliate_ledger l ON l.id=a.entry_id JOIN public.affiliate_commissions c ON c.id=l.commission_id
+ WHERE p.id=p_payout;
+$$;
+REVOKE EXECUTE ON FUNCTION public.affiliate_payout_exportable(uuid) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.affiliate_payout_exportable(uuid) TO service_role;
 
 -- Portal rows: product read through the purchased line (co-creator rows have no partner rule).
 CREATE OR REPLACE FUNCTION public.affiliate_portal_page(p_member uuid,p_currency text DEFAULT NULL,p_cursor uuid DEFAULT NULL,p_limit integer DEFAULT 25,p_as_of timestamptz DEFAULT now())
