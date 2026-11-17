@@ -21,6 +21,29 @@ Ta strona pokazuje wszystkie wspierane sposoby na postawienie Sellfa online, w k
 
 **[SUPABASE-SETUP.md](/pl/supabase-setup/)** — Wyjaśnia trzy sposoby konfiguracji bazy danych której Sellf używa (tylko przeglądarka, kopiuj-wklej, albo przez skrypt). Przeczytaj jeśli nie jesteś pewien którą opcję Supabase wybrać w którymś z poniższych przewodników.
 
+## Aktualizacja z 2026.10.6 lub starszej
+
+2026.11.1 wymaga aktualizatora 2, instalowanego przez 2026.11.0. Jeśli Twoja
+instalacja PM2 działa na 2026.10.6 lub starszej wersji, najpierw zainstaluj
+**pakiet 2026.11.0** z aktualnego lokalnego repozytorium Stackpilot. Zastąp
+`<server>` aliasem SSH serwera; przy kilku sklepach dodaj `--instance=<instance>`,
+aby wybrać sklep:
+
+```bash
+curl -fL -o ./sellf-build-2026.11.0.tar.gz \
+  https://github.com/jurczykpawel/sellf/releases/download/v2026.11.0/sellf-build.tar.gz
+./local/deploy.sh sellf --ssh=<server> --update --build-file=./sellf-build-2026.11.0.tar.gz
+```
+
+Gdy sklep działa już na 2026.11.0, uruchom zwykłą aktualizację z panelu do
+2026.11.1. W pierwszym kroku wskaż paczkę jak wyżej: samo `--update` bez
+`--build-file` pobiera najnowsze wydanie, którym może już być 2026.11.1.
+
+Na 2026.10.6 komunikat „No sellf-build.manifest asset found in latest release…”
+jest spodziewany, gdy najnowsze wydanie wymaga aktualizatora 2. Stary aktualizator
+zatrzymuje się przed zmianą kodu i bazy. Użyj wskazanej wyżej paczki 2026.11.0,
+zamiast ponawiać tę samą aktualizację z panelu.
+
 ## Pozostałe przewodniki wdrożenia
 
 Wybierz w zależności od tego co chcesz.

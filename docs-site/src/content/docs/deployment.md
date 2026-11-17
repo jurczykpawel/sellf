@@ -95,11 +95,11 @@ Pick one based on what you want.
 
 ## Verifying a release build
 
-Every GitHub release publishes `sellf-build.tar.gz`, a small manifest
-(`sellf-build.manifest`) and an Ed25519 signature of that manifest
-(`sellf-build.manifest.sig`) made by the project's release pipeline, plus a plain
-`sellf-build.tar.gz.sha256` checksum. The manifest has exactly two lines, and its
-version is the release tag without the leading `v`:
+Every GitHub release publishes `sellf-build.tar.gz`, a signed manifest and a plain
+`sellf-build.tar.gz.sha256` checksum. Releases through 2026.10.6 use
+`sellf-build.manifest` and its Ed25519 signature (`sellf-build.manifest.sig`).
+That legacy manifest has exactly two lines, and its version is the release tag
+without the leading `v`:
 
 ```
 version=2026.10.0
@@ -131,12 +131,38 @@ The two-line legacy manifest remains available while the minimum is 1 because
 After verification and safe extraction, updater 2 executes `scripts/upgrade.sh`
 from that release, preserving the instance lock and progress paths. That downloaded
 script performs backup, migration, swap, restart, health checks and code rollback.
-Older packages without the stage-2 protocol use the installed fallback. An
-unmodified 10.6 updater still runs its own logic on its first update to 11.0;
-installing new code cannot change a script already running. Use current Stackpilot
-for the downloaded runner on this first hop; see [UI updates](/ui-upgrades/).
+Older packages without the stage-2 protocol use the installed fallback.
+For an existing PM2 installation on 2026.10.6 or earlier,
+install the pinned 2026.11.0 package first as described below.
 
-To check a download yourself you only need OpenSSL 1.1.1 or newer:
+## Updating from 2026.10.6 or earlier
+
+2026.11.1 requires updater 2, installed by 2026.11.0. For an existing PM2
+installation on 2026.10.6 or earlier, first install the **2026.11.0 package**
+from an up-to-date local Stackpilot checkout. Replace `<server>` with your SSH
+alias; for multiple shops, add `--instance=<instance>` to select the shop:
+
+```bash
+curl -fL -o ./sellf-build-2026.11.0.tar.gz \
+  https://github.com/jurczykpawel/sellf/releases/download/v2026.11.0/sellf-build.tar.gz
+./local/deploy.sh sellf --ssh=<server> --update --build-file=./sellf-build-2026.11.0.tar.gz
+```
+
+After 2026.11.0 is running, use the normal update in the admin panel to install
+2026.11.1. Pin the first package as above: `--update` without `--build-file`
+downloads the latest release, which may already be 2026.11.1.
+
+On 2026.10.6, “No sellf-build.manifest asset found in latest release…” is expected
+when the latest release requires updater 2. The old updater stops before changing
+code or the database. Use the pinned 2026.11.0 package above rather than retrying
+the same panel update.
+
+### Checking a downloaded release
+
+To check a download yourself you only need OpenSSL 1.1.1 or newer. The example
+below uses the legacy manifest from 2026.10.0. For 2026.11.1, use
+`sellf-build.v2.manifest` and `sellf-build.v2.manifest.sig` instead, and check that
+`min_updater_version=2` matches the updater you have installed:
 
 ```bash
 V=v2026.10.0   # the release tag you downloaded

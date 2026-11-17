@@ -598,7 +598,7 @@ GRANT EXECUTE ON FUNCTION public.restore_product_as(jsonb, uuid, uuid) TO servic
 -- * an archived product is hidden from the public (waitlist included) but its buyers keep the content;
 -- * a permanent delete is blocked only by active subscriptions and future event reservations;
 --   ended subscriptions and past reservations stay as history, affiliate rules and bundle links go.
--- @see supabase/migrations/20261114100000_product_archive.sql
+-- @see supabase/migrations/20261118000000_release_2026_11_1.sql
 
 -- ===== VISIBILITY =====
 GRANT SELECT (archived_at) ON public.products TO anon, authenticated;

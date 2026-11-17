@@ -124,17 +124,27 @@ only while an update holds the instance lock, or within a few seconds of a launc
 These changes take effect from the update that follows installing 2026.11.1: the
 first hop still runs the previously installed updater.
 
-2026.11.0 requires updater 1 (the unversioned 10.6 script). CI publishes a signed
-three-line V2 manifest alongside the legacy two-line manifest for that bridge.
-The old script cannot delegate on its first hop, and its self-copy may leave a
-trailing shell error even after reporting success. Use an up-to-date Stackpilot
-checkout to use the downloaded runner during that first hop. If the panel reports
-an old updater or cannot verify the signed requirement, retry the check or run
-from your local Stackpilot checkout, replacing `<server>` with your SSH alias:
+## Updating from 2026.10.6 or earlier
+
+2026.11.1 requires updater 2, installed by 2026.11.0. For an existing PM2
+installation on 2026.10.6 or earlier, first install the **2026.11.0 package**
+from an up-to-date local Stackpilot checkout. Replace `<server>` with your SSH
+alias; for multiple shops, add `--instance=<instance>` to select the shop:
 
 ```bash
-./local/deploy.sh sellf --ssh=<server> --update
+curl -fL -o ./sellf-build-2026.11.0.tar.gz \
+  https://github.com/jurczykpawel/sellf/releases/download/v2026.11.0/sellf-build.tar.gz
+./local/deploy.sh sellf --ssh=<server> --update --build-file=./sellf-build-2026.11.0.tar.gz
 ```
+
+After 2026.11.0 is running, use the normal update in the admin panel to install
+2026.11.1. Pin the first package as above: `--update` without `--build-file`
+downloads the latest release, which may already be 2026.11.1.
+
+On 2026.10.6, “No sellf-build.manifest asset found in latest release…” is expected
+when the latest release requires updater 2. The old updater stops before changing
+code or the database. Use the pinned 2026.11.0 package above rather than retrying
+the same panel update.
 
 ## Release metadata source
 
