@@ -22,7 +22,7 @@ To OpenAPI 3.1: publiczny (bez klucza), bez danych i sekretów, buforowany przez
 
 Wbudowany endpoint MCP `/api/mcp` powstaje z tego opisu: jedno narzędzie na każdą operację dozwoloną dla klucza albo `?mode=compact` z wyszukiwaniem i wywołaniem. Zobacz [Podłącz swojego agenta AI](/pl/connect-ai-agent/).
 
-Opis powstaje z jednego rejestru w kodzie. Test w CI nie przepuści trasy bez wpisu w rejestrze ani różnicy między opisanym uprawnieniem lub parametrami zapytania a tym, co trasa faktycznie sprawdza, więc plik zgadza się z wersją, którą masz zainstalowaną.
+Opis powstaje z jednego rejestru w kodzie. Test w CI nie przepuści trasy bez wpisu w rejestrze ani różnicy między opisanym uprawnieniem lub parametrami zapytania a tym, co trasa faktycznie sprawdza, więc plik zgadza się z wersją, którą masz zainstalowaną. Część o API w `/llms.txt` (na Twojej instancji i na docs.sellf.app) powstaje z tego samego rejestru: instrukcja dla agenta, opisy grup i po jednej linii na operację (metoda, ścieżka, `operationId`, uprawnienie, krótki opis).
 
 ## Ustawienia koszyka
 

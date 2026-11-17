@@ -47,3 +47,200 @@
 - [Telemetry and privacy](https://docs.sellf.app/telemetry/)
 - [RFC: checkout mutation binding token](https://docs.sellf.app/security-rfc-checkout-binding/)
 - [Stripe configuration wizard testing](https://docs.sellf.app/stripe-testing-guide/)
+
+<!-- BEGIN GENERATED: API v1 from the operation registry (admin-panel/src/lib/api/openapi/operations.ts); run `bun run llms:update` in admin-panel -->
+## API v1 for agents
+
+Admin API of a Sellf instance. Authenticate with `Authorization: Bearer <API key>` (Settings → API Keys). Each operation lists the scope it needs in `x-required-scope`. Amounts are in major currency units unless stated otherwise.
+
+Paths are relative to the Sellf instance origin (e.g. `https://shop.example.com/api/v1/products`). Full machine-readable description with request and response schemas: `/api/v1/openapi.json` (OpenAPI 3.1, public). MCP: `POST /api/mcp` with the same API key exposes one tool per operation, named by `operationId`, with the JSON request body under `body`; `/api/mcp?mode=compact` exposes `search_operations` + `call_operation` instead. 109 operations; each line: method and path — operationId · required scope — summary.
+
+### Products
+
+Catalogue items: price, delivery, checkout modules, licensing, subscriptions. DELETE archives a product that has history; restore brings it back.
+
+- `GET /api/v1/products` — `list_products` · products:read — List products
+- `POST /api/v1/products` — `create_product` · products:write — Create a product
+- `GET /api/v1/products/{id}` — `get_product` · products:read — Get a product
+- `PATCH /api/v1/products/{id}` — `update_product` · products:write — Update a product
+- `DELETE /api/v1/products/{id}` — `delete_product` · products:write — Delete or archive a product
+- `GET /api/v1/products/{id}/deletion-impact` — `get_product_deletion_impact` · products:read — What deleting a product would affect
+- `POST /api/v1/products/{id}/restore` — `restore_product` · products:write — Restore an archived product
+
+### Offers
+
+The sales page of one product ("offer"): read, edit the draft, validate, preview, publish, roll back. Every write carries expectedRevision (optimistic locking).
+
+- `GET /api/v1/products/{id}/offer/config` — `get_offer` · templates:read — Read the offer page of a product
+- `PUT /api/v1/products/{id}/offer/draft` — `update_offer_draft` · templates:write — Save the offer draft
+- `POST /api/v1/products/{id}/offer/validate` — `validate_offer` · templates:read — Validate an offer config without saving
+- `POST /api/v1/products/{id}/offer/preview` — `preview_offer` · templates:read — Render a preview of an offer revision
+- `POST /api/v1/products/{id}/offer/publish` — `publish_offer` · templates:activate — Publish the offer draft
+- `POST /api/v1/products/{id}/offer/rollback` — `rollback_offer` · templates:activate — Roll the offer back to an earlier revision
+- `POST /api/v1/products/{id}/offer/reset` — `reset_offer_field` · templates:write — Reset appearance or density of the offer draft
+- `POST /api/v1/products/{id}/offer/diff` — `diff_offer` · templates:read — Compare two offer revisions
+- `POST /api/v1/products/{id}/offer/history` — `list_offer_history` · templates:read — List offer revisions
+
+### Templates
+
+The storefront (shop home page) template: same lifecycle as offers, plus capabilities and private template license keys.
+
+- `GET /api/v1/templates/capabilities` — `get_template_capabilities` · templates:read — Template capabilities and JSON schemas
+- `GET /api/v1/templates/config` — `get_template_config` · templates:read — Read the storefront config
+- `PUT /api/v1/templates/draft` — `update_template_draft` · templates:write — Save the storefront draft
+- `POST /api/v1/templates/validate` — `validate_template` · templates:read — Validate a storefront config without saving
+- `POST /api/v1/templates/preview` — `preview_template` · templates:read — Render a preview of a storefront revision
+- `POST /api/v1/templates/publish` — `publish_template` · templates:activate — Publish the storefront draft
+- `POST /api/v1/templates/rollback` — `rollback_template` · templates:activate — Roll the storefront back to an earlier revision
+- `POST /api/v1/templates/reset` — `reset_template_field` · templates:write — Reset one field of the storefront draft to the template default
+- `POST /api/v1/templates/diff` — `diff_template` · templates:read — Compare two storefront revisions
+- `GET /api/v1/templates/licenses` — `get_template_licenses` · templates:read — Status of private template license keys
+- `POST /api/v1/templates/licenses` — `save_template_license` · templates:write · not in MCP — Save a private template license key
+
+### Catalog
+
+Tags and variant groups that organise products.
+
+- `GET /api/v1/tags` — `list_tags` · products:read — List tags
+- `POST /api/v1/tags` — `create_tag` · products:write — Create a tag
+- `GET /api/v1/tags/{id}` — `get_tag` · products:read — Get a tag
+- `PATCH /api/v1/tags/{id}` — `update_tag` · products:write — Update a tag
+- `DELETE /api/v1/tags/{id}` — `delete_tag` · products:write — Delete a tag (product links are removed)
+- `GET /api/v1/variant-groups` — `list_variant_groups` · products:read — List variant groups
+- `POST /api/v1/variant-groups` — `create_variant_group` · products:write — Create a variant group
+- `GET /api/v1/variant-groups/{id}` — `get_variant_group` · products:read — Get a variant group
+- `PATCH /api/v1/variant-groups/{id}` — `update_variant_group` · products:write — Update a variant group
+- `DELETE /api/v1/variant-groups/{id}` — `delete_variant_group` · products:write — Delete a variant group
+
+### Upsells
+
+Order bumps (extra product in the checkout) and one-time offers (OTO, shown after purchase).
+
+- `GET /api/v1/order-bumps` — `list_order_bumps` · products:read — List order bumps
+- `POST /api/v1/order-bumps` — `create_order_bump` · products:write — Create an order bump
+- `GET /api/v1/order-bumps/{id}` — `get_order_bump` · products:read — Get an order bump
+- `PATCH /api/v1/order-bumps/{id}` — `update_order_bump` · products:write — Update an order bump
+- `DELETE /api/v1/order-bumps/{id}` — `delete_order_bump` · products:write — Delete an order bump
+- `GET /api/v1/products/{id}/oto` — `get_product_oto` · products:read — Get the one-time offer shown after buying a product
+- `PUT /api/v1/products/{id}/oto` — `set_product_oto` · products:write — Create or replace the one-time offer of a product
+- `DELETE /api/v1/products/{id}/oto` — `delete_product_oto` · products:write — Remove the one-time offer of a product
+
+### Coupons
+
+Discount codes and their usage.
+
+- `GET /api/v1/coupons` — `list_coupons` · coupons:read — List coupons
+- `POST /api/v1/coupons` — `create_coupon` · coupons:write — Create a coupon
+- `GET /api/v1/coupons/{id}` — `get_coupon` · coupons:read — Get a coupon
+- `PATCH /api/v1/coupons/{id}` — `update_coupon` · coupons:write — Update a coupon
+- `DELETE /api/v1/coupons/{id}` — `delete_coupon` · coupons:write — Delete a coupon
+- `GET /api/v1/coupons/{id}/stats` — `get_coupon_stats` · coupons:read — Usage statistics of a coupon
+
+### Payments
+
+Orders and transactions: list, details, metadata, refunds, bank-transfer handling, CSV export.
+
+- `GET /api/v1/payments` — `list_payments` · payments:read — List payments
+- `GET /api/v1/payments/{id}` — `get_payment` · payments:read — Get a payment
+- `PATCH /api/v1/payments/{id}` — `update_payment_metadata` · payments:write — Merge metadata into a payment
+- `POST /api/v1/payments/{id}/refund` — `refund_payment` · payments:refund — Refund a payment (full or partial)
+- `POST /api/v1/payments/{id}/mark-paid` — `mark_payment_paid` · payments:write — Record a received bank transfer
+- `POST /api/v1/payments/{id}/cancel` — `cancel_payment` · payments:write — Cancel an unpaid bank-transfer order
+- `POST /api/v1/payments/{id}/invoice-issued` — `mark_payment_invoice_issued` · payments:write — Hold a transfer order without expiry (invoice issued outside Sellf)
+- `GET /api/v1/payments/{id}/late-transfer-preview` — `get_late_transfer_preview` · payments:read — Facts before accepting a late bank transfer
+- `POST /api/v1/payments/export` — `export_payments` · payments:read · not in MCP — Export payments as CSV
+- `GET /api/v1/payments/stats` — `get_payment_stats` · analytics:read — Payment statistics
+
+### Refunds
+
+Refund requests submitted by buyers: review, approve or reject.
+
+- `GET /api/v1/refund-requests` — `list_refund_requests` · refund-requests:read — List refund requests
+- `GET /api/v1/refund-requests/{id}` — `get_refund_request` · refund-requests:read — Get a refund request
+- `PATCH /api/v1/refund-requests/{id}` — `review_refund_request` · refund-requests:write — Approve or reject a refund request
+
+### Users
+
+Buyers and their product access (grant, extend, revoke; optional license on grant/revoke).
+
+- `GET /api/v1/users` — `list_users` · users:read — List users
+- `GET /api/v1/users/{id}` — `get_user` · users:read — Get a user with product access
+- `GET /api/v1/users/{id}/access` — `list_user_access` · users:read — List the product access of a user
+- `POST /api/v1/users/{id}/access` — `grant_user_access` · users:write — Grant a user access to a product
+- `DELETE /api/v1/users/{id}/access` — `revoke_user_access_by_product` · users:write — Revoke the access of a user to a product
+- `GET /api/v1/users/{id}/access/{accessId}` — `get_user_access` · users:read — Get one access entry
+- `PATCH /api/v1/users/{id}/access/{accessId}` — `update_user_access` · users:write — Extend or change an access entry
+- `DELETE /api/v1/users/{id}/access/{accessId}` — `revoke_user_access` · users:write — Revoke one access entry
+
+### Licenses
+
+Signed license keys for licensed products: issue, read, revoke (Pro).
+
+- `GET /api/v1/licenses` — `list_licenses` · licenses:read — List issued licenses
+- `POST /api/v1/licenses` — `issue_license` · licenses:write — Issue a license key
+- `GET /api/v1/licenses/{id}` — `get_license` · licenses:read — Get a license with its signed token
+- `DELETE /api/v1/licenses/{id}` — `revoke_license` · licenses:write — Revoke a license permanently
+
+### Webhooks
+
+Outgoing signed webhooks: endpoints, delivery logs, retries, abandoned business events.
+
+- `GET /api/v1/webhooks` — `list_webhooks` · webhooks:read — List webhook endpoints
+- `POST /api/v1/webhooks` — `create_webhook` · webhooks:write — Create a webhook endpoint
+- `GET /api/v1/webhooks/{id}` — `get_webhook` · webhooks:read — Get a webhook endpoint
+- `PATCH /api/v1/webhooks/{id}` — `update_webhook` · webhooks:write — Update a webhook endpoint
+- `DELETE /api/v1/webhooks/{id}` — `delete_webhook` · webhooks:write — Delete a webhook endpoint
+- `POST /api/v1/webhooks/{id}/rotate-secret` — `rotate_webhook_secret` · webhooks:write — Replace the signing secret of an endpoint
+- `POST /api/v1/webhooks/{id}/test` — `test_webhook` · webhooks:write — Send a test delivery
+- `GET /api/v1/webhooks/logs` — `list_webhook_logs` · webhooks:read — List webhook delivery logs
+- `POST /api/v1/webhooks/logs/{logId}/retry` — `retry_webhook_log` · webhooks:write — Retry a failed delivery now
+- `POST /api/v1/webhooks/logs/{logId}/force-retry` — `force_retry_webhook_log` · webhooks:write — Run a pending retry on the next worker tick
+- `POST /api/v1/webhooks/logs/{logId}/cancel` — `cancel_webhook_log` · webhooks:write — Cancel a pending retry (marks it permanently failed)
+- `POST /api/v1/webhooks/logs/{logId}/replay` — `replay_webhook_log` · webhooks:write — Replay a permanently failed delivery
+- `POST /api/v1/webhooks/logs/{logId}/archive` — `archive_webhook_log` · webhooks:write — Archive a delivery log entry
+- `GET /api/v1/webhooks/events` — `list_abandoned_webhook_events` · webhooks:read — List business events whose hand-off to delivery failed
+- `POST /api/v1/webhooks/events/{eventId}/retry` — `retry_webhook_event` · webhooks:write — Retry an abandoned business event
+
+### Analytics
+
+Read-only sales metrics and purchase attribution.
+
+- `GET /api/v1/analytics/dashboard` — `get_dashboard` · analytics:read — Dashboard overview
+- `GET /api/v1/analytics/revenue` — `get_revenue` · analytics:read — Revenue statistics
+- `GET /api/v1/analytics/top-products` — `get_top_products` · analytics:read — Best-selling products
+- `GET /api/v1/analytics/attribution` — `get_purchase_attribution` · analytics:read — Where purchases came from (aggregated, no personal data)
+
+### Settings
+
+Shop-level settings: checkout options and tracking/consent integrations.
+
+- `GET /api/v1/settings/checkout` — `get_checkout_settings` · system:read — Read checkout settings
+- `PATCH /api/v1/settings/checkout` — `update_checkout_settings` · system:write — Change checkout settings
+- `PATCH /api/v1/integrations` — `update_integrations` · integrations:write — Update tracking and consent integrations
+
+### System
+
+Instance status and self-upgrade.
+
+- `GET /api/v1/system/status` — `get_system_status` · system:read — Detailed system status
+- `GET /api/v1/system/update-check` — `check_for_update` · system:read — Check for a newer Sellf release
+- `POST /api/v1/system/upgrade` — `start_upgrade` · system:write — Start the self-upgrade
+- `GET /api/v1/system/upgrade-status` — `get_upgrade_status` · system:read — Progress of a running upgrade
+
+### API keys
+
+Key management. Panel session only: an API key cannot manage keys.
+
+- `GET /api/v1/api-keys` — `list_api_keys` · panel session only · not in MCP — List API keys (without secrets)
+- `POST /api/v1/api-keys` — `create_api_key` · panel session only · not in MCP — Create an API key (secret shown once)
+- `GET /api/v1/api-keys/{id}` — `get_api_key` · panel session only · not in MCP — Get an API key
+- `PATCH /api/v1/api-keys/{id}` — `update_api_key` · panel session only · not in MCP — Rename or deactivate an API key
+- `DELETE /api/v1/api-keys/{id}` — `revoke_api_key` · panel session only · not in MCP — Revoke an API key
+- `POST /api/v1/api-keys/{id}/rotate` — `rotate_api_key` · panel session only · not in MCP — Rotate an API key (old key keeps working during the grace period)
+
+### Meta
+
+This API description.
+
+- `GET /api/v1/openapi.json` — `get_openapi_spec` · public · not in MCP — This OpenAPI 3.1 description
+<!-- END GENERATED: API v1 -->
