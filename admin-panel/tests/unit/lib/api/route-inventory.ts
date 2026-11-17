@@ -15,8 +15,9 @@
  *   `templateOperationScope(op)`; `requireAdminApi(` means a session-only (panel) endpoint.
  * - query: `<searchParams>.get|getAll|has('name')`, where `<searchParams>` is any `.searchParams`
  *   or a const/destructured alias of it.
- * - nested functions count only when the handler calls them by name or invokes them in place;
- *   never-referenced ones are dead code and skipped.
+ * - nested functions count only when reachable: invoked in place, or called by name from code that
+ *   itself runs (followed recursively, each body once, so cycles stop). A function referenced only
+ *   from code that never runs is dead code and skipped.
  * Anything else (a computed scope list, a searchParams object passed on, a non-literal name, an
  * export that does not resolve to a function, a nested function with checks that escapes — passed
  * as a callback, returned, `void f`) lands in `unresolved`, which the contract test fails.
@@ -48,7 +49,6 @@ type FunctionLike = ts.FunctionDeclaration | ts.ArrowFunction | ts.FunctionExpre
 interface Detected { scopes: Set<string>; session: boolean; templateOperation: string | null; query: Set<string>; unresolved: string[] }
 
 const AUTH_CALLS = new Set(['authenticate', 'authenticateApiKeyPrincipal']);
-const PRIMITIVES = new Set([...AUTH_CALLS, 'requireScope', 'templateHttp', 'requireAdminApi']);
 const QUERY_METHODS = new Set(['get', 'getAll', 'has']);
 
 function walk(dir: string): string[] {
@@ -193,42 +193,50 @@ function detect(impl: ts.Node, sf: ts.SourceFile, requestName: string | null, de
   };
 
   let sink = found;
-  // Nested functions run only when the handler calls them by name or invokes them in place.
-  const called = new Set<string>();
-  const referenced = new Map<string, number>();
-  const indexCalls = (node: ts.Node): void => {
-    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) called.add(node.expression.text);
-    if (ts.isIdentifier(node)) referenced.set(node.text, (referenced.get(node.text) ?? 0) + 1);
-    ts.forEachChild(node, indexCalls);
-  };
-  indexCalls(impl);
-
-  const nested = (fn: FunctionLike): void => {
+  // Nested functions run only when reachable: called by name from code that runs, or invoked in
+  // place. Bodies open on such a call (once each, so cycles stop); everything else is collected.
+  const outerOf = (fn: FunctionLike): ts.Node => {
     let outer: ts.Node = fn;
     while (ts.isParenthesizedExpression(outer.parent)) outer = outer.parent;
-    const parent = outer.parent;
-    const name = ts.isFunctionDeclaration(fn) ? fn.name?.text
-      : ts.isVariableDeclaration(parent) && parent.initializer === outer && ts.isIdentifier(parent.name) ? parent.name.text : undefined;
-    if ((ts.isCallExpression(parent) && parent.expression === outer) || (name && called.has(name))) {
-      ts.forEachChild(fn, visit);
-      return;
-    }
-    // Not proven to run: dead code (never referenced) is skipped; one that escapes (passed on,
-    // returned, `void f`) is unresolved when it would change what the reader reports.
-    const probe: Detected = { scopes: new Set(), session: false, templateOperation: null, query: new Set(), unresolved: [] };
-    const saved = sink;
-    sink = probe;
+    return outer;
+  };
+  const nameOf = (fn: FunctionLike): string | undefined => {
+    const outer = outerOf(fn);
+    return ts.isFunctionDeclaration(fn) ? fn.name?.text
+      : ts.isVariableDeclaration(outer.parent) && outer.parent.initializer === outer && ts.isIdentifier(outer.parent.name) ? outer.parent.name.text : undefined;
+  };
+  const declared = new Map<string, FunctionLike>();
+  /** Named functions declared in an opened body (not inside further functions), hoisting included. */
+  const declare = (node: ts.Node): void => ts.forEachChild(node, (child) => {
+    if (!isFunctionLike(child)) return declare(child);
+    const name = nameOf(child);
+    if (name) declared.set(name, child);
+  });
+  let probing = false;
+  let opened = new Set<ts.Node>([impl]);
+  const seen: FunctionLike[] = [];
+  /** Names used by running code other than as a direct call: the function may run elsewhere. */
+  const escaped = new Set<string>();
+  const open = (fn: FunctionLike): void => {
+    if (opened.has(fn)) return;
+    opened.add(fn);
+    declare(fn);
     ts.forEachChild(fn, visit);
-    sink = saved;
-    const matters = probe.scopes.size || probe.session || probe.templateOperation || probe.query.size || probe.unresolved.length;
-    const escapes = !name || (referenced.get(name) ?? 0) > 1;
-    if (matters && escapes) sink.unresolved.push(`execution: nested function ${name ?? '(anonymous)'} is not proven to run`);
   };
 
   const visit = (node: ts.Node): void => {
     if (node !== impl && isFunctionLike(node)) {
-      nested(node);
+      const outer = outerOf(node);
+      if (probing || (ts.isCallExpression(outer.parent) && outer.parent.expression === outer)) open(node);
+      else seen.push(node);
       return;
+    }
+    if (ts.isIdentifier(node) && !(ts.isPropertyAccessExpression(node.parent) && node.parent.name === node)) {
+      const fn = declared.get(node.text);
+      const call = ts.isCallExpression(node.parent) && node.parent.expression === node;
+      // A probe asks "would anything matter if this ran", so it follows every reference.
+      if (fn && (call || probing)) open(fn);
+      else if (!probing) escaped.add(node.text);
     }
     if (ts.isVariableDeclaration(node)) {
       // Aliases: `const sp = <searchParams>` and `const { searchParams[: alias] } = …`.
@@ -288,7 +296,21 @@ function detect(impl: ts.Node, sf: ts.SourceFile, requestName: string | null, de
     }
     ts.forEachChild(node, visit);
   };
+  declare(impl);
   visit(impl);
+
+  // Not proven to run: dead code (no reference from running code) is skipped; one that escapes
+  // (callback, alias, returned, `void f`) is unresolved when running it would change the report.
+  for (const fn of seen.filter((f) => !opened.has(f))) {
+    const name = nameOf(fn);
+    if (name && !escaped.has(name)) continue;
+    const probe: Detected = { scopes: new Set(), session: false, templateOperation: null, query: new Set(), unresolved: [] };
+    [sink, probing, opened] = [probe, true, new Set()];
+    open(fn);
+    [sink, probing] = [found, false];
+    const matters = probe.scopes.size || probe.session || probe.templateOperation || probe.query.size || probe.unresolved.length;
+    if (matters) found.unresolved.push(`execution: nested function ${name ?? '(anonymous)'} is not proven to run`);
+  }
 }
 
 export function inventoryRoutes(root = V1_DIR): RouteHandler[] {
