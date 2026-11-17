@@ -9,7 +9,7 @@ import { SupabaseWebhookQueue } from '@/lib/services/webhook-queue/supabase-queu
 import type { AttemptResult } from '@/lib/services/webhook-queue/types';
 import { computeNextRetry, DEFAULT_MAX_ATTEMPTS } from '@/lib/services/webhook-queue/retry-policy';
 import { runBatch } from '@/lib/webhooks/batch-runner';
-import { post } from './setup';
+import { postAsAdmin as post } from './setup';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';

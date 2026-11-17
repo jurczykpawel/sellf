@@ -280,7 +280,7 @@ tymi, które odczekują przerwę. Porzucone zdarzenia widać na górze stron
 `/dashboard/webhooks` i `/dashboard/webhooks/deliveries`, z ostatnim błędem i przyciskiem
 **Ponów**, który daje zdarzeniu nowe próby i ustawia je w kolejce na najbliższy przebieg.
 API: `GET /api/v1/webhooks/events?status=abandoned` (`webhooks:read`, bez treści
-zdarzenia) i `POST /api/v1/webhooks/events/{id}/retry` (`webhooks:write`; `409`, jeśli
+zdarzenia) i `POST /api/v1/webhooks/events/{id}/retry` (sesja administratora w panelu; `409`, jeśli
 zdarzenie nie jest porzucone).
 
 ## Wygaśnięcie checkoutu Stripe
@@ -658,3 +658,9 @@ przywrócenie wysyła `product.updated` z `archivedAt: null`. Trwałe usunięcie
 Zamówienia, faktury, licencje i zakończone subskrypcje zostają: późniejsze zdarzenia o nich (np. `refund.issued`) mają
 `product.id: null` i nazwę produktu z chwili zakupu.
 Lista zdarzeń w panelu opisuje wszystkie trzy; **Testuj endpoint** pokazuje pełny przykład każdego z nich.
+
+### Zmiana adresu i ponawianie dostaw
+
+Zmiana URL webhooka zapisuje czas zmiany i zamyka oczekujące dostawy utworzone wcześniej. Nie można ich ponowić (HTTP `409`), także po przywróceniu poprzedniego adresu. Worker ponownie sprawdza adres przed wysyłką. Nowe dostawy pozostają dostępne do ponowienia. Zdarzenia biznesowe zachowują pierwotny czas utworzenia przy przekazaniu do kolejki dostaw.
+
+Operacje `/api/v1/webhooks/logs/{logId}/retry`, `/replay`, `/force-retry` oraz `/api/v1/webhooks/events/{id}/retry` wymagają sesji administratora w panelu. Klucz API, również z zakresem `webhooks:write`, otrzyma HTTP `403`. Anulowanie i archiwizacja nadal korzystają z `webhooks:write`.

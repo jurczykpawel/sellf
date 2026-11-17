@@ -474,7 +474,9 @@ pending_retry --(admin Force now)-->    pending_retry [next_retry_at=now]
 
 ## REST API
 
-All endpoints under `/api/v1/webhooks/logs/[id]/*` require the `webhooks:write` scope.
+Manual `/retry`, `/replay` and `/force-retry` operations require an admin panel session. API keys receive `403`, including keys with `webhooks:write`. `/cancel` and `/archive` continue to use `webhooks:write`.
+
+Changing an endpoint URL records the change time and closes scheduled deliveries created before it. These deliveries cannot be retried (`409`), even if the previous URL is restored. The worker checks the destination again before sending. New deliveries created after the change remain eligible. Business events retain their original creation time when handed to the delivery queue.
 
 | Method & Path | Effect |
 |---------------|--------|
@@ -496,7 +498,7 @@ events are not held up by events waiting out their interval. Abandoned events ar
 the top of `/dashboard/webhooks` and `/dashboard/webhooks/deliveries` with their last error and a
 **Retry** button, which gives the event fresh attempts and queues it for the next worker run.
 API: `GET /api/v1/webhooks/events?status=abandoned` (`webhooks:read`, no payload) and
-`POST /api/v1/webhooks/events/{id}/retry` (`webhooks:write`; `409` unless the event is abandoned).
+`POST /api/v1/webhooks/events/{id}/retry` (admin panel session only; `409` unless the event is abandoned).
 
 ## Operator setup
 

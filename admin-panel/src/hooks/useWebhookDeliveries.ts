@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
-import { api, isExpectedApiError } from '@/lib/api/client';
+import { api, ApiError, isExpectedApiError } from '@/lib/api/client';
 import { runBatch } from '@/lib/webhooks/batch-runner';
 import type { WebhookLog } from '@/types/webhooks';
 
@@ -73,7 +73,7 @@ export function useWebhookDeliveries() {
       } catch (err) {
         if (isExpectedApiError(err)) return;
         console.error(err);
-        toast.error(t('replayError'));
+        toast.error(t(err instanceof ApiError && err.status === 409 && err.message.startsWith('Endpoint URL changed') ? 'destinationChanged' : 'replayError'));
       } finally {
         setReplayingId(null);
       }
@@ -91,7 +91,7 @@ export function useWebhookDeliveries() {
       } catch (err) {
         if (isExpectedApiError(err)) return;
         console.error(err);
-        toast.error(tCommon('error'));
+        toast.error(err instanceof ApiError && err.status === 409 && err.message.startsWith('Endpoint URL changed') ? t('destinationChanged') : tCommon('error'));
       } finally {
         setActingId(null);
       }

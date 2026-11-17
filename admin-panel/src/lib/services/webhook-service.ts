@@ -80,7 +80,7 @@ export class WebhookService {
     }
     await Promise.all(deliveries.map(async ({ endpoint, delivery }) => {
       const result = await WebhookDispatcher.dispatch(endpoint, event, delivery.payload, {
-        attemptCount: 1, deliveryId: delivery.id,
+        attemptCount: 1, deliveryId: delivery.id, client: supabase,
       });
       if (result.ok) await queue.markDelivered(delivery.id, result);
       else await queue.markFailed(delivery.id, result, computeNextRetry(1));
@@ -130,7 +130,7 @@ export class WebhookService {
     const queue = new SupabaseWebhookQueue(supabase);
     const delivery = await queue.enqueue({ endpointId, eventType, payload, deliveryId: id, deliveryKey: null, maxAttempts: 1 });
     if (!delivery) throw new Error('Test delivery unavailable');
-    const result = await WebhookDispatcher.dispatch(endpoint, eventType, payload, { attemptCount: 1, deliveryId: id });
+    const result = await WebhookDispatcher.dispatch(endpoint, eventType, payload, { attemptCount: 1, deliveryId: id, client: supabase });
     if (result.ok) await queue.markDelivered(id, result);
     else await queue.markPermanentlyFailed(id, result);
     return { success: result.ok, status: result.httpStatus, error: result.errorMessage };
@@ -162,13 +162,13 @@ export class WebhookService {
     const { error: prepareError } = await supabase.from('webhook_logs')
       .update({ payload: await storeBuyerPayload(log.event_type, payload), status: 'pending_retry', next_retry_at: 'now' })
       .eq('id', logId).eq('status', 'failed');
-    if (prepareError) throw new Error('Could not prepare delivery');
+    if (prepareError) throw new Error(prepareError.code === 'PT409' ? 'Endpoint URL changed' : 'Could not prepare delivery');
     const { data: claims, error: claimError } = await supabase.rpc('claim_webhook_delivery', { p_id: logId });
     if (claimError) throw new Error('Could not claim delivery');
     const claim = claims?.[0];
     if (!claim) return { success: false, status: 0, error: 'Delivery is already handled' };
     const result = await WebhookDispatcher.dispatch(endpoint, log.event_type, payload, {
-      attemptCount: claim.attempt_count + 1, deliveryId: logId,
+      attemptCount: claim.attempt_count + 1, deliveryId: logId, client: supabase,
     });
     const queue = new SupabaseWebhookQueue(supabase);
     if (result.ok) await queue.markDelivered(logId, result);

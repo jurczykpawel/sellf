@@ -4213,6 +4213,61 @@ COMMENT ON FUNCTION public.check_waitlist_config() IS 'Check if waitlist.signup 
 
 
 --
+-- Name: check_webhook_delivery_date(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.check_webhook_delivery_date() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $_$
+DECLARE changed timestamptz; source_created timestamptz;
+BEGIN
+  IF TG_OP = 'INSERT' AND NEW.delivery_key ~ ':business_[0-9a-f-]{36}$' THEN
+    SELECT created_at INTO source_created FROM public.business_events
+      WHERE id = substring(NEW.delivery_key from ':business_([0-9a-f-]{36})$')::uuid;
+    NEW.created_at := least(NEW.created_at, source_created);
+  ELSIF TG_OP = 'UPDATE' THEN
+    NEW.created_at := OLD.created_at;
+    NEW.endpoint_id := OLD.endpoint_id;
+  END IF;
+  SELECT url_changed_at INTO changed FROM public.webhook_endpoints WHERE id = NEW.endpoint_id;
+  IF NEW.created_at < changed THEN
+    IF TG_OP = 'UPDATE' AND NEW.status = 'pending_retry' AND OLD.status <> 'pending_retry' THEN
+      RAISE EXCEPTION 'Endpoint URL changed' USING ERRCODE = 'PT409';
+    END IF;
+    IF NEW.status = 'pending_retry' THEN
+      NEW.status := 'permanently_failed';
+      NEW.next_retry_at := NULL;
+      NEW.failed_permanently_at := clock_timestamp();
+      NEW.error_message := 'Endpoint URL changed';
+    END IF;
+  END IF;
+  RETURN NEW;
+END $_$;
+
+
+ALTER FUNCTION public.check_webhook_delivery_date() OWNER TO postgres;
+
+--
+-- Name: check_webhook_delivery_target(uuid); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.check_webhook_delivery_target(p_id uuid) RETURNS boolean
+    LANGUAGE plpgsql STABLE SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.webhook_logs l JOIN public.webhook_endpoints e ON e.id=l.endpoint_id
+    WHERE l.id=p_id AND l.created_at < e.url_changed_at) THEN
+    RAISE EXCEPTION 'Endpoint URL changed' USING ERRCODE = 'PT409';
+  END IF;
+  RETURN true;
+END $$;
+
+
+ALTER FUNCTION public.check_webhook_delivery_target(p_id uuid) OWNER TO postgres;
+
+--
 -- Name: auth_mail_retries; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -4430,7 +4485,7 @@ CREATE TABLE public.webhook_logs (
     response_body text,
     error_message text,
     duration_ms integer,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_at timestamp with time zone DEFAULT clock_timestamp() NOT NULL,
     attempt_count integer DEFAULT 1 NOT NULL,
     max_attempts integer DEFAULT 5 NOT NULL,
     next_retry_at timestamp with time zone,
@@ -4909,6 +4964,24 @@ $$;
 
 
 ALTER FUNCTION public.clear_pending_free_grant_on_access() OWNER TO postgres;
+
+--
+-- Name: close_previous_webhook_deliveries(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.close_previous_webhook_deliveries() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+BEGIN
+  UPDATE public.webhook_logs SET status = 'permanently_failed', next_retry_at = NULL,
+    failed_permanently_at = clock_timestamp(), error_message = 'Endpoint URL changed'
+  WHERE endpoint_id = NEW.id AND created_at < NEW.url_changed_at AND status = 'pending_retry';
+  RETURN NEW;
+END $$;
+
+
+ALTER FUNCTION public.close_previous_webhook_deliveries() OWNER TO postgres;
 
 --
 -- Name: complete_offline_order(uuid, numeric); Type: FUNCTION; Schema: public; Owner: postgres
@@ -12985,6 +13058,25 @@ $$;
 ALTER FUNCTION public.stamp_original_seller_id() OWNER TO postgres;
 
 --
+-- Name: stamp_webhook_url(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.stamp_webhook_url() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN NEW.url_changed_at := NULL;
+  ELSIF NEW.url IS DISTINCT FROM OLD.url THEN NEW.url_changed_at := clock_timestamp();
+  ELSE NEW.url_changed_at := OLD.url_changed_at;
+  END IF;
+  RETURN NEW;
+END $$;
+
+
+ALTER FUNCTION public.stamp_webhook_url() OWNER TO postgres;
+
+--
 -- Name: store_checkout_attribution(text, jsonb); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -13737,6 +13829,74 @@ $$;
 
 
 ALTER FUNCTION public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text, reserve_param boolean) OWNER TO postgres;
+
+--
+-- Name: webhook_endpoints; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.webhook_endpoints (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    url text NOT NULL,
+    events text[] DEFAULT '{}'::text[] NOT NULL,
+    secret text DEFAULT ('whsec_'::text || replace((gen_random_uuid())::text, '-'::text, ''::text)) NOT NULL,
+    description text,
+    is_active boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    product_filter_mode text DEFAULT 'all'::text NOT NULL,
+    custom_headers_encrypted text,
+    custom_payload_fields jsonb,
+    payload_field_selection jsonb,
+    url_changed_at timestamp with time zone,
+    CONSTRAINT webhook_endpoints_product_filter_mode_check CHECK ((product_filter_mode = ANY (ARRAY['all'::text, 'selected'::text])))
+);
+
+
+ALTER TABLE public.webhook_endpoints OWNER TO postgres;
+
+--
+-- Name: TABLE webhook_endpoints; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON TABLE public.webhook_endpoints IS 'Webhook endpoint configurations';
+
+
+--
+-- Name: COLUMN webhook_endpoints.custom_headers_encrypted; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON COLUMN public.webhook_endpoints.custom_headers_encrypted IS 'Encrypted JSON map of extra request headers (e.g. Authorization). Decrypted service-role only at send time.';
+
+
+--
+-- Name: COLUMN webhook_endpoints.custom_payload_fields; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON COLUMN public.webhook_endpoints.custom_payload_fields IS 'Extra top-level body fields; string leaves may contain {{placeholder}} tokens.';
+
+
+--
+-- Name: COLUMN webhook_endpoints.payload_field_selection; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON COLUMN public.webhook_endpoints.payload_field_selection IS 'Whitelist (string[]) of standard data.* keys to include; NULL = all.';
+
+
+--
+-- Name: webhook_delivery_target(uuid); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.webhook_delivery_target(p_id uuid) RETURNS SETOF public.webhook_endpoints
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+  SELECT e.* FROM public.webhook_endpoints e JOIN public.webhook_logs l ON l.endpoint_id = e.id
+  WHERE l.id = p_id AND l.status = 'pending_retry'
+    AND (e.url_changed_at IS NULL OR l.created_at >= e.url_changed_at);
+$$;
+
+
+ALTER FUNCTION public.webhook_delivery_target(p_id uuid) OWNER TO postgres;
 
 --
 -- Name: admin_actions; Type: TABLE; Schema: public; Owner: postgres
@@ -16096,57 +16256,6 @@ CREATE TABLE public.webhook_endpoint_products (
 
 
 ALTER TABLE public.webhook_endpoint_products OWNER TO postgres;
-
---
--- Name: webhook_endpoints; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.webhook_endpoints (
-    id uuid DEFAULT gen_random_uuid() NOT NULL,
-    url text NOT NULL,
-    events text[] DEFAULT '{}'::text[] NOT NULL,
-    secret text DEFAULT ('whsec_'::text || replace((gen_random_uuid())::text, '-'::text, ''::text)) NOT NULL,
-    description text,
-    is_active boolean DEFAULT true,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    product_filter_mode text DEFAULT 'all'::text NOT NULL,
-    custom_headers_encrypted text,
-    custom_payload_fields jsonb,
-    payload_field_selection jsonb,
-    CONSTRAINT webhook_endpoints_product_filter_mode_check CHECK ((product_filter_mode = ANY (ARRAY['all'::text, 'selected'::text])))
-);
-
-
-ALTER TABLE public.webhook_endpoints OWNER TO postgres;
-
---
--- Name: TABLE webhook_endpoints; Type: COMMENT; Schema: public; Owner: postgres
---
-
-COMMENT ON TABLE public.webhook_endpoints IS 'Webhook endpoint configurations';
-
-
---
--- Name: COLUMN webhook_endpoints.custom_headers_encrypted; Type: COMMENT; Schema: public; Owner: postgres
---
-
-COMMENT ON COLUMN public.webhook_endpoints.custom_headers_encrypted IS 'Encrypted JSON map of extra request headers (e.g. Authorization). Decrypted service-role only at send time.';
-
-
---
--- Name: COLUMN webhook_endpoints.custom_payload_fields; Type: COMMENT; Schema: public; Owner: postgres
---
-
-COMMENT ON COLUMN public.webhook_endpoints.custom_payload_fields IS 'Extra top-level body fields; string leaves may contain {{placeholder}} tokens.';
-
-
---
--- Name: COLUMN webhook_endpoints.payload_field_selection; Type: COMMENT; Schema: public; Owner: postgres
---
-
-COMMENT ON COLUMN public.webhook_endpoints.payload_field_selection IS 'Whitelist (string[]) of standard data.* keys to include; NULL = all.';
-
 
 --
 -- Name: payment_transactions order_number; Type: DEFAULT; Schema: public; Owner: postgres
@@ -19104,6 +19213,13 @@ CREATE TRIGGER capture_subscription_period_access AFTER UPDATE OF current_period
 
 
 --
+-- Name: webhook_logs check_webhook_delivery_date; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER check_webhook_delivery_date BEFORE INSERT OR UPDATE ON public.webhook_logs FOR EACH ROW EXECUTE FUNCTION public.check_webhook_delivery_date();
+
+
+--
 -- Name: payment_transactions checkout_details_on_completion; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
@@ -19136,6 +19252,13 @@ CREATE TRIGGER clear_license_revocation_reason BEFORE UPDATE OF revoked_at ON pu
 --
 
 CREATE TRIGGER clear_pending_free_grant_on_access AFTER INSERT OR UPDATE OF product_id, access_expires_at ON public.user_product_access FOR EACH ROW EXECUTE FUNCTION public.clear_pending_free_grant_on_access();
+
+
+--
+-- Name: webhook_endpoints close_previous_webhook_deliveries; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER close_previous_webhook_deliveries AFTER UPDATE OF url ON public.webhook_endpoints FOR EACH ROW WHEN ((new.url IS DISTINCT FROM old.url)) EXECUTE FUNCTION public.close_previous_webhook_deliveries();
 
 
 --
@@ -19500,6 +19623,13 @@ CREATE TRIGGER snapshot_purchase_attribution_inserted AFTER INSERT ON public.pay
 --
 
 CREATE TRIGGER sold_out_business_event AFTER INSERT OR UPDATE OF status ON public.seat_reservations FOR EACH ROW EXECUTE FUNCTION public.capture_sold_out_event();
+
+
+--
+-- Name: webhook_endpoints stamp_webhook_url; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER stamp_webhook_url BEFORE INSERT OR UPDATE ON public.webhook_endpoints FOR EACH ROW EXECUTE FUNCTION public.stamp_webhook_url();
 
 
 --
@@ -23056,6 +23186,10 @@ function | public.check_user_product_access(product_slug_param text) | service_r
 function | public.check_waitlist_config() | authenticated | EXECUTE | postgres | -
 function | public.check_waitlist_config() | postgres | EXECUTE | postgres | -
 function | public.check_waitlist_config() | service_role | EXECUTE | postgres | -
+function | public.check_webhook_delivery_date() | postgres | EXECUTE | postgres | -
+function | public.check_webhook_delivery_date() | service_role | EXECUTE | postgres | -
+function | public.check_webhook_delivery_target(p_id uuid) | postgres | EXECUTE | postgres | -
+function | public.check_webhook_delivery_target(p_id uuid) | service_role | EXECUTE | postgres | -
 function | public.claim_auth_mail_retries(p_limit integer) | postgres | EXECUTE | postgres | -
 function | public.claim_auth_mail_retries(p_limit integer) | service_role | EXECUTE | postgres | -
 function | public.claim_business_events(p_limit integer) | postgres | EXECUTE | postgres | -
@@ -23094,6 +23228,8 @@ function | public.clear_license_dispute_owner() | postgres | EXECUTE | postgres 
 function | public.clear_license_revocation_reason() | postgres | EXECUTE | postgres | -
 function | public.clear_pending_free_grant_on_access() | postgres | EXECUTE | postgres | -
 function | public.clear_pending_free_grant_on_access() | service_role | EXECUTE | postgres | -
+function | public.close_previous_webhook_deliveries() | postgres | EXECUTE | postgres | -
+function | public.close_previous_webhook_deliveries() | service_role | EXECUTE | postgres | -
 function | public.complete_offline_order(p_transaction_id uuid, p_paid_minor numeric) | postgres | EXECUTE | postgres | -
 function | public.complete_offline_order(p_transaction_id uuid, p_paid_minor numeric) | service_role | EXECUTE | postgres | -
 function | public.complete_order_payment_attempt(p_attempt uuid, p_session_id text, p_payment_intent text, p_amount numeric, p_now timestamp with time zone) | postgres | EXECUTE | postgres | -
@@ -23503,6 +23639,8 @@ function | public.snapshot_purchase_product_name() | postgres | EXECUTE | postgr
 function | public.snapshot_purchase_product_name() | service_role | EXECUTE | postgres | -
 function | public.stamp_original_seller_id() | postgres | EXECUTE | postgres | -
 function | public.stamp_original_seller_id() | service_role | EXECUTE | postgres | -
+function | public.stamp_webhook_url() | postgres | EXECUTE | postgres | -
+function | public.stamp_webhook_url() | service_role | EXECUTE | postgres | -
 function | public.store_checkout_attribution(p_ref text, p_payload jsonb) | postgres | EXECUTE | postgres | -
 function | public.store_checkout_attribution(p_ref text, p_payload jsonb) | service_role | EXECUTE | postgres | -
 function | public.storefront_catalogue_boundary() | postgres | EXECUTE | postgres | -
@@ -23552,6 +23690,8 @@ function | public.verify_api_key(p_key_hash text) | postgres | EXECUTE | postgre
 function | public.verify_api_key(p_key_hash text) | service_role | EXECUTE | postgres | -
 function | public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text, reserve_param boolean) | postgres | EXECUTE | postgres | -
 function | public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text, reserve_param boolean) | service_role | EXECUTE | postgres | -
+function | public.webhook_delivery_target(p_id uuid) | postgres | EXECUTE | postgres | -
+function | public.webhook_delivery_target(p_id uuid) | service_role | EXECUTE | postgres | -
 schema | auth | anon | USAGE | supabase_admin | -
 schema | auth | authenticated | USAGE | supabase_admin | -
 schema | auth | dashboard_user | CREATE | supabase_admin | -

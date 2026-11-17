@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { get, post, patch, del, cleanup, deleteTestApiKey, API_URL, supabase } from './setup';
+import { get, post, postAsAdmin, patch, del, cleanup, deleteTestApiKey, API_URL, supabase } from './setup';
 
 interface Webhook {
   id: string;
@@ -572,7 +572,7 @@ describe('Webhooks API v1', () => {
 
   describe('POST /api/v1/webhooks/logs/:logId/retry', () => {
     it('should return response for retry', async () => {
-      const { status, data } = await post<ApiResponse<WebhookTestResult>>(
+      const { status, data } = await postAsAdmin<ApiResponse<WebhookTestResult>>(
         `/api/v1/webhooks/logs/${testLogId}/retry`,
         {}
       );
@@ -584,7 +584,7 @@ describe('Webhooks API v1', () => {
     });
 
     it('should return 404 for non-existent log', async () => {
-      const { status, data } = await post<ApiResponse<WebhookTestResult>>(
+      const { status, data } = await postAsAdmin<ApiResponse<WebhookTestResult>>(
         '/api/v1/webhooks/logs/11111111-1111-4111-a111-111111111111/retry',
         {}
       );
@@ -594,7 +594,7 @@ describe('Webhooks API v1', () => {
     });
 
     it('should return 400 for invalid log ID format', async () => {
-      const { status, data } = await post<ApiResponse<WebhookTestResult>>(
+      const { status, data } = await postAsAdmin<ApiResponse<WebhookTestResult>>(
         '/api/v1/webhooks/logs/invalid-id/retry',
         {}
       );
@@ -619,7 +619,7 @@ describe('Webhooks API v1', () => {
         .single();
 
       try {
-        const { status, data } = await post<ApiResponse<WebhookTestResult>>(
+        const { status, data } = await postAsAdmin<ApiResponse<WebhookTestResult>>(
           `/api/v1/webhooks/logs/${successLog!.id}/retry`,
           {}
         );

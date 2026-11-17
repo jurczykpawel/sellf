@@ -5,14 +5,15 @@
  */
 
 import { NextRequest } from 'next/server';
+import { requireAdminApi } from '@/lib/auth-server';
+import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import {
   handleCorsPreFlight,
   jsonResponse,
   apiError,
-  authenticate,
   handleApiError,
   successResponse,
-  API_SCOPES,
 } from '@/lib/api';
 import { validateUUID } from '@/lib/validations/product';
 import { WebhookService } from '@/lib/services/webhook-service';
@@ -32,7 +33,11 @@ export async function OPTIONS(request: NextRequest) {
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const auth = await authenticate(request, [API_SCOPES.WEBHOOKS_WRITE]);
+    if (request.headers.has('authorization') || request.headers.has('x-api-key')) {
+      return apiError(request, 'FORBIDDEN', 'Manual delivery operations require an admin session');
+    }
+    await requireAdminApi(await createClient(), request);
+    const supabase = createAdminClient();
     const { logId } = await params;
 
     // Validate ID format
@@ -42,7 +47,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Check log exists
-    const { data: log, error: fetchError } = await auth.supabase
+    const { data: log, error: fetchError } = await supabase
       .from('webhook_logs')
       .select('id, status')
       .eq('id', logId)
@@ -51,6 +56,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (fetchError || !log) {
       return apiError(request, 'NOT_FOUND', 'Webhook log not found');
     }
+
+    const target = await supabase.rpc('check_webhook_delivery_target', { p_id: logId });
+    if (target.error?.code === 'PT409') return apiError(request, 'CONFLICT', 'Endpoint URL changed; this delivery cannot be retried');
+    if (target.error) return apiError(request, 'INTERNAL_ERROR', 'Delivery target unavailable');
 
     // Only allow retrying failed logs
     if (log.status !== 'failed') {
@@ -62,7 +71,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     // Retry the webhook
-    const result = await WebhookService.retry(logId);
+    const result = await WebhookService.retry(logId, supabase);
 
     return jsonResponse(
       successResponse({
@@ -73,6 +82,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       request
     );
   } catch (error) {
+    if (error instanceof Error && error.message === 'Endpoint URL changed') return apiError(request, 'CONFLICT', error.message);
     return handleApiError(error, request);
   }
 }

@@ -1,9 +1,11 @@
-import { hasBuyerPayload } from '@/lib/webhooks/buyer-payload-storage';
 import { fetch as undiciFetch } from 'undici';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { hasBuyerPayload } from '@/lib/webhooks/buyer-payload-storage';
 import { getSsrfSafeAgent, readBoundedText } from '@/lib/security/safe-fetch';
 import { validateWebhookUrlAsync } from '@/lib/validations/webhook';
 import { decryptHeaderMap } from '@/lib/webhooks/custom-headers';
 import { decryptWebhookSecret } from '@/lib/webhooks/signing-secret';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { signWebhookPayload } from './signature';
 import type { AttemptResult } from './types';
 
@@ -18,6 +20,7 @@ interface EndpointSlice {
 }
 
 interface DispatchOptions {
+  client?: SupabaseClient<any, any, any>;
   attemptCount: number;
   deliveryId?: string;
   timeoutMs?: number;
@@ -31,6 +34,15 @@ export class WebhookDispatcher {
     payload: unknown,
     options: DispatchOptions,
   ): Promise<AttemptResult> {
+    if (options.deliveryId) {
+      const client = options.client ?? createAdminClient();
+      const { data, error } = await client.rpc('webhook_delivery_target', { p_id: options.deliveryId });
+      const current = data?.[0];
+      if (error || !current || current.id !== endpoint.id) {
+        return { ok: false, httpStatus: 409, responseBody: null, errorMessage: 'Delivery target unavailable', durationMs: 0 };
+      }
+      endpoint = current;
+    }
     const payloadString = JSON.stringify(payload);
     const startTime = Date.now();
 

@@ -12,10 +12,7 @@ import type {
 
 const MAX_RESPONSE_BODY_CHARS = 5000;
 
-// replay/forceRetryNow/cancel intentionally have no tenant ownership filter:
-// Sellf is single-tenant and webhook admin actions go through API key auth
-// guarded by webhooks:write scope. If multi-tenant API keys land later, add an
-// owner check at the route layer or pass an owner predicate into these methods.
+// Single-tenant queue operations receive the caller-authorized service client.
 
 // Supabase clients with different schema types can't be unified via generics.
 // This alias accepts any schema-scoped client (public, seller_X, etc.).
@@ -135,7 +132,7 @@ export class SupabaseWebhookQueue implements IWebhookDeliveryQueue {
       p_next_retry_at: nextRetryAt.toISOString(),
       p_failed_permanently_at: null,
     });
-    if (error) throw new Error(`markFailed failed: ${error.message}`);
+    if (error && error.code !== 'PT409') throw new Error(`markFailed failed: ${error.message}`);
   }
 
   async markPermanentlyFailed(deliveryId: string, result: AttemptResult): Promise<void> {
@@ -163,7 +160,7 @@ export class SupabaseWebhookQueue implements IWebhookDeliveryQueue {
       })
       .eq('id', deliveryId)
       .eq('status', 'permanently_failed');
-    if (error) throw new Error(`replay failed: ${error.message}`);
+    if (error) throw new Error(error.code === 'PT409' ? 'Endpoint URL changed' : `replay failed: ${error.message}`);
   }
 
   async forceRetryNow(deliveryId: string): Promise<void> {
@@ -172,7 +169,7 @@ export class SupabaseWebhookQueue implements IWebhookDeliveryQueue {
       .update({ next_retry_at: 'now' })
       .eq('id', deliveryId)
       .eq('status', 'pending_retry');
-    if (error) throw new Error(`forceRetryNow failed: ${error.message}`);
+    if (error) throw new Error(error.code === 'PT409' ? 'Endpoint URL changed' : `forceRetryNow failed: ${error.message}`);
   }
 
   async cancel(deliveryId: string): Promise<void> {

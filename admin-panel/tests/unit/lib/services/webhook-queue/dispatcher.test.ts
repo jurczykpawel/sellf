@@ -201,7 +201,7 @@ it('keeps the delivery id in the signed body and header across attempts', async 
   const id = '5cb0a355-840e-4d73-8ab9-34137a763c39';
   const body = { ...payload, id };
   for (const attemptCount of [1, 2]) {
-    await WebhookDispatcher.dispatch(endpoint, 'test.event', body, { attemptCount, deliveryId: id, extraHeaders: { 'x-sellf-delivery-id': 'custom' } });
+    await WebhookDispatcher.dispatch(endpoint, 'test.event', body, { attemptCount, deliveryId: id, client: { rpc: async () => ({ data: [endpoint], error: null }) } as never, extraHeaders: { 'x-sellf-delivery-id': 'custom' } });
     const init = vi.mocked(undiciFetch).mock.calls.at(-1)![1] as unknown as { headers: Record<string,string>; body: string };
     expect(init.headers['X-Sellf-Delivery-Id']).toBe(id);
     expect(init.headers['x-sellf-delivery-id']).toBeUndefined();

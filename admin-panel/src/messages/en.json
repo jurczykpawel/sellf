@@ -2674,6 +2674,7 @@
         "replay": "Replay",
         "replayConfirm": "Reset retry counter and re-queue this delivery?",
         "replaySuccess": "Delivery re-queued",
+        "destinationChanged": "The endpoint URL changed. Deliveries created before the change cannot be retried.",
         "replayError": "Failed to re-queue delivery",
         "forceRetry": "Retry now",
         "forceRetrySuccess": "Retry scheduled",

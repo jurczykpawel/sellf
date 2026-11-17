@@ -357,14 +357,14 @@ const WEBHOOKS: ApiOperation[] = [
   { operationId: 'test_webhook', method: 'POST', path: '/webhooks/{id}/test', tag: 'Webhooks', scope: S.WEBHOOKS_WRITE, summary: 'Send a test delivery', bodyHint: 'event_type? (default: first subscribed event)' },
   { operationId: 'list_webhook_logs', method: 'GET', path: '/webhooks/logs', tag: 'Webhooks', scope: S.WEBHOOKS_READ, envelope: 'list', summary: 'List webhook delivery logs',
     query: z.object({ ...page, endpoint_id: uuid.optional(), status: z.string().optional(), event_type: z.string().optional() }) },
-  { operationId: 'retry_webhook_log', method: 'POST', path: '/webhooks/logs/{logId}/retry', tag: 'Webhooks', scope: S.WEBHOOKS_WRITE, noBody: true, summary: 'Retry a failed delivery now' },
-  { operationId: 'force_retry_webhook_log', method: 'POST', path: '/webhooks/logs/{logId}/force-retry', tag: 'Webhooks', scope: S.WEBHOOKS_WRITE, noBody: true, summary: 'Run a pending retry on the next worker tick' },
+  { operationId: 'retry_webhook_log', method: 'POST', path: '/webhooks/logs/{logId}/retry', tag: 'Webhooks', auth: 'session', mcpExclude: true, noBody: true, description: 'Admin panel session required; API keys are not accepted. Returns 409 when the endpoint URL changed after the delivery or event was created.', summary: 'Retry a failed delivery now' },
+  { operationId: 'force_retry_webhook_log', method: 'POST', path: '/webhooks/logs/{logId}/force-retry', tag: 'Webhooks', auth: 'session', mcpExclude: true, noBody: true, description: 'Admin panel session required; API keys are not accepted. Returns 409 when the endpoint URL changed after the delivery or event was created.', summary: 'Run a pending retry on the next worker tick' },
   { operationId: 'cancel_webhook_log', method: 'POST', path: '/webhooks/logs/{logId}/cancel', tag: 'Webhooks', scope: S.WEBHOOKS_WRITE, noBody: true, summary: 'Cancel a pending retry (marks it permanently failed)' },
-  { operationId: 'replay_webhook_log', method: 'POST', path: '/webhooks/logs/{logId}/replay', tag: 'Webhooks', scope: S.WEBHOOKS_WRITE, noBody: true, summary: 'Replay a permanently failed delivery' },
+  { operationId: 'replay_webhook_log', method: 'POST', path: '/webhooks/logs/{logId}/replay', tag: 'Webhooks', auth: 'session', mcpExclude: true, noBody: true, description: 'Admin panel session required; API keys are not accepted. Returns 409 when the endpoint URL changed after the delivery or event was created.', summary: 'Replay a permanently failed delivery' },
   { operationId: 'archive_webhook_log', method: 'POST', path: '/webhooks/logs/{logId}/archive', tag: 'Webhooks', scope: S.WEBHOOKS_WRITE, noBody: true, summary: 'Archive a delivery log entry' },
   { operationId: 'list_abandoned_webhook_events', method: 'GET', path: '/webhooks/events', tag: 'Webhooks', scope: S.WEBHOOKS_READ, summary: 'List business events whose hand-off to delivery failed',
     query: z.object({ status: z.literal('abandoned').optional(), limit }) },
-  { operationId: 'retry_webhook_event', method: 'POST', path: '/webhooks/events/{eventId}/retry', tag: 'Webhooks', scope: S.WEBHOOKS_WRITE, noBody: true, summary: 'Retry an abandoned business event' },
+  { operationId: 'retry_webhook_event', method: 'POST', path: '/webhooks/events/{eventId}/retry', tag: 'Webhooks', auth: 'session', mcpExclude: true, noBody: true, description: 'Admin panel session required; API keys are not accepted. Returns 409 unless the event is abandoned. Each resulting delivery retains the event creation time and is closed if its endpoint URL changed later.', summary: 'Retry an abandoned business event' },
 ];
 
 const ANALYTICS: ApiOperation[] = [
