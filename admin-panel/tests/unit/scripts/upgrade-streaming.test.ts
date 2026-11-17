@@ -605,6 +605,19 @@ describe('maintenance mode during the update', () => {
       expect(result.appMaintenanceFiles.map(file => path.resolve(file))).toEqual([result.maintenanceFile]);
     });
 
+    it('a path handed over by the panel launcher reaches every started version, also the restored one', async () => {
+      // The launcher passes the running app's resolved path (route.ts, --setenv); .env.local says otherwise.
+      const scratch = mkdtempSync(path.join(tmpdir(), 'sellf-maintenance-launcher-'));
+      directories.push(scratch);
+      const launched = path.join(scratch, 'pm2.flag');
+      const result = await runUpgrade({ maintenancePath: launched, envLocal: 'SELLF_MAINTENANCE_FILE=dotenv.flag\n', processEnv: { SELLF_MAINTENANCE_FILE: launched }, healthFailure: true });
+      expect(result.stdout).toContain('rollback=true');
+      expect(result.maintenanceSeen).toContain('stop on');
+      expect(result.appMaintenanceFiles.length).toBeGreaterThanOrEqual(2);
+      expect(new Set(result.appMaintenanceFiles)).toEqual(new Set([launched]));
+      expect(existsSync(path.join(result.dir, 'install/dotenv.flag'))).toBe(false);
+    });
+
     it('the app resolves the .env.local value to the file the update manages', async () => {
       const result = await runUpgrade({ maintenancePath: 'var/maintenance.flag', envLocal: 'SELLF_MAINTENANCE_FILE=var/maintenance.flag\n' });
       const cwd = vi.spyOn(process, 'cwd').mockReturnValue(path.join(result.dir, 'install/.next/standalone/admin-panel'));

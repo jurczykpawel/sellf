@@ -15,7 +15,8 @@ Maintenance mode puts the shop on a break. While it is on:
 - nothing new is taken without a payment either: free access is not granted (also from the magic
   link or the payment return page), and lead forms (`/api/leads/*`), waitlist signups and free-product
   sign-up links answer `503`. A request the buyer made before the break still completes: the link
-  from the free-product email and the lead confirmation link grant access as usual.
+  from the free-product email and the lead confirmation link grant access as usual. While the database
+  switch is on, the database itself also refuses a new free grant requested directly through its API.
 
 Nothing else changes. Products and settings stay as they are, you can sign in to the admin panel,
 API v1 works, buyers can open their accounts, and Stripe webhooks are accepted: a payment the buyer
@@ -35,9 +36,11 @@ Maintenance mode is on when **either** source is on. The server source wins.
 installation (`<stack>/admin-panel/MAINTENANCE`, e.g. `/opt/stacks/sellf-tsa/admin-panel/MAINTENANCE`),
 otherwise in the app's working directory. `SELLF_MAINTENANCE_FILE` sets another path: put it in
 `.env.local` (an environment variable of the process wins over `.env.local`). A relative path is
-relative to the installation directory, the one with `.env.local`. The app and the update script use
-the same rule, so the update always writes the file the app reads; restart the app after changing
-the setting. It is checked
+relative to the installation directory, the one with `.env.local`. The update started from the panel
+receives the path the running app uses and passes it on to the version it starts, so the same file
+holds the shop before the stop and after the start. A changed setting takes effect after the app
+restarts with a fresh environment (for example a Stackpilot update or restart); an update from the
+panel keeps the path the app was running with. It is checked
 before any database request, so it also works while the database is down, an update runs or a backup
 is restored. The file may be empty, hold a plain-text note for visitors, or JSON
 `{ "message": "…", "expected_end_at": "2026-11-17T14:00:00Z" }`.

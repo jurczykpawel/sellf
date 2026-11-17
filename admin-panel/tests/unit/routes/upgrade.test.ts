@@ -67,6 +67,41 @@ describe('upgrade unit PATH', () => {
 });
 
 
+describe('maintenance file of the update @J655', () => {
+  const launchArgs = () => vi.mocked(spawn).mock.calls[0][1] as string[];
+  const fileArgs = () => launchArgs().filter(argument => argument.startsWith('--setenv=SELLF_MAINTENANCE_FILE='));
+
+  it('hands the updater the maintenance file the running app reads (its process environment wins over .env.local)', async () => {
+    vi.stubEnv('SELLF_MAINTENANCE_FILE', '/srv/flags/pm2.flag');
+    expect((await POST(new NextRequest('http://localhost/api/v1/system/upgrade', { method: 'POST' }))).status).toBe(202);
+    expect(fileArgs()).toEqual(['--setenv=SELLF_MAINTENANCE_FILE=/srv/flags/pm2.flag']);
+    expect(launchArgs().indexOf(fileArgs()[0])).toBeLessThan(launchArgs().indexOf('--'));
+  });
+
+  it('passes the resolved absolute path, never a relative one the updater would resolve on its own', async () => {
+    vi.stubEnv('SELLF_MAINTENANCE_FILE', 'flags/relative.flag');
+    expect((await POST(new NextRequest('http://localhost/api/v1/system/upgrade', { method: 'POST' }))).status).toBe(202);
+    const { getMaintenanceFilePath } = await import('@/lib/maintenance/file');
+    expect(fileArgs()).toEqual([`--setenv=SELLF_MAINTENANCE_FILE=${getMaintenanceFilePath()}`]);
+    expect(getMaintenanceFilePath()).toMatch(/^\/.*\/flags\/relative\.flag$/);
+  });
+
+  it('passes the default MAINTENANCE path when nothing is configured', async () => {
+    vi.stubEnv('SELLF_MAINTENANCE_FILE', '');
+    expect((await POST(new NextRequest('http://localhost/api/v1/system/upgrade', { method: 'POST' }))).status).toBe(202);
+    expect(fileArgs()).toHaveLength(1);
+    expect(fileArgs()[0]).toMatch(/^--setenv=SELLF_MAINTENANCE_FILE=\/.*\/MAINTENANCE$/);
+  });
+
+  it('starts nothing when the path cannot be passed safely as one environment value', async () => {
+    vi.stubGlobal('process', { ...process, env: { ...process.env, SELLF_MAINTENANCE_FILE: '/srv/bad\nname' } });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const response = await POST(new NextRequest('http://localhost/api/v1/system/upgrade', { method: 'POST' }));
+    expect(response.status).toBe(500);
+    expect(spawn).not.toHaveBeenCalled();
+  });
+});
+
 describe('upgrade runtime API', () => {
   it.each(['docker', 'compose', 'coolify', 'vercel', 'netlify', 'systemd', 'manual', 'pm2'] as const)('declines a manual %s runtime before launch', async runtime => {
     vi.mocked(getUpgradeCapability).mockReturnValueOnce({ runtime, mode: 'manual' });

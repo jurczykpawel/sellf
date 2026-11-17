@@ -21,7 +21,9 @@
 # smaller shards genuinely lower the peak (the leak fills whatever heap it's given, so
 # raising --max-old-space-size does NOT help -> peak just tracks the cap -> Next restarts).
 #
-# Usage: scripts/run-pw-sharded.sh [LIGHT_N] [HEAVY_N]   (defaults: 6 4 -> 10 server boots)
+#   maintenance    : the maintenance-mode spec, alone after both buckets (one global switch).
+#
+# Usage: scripts/run-pw-sharded.sh [LIGHT_N] [HEAVY_N]   (defaults: 6 4 -> 11 server boots)
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 
@@ -55,6 +57,9 @@ LOGFILE="test-runs/${TIMESTAMP}_${COMMIT}_sharded.log"
 
 run_shards() {
   local project="$1" n="$2"
+  shift 2
+  # Extra Playwright arguments for every shard of this project (e.g. --no-deps).
+  local extra=("$@")
   [ "$n" -ge 1 ] 2>/dev/null || { echo "(skip $project: 0 shards)"; return 0; }
   for k in $(seq 1 "$n"); do
     echo ""
@@ -67,7 +72,7 @@ run_shards() {
     # and the whole shard fails. Starting each shard from a clean cache removes the class.
     rm -rf .next/dev/cache 2>/dev/null
     local _tmp; _tmp=$(mktemp); ACTIVE_TMP="$_tmp"
-    FORCE_COLOR=0 npx playwright test --project="$project" --shard="$k/$n" --reporter=list 2>&1 | tee "$_tmp" | grep --line-buffered -E '^\s*[✓✘]' | awk -v red="$RED" -v dim="$DIM" -v reset="$RESET" \
+    FORCE_COLOR=0 npx playwright test --project="$project" --shard="$k/$n" ${extra[@]+"${extra[@]}"} --reporter=list 2>&1 | tee "$_tmp" | grep --line-buffered -E '^\s*[✓✘]' | awk -v red="$RED" -v dim="$DIM" -v reset="$RESET" \
       '/✘/ {printf "%s%s%s\n", red, $0, reset; fflush(); next}
        /✓/ {printf "%s%s%s\n", dim, $0, reset; fflush(); next}
        {print; fflush()}'
@@ -116,6 +121,10 @@ ${errors}"
 echo "=== Sharded chromium E2E: heavy=$HEAVY_N + light=$LIGHT_N shards, fresh dev server per shard ==="
 run_shards "chromium-heavy" "$HEAVY_N"
 run_shards "chromium" "$LIGHT_N"
+# Maintenance mode is one global switch (its spec makes every shop page answer 503), so its project
+# runs alone after every other shard, once; --no-deps because its dependencies (chromium,
+# chromium-heavy) are exactly the shards that just ran.
+run_shards "maintenance" 1 --no-deps
 bash scripts/kill-dev-server.sh 3777 3779 >/dev/null 2>&1 || true
 
 # Write log
@@ -145,7 +154,7 @@ else
   if [ -n "$INFRA_FAILED" ]; then
     echo "${RED}INFRA FAILURES (0 tests executed, not a test regression):$INFRA_FAILED${RESET}"
   fi
-  echo "Re-run one with: npx playwright test --project=<chromium|chromium-heavy> --shard=k/N"
+  echo "Re-run one with: npx playwright test --project=<chromium|chromium-heavy> --shard=k/N (maintenance: --project=maintenance --no-deps)"
   echo "Total: ${TOTAL_PASS} passed, ${TOTAL_FAIL} failed"
   echo "${DIM}Log: ${LOGFILE}${RESET}"
   exit 1

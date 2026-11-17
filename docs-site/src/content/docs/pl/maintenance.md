@@ -16,6 +16,8 @@ Przerwa w działaniu (tryb serwisowy) zatrzymuje sklep. Gdy jest włączona:
   ani na stronie powrotu po płatności), a formularze leadów (`/api/leads/*`), zapisy na listę
   oczekujących i prośby o link do darmowego produktu dostają `503`. Zgłoszenie złożone przed przerwą
   dalej się kończy: link z maila darmowego produktu i link potwierdzający lead nadają dostęp jak zwykle.
+  Gdy włączony jest przełącznik w bazie, sama baza też odmawia nowego darmowego dostępu, o który ktoś
+  prosi bezpośrednio przez jej API.
 
 Poza tym nic się nie zmienia. Produkty i ustawienia zostają bez zmian, możesz zalogować się do panelu,
 API v1 działa, kupujący otwierają swoje konta, a webhooki Stripe są przyjmowane: płatność zrobiona
@@ -35,9 +37,11 @@ Przerwa jest włączona, gdy włączone jest **którekolwiek** źródło. Źród
 (`<stack>/admin-panel/MAINTENANCE`, np. `/opt/stacks/sellf-tsa/admin-panel/MAINTENANCE`), a w innych
 instalacjach w katalogu roboczym aplikacji. `SELLF_MAINTENANCE_FILE` ustawia inną ścieżkę: wpisz ją
 do `.env.local` (zmienna środowiskowa procesu ma pierwszeństwo przed `.env.local`). Ścieżka względna
-liczy się od katalogu instalacji, tego z `.env.local`. Aplikacja i skrypt aktualizacji stosują tę samą
-regułę, więc aktualizacja zawsze zapisuje plik, który czyta aplikacja; po zmianie ustawienia uruchom
-aplikację ponownie. Plik jest
+liczy się od katalogu instalacji, tego z `.env.local`. Aktualizacja uruchomiona z panelu dostaje
+ścieżkę, której używa działająca aplikacja, i przekazuje ją uruchamianej wersji, więc ten sam plik
+wstrzymuje sklep przed zatrzymaniem i po starcie. Zmienione ustawienie zaczyna działać po ponownym
+uruchomieniu aplikacji ze świeżym środowiskiem (np. aktualizacja albo restart przez Stackpilot);
+aktualizacja z panelu zachowuje ścieżkę, z którą działała aplikacja. Plik jest
 sprawdzany przed jakimkolwiek zapytaniem do bazy, więc działa też wtedy, gdy baza leży, trwa
 aktualizacja albo przywracanie kopii. Może być pusty, zawierać zwykły tekst dla odwiedzających
 albo JSON `{ "message": "…", "expected_end_at": "2026-11-17T14:00:00Z" }`.

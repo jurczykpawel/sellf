@@ -5526,7 +5526,7 @@
       "end_state": {
         "buyer": "A new claim (payment return page without a payment, free-product link, lead form, waitlist) is refused with the maintenance notice and grants nothing; the email link of a request made before the break grants access as usual.",
         "seller": "No new free access, lead or waitlist signup is recorded during the break; requests made before it are completed.",
-        "integrator": "Lead, waitlist, magic-link free-product and grant routes answer 503 with code MAINTENANCE; no access or lead webhook is sent for refused requests."
+        "integrator": "Lead, waitlist, magic-link free-product and grant routes answer 503 with code MAINTENANCE; a direct call of the public grant_free_product_access RPC is refused by the database (55000) while the database switch is on; no access or lead webhook is sent for refused requests."
       },
       "layers": [
         "e2e",

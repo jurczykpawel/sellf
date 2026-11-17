@@ -3,6 +3,9 @@ import { emitFreeAccessLead } from '@/lib/services/free-access-events';
 import { isMaintenanceActive } from '@/lib/maintenance/guard';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+/** SQLSTATE of the database refusing a new free grant during maintenance (grant_free_product_access). */
+const MAINTENANCE_SQLSTATE = '55000';
+
 export interface FreeProductInput {
   product: {
     id: string;
@@ -102,13 +105,23 @@ export async function grantFreeProductAccess(
       const fields = await validateFreeGrantFields(adminClient, product.slug, saved?.custom_field_values ?? {});
       if (!fields.ok || fields.productId !== product.id) return { alreadyHadAccess: false, accessGranted: false, otoInfo: null, error: 'Invalid checkout fields' };
       contextId = saved?.request_id; customFieldValues = fields.values;
-      if (!contextId && !completesSubmission && await isMaintenanceActive()) return refused;
+      if (!contextId && completesSubmission) {
+        // Record the verified submission as a saved request (service role only), so the database,
+        // which refuses NEW free grants during maintenance, completes it like any saved request.
+        const recorded = await adminClient.rpc('prepare_free_grant', { p_email: user.email.trim().toLowerCase(), p_product_id: product.id, p_values: fields.values });
+        if (recorded.error || !recorded.data) return { alreadyHadAccess: false, accessGranted: false, otoInfo: null, error: 'Checkout request unavailable' };
+        contextId = recorded.data as string;
+      }
+      if (!contextId && await isMaintenanceActive()) return refused;
     }
     const { data: grantResult, error: grantError } = contextId
       ? await userClient.rpc('grant_free_with_context', { product_slug_param: product.slug, coupon_code_param: couponCode ?? null, p_request_id: contextId })
       : await userClient.rpc('grant_free_product_access', { product_slug_param: product.slug, coupon_code_param: couponCode ?? null });
 
 
+    // The database refuses a new free grant while its maintenance switch is on (55000), also when
+    // the switch flipped after the check above.
+    if (grantError?.code === MAINTENANCE_SQLSTATE) return refused;
     if (grantError) {
       console.error('[grantFreeProductAccess] RPC error:', grantError);
       return { alreadyHadAccess: false, accessGranted: false, otoInfo: null, error: 'Failed to grant access' };

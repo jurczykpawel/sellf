@@ -1606,7 +1606,9 @@ paid complete. Products and settings never change.
 - **Server:** the file `<install>/MAINTENANCE` (next to `.env.local`) or `SELLF_MAINTENANCE=true`.
   Path rule shared by the app (`file.ts`) and `upgrade.sh` (`maintenance_file_path`): env
   `SELLF_MAINTENANCE_FILE`, else `.env.local`, else `MAINTENANCE`; relative = relative to the install
-  dir; upgrade.sh exports the resolved path to the app it starts. Read with `fs` only, before any
+  dir; the panel launcher (`api/v1/system/upgrade`) passes the running app's resolved path to the
+  updater (`--setenv=SELLF_MAINTENANCE_FILE=`), and upgrade.sh exports it to every app it starts
+  (new or restored), so one file holds the shop before the stop and after the start. Read with `fs` only, before any
   database request, so it works while the database is down or an update runs. `scripts/upgrade.sh`
   creates the file (JSON with a random run token) right before stopping PM2 and removes it on every
   exit (EXIT trap) except `migration_state_unknown`, where it is rewritten with that reason and left
@@ -1617,7 +1619,12 @@ paid complete. Products and settings never change.
   `grantFreeProductAccess` (new grant without a saved free-grant request; `completesSubmission` for
   a verified lead token), `prepareFreeGrantRequest` (magic link / embed `free_product`), leads and
   waitlist routes. A grant completing a request made before the break, and payment verification
-  with `session_id`/`payment_intent`, still work.
+  with `session_id`/`payment_intent`, still work. The database enforces the same rule for the
+  public RPC: `grant_free_product_access` (SECURITY DEFINER wrapper; `_impl` is service-role only)
+  raises `55000 Down for maintenance` while the database switch is on, unless it completes a saved
+  `free_grant_contexts` request of the caller (set by `grant_free_with_context`); a verified lead
+  token is recorded as such a request (`prepare_free_grant`, service role) before the grant. The
+  server file is invisible to SQL; the app checks it before calling.
 - **Database:** singleton `public.maintenance_mode`, switched only through
   `set_maintenance_mode` (service role; change + `audit_log` entry in one transaction). The proxy
   reads it through the anon RPC `get_maintenance_mode` (message/time only while on), cached 5 s on

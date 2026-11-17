@@ -7706,11 +7706,24 @@ ALTER FUNCTION public.grant_bundle_component_access_impl(user_id_param uuid, pro
 --
 
 CREATE FUNCTION public.grant_free_product_access(product_slug_param text, access_duration_days_param integer DEFAULT NULL::integer, coupon_code_param text DEFAULT NULL::text) RETURNS boolean
-    LANGUAGE plpgsql
+    LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO ''
     AS $$
-DECLARE previous text := current_setting('sellf.grant_source', true); result boolean;
+DECLARE
+  previous text := current_setting('sellf.grant_source', true);
+  saved_request uuid := nullif(current_setting('sellf.free_grant_context', true), '')::uuid;
+  result boolean;
 BEGIN
+  IF (select auth.role()) IS DISTINCT FROM 'service_role'
+     AND EXISTS (SELECT 1 FROM public.maintenance_mode m WHERE m.id AND m.enabled)
+     AND NOT EXISTS (
+       SELECT 1 FROM public.free_grant_contexts c
+       JOIN public.products p ON p.id = c.product_id
+       JOIN auth.users u ON lower(u.email) = c.email
+       WHERE c.id = saved_request AND p.slug = product_slug_param AND u.id = (select auth.uid())
+         AND c.claimed_at IS NULL AND c.expires_at > now()) THEN
+    RAISE EXCEPTION 'Down for maintenance' USING ERRCODE = '55000';
+  END IF;
   PERFORM set_config('sellf.grant_source', 'free', true);
   result := public.grant_free_product_access_impl(product_slug_param, access_duration_days_param, coupon_code_param);
   PERFORM set_config('sellf.grant_source', coalesce(previous, ''), true);
@@ -22957,7 +22970,6 @@ function | public.grant_bundle_component_access_impl(user_id_param uuid, product
 function | public.grant_free_product_access(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | authenticated | EXECUTE | postgres | -
 function | public.grant_free_product_access(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | postgres | EXECUTE | postgres | -
 function | public.grant_free_product_access(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | service_role | EXECUTE | postgres | -
-function | public.grant_free_product_access_impl(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | authenticated | EXECUTE | postgres | -
 function | public.grant_free_product_access_impl(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | postgres | EXECUTE | postgres | -
 function | public.grant_free_product_access_impl(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | service_role | EXECUTE | postgres | -
 function | public.grant_free_with_context(product_slug_param text, coupon_code_param text, p_request_id uuid) | authenticated | EXECUTE | postgres | -

@@ -95,3 +95,40 @@ END;
 $$;
 REVOKE EXECUTE ON FUNCTION public.set_maintenance_mode(boolean, text, timestamptz, uuid, jsonb) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.set_maintenance_mode(boolean, text, timestamptz, uuid, jsonb) TO service_role;
+
+-- ===== Free grants respect the database switch (defense in depth below the app) =====
+-- A signed-in buyer can call the public RPC straight through PostgREST, past every Next.js check,
+-- so the database itself refuses a NEW free grant while the database switch is on. It still
+-- completes a free-grant request saved before the break: grant_free_with_context puts the saved
+-- request id in sellf.free_grant_context, and only the server (service_role) can record one
+-- (prepare_free_grant). Paid fulfillment uses the service-role grants, which this does not touch.
+-- The server file source is invisible to SQL; the app checks it before calling (lib/maintenance).
+-- The wrapper becomes SECURITY DEFINER so its implementation is no longer callable by buyers
+-- (it was the bypass around this check); auth.uid() still reads the caller's JWT claims.
+CREATE OR REPLACE FUNCTION public.grant_free_product_access(product_slug_param text, access_duration_days_param integer DEFAULT NULL, coupon_code_param text DEFAULT NULL)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+  previous text := current_setting('sellf.grant_source', true);
+  saved_request uuid := nullif(current_setting('sellf.free_grant_context', true), '')::uuid;
+  result boolean;
+BEGIN
+  IF (select auth.role()) IS DISTINCT FROM 'service_role'
+     AND EXISTS (SELECT 1 FROM public.maintenance_mode m WHERE m.id AND m.enabled)
+     AND NOT EXISTS (
+       SELECT 1 FROM public.free_grant_contexts c
+       JOIN public.products p ON p.id = c.product_id
+       JOIN auth.users u ON lower(u.email) = c.email
+       WHERE c.id = saved_request AND p.slug = product_slug_param AND u.id = (select auth.uid())
+         AND c.claimed_at IS NULL AND c.expires_at > now()) THEN
+    RAISE EXCEPTION 'Down for maintenance' USING ERRCODE = '55000';
+  END IF;
+  PERFORM set_config('sellf.grant_source', 'free', true);
+  result := public.grant_free_product_access_impl(product_slug_param, access_duration_days_param, coupon_code_param);
+  PERFORM set_config('sellf.grant_source', coalesce(previous, ''), true);
+  RETURN result;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.grant_free_product_access(text, integer, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.grant_free_product_access(text, integer, text) TO authenticated, service_role;
+REVOKE EXECUTE ON FUNCTION public.grant_free_product_access_impl(text, integer, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.grant_free_product_access_impl(text, integer, text) TO service_role;

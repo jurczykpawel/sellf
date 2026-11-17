@@ -112,9 +112,22 @@ describe('free grants during maintenance @J655', () => {
   it('completes a submission the caller verified (lead confirmation token)', async () => {
     maintenanceOn();
     const client = userClient(null);
-    const result = await grantFreeProductAccess(client as never, adminClient() as never, { product: PRODUCT, user: USER, completesSubmission: true });
+    const admin = adminClient();
+    const result = await grantFreeProductAccess(client as never, admin as never, { product: PRODUCT, user: USER, completesSubmission: true });
     expect(result.accessGranted).toBe(true);
-    expect(grantCalls(client)).toHaveLength(1);
+    // The server records the verified submission as a saved request (service role), so the database,
+    // which refuses new free grants during maintenance, sees a completion and lets it through.
+    expect(admin.rpc).toHaveBeenCalledWith('prepare_free_grant', { p_email: USER.email, p_product_id: PRODUCT.id, p_values: {} });
+    expect(grantCalls(client)).toEqual([['grant_free_with_context', expect.objectContaining({ p_request_id: 'request-new' })]]);
+  });
+
+  it('reports maintenance (not "not free") when the database refuses the grant', async () => {
+    const client = { rpc: vi.fn(async (name: string) => name === 'free_grant_context'
+      ? { data: [], error: null }
+      : { data: null, error: { code: '55000', message: 'Down for maintenance' } }) };
+    const result = await grantFreeProductAccess(client as never, adminClient() as never, { product: PRODUCT, user: USER });
+    expect(result).toMatchObject({ accessGranted: false, maintenance: true });
+    expect(m.emit).not.toHaveBeenCalled();
   });
 
   it('a buyer who already has access keeps it (no new grant)', async () => {
