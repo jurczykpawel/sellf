@@ -3,16 +3,18 @@ import { readBuyerPayload } from '@/lib/webhooks/buyer-payload-storage';
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 import { loginAsAdmin, supabaseAdmin as db } from './helpers/admin-auth';
+import { holdBuyerEmailSettingExclusively } from './helpers/buyer-email-setting-playwright';
 import { MAILPIT_URL, extractMagicLink } from './helpers/mailpit';
 
+// Both tests flip supabase_buyer_emails; the lease keeps specs that need it on out meanwhile and restores it after.
+holdBuyerEmailSettingExclusively();
 test.describe.configure({ mode: 'serial' });
 let product: { id: string; slug: string }, endpointId: string;
-let bank: Record<string, unknown>, savedEmailSetting: boolean;
+let bank: Record<string, unknown>;
 const emails: string[] = [];
 async function checked<T>({ data, error }: { data: T; error: unknown }): Promise<NonNullable<T>> { if (error) throw error; return data!; }
 test.beforeAll(async () => {
   bank = await checked(await db.from('bank_transfer_config').select('*').single());
-  savedEmailSetting = (await checked(await db.from('shop_config').select('supabase_buyer_emails').single())).supabase_buyer_emails;
   await checked(await db.from('bank_transfer_config').update({ bank_transfer_enabled: true, bank_account_holder: 'Test Shop', bank_account_number: 'PL61109010140000071219812874', bank_name: 'Bank', bank_transfer_grant_access_on_placement: false }).eq('id', bank.id).select());
   product = await checked(await db.from('products').insert({ name: 'Buyer channel workshop', slug: `buyer-channel-${randomUUID()}`, price: 100, currency: 'PLN', vat_exempt: true, is_active: true,
     checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['person', 'organization'], bank_transfer_for: ['organization'] }] },
@@ -23,7 +25,6 @@ test.afterAll(async () => {
   if (endpointId) { await db.from('webhook_logs').delete().eq('endpoint_id', endpointId); await db.from('webhook_endpoints').delete().eq('id', endpointId); }
   if (product) { await db.from('guest_purchases').delete().eq('product_id', product.id); await db.from('payment_transactions').delete().eq('product_id', product.id); await db.from('products').delete().eq('id', product.id); }
   if (bank) await db.from('bank_transfer_config').upsert(bank);
-  await db.from('shop_config').update({ supabase_buyer_emails: savedEmailSetting }).not('id', 'is', null);
   const users = (await db.auth.admin.listUsers({ perPage: 1000 })).data.users;
   for (const user of users.filter(u => emails.includes(u.email ?? ''))) await db.auth.admin.deleteUser(user.id);
 });
