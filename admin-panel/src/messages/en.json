@@ -401,6 +401,7 @@
     },
     "loadError": "Failed to load checkout. Please try again later.",
     "createSessionError": "Failed to create checkout session",
+    "couponOwnedProduct": "You already have access to this product, so a 100% coupon cannot be used. Remove the coupon to buy only the add-ons.",
     "amountBelowMinimum": "This product cannot be purchased right now. The seller needs to correct its price.",
     "shopMaintenance": "The shop is down for maintenance. We’ll be back soon.",
     "netPrice": "Net price",

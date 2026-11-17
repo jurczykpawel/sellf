@@ -48,6 +48,7 @@ const mocks = vi.hoisted(() => ({
   productOverride: {} as Record<string, unknown>,
   existingAccess: false,
   drift: false,
+  bumpRows: null as Array<Record<string, unknown>> | null,
 }));
 
 function adminQuery(table: string) {
@@ -76,7 +77,7 @@ function adminQuery(table: string) {
     update: self,
     then: (resolve: (v: unknown) => void) =>
       resolve({
-        data: null,
+        data: table === 'products' && !inserting ? mocks.bumpRows : null,
         error: inserting && table === 'payment_transactions' ? mocks.pendingInsertError : null,
       }),
   });
@@ -179,6 +180,7 @@ beforeEach(() => {
   mocks.pendingInsertThrows = false;
   mocks.productOverride = {};
   mocks.existingAccess = false;
+  mocks.bumpRows = null;
   mocks.drift = false;
   mocks.verifyBinding.mockReturnValue(false);
   mocks.adminRpc.mockImplementation(async (name: string) => {
@@ -256,6 +258,29 @@ describe('POST /api/create-payment-intent — full-discount coupon', () => {
       coupon_code_param: 'FREE100',
     });
     expect(adminRpcNames()).not.toContain('grant_free_product_access');
+    expect(mocks.sessionsCreate).not.toHaveBeenCalled();
+  });
+
+  it('refuses a full-discount coupon on a product the buyer already owns, granting no add-ons @J44', async () => {
+    const BUMP_ID = '22222222-2222-4222-8222-222222222222';
+    mocks.existingAccess = true;
+    mocks.productOverride = { allow_repeat_purchase: true };
+    mocks.bumpRows = [{ ...PRODUCT, id: BUMP_ID, slug: 'addon', name: 'Add-on' }];
+    mocks.adminRpc.mockImplementation(async (name: string) =>
+      name === 'verify_coupon' ? { data: FULL_DISCOUNT, error: null }
+        : name === 'get_product_order_bumps' ? { data: [{ bump_product_id: BUMP_ID, bump_currency: PRODUCT.currency, bump_price: 30, bump_id: 'ob-1', bump_access_duration: null }], error: null }
+          : { data: null, error: null },
+    );
+    mocks.userRpc.mockResolvedValue({ data: true, error: null });
+
+    const res = await POST(makeRequest({ couponCode: 'free100', bumpProductIds: [BUMP_ID] }));
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.freeAccess).toBeUndefined();
+    expect(body.code).toBe('COUPON_OWNED_PRODUCT');
+    expect(adminRpcNames()).not.toContain('grant_product_and_bundle_components');
+    expect(mocks.userRpc).not.toHaveBeenCalledWith('grant_free_product_access', expect.anything());
     expect(mocks.sessionsCreate).not.toHaveBeenCalled();
   });
 

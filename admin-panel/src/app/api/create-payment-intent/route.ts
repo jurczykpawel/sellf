@@ -51,6 +51,8 @@ import { ATTRIBUTION_REF_KEY, attributionRequestContext, recordFreeAttribution, 
 import { isBelowMinimumCharge } from '@/lib/currency/minor-units';
 import { isStripeAmountTooSmall } from '@/lib/payment/minimum-charge';
 
+const OWNED_PRODUCT_FREE_COUPON_ERROR = 'This coupon cannot be used for a product you already have access to';
+
 function extractStripeObjectId(clientSecret: string): string | null {
   return clientSecret.split('_secret_')[0] || null;
 }
@@ -281,6 +283,7 @@ export async function POST(request: NextRequest) {
 
     let canRenewLicense = false;
     let canRepurchaseTipJar = false;
+    let hasActiveAccess = false;
 
     // 2. Check if user already has non-expired access.
     // Expired access is allowed to re-purchase — check access_expires_at.
@@ -298,6 +301,7 @@ export async function POST(request: NextRequest) {
           : null;
         const isExpired = expiresAt !== null && expiresAt < new Date();
         if (!isExpired) {
+          hasActiveAccess = true;
           const latestLicense = await findIssuedLicense(dataClient, productId, user, 'expires_at');
           canRenewLicense = canRenewExpiredLicenseWithActiveAccess({
             renewLicense: explicitRepurchase,
@@ -617,6 +621,11 @@ export async function POST(request: NextRequest) {
     // records the redemption atomically with the access row, so a refused grant
     // leaves the coupon untouched.
     if (!product.event_mode && pricing.isFreeWithCoupon && user && appliedCoupon) {
+      // A full-discount coupon grants the product with its add-ons and is redeemed with that grant;
+      // a buyer who already owns the product gets nothing new from it, so the coupon is not applied.
+      if (hasActiveAccess) {
+        return NextResponse.json({ error: OWNED_PRODUCT_FREE_COUPON_ERROR, code: 'COUPON_OWNED_PRODUCT' }, { status: 400 });
+      }
       const released = await releasePreviousSession();
       if (released) return released;
       const grant = await grantFreeProductAccess(supabase, dataClient, {
@@ -632,6 +641,9 @@ export async function POST(request: NextRequest) {
           { error: grant.error || 'Failed to grant access' },
           { status: 400 }
         );
+      }
+      if (grant.alreadyHadAccess) {
+        return NextResponse.json({ error: OWNED_PRODUCT_FREE_COUPON_ERROR, code: 'COUPON_OWNED_PRODUCT' }, { status: 400 });
       }
       await recordFreeAttribution(dataClient, product.id, user.id, attribution, attributionCtx);
 

@@ -401,6 +401,7 @@
     },
     "loadError": "Nie udało się załadować płatności. Spróbuj ponownie później.",
     "createSessionError": "Nie udało się utworzyć sesji płatności",
+    "couponOwnedProduct": "Masz już dostęp do tego produktu, więc kodu rabatowego 100% nie można tu użyć. Usuń kod, żeby kupić same dodatki.",
     "amountBelowMinimum": "Tego produktu nie można teraz kupić. Sprzedawca musi poprawić cenę.",
     "shopMaintenance": "Sklep ma przerwę techniczną. Wracamy wkrótce.",
     "netPrice": "Cena netto",
