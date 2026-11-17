@@ -1,4 +1,4 @@
--- 11.1 order entitlement fixes (W264).
+-- 11.1 fixes (W264): bundle components per order for refunds and disputes, coupon reservation at payment start, mail retry queue order, ended subscriptions stay ended.
 --
 -- ===== Bundle components granted per order =====
 -- An order of a bundle records the components the bundle held when the order was placed or paid, so
