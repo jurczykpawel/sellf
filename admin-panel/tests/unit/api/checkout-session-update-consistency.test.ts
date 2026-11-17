@@ -4,6 +4,7 @@
  * Stripe is replaced by an in-memory double whose update and expire steps can fail, time out
  * or race with the buyer's payment.
  * @see src/app/api/create-payment-intent/route.ts
+ * @see src/app/api/update-payment-metadata/route.ts
  * @see src/lib/stripe/checkout-session-update.ts
  * @see supabase/migrations/20261117120000_replace_pending_order.sql
  */
@@ -17,7 +18,8 @@ interface FakeSession {
   metadata: Record<string, string>; amount_subtotal: number; amount_total: number; currency: string;
   customer_details?: { email: string };
 }
-type UpdateParams = { line_items: Array<{ price_data: { unit_amount: number }; quantity: number }>; metadata: Record<string, string> };
+/** A cart update carries line items; a buyer-details save sends metadata only. */
+type UpdateParams = { line_items?: Array<{ price_data: { unit_amount: number }; quantity: number }>; metadata: Record<string, string> };
 
 const stripe = vi.hoisted(() => ({
   sessions: new Map<string, unknown>(),
@@ -55,8 +57,14 @@ vi.mock('@/lib/stripe/server', () => {
           const apply = () => {
             const session = get(id);
             if (session.status !== 'open') throw new Error('This Checkout Session is no longer open');
-            const amount = sum(params.line_items);
-            Object.assign(session, { metadata: { ...session.metadata, ...params.metadata }, amount_subtotal: amount, amount_total: amount });
+            // Stripe merges metadata keys; an empty string removes the key.
+            const metadata = { ...session.metadata, ...params.metadata };
+            for (const [key, value] of Object.entries(params.metadata ?? {})) if (value === '') delete metadata[key];
+            session.metadata = metadata;
+            if (params.line_items) {
+              const amount = sum(params.line_items);
+              Object.assign(session, { amount_subtotal: amount, amount_total: amount });
+            }
             return { ...session };
           };
           return stripe.onUpdate ? stripe.onUpdate(id, params, apply) : apply();
@@ -77,11 +85,11 @@ vi.mock('@/lib/stripe/server', () => {
 vi.mock('@/lib/supabase/server', () => ({
   createClient: async () => ({ auth: { getUser: async () => ({ data: { user: null } }) }, rpc: async () => ({ data: null, error: null }) }),
 }));
-vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: async () => true }));
+vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: async () => true, checkRateLimitForIdentifier: async () => true }));
 vi.mock('@/lib/telemetry/identity', () => ({ readInstanceId: async () => 'consistency-test-installation' }));
 vi.mock('@/lib/security/checkout-binding', () => ({ signCheckoutBinding: () => 'binding', verifyCheckoutBinding: () => true }));
 vi.mock('@/lib/stripe/checkout-config', () => ({
-  getCheckoutConfig: async () => ({ tax_mode: 'local', automatic_tax: { enabled: false }, tax_id_collection: { enabled: false }, billing_address_collection: 'auto', expires_hours: 24 }),
+  getCheckoutConfig: async () => ({ tax_mode: 'local', collect_terms_of_service: false, automatic_tax: { enabled: false }, tax_id_collection: { enabled: false }, billing_address_collection: 'auto', expires_hours: 24 }),
 }));
 vi.mock('@/lib/stripe/tax-rate-manager', () => ({ getOrCreateStripeTaxRate: async () => undefined, resolveLocalSubscriptionTaxRateId: async () => undefined }));
 vi.mock('@/lib/services/fulfill-paid-order', () => ({ fulfillStripeOrder: async () => undefined }));
@@ -95,6 +103,8 @@ vi.mock('@/lib/services/product-validation', async (importOriginal) => {
 });
 
 import { POST } from '@/app/api/create-payment-intent/route';
+import { POST as saveBuyerDetails } from '@/app/api/update-payment-metadata/route';
+import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
 import { handleCheckoutSessionCompleted } from '@/app/api/webhooks/stripe/onetime-handlers';
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -107,6 +117,7 @@ beforeAll(async () => {
   const { data, error } = await db.from('products').insert({
     name: slug, slug, price: 100, currency: 'PLN', is_active: true, price_includes_vat: true, vat_rate: null,
     checkout_profile: { v: 1, modules: [{ id: 'quantity', mode: 'checkout', min: 1, max: 5 }] },
+    custom_checkout_fields: [{ id: 'note', type: 'text', label: 'Note', required: true, max_length: 100 }],
   }).select('id').single();
   if (error) throw error;
   productId = data.id;
@@ -146,12 +157,22 @@ function pay(id: string): FakeSession {
   return structuredClone(session);
 }
 
+/** The checkout form saves the buyer's answers right before confirming the payment. */
+const submitForm = (open: { clientSecret: string; bindingToken: string }, quantity: number, note: string) =>
+  saveBuyerDetails(new NextRequest('http://localhost/api/update-payment-metadata', {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: getCanonicalOriginOrNull()! },
+    body: JSON.stringify({
+      clientSecret: open.clientSecret, bindingToken: open.bindingToken, productId, email: EMAIL, locale: 'en',
+      termsAccepted: true, moduleValues: { quantity }, customFieldValues: { note },
+    }),
+  }));
+
 const settle = (paid: FakeSession) =>
   handleCheckoutSessionCompleted(paid as unknown as Parameters<typeof handleCheckoutSessionCompleted>[0], createAdminClient());
 
 async function savedOrder(sessionId: string) {
-  const { data } = await db.from('payment_transactions').select('status,amount,payment_line_items(quantity)').eq('session_id', sessionId).single();
-  return data as { status: string; amount: number; payment_line_items: Array<{ quantity: number }> };
+  const { data } = await db.from('payment_transactions').select('status,amount,custom_field_values,payment_line_items(quantity)').eq('session_id', sessionId).single();
+  return data as { status: string; amount: number; custom_field_values: Record<string, string>; payment_line_items: Array<{ quantity: number }> };
 }
 
 describe('paid payments settle whatever the order of cart change, Stripe update and payment (W219b)', () => {
@@ -226,5 +247,38 @@ describe('paid payments settle whatever the order of cart change, Stripe update 
       const paid = pay(open.id);
       expect(await settle(paid)).toMatchObject({ processed: true });
     }
+  });
+
+  it('a late buyer-details save never rolls back the cart version Stripe charges (W219c)', async () => {
+    const open = await openCheckout();
+    expect((await post({ quantity: 2, clientSecret: open.clientSecret, bindingToken: open.bindingToken })).status).toBe(200);
+    // The form has read the session with cart version 2 and is held before its Stripe write.
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    let formWrites = 0;
+    stripe.onUpdate = async (_id, params, apply) => {
+      if (!(params as UpdateParams).line_items && ++formWrites === 1) await gate;
+      return apply();
+    };
+    const form = submitForm(open, 2, 'Workshop');
+    await vi.waitFor(() => expect(formWrites).toBe(1));
+    expect((await post({ quantity: 3, clientSecret: open.clientSecret, bindingToken: open.bindingToken })).status).toBe(200);
+    release();
+    expect((await form).status).toBe(200);
+    const paid = pay(open.id);
+    expect(paid.amount_total).toBe(30000);
+    expect(paid.metadata.sellf_cart_version).toBe('3');
+    expect(await settle(paid)).toMatchObject({ processed: true });
+    expect(await savedOrder(open.id)).toMatchObject({ status: 'completed', amount: 30000, payment_line_items: [{ quantity: 3 }] });
+  });
+
+  it('answers the buyer gave after a cart change survive settlement (W219c)', async () => {
+    const open = await openCheckout();
+    expect((await post({ quantity: 2, clientSecret: open.clientSecret, bindingToken: open.bindingToken })).status).toBe(200);
+    expect((await submitForm(open, 2, 'Workshop')).status).toBe(200);
+    expect((await savedOrder(open.id)).custom_field_values).toEqual({ note: 'Workshop' });
+    const paid = pay(open.id);
+    expect(await settle(paid)).toMatchObject({ processed: true });
+    expect(await savedOrder(open.id)).toMatchObject({ status: 'completed', amount: 20000, custom_field_values: { note: 'Workshop' } });
   });
 });

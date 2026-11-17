@@ -60,7 +60,7 @@ test.afterAll(async () => {
   if (buyer) await supabaseAdmin.auth.admin.deleteUser(buyer.id);
 });
 
-test('linked coupon, quantity, add-on and coupon removal keep one Stripe session that is paid and accepted by the webhook @J650', async ({ page, request }) => {
+test('linked coupon, quantity, add-on and coupon removal keep one Stripe session that is paid and accepted by the webhook @J660', async ({ page, request }) => {
   test.setTimeout(300000);
   const stripe = testStripe();
   const since = Math.floor(Date.now() / 1000) - 5;

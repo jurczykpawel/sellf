@@ -95,7 +95,6 @@ BEGIN
     amount = ver.amount,
     coupon_id = ver.coupon_id,
     metadata = coalesce(metadata, '{}'::jsonb) || ver.metadata,
-    custom_field_values = coalesce(ver.custom_field_values, custom_field_values),
     updated_at = now()
   WHERE id = p_transaction_id;
 END;
@@ -3322,9 +3321,9 @@ BEGIN
   UPDATE public.checkout_cart_versions SET state = 'unconfirmed' WHERE transaction_id = tx.id AND state = 'updating';
   priced := public._price_order_lines(p_order, p_lines);
   IF NOT EXISTS (SELECT 1 FROM public.checkout_cart_versions WHERE transaction_id = tx.id) THEN
-    INSERT INTO public.checkout_cart_versions (transaction_id, version, lines, amount, coupon_id, metadata, custom_field_values, state)
+    INSERT INTO public.checkout_cart_versions (transaction_id, version, lines, amount, coupon_id, metadata, state)
     SELECT tx.id, 1, coalesce(jsonb_agg(to_jsonb(li)), '[]'::jsonb), tx.amount, tx.coupon_id,
-      coalesce(tx.metadata, '{}'::jsonb), tx.custom_field_values, 'placed'
+      coalesce(tx.metadata, '{}'::jsonb), 'placed'
     FROM public.payment_line_items li WHERE li.transaction_id = tx.id;
   END IF;
   SELECT max(version) + 1, (array_agg(metadata ORDER BY version))[1] INTO next_version, base_metadata
@@ -3332,9 +3331,9 @@ BEGIN
   IF next_version > 100 THEN
     RETURN jsonb_build_object('success', false, 'error', 'order_not_replaceable');
   END IF;
-  INSERT INTO public.checkout_cart_versions (transaction_id, version, lines, amount, coupon_id, metadata, custom_field_values, state)
+  INSERT INTO public.checkout_cart_versions (transaction_id, version, lines, amount, coupon_id, metadata, state)
   VALUES (tx.id, next_version, priced->'lines', (priced->>'charge')::numeric, (p_order->>'coupon_id')::uuid,
-    base_metadata || coalesce(p_order->'metadata', '{}'::jsonb), p_order->'custom_field_values', 'updating');
+    base_metadata || coalesce(p_order->'metadata', '{}'::jsonb), 'updating');
   RETURN jsonb_build_object('success', true, 'transaction_id', tx.id, 'version', next_version, 'amount', (priced->>'charge')::numeric);
 END;
 $$;
@@ -13901,7 +13900,6 @@ CREATE TABLE public.checkout_cart_versions (
     amount numeric NOT NULL,
     coupon_id uuid,
     metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
-    custom_field_values jsonb,
     state text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT checkout_cart_versions_amount_check CHECK ((amount >= (0)::numeric)),

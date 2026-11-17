@@ -5271,7 +5271,7 @@
       ]
     },
     {
-      "id": "J650",
+      "id": "J660",
       "title": "Guest changes quantity, add-on and coupon on the open checkout and pays the same Stripe session",
       "values": {
         "persona": "guest",

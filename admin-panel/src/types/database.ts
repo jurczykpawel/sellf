@@ -1270,7 +1270,6 @@ export type Database = {
           amount: number
           coupon_id: string | null
           created_at: string
-          custom_field_values: Json | null
           lines: Json
           metadata: Json
           state: string
@@ -1281,7 +1280,6 @@ export type Database = {
           amount: number
           coupon_id?: string | null
           created_at?: string
-          custom_field_values?: Json | null
           lines: Json
           metadata?: Json
           state: string
@@ -1292,7 +1290,6 @@ export type Database = {
           amount?: number
           coupon_id?: string | null
           created_at?: string
-          custom_field_values?: Json | null
           lines?: Json
           metadata?: Json
           state?: string
