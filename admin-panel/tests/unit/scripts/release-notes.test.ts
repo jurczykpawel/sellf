@@ -133,3 +133,9 @@ describe.skipIf(!hasRealRange)('CLI on the real history v2026.11.0..92acfbbd', (
     expect(run.stdout).toContain('78 commits');
   });
 });
+
+it('preserves rc version in notes and compare link', () => {
+  const notes = buildReleaseNotes([], { version: '2026.11.1-rc.1', from: 'v2026.11.0' });
+  expect(notes).toContain('2026.11.1-rc.1');
+  expect(notes).toContain('v2026.11.0...v2026.11.1-rc.1');
+});

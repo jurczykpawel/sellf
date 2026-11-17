@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'fs';
 import path from 'path';
 import { PINNED_SUPABASE_CLI } from '@/../scripts/schema-snapshot';
@@ -46,7 +47,7 @@ describe('build-release.yml hardening', () => {
   });
 
   it('only signs strict YYYY.M.patch tags that match admin-panel/package.json', () => {
-    expect(buildRelease).toContain('if ! [[ "$RELEASE_VERSION" =~ ^v?[0-9]+\\.[0-9]+\\.[0-9]+$ ]]; then');
+    expect(buildRelease).toContain('if ! [[ "$RELEASE_VERSION" =~ ^v?[0-9]{4}\\.([1-9]|1[0-2])\\.(0|[1-9][0-9]*)(-rc\\.[1-9][0-9]*)?$ ]]; then');
     expect(buildRelease).toContain('PACKAGE_VERSION="$(node -p "require(\'./admin-panel/package.json\').version")"');
     expect(buildRelease).toContain('if [ "$MANIFEST_VERSION" != "$PACKAGE_VERSION" ]; then');
   });
@@ -81,7 +82,7 @@ describe('build-release.yml docker job hardening', () => {
   });
 
   it('validates the release version before logging in to GHCR or pushing', () => {
-    const validateIdx = dockerJob.indexOf('if ! [[ "$RELEASE_VERSION" =~ ^v?[0-9]+\\.[0-9]+\\.[0-9]+$ ]]; then');
+    const validateIdx = dockerJob.indexOf('if ! [[ "$RELEASE_VERSION" =~ ^v?[0-9]{4}\\.([1-9]|1[0-2])\\.(0|[1-9][0-9]*)(-rc\\.[1-9][0-9]*)?$ ]]; then');
     const loginIdx = dockerJob.indexOf('Login to GHCR');
     const pushIdx = dockerJob.indexOf('Build and push');
     expect(validateIdx).toBeGreaterThan(-1);
@@ -93,7 +94,7 @@ describe('build-release.yml docker job hardening', () => {
   });
 
   it('only pushes the latest tag on a real release event, never on a manual re-run', () => {
-    expect(dockerJob).toContain("type=raw,value=latest,enable=${{ github.event_name == 'release' }}");
+    expect(dockerJob).toContain("type=raw,value=latest,enable=${{ github.event_name == 'release' && !github.event.release.prerelease && !contains(steps.version.outputs.VERSION, '-rc.') }}");
   });
 
   it('pins every third-party action to a full commit SHA', () => {
@@ -200,5 +201,35 @@ describe('sync-ksef-example.yml hardening', () => {
 
   it('pins its actions to full commit SHAs', () => {
     expect(unpinnedThirdPartyActions(syncKsef)).toEqual([]);
+  });
+});
+
+describe('release candidates stay in the explicit channel', () => {
+  it('requires an explicit prerelease flag and propagates it to manual releases', () => {
+    expect(buildRelease).toContain('prerelease: ${{ inputs.prerelease }}');
+    expect(buildRelease).toContain("github.event.release.prerelease == true");
+    expect(buildRelease).toContain('"$PRERELEASE" != true');
+  });
+  it('turns off implicit latest and stable aliases for rc images', () => {
+    expect(buildRelease).toContain('latest=false');
+    expect(buildRelease).toContain("enable=${{ !contains(steps.version.outputs.VERSION, '-rc.') }}");
+  });
+});
+
+describe('release version shell gates', () => {
+  const gates = [...buildRelease.matchAll(/          if ! \[\[ "\$RELEASE_VERSION"[\s\S]*?(?=          PACKAGE_VERSION=)/g)].map(m => m[0]);
+  it.each([
+    ['v2026.11.1', 'false', 0],
+    ['v2026.11.1-rc.1', 'true', 0],
+    ['v2026.11.1-rc.1', 'false', 1],
+    ['v2026.11.1-beta.1', 'true', 1],
+    ['v2026.13.1', 'false', 1],
+    ['v2026.11.1-rc.0', 'true', 1],
+    ['v2026.11.01', 'false', 1],
+  ])('validates %s with prerelease=%s', (version, prerelease, status) => {
+    expect(gates).toHaveLength(2);
+    for (const gate of gates) {
+      expect(spawnSync('bash', ['-c', gate], { env: { ...process.env, RELEASE_VERSION: String(version), PRERELEASE: String(prerelease) } }).status).toBe(status);
+    }
   });
 });

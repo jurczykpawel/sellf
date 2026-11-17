@@ -19,6 +19,11 @@ beforeEach(() => vi.stubEnv('SELLF_DEPLOYMENT_RUNTIME', 'manual'));
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
 describe('update check without api.github.com', () => {
+  it('does not offer rc returned from latest to a stable installation', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 302, headers: { location: 'https://github.com/jurczykpawel/sellf/releases/tag/v2026.11.2-rc.1' } })));
+    expect(await get()).toMatchObject({ update_available: false, check_error: { code: 'release_lookup_invalid' } });
+  });
+
   it('takes the latest version from the github.com redirect even when the API is rate limited', async () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => url === 'https://github.com/jurczykpawel/sellf/releases/latest'
       ? latestRedirect()

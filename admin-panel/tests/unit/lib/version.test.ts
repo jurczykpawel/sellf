@@ -140,12 +140,15 @@ describe('isNewerVersion', () => {
       expect(isNewerVersion('1.0.0', '1.0.')).toBe(false);
     });
 
-    it('should not correctly parse pre-release suffixes (known limitation)', () => {
-      // '1.0.0-beta.1' → split('.') → ['1','0','0-beta','1'] → [1,0,NaN,1]
-      // Segment 3: NaN vs 0 → both (lv > cv) and (lv < cv) are false → continues
-      // Segment 4: 1 vs 0 → 1 > 0 → returns true (incorrectly treats beta as newer)
-      // This is a known limitation — pre-release versions are not supported
-      expect(isNewerVersion('1.0.0', '1.0.0-beta.1')).toBe(true);
+    it('orders rc before stable, including rc sequence numbers', () => {
+      expect(isNewerVersion('2026.11.1-rc.1', '2026.11.1')).toBe(true);
+      expect(isNewerVersion('2026.11.1', '2026.11.2-rc.1')).toBe(true);
+      expect(isNewerVersion('2026.11.1-rc.1', '2026.11.1-rc.1')).toBe(false);
+      expect(isNewerVersion('2026.11.1', '2026.11.1-rc.1')).toBe(false);
+      expect(isNewerVersion('2026.11.1-rc.2', '2026.11.1-rc.10')).toBe(true);
+      expect(isNewerVersion('2026.11.1-rc.10', '2026.11.1-rc.2')).toBe(false);
+      expect(isNewerVersion('2026.11.1-rc.1', '2026.11.0')).toBe(false);
+      expect(isNewerVersion('2026.11.1', '2026.11.2-beta.1')).toBe(false);
     });
   });
 });

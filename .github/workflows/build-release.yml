@@ -6,9 +6,14 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag (e.g., v1.0.0)'
+        description: 'Version tag (YYYY.M.patch or YYYY.M.patch-rc.N)'
         required: true
         type: string
+      prerelease:
+        description: Build an explicit prerelease
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -380,6 +385,7 @@ jobs:
         env:
           RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
           RELEASE_VERSION: ${{ steps.version.outputs.VERSION }}
+          PRERELEASE: ${{ (github.event_name == 'release' && github.event.release.prerelease == true) || (github.event_name == 'workflow_dispatch' && inputs.prerelease == true) }}
         run: |
           set -euo pipefail
           if [ -z "${RELEASE_SIGNING_KEY:-}" ]; then
@@ -390,8 +396,12 @@ jobs:
           # The tag must be CalVer (optional v prefix) and match
           # admin-panel/package.json, which becomes the installed version.txt
           # the next upgrade compares against.
-          if ! [[ "$RELEASE_VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          if ! [[ "$RELEASE_VERSION" =~ ^v?[0-9]{4}\.([1-9]|1[0-2])\.(0|[1-9][0-9]*)(-rc\.[1-9][0-9]*)?$ ]]; then
             echo "::error::release tag '$RELEASE_VERSION' is not YYYY.M.patch"
+            exit 1
+          fi
+          if [[ "$RELEASE_VERSION" == *-rc.* ]] && [ "$PRERELEASE" != true ]; then
+            echo "::error::RC requires prerelease=true"
             exit 1
           fi
           PACKAGE_VERSION="$(node -p "require('./admin-panel/package.json').version")"
@@ -442,6 +452,7 @@ jobs:
           tag_name: ${{ steps.version.outputs.VERSION }}
           name: Sellf ${{ steps.version.outputs.VERSION }}
           draft: false
+          prerelease: ${{ inputs.prerelease }}
           files: |
             sellf-build.tar.gz
             sellf-build.tar.gz.sha256
@@ -506,16 +517,21 @@ jobs:
             echo "VERSION=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
           fi
 
-      # Same strict gate as the tarball manifest (build job): a malformed or
-      # rc tag, or one that doesn't match admin-panel/package.json, must
+      # Same strict gate as the tarball manifest (build job): an unmarked RC
+      # or a tag differing from admin-panel/package.json must
       # never reach GHCR — checked before login/push, not after.
       - name: Validate release version
         env:
           RELEASE_VERSION: ${{ steps.version.outputs.VERSION }}
+          PRERELEASE: ${{ (github.event_name == 'release' && github.event.release.prerelease == true) || (github.event_name == 'workflow_dispatch' && inputs.prerelease == true) }}
         run: |
           set -euo pipefail
-          if ! [[ "$RELEASE_VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          if ! [[ "$RELEASE_VERSION" =~ ^v?[0-9]{4}\.([1-9]|1[0-2])\.(0|[1-9][0-9]*)(-rc\.[1-9][0-9]*)?$ ]]; then
             echo "::error::release tag '$RELEASE_VERSION' is not YYYY.M.patch"
+            exit 1
+          fi
+          if [[ "$RELEASE_VERSION" == *-rc.* ]] && [ "$PRERELEASE" != true ]; then
+            echo "::error::RC requires prerelease=true"
             exit 1
           fi
           PACKAGE_VERSION="$(node -p "require('./admin-panel/package.json').version")"
@@ -530,10 +546,12 @@ jobs:
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
         with:
           images: ghcr.io/${{ github.repository_owner }}/sellf
+          flavor: |
+            latest=false
           tags: |
             type=semver,pattern={{version}},value=${{ steps.version.outputs.VERSION }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ steps.version.outputs.VERSION }}
-            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ steps.version.outputs.VERSION }},enable=${{ !contains(steps.version.outputs.VERSION, '-rc.') }}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' && !github.event.release.prerelease && !contains(steps.version.outputs.VERSION, '-rc.') }}
 
       - name: Login to GHCR
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4

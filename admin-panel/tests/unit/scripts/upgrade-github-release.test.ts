@@ -110,6 +110,13 @@ exec ${JSON.stringify(realCurl)} "\${args[@]}"
 }
 
 describe('updater release lookup without api.github.com', () => {
+  it('leaves a stable installation unchanged when latest redirects to rc', async () => {
+    const run = await runUpdater({ latest: status(302, '', { Location: `https://github.com${REPO_PATH}/releases/tag/v2026.11.2-rc.1` }) });
+    expect(run.exitCode).toBe(1);
+    expect(run.progress).toMatchObject({ code: 'release_lookup_invalid', details: { installed_version: '2026.10.6' } });
+    expect(run.requests).toEqual([`${REPO_PATH}/releases/latest`]);
+  });
+
   it('reads the latest tag from the github.com redirect and downloads assets by tag', async () => {
     const run = await runUpdater({ assets: v2Assets() });
     expect(run.apiCalls).toBe('');

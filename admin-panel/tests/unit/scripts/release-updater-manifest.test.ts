@@ -21,3 +21,16 @@ it('emits the signed-v2 input and emits legacy only for minimum 1', () => {
     expect(readFileSync(path.join(dir, 'sellf-build.v2.manifest'), 'utf8')).toContain('min_updater_version=2\n');
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+it('writes rc only as v2, even with minimum updater 1', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'sellf-rc-manifest-'));
+  try {
+    const archive = path.join(dir, 'build.tar.gz');
+    const updater = path.join(dir, 'upgrade.sh');
+    writeFileSync(archive, 'fixture');
+    writeFileSync(updater, 'MIN_UPDATER_VERSION=1\n');
+    execFileSync('bash', [path.resolve(__dirname, '../../../scripts/ci/write-release-manifests.sh'), '2026.11.1-rc.1', archive, dir, updater]);
+    expect(readFileSync(path.join(dir, 'sellf-build.v2.manifest'), 'utf8')).toContain('version=2026.11.1-rc.1\n');
+    expect(existsSync(path.join(dir, 'sellf-build.manifest'))).toBe(false);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

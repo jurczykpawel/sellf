@@ -4,7 +4,7 @@
  * notes come from Conventional Commits (`type(scope)!: subject`, `BREAKING CHANGE: …` footer)
  * between the last release tag and HEAD, not from PR labels.
  *
- *   bun run release:notes [--from <tag>] [--to <ref>] [--version <YYYY.M.patch>] [--out <file>]
+ *   bun run release:notes [--from <tag>] [--to <ref>] [--version <YYYY.M.patch[-rc.N]>] [--out <file>]
  *   bun run release:notes --check <file>   — exit 1 while the Highlights were not written
  *
  * Defaults: --from = last v* tag reachable from --to, --to = HEAD, --version = admin-panel/package.json.

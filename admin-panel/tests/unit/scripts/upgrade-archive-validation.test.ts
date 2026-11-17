@@ -362,6 +362,12 @@ describe('upgrade.sh release verification (extracted verbatim from scripts/upgra
   });
 
   describe('installed version comparison', () => {
+    it('promotes an installed rc to the stable release', async () => {
+      const { stdout } = await runHarness(buildRelease({ version: '2026.11.1', installed: '2026.11.1-rc.1' }));
+      expect(stdout).toContain('ACCEPTED');
+      await expectRejection(runHarness(buildRelease({ version: '2026.11.0', installed: '2026.11.1-rc.1' })), 'is older than the installed version');
+    });
+
     it('accepts a release newer than the installed version', async () => {
       const { stdout } = await runHarness(buildRelease({ version: '2026.9.3', installed: '2026.9.2' }));
       expect(stdout).toContain('ACCEPTED');
