@@ -26,6 +26,7 @@ const db = createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABAS
 const products = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
 const email = `limit-buyer-${randomUUID()}@example.com`;
 let seller = '', buyer = '';
+let deferredMails: { id: string; next_attempt_at: string }[] = [];
 
 const grantAndIssue = async (productId: string, userId = buyer) => {
   const granted = await mutateAccess(db, 'grant', userId, { type: 'user', id: seller }, { issue_license: true }, undefined, productId).single();
@@ -56,6 +57,13 @@ function letAuthMailLimitPass(userId: string) {
 }
 
 beforeAll(async () => {
+  const pending = await db.from('auth_mail_retries').select('id,next_attempt_at').is('given_up_at', null);
+  expect(pending.error).toBeNull();
+  deferredMails = pending.data ?? [];
+  if (deferredMails.length) {
+    expect((await db.from('auth_mail_retries').update({ next_attempt_at: new Date(Date.now() + 86_400_000).toISOString() })
+      .in('id', deferredMails.map(row => row.id))).error).toBeNull();
+  }
   const owner = await db.auth.admin.createUser({ email: `limit-owner-${randomUUID()}@example.com`, email_confirm: true });
   expect(owner.error).toBeNull(); seller = owner.data.user!.id;
   await storeSellerKey(db, { sellerId: seller, ...generateSellerKeypair(), custody: 'managed' });
@@ -71,6 +79,9 @@ afterAll(async () => {
   await db.from('products').delete().in('id', products);
   if (seller) { await db.from('seller_license_keys').delete().eq('seller_id', seller); await db.auth.admin.deleteUser(seller); }
   if (buyer) await db.auth.admin.deleteUser(buyer);
+  for (const row of deferredMails) {
+    expect((await db.from('auth_mail_retries').update({ next_attempt_at: row.next_attempt_at }).eq('id', row.id)).error).toBeNull();
+  }
 });
 
 it('grants the second license within a minute, reports the mail as pending and delivers it from the retry queue @J197', async () => {

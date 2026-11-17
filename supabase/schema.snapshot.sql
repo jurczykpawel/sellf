@@ -13066,7 +13066,7 @@ CREATE FUNCTION public.stamp_webhook_url() RETURNS trigger
     SET search_path TO ''
     AS $$
 BEGIN
-  IF TG_OP = 'INSERT' THEN NEW.url_changed_at := NULL;
+  IF TG_OP = 'INSERT' THEN NEW.url_changed_at := clock_timestamp();
   ELSIF NEW.url IS DISTINCT FROM OLD.url THEN NEW.url_changed_at := clock_timestamp();
   ELSE NEW.url_changed_at := OLD.url_changed_at;
   END IF;

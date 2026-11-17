@@ -53,3 +53,32 @@ it('allows an explicit test delivery for an inactive endpoint', async () => {
     await db.from('webhook_endpoints').delete().eq('id', id);
   }
 });
+
+it('sends a new business event to a freshly created destination', async () => {
+  const { execFileSync } = await import('node:child_process');
+  const { getTestDatabaseContainer } = await import('../helpers/database-container');
+  const { WebhookService } = await import('@/lib/services/webhook-service');
+  const endpoint = await db.from('webhook_endpoints').insert({
+    url: 'https://example.com/fresh', secret: 'test', events: ['access.granted'], is_active: true,
+  }).select('id').single();
+  expect(endpoint.error).toBeNull();
+  let eventId: string | undefined;
+  try {
+    eventId = execFileSync('docker', ['exec', '-i', getTestDatabaseContainer(), 'psql', '-U', 'postgres', '-At', '-v', 'ON_ERROR_STOP=1'], {
+      input: `INSERT INTO public.business_events(event_type,payload) VALUES('access.granted','{"message":"fresh"}') RETURNING id;`, encoding: 'utf8',
+    }).trim().split('\n')[0];
+    vi.mocked(send).mockResolvedValue(new Response('ok', { status: 200 }) as never);
+    await WebhookService.trigger('access.granted', { message: 'fresh' }, db, undefined, `business_${eventId}`, [endpoint.data!.id]);
+    expect(send).toHaveBeenCalledOnce();
+    expect(send).toHaveBeenCalledWith('https://example.com/fresh', expect.objectContaining({
+      body: expect.stringContaining('"message":"fresh"'),
+    }));
+    const logs = await db.from('webhook_logs').select('status,http_status').eq('endpoint_id', endpoint.data!.id);
+    expect(logs.error).toBeNull();
+    expect(logs.data).toEqual([{ status: 'success', http_status: 200 }]);
+  } finally {
+    await db.from('webhook_logs').delete().eq('endpoint_id', endpoint.data!.id);
+    await db.from('webhook_endpoints').delete().eq('id', endpoint.data!.id);
+    if (eventId) await db.from('business_events').delete().eq('id', eventId);
+  }
+});
