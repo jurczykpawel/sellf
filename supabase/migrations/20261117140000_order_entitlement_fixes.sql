@@ -622,3 +622,20 @@ END $$;
 REVOKE EXECUTE ON FUNCTION public.refuse_access_from_ended_subscription() FROM PUBLIC, anon, authenticated;
 CREATE TRIGGER refuse_access_from_ended_subscription BEFORE INSERT OR UPDATE OF subscription_id, access_expires_at
   ON public.user_product_access FOR EACH ROW EXECUTE FUNCTION public.refuse_access_from_ended_subscription();
+
+
+-- Replace the ordered component set as a single write; invalid replacements retain the previous set.
+CREATE FUNCTION public.replace_bundle_items(p_bundle_id uuid, p_component_ids uuid[]) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  IF (select auth.role()) IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'Service role required' USING ERRCODE = '42501';
+  END IF;
+  PERFORM 1 FROM public.products WHERE id = p_bundle_id FOR UPDATE;
+  DELETE FROM public.bundle_items WHERE bundle_product_id = p_bundle_id;
+  INSERT INTO public.bundle_items(bundle_product_id, component_product_id, display_order)
+  SELECT p_bundle_id, component, ordinality - 1
+  FROM unnest(p_component_ids) WITH ORDINALITY AS c(component, ordinality);
+END $$;
+REVOKE EXECUTE ON FUNCTION public.replace_bundle_items(uuid, uuid[]) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.replace_bundle_items(uuid, uuid[]) TO service_role;

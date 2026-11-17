@@ -83,9 +83,20 @@ describe.skipIf(!db)('upsertBundleItems', () => {
   it('propagates the DB trigger error for an invalid component (nested bundle)', async () => {
     const bundle = await mkProduct({ is_bundle: true });
     const inner = await mkProduct({ is_bundle: true });
+    const original = await mkProduct();
+    await upsertBundleItems(db!, bundle, [original]);
 
     await expect(upsertBundleItems(db!, bundle, [inner])).rejects.toBeTruthy();
-    // failed insert leaves the bundle with no components
-    expect(await components(bundle)).toEqual([]);
+    expect(await components(bundle)).toEqual([original]);
   });
+  it('requires a service client to replace the component set', async () => {
+    const bundle = await mkProduct({ is_bundle: true });
+    const original = await mkProduct();
+    await upsertBundleItems(db!, bundle, [original]);
+    const publicClient = createClient(URL, process.env.SUPABASE_ANON_KEY!, { auth: { persistSession: false } });
+    const { error } = await publicClient.rpc('replace_bundle_items', { p_bundle_id: bundle, p_component_ids: [] });
+    expect(error?.code).toBe('42501');
+    expect(await components(bundle)).toEqual([original]);
+  });
+
 });

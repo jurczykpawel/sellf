@@ -11799,6 +11799,28 @@ END $$;
 ALTER FUNCTION public.remove_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid, p_permanent boolean) OWNER TO postgres;
 
 --
+-- Name: replace_bundle_items(uuid, uuid[]); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.replace_bundle_items(p_bundle_id uuid, p_component_ids uuid[]) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+BEGIN
+  IF (select auth.role()) IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'Service role required' USING ERRCODE = '42501';
+  END IF;
+  PERFORM 1 FROM public.products WHERE id = p_bundle_id FOR UPDATE;
+  DELETE FROM public.bundle_items WHERE bundle_product_id = p_bundle_id;
+  INSERT INTO public.bundle_items(bundle_product_id, component_product_id, display_order)
+  SELECT p_bundle_id, component, ordinality - 1
+  FROM unnest(p_component_ids) WITH ORDINALITY AS c(component, ordinality);
+END $$;
+
+
+ALTER FUNCTION public.replace_bundle_items(p_bundle_id uuid, p_component_ids uuid[]) OWNER TO postgres;
+
+--
 -- Name: replace_seller_license_key(uuid, text, text, text, text, text, text); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -23406,6 +23428,8 @@ function | public.release_unpaid_transfer(p_id uuid, p_now timestamp with time z
 function | public.release_unpaid_transfer(p_id uuid, p_now timestamp with time zone) | service_role | EXECUTE | postgres | -
 function | public.remove_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid, p_permanent boolean) | postgres | EXECUTE | postgres | -
 function | public.remove_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid, p_permanent boolean) | service_role | EXECUTE | postgres | -
+function | public.replace_bundle_items(p_bundle_id uuid, p_component_ids uuid[]) | postgres | EXECUTE | postgres | -
+function | public.replace_bundle_items(p_bundle_id uuid, p_component_ids uuid[]) | service_role | EXECUTE | postgres | -
 function | public.replace_seller_license_key(p_seller_id uuid, p_kid text, p_public_key text, p_encrypted_key text, p_encryption_iv text, p_encryption_tag text, p_custody text) | postgres | EXECUTE | postgres | -
 function | public.replace_seller_license_key(p_seller_id uuid, p_kid text, p_public_key text, p_encrypted_key text, p_encryption_iv text, p_encryption_tag text, p_custody text) | service_role | EXECUTE | postgres | -
 function | public.restore_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid) | postgres | EXECUTE | postgres | -

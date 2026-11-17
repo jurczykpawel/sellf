@@ -7086,6 +7086,10 @@ export type Database = {
         }
         Returns: Json
       }
+      replace_bundle_items: {
+        Args: { p_bundle_id: string; p_component_ids: string[] }
+        Returns: undefined
+      }
       replace_seller_license_key: {
         Args: {
           p_custody: string
