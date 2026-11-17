@@ -40,6 +40,7 @@ async function runHarness(migrations: MigrationFixture[], applied: unknown = [],
   writeFileSync(path.join(install, '.env.local'), missingConfig ? '' : 'SUPABASE_URL=http://fixture.invalid\nSUPABASE_SERVICE_ROLE_KEY=test-key\n');
   writeFileSync(path.join(dir, 'status.json'), JSON.stringify(applied));
   writeFileSync(path.join(dir, 'calls'), '');
+  for (const name of ['argv', 'headers', 'private-headers']) writeFileSync(path.join(dir, name), '');
   for (const migration of migrations) {
     writeFileSync(path.join(migrationDir, `${migration.version}.sql`), 'SELECT 1;');
     writeFileSync(path.join(dir, `${migration.version}.result`), migration.result);
@@ -47,9 +48,11 @@ async function runHarness(migrations: MigrationFixture[], applied: unknown = [],
   }
   writeFileSync(path.join(bin, 'curl'), `#!/usr/bin/env bash
 set -euo pipefail
+printf '%s\\n' "$@" >> "$FIXTURE_DIR/argv"
 url='' payload='' output=''
 while [ "$#" -gt 0 ]; do
   case "$1" in
+    -H) if [[ "$2" == @* ]]; then f="\${2#@}"; cat "$f" >> "$FIXTURE_DIR/headers"; find "$f" -perm 600 >> "$FIXTURE_DIR/private-headers"; fi; shift ;;
     http*) url="$1" ;;
     --data-binary|-d) payload="$2"; shift ;;
     -o) output="$2"; shift ;;
@@ -104,7 +107,8 @@ ${block('# ===== CLEANUP =====', '\n}\nmain "$@"')}
   }).then(({ stdout }) => ({ stdout, code: 0 })).catch((error: { stdout: string; code: number }) => ({
     stdout: error.stdout, code: error.code,
   }));
-  return { ...execution, calls: readFileSync(path.join(dir, 'calls'), 'utf8') };
+  const read = (name: string) => readFileSync(path.join(dir, name), 'utf8');
+  return { ...execution, calls: read('calls'), argv: read('argv'), headers: read('headers'), privateHeaders: read('private-headers') };
 }
 
 afterEach(() => {
@@ -126,6 +130,18 @@ describe('upgrade.sh migration reporting', () => {
     expect(run.stdout).toContain('Migrations complete: 2 applied, 1 already applied, 0 errors');
     expect(run.stdout).toContain('PROGRESS: done');
     expect(run.code).toBe(0);
+  });
+
+  it('passes the service-role key to curl only through a private header file, never as a process argument', async () => {
+    const run = await runHarness([
+      { version: first, result: 'should not be requested' },
+      { version: third, result: '{"success":true,"skipped":false}' },
+    ], [{ version: first }]);
+    expect(run.code).toBe(0);
+    expect(run.argv).not.toContain('test-key');
+    expect(run.headers).toContain('apikey: test-key');
+    expect(run.headers).toContain('Authorization: Bearer test-key');
+    expect(run.privateHeaders.trim().split('\n').length).toBeGreaterThanOrEqual(2);
   });
 
   it('reports a failed batch with the database message and applies nothing', async () => {

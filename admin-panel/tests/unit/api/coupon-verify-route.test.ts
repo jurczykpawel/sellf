@@ -75,6 +75,7 @@ describe('POST /api/coupons/verify', () => {
       product_id_param: PRODUCT_ID,
       customer_email_param: 'buyer@example.com',
       currency_param: 'PLN',
+      reserve_param: false,
     });
     expect(userClient.rpc).not.toHaveBeenCalled();
   });

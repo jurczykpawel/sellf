@@ -128,7 +128,7 @@ BEGIN
     BEGIN
       PERFORM set_config('sellf.transfer_order',coalesce(claim.transaction_id::text,''),true);
       UPDATE public.guest_purchases SET claimed_by_user_id=p_user_id,claimed_at=now() WHERE id=claim.id;
-      result:=public.grant_product_and_bundle_components(p_user_id,claim.product_id);
+      result:=public.grant_product_and_bundle_components(p_user_id,claim.product_id,NULL,claim.transaction_id);
       IF (result->>'success')::boolean IS DISTINCT FROM true THEN RAISE EXCEPTION 'Access grant failed'; END IF;
       claimed:=claimed+1;
       UPDATE public.payment_transactions SET user_id=p_user_id,updated_at=now()
@@ -247,7 +247,7 @@ BEGIN
       SELECT 1 FROM public.guest_purchases gp WHERE gp.transaction_id=tx.id AND gp.customer_email=u.email AND gp.claimed_by_user_id IS NULL);
   END IF;
   IF p_user_id IS NOT NULL THEN
-    PERFORM public.grant_product_and_bundle_components(p_user_id,tx.product_id);
+    PERFORM public.grant_product_and_bundle_components(p_user_id,tx.product_id,NULL,tx.id);
     FOR line IN SELECT product_id,access_duration_override FROM public.payment_line_items WHERE transaction_id=tx.id AND item_type='order_bump' LOOP
       PERFORM public.grant_product_access_service_role(p_user_id,line.product_id,override_duration_days_param=>line.access_duration_override);
     END LOOP;
@@ -507,7 +507,7 @@ BEGIN
           SELECT 1 FROM public.guest_purchases
           WHERE session_id = session_id_param AND claimed_by_user_id IS NULL
         ) THEN
-          PERFORM public.grant_product_and_bundle_components(current_user_id, product_id_param);
+          PERFORM public.grant_product_and_bundle_components(current_user_id, product_id_param, NULL, existing_transaction_id);
 
           FOR bump_rec IN
             SELECT pli.product_id, pli.access_duration_override
@@ -860,10 +860,10 @@ END $$;
 ALTER FUNCTION public._reopen_cancelled_transfer(p_id uuid) OWNER TO postgres;
 
 --
--- Name: _reserve_coupon(uuid, uuid, text, text); Type: FUNCTION; Schema: public; Owner: postgres
+-- Name: _reserve_coupon(uuid, uuid, text, text, boolean); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
-CREATE FUNCTION public._reserve_coupon(coupon_id_param uuid, product_id_param uuid, customer_email_param text, currency_param text) RETURNS jsonb
+CREATE FUNCTION public._reserve_coupon(coupon_id_param uuid, product_id_param uuid, customer_email_param text, currency_param text, reserve_param boolean DEFAULT true) RETURNS jsonb
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO ''
     AS $_$
@@ -941,7 +941,7 @@ BEGIN
       RETURN jsonb_build_object('valid', false, 'error', 'Code usage limit reached');
     END IF;
   END IF;
-  IF clean_email IS NOT NULL THEN
+  IF clean_email IS NOT NULL AND reserve_param THEN
     INSERT INTO public.coupon_reservations (coupon_id, customer_email, expires_at)
     VALUES (coupon_record.id, clean_email, NOW() + INTERVAL '15 minutes')
     ON CONFLICT (coupon_id, customer_email) DO UPDATE
@@ -952,14 +952,14 @@ BEGIN
     'valid', true, 'id', coupon_record.id,
     'code', coupon_record.code, 'discount_type', coupon_record.discount_type,
     'discount_value', coupon_record.discount_value, 'exclude_order_bumps', coupon_record.exclude_order_bumps,
-    'allowed_product_ids', coupon_record.allowed_product_ids, 'reserved', true,
-    'expires_in_minutes', 15
+    'allowed_product_ids', coupon_record.allowed_product_ids, 'reserved', reserve_param,
+    'expires_in_minutes', CASE WHEN reserve_param THEN 15 END
   );
 END;
 $_$;
 
 
-ALTER FUNCTION public._reserve_coupon(coupon_id_param uuid, product_id_param uuid, customer_email_param text, currency_param text) OWNER TO postgres;
+ALTER FUNCTION public._reserve_coupon(coupon_id_param uuid, product_id_param uuid, customer_email_param text, currency_param text, reserve_param boolean) OWNER TO postgres;
 
 --
 -- Name: _supersede_order_payment_attempts(uuid); Type: FUNCTION; Schema: public; Owner: postgres
@@ -2864,9 +2864,9 @@ BEGIN
   ELSE
     SELECT array_agg(DISTINCT id) INTO product_ids FROM (
       SELECT t.product_id id UNION SELECT product_id FROM public.payment_line_items WHERE transaction_id=t.id
-      UNION SELECT component_product_id FROM public.bundle_items WHERE bundle_product_id=t.product_id
+      UNION SELECT public.order_granted_components(t.id)
       UNION SELECT b.component_product_id FROM public.bundle_items b JOIN public.payment_line_items l
-        ON l.product_id=b.bundle_product_id WHERE l.transaction_id=t.id
+        ON l.product_id=b.bundle_product_id WHERE l.transaction_id=t.id AND l.product_id IS DISTINCT FROM t.product_id
     ) products;
     SELECT array_agg(DISTINCT id) INTO buyer_ids FROM (
       SELECT t.user_id id UNION SELECT claimed_by_user_id FROM public.guest_purchases
@@ -4256,7 +4256,7 @@ BEGIN
   RETURN QUERY
   UPDATE public.auth_mail_retries r SET attempts = r.attempts + 1, next_attempt_at = now() + interval '10 minutes'
   WHERE r.id IN (SELECT q.id FROM public.auth_mail_retries q WHERE q.given_up_at IS NULL AND q.next_attempt_at <= now()
-    ORDER BY q.next_attempt_at LIMIT least(greatest(coalesce(p_limit, 20), 1), 100) FOR UPDATE SKIP LOCKED)
+    ORDER BY (q.kind = 'license') DESC, q.next_attempt_at LIMIT least(greatest(coalesce(p_limit, 20), 1), 100) FOR UPDATE SKIP LOCKED)
   RETURNING r.*;
 END $$;
 
@@ -4346,7 +4346,10 @@ BEGIN
   END LOOP;
   -- A separate newly claimable order retains its own normal grant policy.
   FOR term IN SELECT DISTINCT p.id::text key FROM public.guest_purchases g JOIN public.products p ON
-    p.id=g.product_id OR EXISTS(SELECT 1 FROM public.bundle_items b WHERE b.bundle_product_id=g.product_id AND b.component_product_id=p.id)
+    p.id=g.product_id OR EXISTS(SELECT 1 FROM public.payment_transactions o WHERE (o.id=g.transaction_id OR (g.transaction_id IS NULL AND o.session_id=g.session_id))
+      AND o.product_id=g.product_id AND p.id IN (SELECT public.order_granted_components(o.id)))
+    OR (NOT EXISTS(SELECT 1 FROM public.payment_transactions o WHERE o.id=g.transaction_id OR (g.transaction_id IS NULL AND o.session_id=g.session_id))
+      AND EXISTS(SELECT 1 FROM public.bundle_items b WHERE b.bundle_product_id=g.product_id AND b.component_product_id=p.id))
     OR EXISTS(SELECT 1 FROM public.payment_line_items l WHERE l.transaction_id=g.transaction_id AND l.product_id=p.id)
     WHERE g.customer_email=buyer_email AND g.claimed_by_user_id IS NULL AND NOT g.metadata ? '_dispute_access_terms'
       AND NOT EXISTS(SELECT 1 FROM public.payment_transactions t
@@ -8213,18 +8216,19 @@ COMMENT ON FUNCTION public.grant_product_access_service_role_impl(user_id_param 
 
 
 --
--- Name: grant_product_and_bundle_components(uuid, uuid, integer); Type: FUNCTION; Schema: public; Owner: postgres
+-- Name: grant_product_and_bundle_components(uuid, uuid, integer, uuid); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
-CREATE FUNCTION public.grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer DEFAULT NULL::integer) RETURNS jsonb
+CREATE FUNCTION public.grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer DEFAULT NULL::integer, transaction_id_param uuid DEFAULT NULL::uuid) RETURNS jsonb
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO ''
     AS $$
 DECLARE
-  is_bundle_var BOOLEAN;
-  comp_rec RECORD;
-  comp_result JSONB;
-  granted INTEGER := 0;
+  is_bundle_var boolean;
+  order_scoped boolean;
+  comp_rec record;
+  comp_result jsonb;
+  granted integer := 0;
 BEGIN
   PERFORM public.grant_product_access_service_role(
     user_id_param, product_id_param, override_duration_days_param => override_duration_days_param
@@ -8233,22 +8237,27 @@ BEGIN
 
   SELECT is_bundle INTO is_bundle_var FROM public.products WHERE id = product_id_param;
   IF is_bundle_var IS TRUE THEN
+    order_scoped := transaction_id_param IS NOT NULL AND EXISTS (
+      SELECT 1 FROM public.payment_transactions WHERE id = transaction_id_param AND product_id = product_id_param);
+    IF order_scoped THEN PERFORM public.snapshot_order_bundle_components(transaction_id_param); END IF;
     FOR comp_rec IN
-      SELECT component_product_id FROM public.bundle_items
-      WHERE bundle_product_id = product_id_param
-      ORDER BY display_order
+      SELECT c.component_product_id FROM (
+        SELECT g AS component_product_id FROM public.order_granted_components(transaction_id_param) g WHERE order_scoped
+        UNION ALL
+        SELECT b.component_product_id FROM public.bundle_items b WHERE NOT order_scoped AND b.bundle_product_id = product_id_param
+      ) c
+      LEFT JOIN public.bundle_items d ON d.bundle_product_id = product_id_param AND d.component_product_id = c.component_product_id
+      ORDER BY d.display_order NULLS LAST
     LOOP
       BEGIN
         -- Grants the component regardless of is_active (an inactive component is a SUCCESS).
         comp_result := public.grant_bundle_component_access(user_id_param, comp_rec.component_product_id);
-        IF COALESCE((comp_result->>'success')::BOOLEAN, false) THEN
+        IF COALESCE((comp_result->>'success')::boolean, false) THEN
           granted := granted + 1;
         ELSE
-          -- Helper returned a real failure (e.g. concurrency conflict, missing product) without
-          -- raising. Surface it; the safe-log is wrapped so logging can never escape this loop.
           BEGIN
             PERFORM public.log_admin_action(
-              'bundle_component_grant_failure', 'bundle_items', product_id_param::TEXT,
+              'bundle_component_grant_failure', 'bundle_items', product_id_param::text,
               jsonb_build_object('severity', 'ERROR', 'user_id', user_id_param,
                 'component_product_id', comp_rec.component_product_id,
                 'error', comp_result->>'error',
@@ -8258,11 +8267,10 @@ BEGIN
           END;
         END IF;
       EXCEPTION WHEN OTHERS THEN
-        -- Unexpected raise from the component grant. Isolate it (one bad component must not block
-        -- the rest of the bundle) and log safely.
+        -- One bad component must not block the rest of the bundle; logging can never escape this loop.
         BEGIN
           PERFORM public.log_admin_action(
-            'bundle_component_grant_failure', 'bundle_items', product_id_param::TEXT,
+            'bundle_component_grant_failure', 'bundle_items', product_id_param::text,
             jsonb_build_object('severity', 'ERROR', 'user_id', user_id_param,
               'component_product_id', comp_rec.component_product_id,
               'error_code', SQLSTATE, 'error_message', SQLERRM,
@@ -8275,11 +8283,10 @@ BEGIN
   END IF;
 
   RETURN jsonb_build_object('success', true, 'granted', granted);
-END;
-$$;
+END $$;
 
 
-ALTER FUNCTION public.grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer) OWNER TO postgres;
+ALTER FUNCTION public.grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer, transaction_id_param uuid) OWNER TO postgres;
 
 --
 -- Name: handle_new_user_registration(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -8895,6 +8902,24 @@ $$;
 ALTER FUNCTION public.jsonschema_subset_walk(schema jsonb, instance jsonb, depth integer, budget integer) OWNER TO postgres;
 
 --
+-- Name: keep_ended_subscription_ended(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.keep_ended_subscription_ended() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+BEGIN
+  IF OLD.status IN ('canceled', 'incomplete_expired') AND NEW.status IS DISTINCT FROM OLD.status THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
+END $$;
+
+
+ALTER FUNCTION public.keep_ended_subscription_ended() OWNER TO postgres;
+
+--
 -- Name: keep_refunded_subscription_access_ended(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -9157,6 +9182,7 @@ CREATE TABLE public.payment_transactions (
     transfer_paid_mail_sent_at timestamp with time zone,
     cancel_note text,
     product_name text,
+    bundle_components_recorded_at timestamp with time zone,
     CONSTRAINT payment_transactions_amount_check CHECK (((amount <= (99999999)::numeric) AND ((amount > (0)::numeric) OR ((amount = (0)::numeric) AND (subscription_id IS NOT NULL) AND (stripe_invoice_id IS NOT NULL))))),
     CONSTRAINT payment_transactions_cancel_note_check CHECK (((cancel_note IS NULL) OR (length(cancel_note) <= 1000))),
     CONSTRAINT payment_transactions_cancel_reason_check CHECK ((cancel_reason = ANY (ARRAY['admin'::text, 'payment_window_expired'::text]))),
@@ -10756,6 +10782,25 @@ $$;
 ALTER FUNCTION public.order_awaits_participants(p_order_details jsonb, p_profile jsonb, p_status text) OWNER TO postgres;
 
 --
+-- Name: order_granted_components(uuid); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.order_granted_components(p_transaction_id uuid) RETURNS SETOF uuid
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+  SELECT component_product_id FROM public.order_bundle_components WHERE transaction_id = p_transaction_id
+  UNION
+  SELECT b.component_product_id FROM public.payment_transactions t
+  JOIN public.bundle_items b ON b.bundle_product_id = t.product_id
+  WHERE t.id = p_transaction_id
+    AND t.bundle_components_recorded_at IS NULL;
+$$;
+
+
+ALTER FUNCTION public.order_granted_components(p_transaction_id uuid) OWNER TO postgres;
+
+--
 -- Name: owns_product_access(uuid); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -11369,7 +11414,12 @@ CREATE FUNCTION public.queue_auth_mail_retry(p_email text, p_redirect_to text, p
   VALUES (lower(btrim(p_email)), p_redirect_to, coalesce(p_data, '{}'::jsonb), p_kind, now() + interval '2 minutes', left(p_error, 40))
   ON CONFLICT (email, redirect_to) DO UPDATE SET data = CASE WHEN public.auth_mail_retries.kind='license' AND EXCLUDED.kind='post_checkout' THEN public.auth_mail_retries.data ELSE EXCLUDED.data END,
     kind = CASE WHEN public.auth_mail_retries.kind='license' THEN 'license' ELSE EXCLUDED.kind END, last_error = EXCLUDED.last_error,
-    given_up_at = NULL, attempts = CASE WHEN public.auth_mail_retries.given_up_at IS NULL THEN public.auth_mail_retries.attempts ELSE 0 END;
+    given_up_at = NULL,
+    attempts = CASE WHEN public.auth_mail_retries.given_up_at IS NULL THEN public.auth_mail_retries.attempts
+      WHEN public.auth_mail_retries.kind = 'post_checkout' AND EXCLUDED.kind = 'post_checkout' THEN public.auth_mail_retries.attempts
+      ELSE 0 END,
+    next_attempt_at = CASE WHEN public.auth_mail_retries.given_up_at IS NULL THEN public.auth_mail_retries.next_attempt_at
+      ELSE greatest(public.auth_mail_retries.next_attempt_at, EXCLUDED.next_attempt_at) END;
 $$;
 
 
@@ -11513,6 +11563,25 @@ END $$;
 ALTER FUNCTION public.record_invoice_correction(p_transaction uuid, p_actor uuid) OWNER TO postgres;
 
 --
+-- Name: record_order_bundle_components(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.record_order_bundle_components() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+BEGIN
+  IF NEW.product_id IS NOT NULL AND (NEW.status = 'completed' OR (NEW.status = 'awaiting_payment'
+    AND coalesce((NEW.metadata->>'access_on_placement')::boolean, false))) THEN
+    PERFORM public.snapshot_order_bundle_components(NEW.id);
+  END IF;
+  RETURN NULL;
+END $$;
+
+
+ALTER FUNCTION public.record_order_bundle_components() OWNER TO postgres;
+
+--
 -- Name: record_order_payment_refund(uuid, text); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -11561,6 +11630,28 @@ $$;
 
 
 ALTER FUNCTION public.record_template_credential_status(template_id text, expected_key text, expected_iv text, expected_tag text, verification_state text, checked_at timestamp with time zone) OWNER TO postgres;
+
+--
+-- Name: refuse_access_from_ended_subscription(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.refuse_access_from_ended_subscription() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+BEGIN
+  IF NEW.subscription_id IS NOT NULL AND NEW.access_expires_at IS NULL
+    AND (TG_OP = 'INSERT' OR OLD.subscription_id IS DISTINCT FROM NEW.subscription_id)
+    AND EXISTS (SELECT 1 FROM public.subscriptions s
+      WHERE s.id = NEW.subscription_id AND s.status IN ('canceled', 'incomplete_expired')) THEN
+    IF TG_OP = 'INSERT' THEN RETURN NULL; END IF;
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
+END $$;
+
+
+ALTER FUNCTION public.refuse_access_from_ended_subscription() OWNER TO postgres;
 
 --
 -- Name: release_event_order(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -11706,6 +11797,28 @@ END $$;
 
 
 ALTER FUNCTION public.remove_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid, p_permanent boolean) OWNER TO postgres;
+
+--
+-- Name: replace_bundle_items(uuid, uuid[]); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.replace_bundle_items(p_bundle_id uuid, p_component_ids uuid[]) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+BEGIN
+  IF (select auth.role()) IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'Service role required' USING ERRCODE = '42501';
+  END IF;
+  PERFORM 1 FROM public.products WHERE id = p_bundle_id FOR UPDATE;
+  DELETE FROM public.bundle_items WHERE bundle_product_id = p_bundle_id;
+  INSERT INTO public.bundle_items(bundle_product_id, component_product_id, display_order)
+  SELECT p_bundle_id, component, ordinality - 1
+  FROM unnest(p_component_ids) WITH ORDINALITY AS c(component, ordinality);
+END $$;
+
+
+ALTER FUNCTION public.replace_bundle_items(p_bundle_id uuid, p_component_ids uuid[]) OWNER TO postgres;
 
 --
 -- Name: replace_seller_license_key(uuid, text, text, text, text, text, text); Type: FUNCTION; Schema: public; Owner: postgres
@@ -11900,6 +12013,64 @@ END $_$;
 
 
 ALTER FUNCTION public.revoke_license_for_disputed_order() OWNER TO postgres;
+
+--
+-- Name: revoke_order_bundle_components(uuid, uuid); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.revoke_order_bundle_components(p_transaction_id uuid, p_user_id uuid) RETURNS integer
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+DECLARE t public.payment_transactions; removed integer;
+BEGIN
+  IF (select auth.role()) IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'Service role required' USING ERRCODE = '42501';
+  END IF;
+  SELECT * INTO t FROM public.payment_transactions WHERE id = p_transaction_id;
+  IF NOT FOUND OR p_user_id IS NULL THEN RETURN 0; END IF;
+  DELETE FROM public.user_product_access a
+  WHERE a.user_id = p_user_id
+    AND a.product_id IN (SELECT public.order_granted_components(t.id))
+    AND a.product_id IS DISTINCT FROM t.product_id
+    AND a.grant_source = 'bundle'
+    AND a.subscription_id IS NULL
+    AND NOT EXISTS (
+      SELECT 1 FROM public.payment_transactions o
+      WHERE o.id <> t.id
+        AND (o.status IN ('completed', 'partially_refunded', 'disputed')
+          OR (o.status = 'awaiting_payment' AND coalesce((o.metadata->>'access_on_placement')::boolean, false)))
+        AND (o.amount = 0 OR coalesce(o.refunded_amount, 0) < o.amount)
+        AND (o.user_id = p_user_id OR EXISTS (
+          SELECT 1 FROM public.guest_purchases g
+          WHERE g.claimed_by_user_id = p_user_id AND (g.transaction_id = o.id OR (g.transaction_id IS NULL AND g.session_id = o.session_id))))
+        AND (o.product_id = a.product_id
+          OR EXISTS (SELECT 1 FROM public.payment_line_items l WHERE l.transaction_id = o.id AND l.product_id = a.product_id)
+          OR a.product_id IN (SELECT public.order_granted_components(o.id)))
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM public.user_product_access other
+      JOIN public.bundle_items b ON b.bundle_product_id = other.product_id
+      WHERE other.user_id = p_user_id AND other.product_id IS DISTINCT FROM t.product_id
+        AND b.component_product_id = a.product_id
+        AND NOT EXISTS (
+          SELECT 1 FROM public.payment_transactions o
+          WHERE o.product_id = other.product_id
+            AND (o.status IN ('completed', 'partially_refunded', 'disputed')
+              OR (o.status = 'awaiting_payment' AND coalesce((o.metadata->>'access_on_placement')::boolean, false)))
+            AND (o.amount = 0 OR coalesce(o.refunded_amount, 0) < o.amount)
+            AND (o.user_id = p_user_id OR EXISTS (
+              SELECT 1 FROM public.guest_purchases g WHERE g.claimed_by_user_id = p_user_id
+                AND (g.transaction_id = o.id OR (g.transaction_id IS NULL AND g.session_id = o.session_id))))
+        )
+        AND (other.access_expires_at IS NULL OR other.access_expires_at > now())
+    );
+  GET DIAGNOSTICS removed = ROW_COUNT;
+  RETURN removed;
+END $$;
+
+
+ALTER FUNCTION public.revoke_order_bundle_components(p_transaction_id uuid, p_user_id uuid) OWNER TO postgres;
 
 --
 -- Name: revoke_order_licenses(uuid, text[], text); Type: FUNCTION; Schema: public; Owner: postgres
@@ -12631,6 +12802,31 @@ END $$;
 
 
 ALTER FUNCTION public.snapshot_event_tier_label() OWNER TO postgres;
+
+--
+-- Name: snapshot_order_bundle_components(uuid); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.snapshot_order_bundle_components(p_transaction_id uuid) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+DECLARE tx public.payment_transactions;
+BEGIN
+  SELECT * INTO tx FROM public.payment_transactions WHERE id = p_transaction_id FOR UPDATE;
+  IF NOT FOUND OR tx.bundle_components_recorded_at IS NOT NULL
+    OR NOT EXISTS (SELECT 1 FROM public.products WHERE id = tx.product_id AND is_bundle) THEN
+    RETURN;
+  END IF;
+  INSERT INTO public.order_bundle_components (transaction_id, component_product_id, bundle_product_id)
+  SELECT tx.id, b.component_product_id, b.bundle_product_id
+  FROM public.bundle_items b WHERE b.bundle_product_id = tx.product_id
+  ON CONFLICT DO NOTHING;
+  UPDATE public.payment_transactions SET bundle_components_recorded_at = now() WHERE id = tx.id;
+END $$;
+
+
+ALTER FUNCTION public.snapshot_order_bundle_components(p_transaction_id uuid) OWNER TO postgres;
 
 --
 -- Name: snapshot_purchase_attribution(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -13499,10 +13695,10 @@ $$;
 ALTER FUNCTION public.verify_api_key(p_key_hash text) OWNER TO postgres;
 
 --
--- Name: verify_coupon(text, uuid, text, text); Type: FUNCTION; Schema: public; Owner: postgres
+-- Name: verify_coupon(text, uuid, text, text, boolean); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
-CREATE FUNCTION public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text DEFAULT NULL::text, currency_param text DEFAULT 'USD'::text) RETURNS jsonb
+CREATE FUNCTION public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text DEFAULT NULL::text, currency_param text DEFAULT 'USD'::text, reserve_param boolean DEFAULT true) RETURNS jsonb
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO ''
     AS $$
@@ -13535,12 +13731,12 @@ BEGIN
   IF coupon_record.starts_at > NOW() THEN
     RETURN jsonb_build_object('valid', false, 'error', 'Code not active yet');
   END IF;
-  RETURN public._reserve_coupon(coupon_record.id, product_id_param, customer_email_param, currency_param);
+  RETURN public._reserve_coupon(coupon_record.id, product_id_param, customer_email_param, currency_param, reserve_param);
 END;
 $$;
 
 
-ALTER FUNCTION public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text) OWNER TO postgres;
+ALTER FUNCTION public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text, reserve_param boolean) OWNER TO postgres;
 
 --
 -- Name: admin_actions; Type: TABLE; Schema: public; Owner: postgres
@@ -14568,6 +14764,27 @@ COMMENT ON COLUMN public.order_bumps.bump_price IS 'Special discounted price for
 --
 
 COMMENT ON COLUMN public.order_bumps.urgency_duration_minutes IS 'Urgency countdown timer in minutes (NULL = no timer, 1-1440). Purely cosmetic — counts from page load.';
+
+
+--
+-- Name: order_bundle_components; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.order_bundle_components (
+    transaction_id uuid NOT NULL,
+    component_product_id uuid NOT NULL,
+    bundle_product_id uuid NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+ALTER TABLE public.order_bundle_components OWNER TO postgres;
+
+--
+-- Name: TABLE order_bundle_components; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON TABLE public.order_bundle_components IS 'Bundle components an order grants, recorded when the order grants access; grants, refunds and disputes act on this set.';
 
 
 --
@@ -16499,6 +16716,14 @@ ALTER TABLE ONLY public.order_bumps
 
 
 --
+-- Name: order_bundle_components order_bundle_components_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.order_bundle_components
+    ADD CONSTRAINT order_bundle_components_pkey PRIMARY KEY (transaction_id, component_product_id);
+
+
+--
 -- Name: order_payment_attempts order_payment_attempts_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -18352,6 +18577,13 @@ CREATE INDEX maintenance_mode_changed_by_idx ON public.maintenance_mode USING bt
 
 
 --
+-- Name: order_bundle_components_component_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX order_bundle_components_component_idx ON public.order_bundle_components USING btree (component_product_id);
+
+
+--
 -- Name: order_payment_attempt_open_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -18991,6 +19223,13 @@ CREATE TRIGGER issued_licenses_stamp_original_seller_id BEFORE INSERT ON public.
 
 
 --
+-- Name: subscriptions keep_ended_subscription_ended; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER keep_ended_subscription_ended BEFORE UPDATE ON public.subscriptions FOR EACH ROW EXECUTE FUNCTION public.keep_ended_subscription_ended();
+
+
+--
 -- Name: subscriptions keep_refunded_subscription_ended; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
@@ -19166,10 +19405,24 @@ CREATE TRIGGER purchase_product_name BEFORE INSERT ON public.subscriptions FOR E
 
 
 --
+-- Name: payment_transactions record_order_bundle_components; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER record_order_bundle_components AFTER INSERT OR UPDATE OF status ON public.payment_transactions FOR EACH ROW EXECUTE FUNCTION public.record_order_bundle_components();
+
+
+--
 -- Name: refund_requests refund_request_business_event; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
 CREATE TRIGGER refund_request_business_event AFTER INSERT OR UPDATE OF status ON public.refund_requests FOR EACH ROW EXECUTE FUNCTION public.capture_refund_request_event();
+
+
+--
+-- Name: user_product_access refuse_access_from_ended_subscription; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER refuse_access_from_ended_subscription BEFORE INSERT OR UPDATE OF subscription_id, access_expires_at ON public.user_product_access FOR EACH ROW EXECUTE FUNCTION public.refuse_access_from_ended_subscription();
 
 
 --
@@ -19827,6 +20080,14 @@ ALTER TABLE ONLY public.order_bumps
 
 ALTER TABLE ONLY public.order_bumps
     ADD CONSTRAINT order_bumps_main_product_id_fkey FOREIGN KEY (main_product_id) REFERENCES public.products(id) ON DELETE CASCADE;
+
+
+--
+-- Name: order_bundle_components order_bundle_components_transaction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.order_bundle_components
+    ADD CONSTRAINT order_bundle_components_transaction_id_fkey FOREIGN KEY (transaction_id) REFERENCES public.payment_transactions(id) ON DELETE CASCADE;
 
 
 --
@@ -21780,6 +22041,19 @@ CREATE POLICY offer_history_service_read ON public.product_offer_history FOR SEL
 ALTER TABLE public.order_bumps ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: order_bundle_components; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.order_bundle_components ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: order_bundle_components order_bundle_components_service; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY order_bundle_components_service ON public.order_bundle_components TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
+
+
+--
 -- Name: order_payment_attempts; Type: ROW SECURITY; Schema: public; Owner: postgres
 --
 
@@ -22629,8 +22903,8 @@ function | public._redeem_coupon_for_order(coupon_id_param uuid, current_user_id
 function | public._redeem_coupon_for_order(coupon_id_param uuid, current_user_id uuid, existing_user_id uuid, customer_email_param text, transaction_id_var uuid) | service_role | EXECUTE | postgres | -
 function | public._reopen_cancelled_transfer(p_id uuid) | postgres | EXECUTE | postgres | -
 function | public._reopen_cancelled_transfer(p_id uuid) | service_role | EXECUTE | postgres | -
-function | public._reserve_coupon(coupon_id_param uuid, product_id_param uuid, customer_email_param text, currency_param text) | postgres | EXECUTE | postgres | -
-function | public._reserve_coupon(coupon_id_param uuid, product_id_param uuid, customer_email_param text, currency_param text) | service_role | EXECUTE | postgres | -
+function | public._reserve_coupon(coupon_id_param uuid, product_id_param uuid, customer_email_param text, currency_param text, reserve_param boolean) | postgres | EXECUTE | postgres | -
+function | public._reserve_coupon(coupon_id_param uuid, product_id_param uuid, customer_email_param text, currency_param text, reserve_param boolean) | service_role | EXECUTE | postgres | -
 function | public._supersede_order_payment_attempts(p_id uuid) | postgres | EXECUTE | postgres | -
 function | public._supersede_order_payment_attempts(p_id uuid) | service_role | EXECUTE | postgres | -
 function | public.add_access_grant_source_to_event() | postgres | EXECUTE | postgres | -
@@ -22979,8 +23253,8 @@ function | public.grant_product_access_service_role(user_id_param uuid, product_
 function | public.grant_product_access_service_role(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer) | service_role | EXECUTE | postgres | -
 function | public.grant_product_access_service_role_impl(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer) | postgres | EXECUTE | postgres | -
 function | public.grant_product_access_service_role_impl(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer) | service_role | EXECUTE | postgres | -
-function | public.grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer) | postgres | EXECUTE | postgres | -
-function | public.grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer) | service_role | EXECUTE | postgres | -
+function | public.grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer, transaction_id_param uuid) | postgres | EXECUTE | postgres | -
+function | public.grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer, transaction_id_param uuid) | service_role | EXECUTE | postgres | -
 function | public.handle_new_user_registration() | postgres | EXECUTE | postgres | -
 function | public.handle_new_user_registration() | service_role | EXECUTE | postgres | -
 function | public.handle_user_email_confirmation() | postgres | EXECUTE | postgres | -
@@ -23022,6 +23296,8 @@ function | public.jsonschema_subset_pattern(pattern text) | postgres | EXECUTE |
 function | public.jsonschema_subset_pattern(pattern text) | service_role | EXECUTE | postgres | -
 function | public.jsonschema_subset_walk(schema jsonb, instance jsonb, depth integer, budget integer) | postgres | EXECUTE | postgres | -
 function | public.jsonschema_subset_walk(schema jsonb, instance jsonb, depth integer, budget integer) | service_role | EXECUTE | postgres | -
+function | public.keep_ended_subscription_ended() | postgres | EXECUTE | postgres | -
+function | public.keep_ended_subscription_ended() | service_role | EXECUTE | postgres | -
 function | public.keep_refunded_subscription_access_ended() | postgres | EXECUTE | postgres | -
 function | public.keep_refunded_subscription_ended() | postgres | EXECUTE | postgres | -
 function | public.legacy_pending_free_grant_products() | postgres | EXECUTE | postgres | -
@@ -23077,6 +23353,8 @@ function | public.open_order_payment_attempt(p_id uuid, p_kind text, p_amount nu
 function | public.open_order_payment_attempt(p_id uuid, p_kind text, p_amount numeric, p_currency text, p_expires_at timestamp with time zone, p_now timestamp with time zone) | service_role | EXECUTE | postgres | -
 function | public.order_awaits_participants(p_order_details jsonb, p_profile jsonb, p_status text) | postgres | EXECUTE | postgres | -
 function | public.order_awaits_participants(p_order_details jsonb, p_profile jsonb, p_status text) | service_role | EXECUTE | postgres | -
+function | public.order_granted_components(p_transaction_id uuid) | postgres | EXECUTE | postgres | -
+function | public.order_granted_components(p_transaction_id uuid) | service_role | EXECUTE | postgres | -
 function | public.owns_product_access(p_product_id uuid) | anon | EXECUTE | postgres | -
 function | public.owns_product_access(p_product_id uuid) | authenticated | EXECUTE | postgres | -
 function | public.owns_product_access(p_product_id uuid) | postgres | EXECUTE | postgres | -
@@ -23132,10 +23410,14 @@ function | public.record_free_attribution_from_ref(p_product uuid, p_user uuid, 
 function | public.record_free_attribution_from_ref(p_product uuid, p_user uuid, p_ref text) | service_role | EXECUTE | postgres | -
 function | public.record_invoice_correction(p_transaction uuid, p_actor uuid) | postgres | EXECUTE | postgres | -
 function | public.record_invoice_correction(p_transaction uuid, p_actor uuid) | service_role | EXECUTE | postgres | -
+function | public.record_order_bundle_components() | postgres | EXECUTE | postgres | -
+function | public.record_order_bundle_components() | service_role | EXECUTE | postgres | -
 function | public.record_order_payment_refund(p_attempt uuid, p_refund_id text) | postgres | EXECUTE | postgres | -
 function | public.record_order_payment_refund(p_attempt uuid, p_refund_id text) | service_role | EXECUTE | postgres | -
 function | public.record_template_credential_status(template_id text, expected_key text, expected_iv text, expected_tag text, verification_state text, checked_at timestamp with time zone) | postgres | EXECUTE | postgres | -
 function | public.record_template_credential_status(template_id text, expected_key text, expected_iv text, expected_tag text, verification_state text, checked_at timestamp with time zone) | service_role | EXECUTE | postgres | -
+function | public.refuse_access_from_ended_subscription() | postgres | EXECUTE | postgres | -
+function | public.refuse_access_from_ended_subscription() | service_role | EXECUTE | postgres | -
 function | public.release_event_order() | postgres | EXECUTE | postgres | -
 function | public.release_event_order() | service_role | EXECUTE | postgres | -
 function | public.release_participant_recordings() | postgres | EXECUTE | postgres | -
@@ -23146,6 +23428,8 @@ function | public.release_unpaid_transfer(p_id uuid, p_now timestamp with time z
 function | public.release_unpaid_transfer(p_id uuid, p_now timestamp with time zone) | service_role | EXECUTE | postgres | -
 function | public.remove_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid, p_permanent boolean) | postgres | EXECUTE | postgres | -
 function | public.remove_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid, p_permanent boolean) | service_role | EXECUTE | postgres | -
+function | public.replace_bundle_items(p_bundle_id uuid, p_component_ids uuid[]) | postgres | EXECUTE | postgres | -
+function | public.replace_bundle_items(p_bundle_id uuid, p_component_ids uuid[]) | service_role | EXECUTE | postgres | -
 function | public.replace_seller_license_key(p_seller_id uuid, p_kid text, p_public_key text, p_encrypted_key text, p_encryption_iv text, p_encryption_tag text, p_custody text) | postgres | EXECUTE | postgres | -
 function | public.replace_seller_license_key(p_seller_id uuid, p_kid text, p_public_key text, p_encrypted_key text, p_encryption_iv text, p_encryption_tag text, p_custody text) | service_role | EXECUTE | postgres | -
 function | public.restore_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid) | postgres | EXECUTE | postgres | -
@@ -23157,6 +23441,8 @@ function | public.retry_business_event(p_id uuid) | service_role | EXECUTE | pos
 function | public.revoke_issued_licenses(p_license_ids uuid[], p_actor uuid, p_reason text) | postgres | EXECUTE | postgres | -
 function | public.revoke_issued_licenses(p_license_ids uuid[], p_actor uuid, p_reason text) | service_role | EXECUTE | postgres | -
 function | public.revoke_license_for_disputed_order() | postgres | EXECUTE | postgres | -
+function | public.revoke_order_bundle_components(p_transaction_id uuid, p_user_id uuid) | postgres | EXECUTE | postgres | -
+function | public.revoke_order_bundle_components(p_transaction_id uuid, p_user_id uuid) | service_role | EXECUTE | postgres | -
 function | public.revoke_order_licenses(p_product_id uuid, p_order_ids text[], p_reason text) | postgres | EXECUTE | postgres | -
 function | public.revoke_order_licenses(p_product_id uuid, p_order_ids text[], p_reason text) | service_role | EXECUTE | postgres | -
 function | public.revoke_terminal_order_licenses() | postgres | EXECUTE | postgres | -
@@ -23205,6 +23491,8 @@ function | public.set_webhook_endpoint_scoping(p_endpoint_id uuid, p_mode text, 
 function | public.set_webhook_endpoint_scoping(p_endpoint_id uuid, p_mode text, p_product_ids uuid[]) | service_role | EXECUTE | postgres | -
 function | public.snapshot_event_tier_label() | postgres | EXECUTE | postgres | -
 function | public.snapshot_event_tier_label() | service_role | EXECUTE | postgres | -
+function | public.snapshot_order_bundle_components(p_transaction_id uuid) | postgres | EXECUTE | postgres | -
+function | public.snapshot_order_bundle_components(p_transaction_id uuid) | service_role | EXECUTE | postgres | -
 function | public.snapshot_purchase_attribution() | postgres | EXECUTE | postgres | -
 function | public.snapshot_purchase_attribution() | service_role | EXECUTE | postgres | -
 function | public.snapshot_purchase_attribution_inserted() | postgres | EXECUTE | postgres | -
@@ -23262,10 +23550,8 @@ function | public.validate_seller_embed_origins() | postgres | EXECUTE | postgre
 function | public.validate_seller_embed_origins() | service_role | EXECUTE | postgres | -
 function | public.verify_api_key(p_key_hash text) | postgres | EXECUTE | postgres | -
 function | public.verify_api_key(p_key_hash text) | service_role | EXECUTE | postgres | -
-function | public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text) | anon | EXECUTE | postgres | -
-function | public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text) | authenticated | EXECUTE | postgres | -
-function | public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text) | postgres | EXECUTE | postgres | -
-function | public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text) | service_role | EXECUTE | postgres | -
+function | public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text, reserve_param boolean) | postgres | EXECUTE | postgres | -
+function | public.verify_coupon(code_param text, product_id_param uuid, customer_email_param text, currency_param text, reserve_param boolean) | service_role | EXECUTE | postgres | -
 schema | auth | anon | USAGE | supabase_admin | -
 schema | auth | authenticated | USAGE | supabase_admin | -
 schema | auth | dashboard_user | CREATE | supabase_admin | -
@@ -24448,6 +24734,20 @@ table | public.order_bumps | service_role | SELECT | postgres | -
 table | public.order_bumps | service_role | TRIGGER | postgres | -
 table | public.order_bumps | service_role | TRUNCATE | postgres | -
 table | public.order_bumps | service_role | UPDATE | postgres | -
+table | public.order_bundle_components | postgres | DELETE | postgres | -
+table | public.order_bundle_components | postgres | INSERT | postgres | -
+table | public.order_bundle_components | postgres | REFERENCES | postgres | -
+table | public.order_bundle_components | postgres | SELECT | postgres | -
+table | public.order_bundle_components | postgres | TRIGGER | postgres | -
+table | public.order_bundle_components | postgres | TRUNCATE | postgres | -
+table | public.order_bundle_components | postgres | UPDATE | postgres | -
+table | public.order_bundle_components | service_role | DELETE | postgres | -
+table | public.order_bundle_components | service_role | INSERT | postgres | -
+table | public.order_bundle_components | service_role | REFERENCES | postgres | -
+table | public.order_bundle_components | service_role | SELECT | postgres | -
+table | public.order_bundle_components | service_role | TRIGGER | postgres | -
+table | public.order_bundle_components | service_role | TRUNCATE | postgres | -
+table | public.order_bundle_components | service_role | UPDATE | postgres | -
 table | public.order_payment_attempts | authenticated | SELECT | postgres | -
 table | public.order_payment_attempts | postgres | DELETE | postgres | -
 table | public.order_payment_attempts | postgres | INSERT | postgres | -
@@ -25463,6 +25763,7 @@ lead_submissions | 0
 license_mail_receipts | 0
 maintenance_mode | 1
 order_bumps | 0
+order_bundle_components | 0
 order_payment_attempts | 0
 oto_offers | 0
 payment_disputes | 0

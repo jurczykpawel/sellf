@@ -9,7 +9,8 @@ import { expect, it } from 'vitest';
 
 const repo = path.resolve(import.meta.dirname, '../../../..');
 // Functions whose changes already have their own event: license.revoked / license.restored / license.expired.
-const ALLOWED_SQL = new Set(['revoke_issued_licenses', 'apply_payment_dispute', 'capture_expired_licenses', 'revoke_terminal_order_licenses']);
+// apply_payment_dispute_before_guest_claim is the dispute body that apply_payment_dispute wraps.
+const ALLOWED_SQL = new Set(['revoke_issued_licenses', 'apply_payment_dispute', 'apply_payment_dispute_before_guest_claim', 'capture_expired_licenses', 'revoke_terminal_order_licenses']);
 
 function latestSqlFunctions(): Map<string, string> {
   const dir = path.join(repo, 'supabase/migrations');

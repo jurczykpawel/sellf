@@ -181,6 +181,13 @@ describe('lead submit', () => {
   it.each(['rate', 'emailRate'] as const)('returns 429 for %s limit and still consumes nonce', async key => {
     m[key].mockResolvedValue(false); expect((await submit(req(payload()))).status).toBe(429); expect(rows.lead_nonces).toEqual([]);
   });
+  it.each([
+    ['Viewer+promo@gmail.com', 'email:viewer@gmail.com'],
+    ['Viewer+promo@custom.example', 'email:viewer+promo@custom.example'],
+  ])('counts the per-email daily limit for %s against the inbox the address reaches', async (email, bucket) => {
+    await submit(req({ ...payload(), email, marketingConsent: true, consentVersion: '1:pl' }));
+    expect(m.emailRate).toHaveBeenCalledWith('leads_email', 5, 1440, bucket);
+  });
   it('rejects unlisted origins and does not reflect their CORS header', async () => {
     const r = await submit(req(payload(), 'https://other.example')); expect(r.status).toBe(403); expect(r.headers.get('access-control-allow-origin')).toBeNull(); expect(rows.lead_nonces).toEqual([]);
   });

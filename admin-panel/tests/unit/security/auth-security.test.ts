@@ -150,10 +150,9 @@ describe('Authentication Security', () => {
 
   describe('Session Ownership Security (source regression guard)', () => {
     it('verifyPaymentSession validates user_id and blocks hijacking attempts', () => {
-      expect(verifyPaymentLibSource).toContain('session.metadata?.user_id');
-      expect(verifyPaymentLibSource).toContain('session.metadata.user_id !== user.id');
-      expect(verifyPaymentLibSource).toContain("session.metadata.user_id !== ''");
-      expect(verifyPaymentLibSource).toContain("session.metadata.user_id !== 'null'");
+      expect(verifyPaymentLibSource).toContain('isCallerOrderOwner(user, readOrderUserId(session.metadata), session.customer_details?.email)');
+      expect(verifyPaymentLibSource).toContain('if (ownerUserId) return ownerUserId === user.id;');
+      expect(verifyPaymentLibSource).toContain("return id && id !== 'null' ? id : null;");
       expect(verifyPaymentLibSource).toContain(
         "error: 'Session does not belong to current user'"
       );

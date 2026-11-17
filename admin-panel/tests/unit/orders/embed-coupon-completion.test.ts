@@ -103,16 +103,17 @@ for (const form of [false, true]) describe(form ? 'reserved form payment' : 'emb
       '-v', `coupon_code=${code}`, '-v', `product_id=${productId}`, '-v', `buyer_email=${email}`, '-v', `check_count=${count}`,
     ], { encoding: 'utf8', input: `
       BEGIN;
-      SET LOCAL ROLE anon;
-      SET LOCAL request.jwt.claims = '{"role":"anon"}';
+      SET LOCAL ROLE service_role;
+      SET LOCAL request.jwt.claims = '{"role":"service_role"}';
       SELECT jsonb_agg(public.verify_coupon(
         CASE WHEN :check_count = 5 THEN :'coupon_code' ELSE 'CHECK-' || i || '-' || :'coupon_code' END,
-        :'product_id'::uuid, CASE WHEN :check_count = 5 THEN :'buyer_email' ELSE NULL END, 'PLN'
+        :'product_id'::uuid, CASE WHEN :check_count = 5 THEN :'buyer_email' ELSE NULL END, 'PLN', false
       )) FROM generate_series(1, :check_count) i;
       COMMIT;
     ` }));
+    expect(checks).toHaveLength(count);
     if (count === 5) expect(checks.every(check => check.valid)).toBe(true);
-    else expect(checks.map(check => check.error)).toContain('Too many attempts. Please try again later.');
+    else expect(checks.every(check => !check.valid)).toBe(true);
     await expectCompleted(session);
   });
   it.each(['expired', 'inactive', 'future'])('completes a paid session after coupon becomes %s', async state => {

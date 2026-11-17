@@ -714,17 +714,21 @@ fi
 # here, before the installation, the running process or the database change.
 
 # Keep HTTP error bodies, including non-JSON responses, in the private upgrade log.
-# Neither SQL nor JSON is ever passed as a large process argument.
+# Neither SQL nor JSON is ever passed as a large process argument, and the
+# service-role key is never a process argument: curl reads the request headers
+# from a file only this user can read (printf is a shell builtin).
 # "<curl exit code> <HTTP status>" of the last call is left in migration-response.status.
 migration_rpc() {
   local endpoint="$1" payload="$2" http_status rc=0
   local response_file="$TMP_DIR/migration-response.json"
+  local headers_file="$TMP_DIR/migration-headers"
   : > "$response_file"
+  (umask 077; printf 'apikey: %s\nAuthorization: Bearer %s\nContent-Type: application/json\n' \
+    "$SERVICE_KEY" "$SERVICE_KEY" > "$headers_file")
   http_status=$(curl -sS "${SUPABASE_URL}/rest/v1/rpc/$endpoint" \
-    -H "apikey: ${SERVICE_KEY}" \
-    -H "Authorization: Bearer ${SERVICE_KEY}" \
-    -H "Content-Type: application/json" \
+    -H "@$headers_file" \
     --data-binary "$payload" -o "$response_file" -w '%{http_code}' 2>>"$LOG_FILE") || rc=$?
+  rm -f "$headers_file"
   printf '%s %s\n' "$rc" "${http_status:-000}" > "$TMP_DIR/migration-response.status"
   if [ "$rc" -ne 0 ]; then
     log "ERROR: $endpoint transport failed (curl exit $rc, HTTP ${http_status:-unknown})"

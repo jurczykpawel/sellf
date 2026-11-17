@@ -16,7 +16,7 @@ vi.mock('@/lib/supabase/admin', () => ({
         select: () => query,
         eq: () => query,
         order: () => query,
-        single: async () => ({ data: { id: 'product', icon: '☕' } }),
+        single: async () => ({ data: { id: 'product', icon: '☕', is_active: true, archived_at: null, checkout_template: 'tip-jar', available_from: null, available_until: null } }),
         limit: async () => ({ data: rows }),
         then: (resolve: (value: unknown) => unknown) => resolve({ count: rows.length }),
       };

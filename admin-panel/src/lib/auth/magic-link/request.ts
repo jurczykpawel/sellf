@@ -11,10 +11,11 @@ import {
   buildPostCheckoutMagicLinkRedirect,
   getLoginReturnPath,
 } from '@/lib/auth/magic-link-redirect';
-import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
+import { checkRateLimit } from '@/lib/rate-limiting';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { prepareFreeGrantRequest } from '@/lib/services/free-grant-context';
 
+import { allowMailToAddress } from './address-limit';
 import { readBuyerEmailPolicy } from './buyer-email-policy';
 import { deliverMagicLink } from './deliver';
 import { queueAuthMailRetry } from './retry';
@@ -84,13 +85,12 @@ export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Pr
   }
   const normalizedEmail = input.email.trim().toLowerCase();
 
-  const emailAllowed = await checkRateLimitForIdentifier(
-    'magic_link_email',
-    5,
-    1440,
-    `email:${normalizedEmail}`,
-  );
-  if (!emailAllowed) return input.retry
+  // Address variants that reach the same inbox (+tag, Gmail dots) share one daily limit.
+  const emailAllowed = await allowMailToAddress(normalizedEmail);
+  // Past the per-address limit only a mail for a known purchase waits in the queue (the queue
+  // delivers it once the limit allows); anything else is refused.
+  const knownPurchase = input.retry === 'license' || (input.retry === 'post_checkout' && Boolean(input.data?.purchase_product));
+  if (!emailAllowed) return input.retry && knownPurchase
     ? queueAuthMailRetry({ email: normalizedEmail, redirectTo: input.redirectTo, data: input.data, kind: input.retry, code: 'rate_limited' })
     : { ok: false, code: 'rate_limited' };
 

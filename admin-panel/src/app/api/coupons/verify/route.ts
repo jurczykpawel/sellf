@@ -53,11 +53,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
+    // A storefront check holds no slot of a limited code; creating the payment session does.
     const { data, error } = await createAdminClient().rpc('verify_coupon', {
       code_param: normalisedCode,
       product_id_param: productId,
       customer_email_param: email || null,
       currency_param: product.currency,
+      reserve_param: false,
     });
 
     if (error) {

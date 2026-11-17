@@ -2236,6 +2236,35 @@ export type Database = {
           },
         ]
       }
+      order_bundle_components: {
+        Row: {
+          bundle_product_id: string
+          component_product_id: string
+          created_at: string
+          transaction_id: string
+        }
+        Insert: {
+          bundle_product_id: string
+          component_product_id: string
+          created_at?: string
+          transaction_id: string
+        }
+        Update: {
+          bundle_product_id?: string
+          component_product_id?: string
+          created_at?: string
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_bundle_components_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_payment_attempts: {
         Row: {
           amount: number
@@ -2679,6 +2708,7 @@ export type Database = {
         Row: {
           abandoned_at: string | null
           amount: number
+          bundle_components_recorded_at: string | null
           cancel_note: string | null
           cancel_reason: string | null
           cancelled_mail_sent_at: string | null
@@ -2741,6 +2771,7 @@ export type Database = {
         Insert: {
           abandoned_at?: string | null
           amount: number
+          bundle_components_recorded_at?: string | null
           cancel_note?: string | null
           cancel_reason?: string | null
           cancelled_mail_sent_at?: string | null
@@ -2803,6 +2834,7 @@ export type Database = {
         Update: {
           abandoned_at?: string | null
           amount?: number
+          bundle_components_recorded_at?: string | null
           cancel_note?: string | null
           cancel_reason?: string | null
           cancelled_mail_sent_at?: string | null
@@ -5212,6 +5244,7 @@ export type Database = {
           currency_param: string
           customer_email_param: string
           product_id_param: string
+          reserve_param?: boolean
         }
         Returns: Json
       }
@@ -6435,6 +6468,7 @@ export type Database = {
         Args: {
           override_duration_days_param?: number
           product_id_param: string
+          transaction_id_param?: string
           user_id_param: string
         }
         Returns: Json
@@ -6913,6 +6947,10 @@ export type Database = {
         Args: { p_order_details: Json; p_profile: Json; p_status: string }
         Returns: boolean
       }
+      order_granted_components: {
+        Args: { p_transaction_id: string }
+        Returns: string[]
+      }
       owns_product_access: { Args: { p_product_id: string }; Returns: boolean }
       pending_free_grant_products: {
         Args: never
@@ -7048,6 +7086,10 @@ export type Database = {
         }
         Returns: Json
       }
+      replace_bundle_items: {
+        Args: { p_bundle_id: string; p_component_ids: string[] }
+        Returns: undefined
+      }
       replace_seller_license_key: {
         Args: {
           p_custody: string
@@ -7071,6 +7113,10 @@ export type Database = {
           changed: boolean
           id: string
         }[]
+      }
+      revoke_order_bundle_components: {
+        Args: { p_transaction_id: string; p_user_id: string }
+        Returns: number
       }
       revoke_order_licenses: {
         Args: { p_order_ids: string[]; p_product_id: string; p_reason: string }
@@ -7167,6 +7213,7 @@ export type Database = {
         Returns: {
           abandoned_at: string | null
           amount: number
+          bundle_components_recorded_at: string | null
           cancel_note: string | null
           cancel_reason: string | null
           cancelled_mail_sent_at: string | null
@@ -7299,6 +7346,10 @@ export type Database = {
         Args: { p_endpoint_id: string; p_mode: string; p_product_ids: string[] }
         Returns: undefined
       }
+      snapshot_order_bundle_components: {
+        Args: { p_transaction_id: string }
+        Returns: undefined
+      }
       snapshot_purchase_attribution_row: {
         Args: { n: Database["public"]["Tables"]["payment_transactions"]["Row"] }
         Returns: undefined
@@ -7374,6 +7425,7 @@ export type Database = {
           currency_param?: string
           customer_email_param?: string
           product_id_param: string
+          reserve_param?: boolean
         }
         Returns: Json
       }

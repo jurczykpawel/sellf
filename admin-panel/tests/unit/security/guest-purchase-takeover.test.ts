@@ -76,8 +76,8 @@ describe('Guest Purchase Session Takeover Prevention', () => {
 
     it('checks ownership via both Stripe metadata and database transaction', () => {
       // Stripe session metadata path
-      expect(verifyPaymentLibSource).toContain('session.metadata?.user_id');
-      expect(verifyPaymentLibSource).toContain('session.metadata.user_id !== user.id');
+      expect(verifyPaymentLibSource).toContain('isCallerOrderOwner(user, readOrderUserId(session.metadata), session.customer_details?.email)');
+      expect(verifyPaymentLibSource).toContain('if (ownerUserId) return ownerUserId === user.id;');
       // Database transaction path
       expect(verifyPaymentLibSource).toContain('transaction.user_id !== user.id');
     });
@@ -89,10 +89,10 @@ describe('Guest Purchase Session Takeover Prevention', () => {
     });
 
     it('prevents user_id bypass via empty, null-string, and undefined values', () => {
+      // Empty string and undefined are falsy; the literal 'null' placeholder is excluded explicitly.
       const bypassChecks = [
-        "session.metadata.user_id !== ''",
-        "session.metadata.user_id !== 'null'",
-        'session.metadata?.user_id',
+        "return id && id !== 'null' ? id : null;",
+        'const id = metadata?.user_id;',
       ];
 
       for (const check of bypassChecks) {

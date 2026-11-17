@@ -1,8 +1,9 @@
 /**
  * SECURITY TEST: Coupon Race Condition (TOCTOU)
  *
- * Verifies that the verify_coupon() function's FOR UPDATE lock prevents
- * concurrent requests from bypassing usage_limit_global.
+ * Verifies that the verify_coupon() function's FOR UPDATE lock prevents concurrent
+ * payment-start reservations from bypassing usage_limit_global, and that storefront checks
+ * (/api/coupons/verify) hold no slot.
  *
  * The test passes ONLY when the race condition fix is in place:
  * - Exactly 1 out of N concurrent requests must succeed
@@ -97,41 +98,22 @@ test.describe('Coupon Race Condition - Simplified', () => {
     }
   });
 
-  test('concurrent verify requests respect usage_limit_global=1 @J124', async ({ request }) => {
-    // Send 10 concurrent verify requests with different emails
-    // With FOR UPDATE lock: exactly 1 succeeds, 9 fail with "usage limit reached"
-    // Without lock (vulnerability): multiple succeed simultaneously
-
-    const verifyPromises = Array(10).fill(null).map((_, i) =>
-      request.post('/api/coupons/verify', {
-        data: {
-          code: couponCode,
-          productId: productId,
-          email: `raceuser${i}@example.com`,
-        }
-      })
-    );
-
-    const responses = await Promise.all(verifyPromises);
+  test('storefront checks hold no slot: concurrent checks all answer valid and reserve nothing @J124', async ({ request }) => {
+    const responses = await Promise.all(Array(5).fill(null).map((_, i) =>
+      request.post('/api/coupons/verify', { data: { code: couponCode, productId, email: `previewuser${i}@example.com` } })));
     const results = await Promise.all(responses.map(r => r.json()));
-    const validCount = results.filter(r => r.valid === true).length;
+    expect(results.filter(r => r.valid === true)).toHaveLength(5);
+    const { count } = await supabaseAdmin.from('coupon_reservations').select('*', { count: 'exact', head: true }).eq('coupon_id', couponId);
+    expect(count).toBe(0);
+  });
 
-    console.log(`\nRACE CONDITION TEST RESULTS:`);
-    console.log(`   - Coupon usage limit: 1`);
-    console.log(`   - Concurrent verify requests: 10`);
-    console.log(`   - Requests that passed validation: ${validCount}`);
-
-    // ASSERTION: Exactly 1 must succeed.
-    // - If 0 succeed: test infrastructure issue (coupon verify broken entirely)
-    // - If >1 succeed: race condition vulnerability (FOR UPDATE lock missing)
-    // - If exactly 1: fix is working correctly
-    expect(
-      validCount,
-      `Expected exactly 1 valid response but got ${validCount}. ` +
-      (validCount === 0
-        ? 'No requests succeeded — verify API may be broken or rate-limited.'
-        : `${validCount} requests bypassed usage_limit_global=1 — FOR UPDATE lock may be missing.`)
-    ).toBe(1);
+  test('concurrent payment-start reservations respect usage_limit_global=1 @J124', async () => {
+    // The server reserves a slot when it creates the payment session (verify_coupon with the
+    // default reserve flag). With the coupon row lock exactly one of N concurrent buyers gets it.
+    const results = await Promise.all(Array(10).fill(null).map((_, i) =>
+      supabaseAdmin.rpc('verify_coupon', { code_param: couponCode, product_id_param: productId, customer_email_param: `raceuser${i}@example.com`, currency_param: 'USD' })));
+    const validCount = results.filter(r => r.data?.valid === true).length;
+    expect(validCount, `Expected exactly 1 reservation to succeed but got ${validCount}.`).toBe(1);
   });
 
   test('database has exactly 1 reservation after concurrent race @J124', async () => {

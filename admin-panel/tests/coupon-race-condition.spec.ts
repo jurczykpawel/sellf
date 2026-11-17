@@ -121,7 +121,7 @@ test.describe('Coupon Race Condition Security', () => {
         }
       });
 
-      return checkoutResponse.ok
+      return checkoutResponse.ok()
         ? { success: true }
         : { success: false, reason: await checkoutResponse.text() };
     };
@@ -160,67 +160,27 @@ test.describe('Coupon Race Condition Security', () => {
     expect(failureCount).toBeGreaterThanOrEqual(9);
   });
 
-  test('SECURITY: Per-user limit allows multiple verifications for same reservation', async ({ request }) => {
-    // Create coupon with per-user limit = 1
-    // The per-user limit is enforced at PAYMENT time, not verification time
-    // Multiple verifications from same user should return same reservation
+  test('SECURITY: Repeated storefront checks by one buyer stay valid and hold no slot', async ({ request }) => {
     const perUserCode = 'PERUSER_' + Date.now();
     const { data: perUserCoupon, error } = await supabaseAdmin
       .from('coupons')
       .insert({
-        code: perUserCode,
-        discount_type: 'percentage',
-        discount_value: 25,
-        usage_limit_global: 100,
-        usage_limit_per_user: 1,
-        current_usage_count: 0,
-        is_active: true,
-        starts_at: new Date(Date.now() - 1000).toISOString(),
+        code: perUserCode, discount_type: 'percentage', discount_value: 25,
+        usage_limit_global: 100, usage_limit_per_user: 1, current_usage_count: 0,
+        is_active: true, starts_at: new Date(Date.now() - 1000).toISOString(),
       })
       .select()
       .single();
-
     if (error) throw error;
 
     const email = 'sameuser@example.com';
-
-    // Same user verifies coupon 5 times concurrently
-    // All should succeed because they get the SAME reservation
-    const results = await Promise.all([
-      request.post('/api/coupons/verify', {
-        data: { code: perUserCode, productId, email }
-      }),
-      request.post('/api/coupons/verify', {
-        data: { code: perUserCode, productId, email }
-      }),
-      request.post('/api/coupons/verify', {
-        data: { code: perUserCode, productId, email }
-      }),
-      request.post('/api/coupons/verify', {
-        data: { code: perUserCode, productId, email }
-      }),
-      request.post('/api/coupons/verify', {
-        data: { code: perUserCode, productId, email }
-      }),
-    ]);
-
+    const results = await Promise.all(Array(5).fill(null).map(() =>
+      request.post('/api/coupons/verify', { data: { code: perUserCode, productId, email } })));
     const responses = await Promise.all(results.map(r => r.json()));
-    const validCount = responses.filter(r => r.valid).length;
-    const alreadyReservedCount = responses.filter(r => r.valid && r.already_reserved).length;
+    expect(responses.filter(r => r.valid)).toHaveLength(5);
+    const { count } = await supabaseAdmin.from('coupon_reservations').select('*', { count: 'exact', head: true }).eq('coupon_id', perUserCoupon.id);
+    expect(count).toBe(0);
 
-    console.log(`\n🔍 PER-USER VERIFICATION TEST:`);
-    console.log(`   - Same user concurrent requests: 5`);
-    console.log(`   - Valid verifications: ${validCount}`);
-    console.log(`   - Already reserved (reuse): ${alreadyReservedCount}`);
-
-    // All should be valid - same user can verify multiple times
-    // At least some should be "already_reserved" (reusing same reservation)
-    expect(validCount).toBe(5);
-    expect(alreadyReservedCount).toBeGreaterThanOrEqual(4); // At least 4 reused existing
-
-    console.log(`✅ CORRECT: Same user can verify multiple times (same reservation)`);
-
-    // Cleanup
     await supabaseAdmin.from('coupon_reservations').delete().eq('coupon_id', perUserCoupon.id);
     await supabaseAdmin.from('coupons').delete().eq('id', perUserCoupon.id);
   });
@@ -315,16 +275,14 @@ test.describe('Coupon Race Condition Security', () => {
 
     if (error) throw error;
 
-    // First verification creates reservation
-    const verify1 = await request.post('/api/coupons/verify', {
-      data: { code: expireCode, productId, email: 'first@example.com' }
-    });
-    const result1 = await verify1.json();
+    // The first buyer's payment start reserves the only slot (what create-payment-intent does).
+    const { data: result1 } = await supabaseAdmin.rpc('verify_coupon', {
+      code_param: expireCode, product_id_param: productId, customer_email_param: 'first@example.com', currency_param: 'USD' });
 
     console.log(`\n🔍 RESERVATION EXPIRY TEST:`);
-    console.log(`   - First verify: ${result1.valid ? 'Reserved' : 'Failed'}`);
+    console.log(`   - First reservation: ${result1?.valid ? 'Reserved' : 'Failed'}`);
 
-    expect(result1.valid).toBe(true);
+    expect(result1?.valid).toBe(true);
 
     // Second user tries immediately - should be blocked by reservation
     const verify2 = await request.post('/api/coupons/verify', {

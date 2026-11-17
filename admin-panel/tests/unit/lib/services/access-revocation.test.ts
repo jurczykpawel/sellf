@@ -39,10 +39,12 @@ function createMockSupabase({
   bumpLineItems = [] as Array<{ product_id: string }>,
   bumpQueryError = null as { message: string } | null,
   deleteErrors = {} as Record<string, { message: string } | null>,
+  componentResult = { data: 0, error: null } as { data: number | null; error: { message: string } | null },
 }: {
   bumpLineItems?: Array<{ product_id: string }>;
   bumpQueryError?: { message: string } | null;
   deleteErrors?: Record<string, { message: string } | null>;
+  componentResult?: { data: number | null; error: { message: string } | null };
 } = {}) {
   // Track all .from() calls and their chains for assertions
   const fromCalls: Array<{ table: string; operation: string; filters: Record<string, string> }> = [];
@@ -132,7 +134,8 @@ function createMockSupabase({
     };
   });
 
-  return { from, _fromCalls: fromCalls };
+  const rpc = vi.fn().mockResolvedValue(componentResult);
+  return { from, rpc, _fromCalls: fromCalls };
 }
 
 // ===== FIXTURES =====
@@ -336,6 +339,29 @@ describe('revokeTransactionAccess', () => {
       expect(result.bumpProductsRevoked).toBe(0);
       // But guest_purchases should be cleaned (no error = success)
       expect(result.warnings).toHaveLength(0);
+    });
+  });
+
+  describe('Bundle component revocation', () => {
+    it('asks the database to end the bundle components the order granted to the buyer', async () => {
+      const mock = createMockSupabase({ componentResult: { data: 2, error: null } });
+      const result = await revokeTransactionAccess(mock as never, fullTarget);
+      expect(mock.rpc).toHaveBeenCalledWith('revoke_order_bundle_components', { p_transaction_id: TRANSACTION_ID, p_user_id: USER_ID });
+      expect(result.bundleComponentsRevoked).toBe(2);
+      expect(result.success).toBe(true);
+    });
+
+    it('skips component revocation for a guest order without an account', async () => {
+      const mock = createMockSupabase();
+      await revokeTransactionAccess(mock as never, guestOnlyTarget);
+      expect(mock.rpc).not.toHaveBeenCalled();
+    });
+
+    it('reports a component revocation failure as a warning', async () => {
+      const mock = createMockSupabase({ componentResult: { data: null, error: { message: 'boom' } } });
+      const result = await revokeTransactionAccess(mock as never, fullTarget);
+      expect(result.success).toBe(false);
+      expect(result.warnings).toContain('Failed to revoke bundle component access: boom');
     });
   });
 

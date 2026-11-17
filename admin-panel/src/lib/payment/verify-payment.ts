@@ -11,6 +11,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { fulfillStripeOrder } from '@/lib/services/fulfill-paid-order';
 import { backfillBuyerDetails } from '@/lib/payment/buyer-details';
 import { readCartVersion } from '@/lib/stripe/checkout-session-update';
+import { isForeignStripeMarker, readStripeInstanceMarker } from '@/lib/stripe/instance-marker';
 import { redactEmail } from '@/lib/logger';
 import type Stripe from 'stripe';
 import type { User } from '@supabase/supabase-js';
@@ -32,6 +33,27 @@ interface PaymentRpcResult {
   access_expires_at?: string | null;
   send_magic_link?: boolean;
   customer_email?: string;
+}
+
+/** Shared Stripe account: a payment another installation created is completed there, not here (as in the webhook). */
+const OTHER_INSTALLATION_ERROR = 'Payment belongs to another installation';
+
+/** The order owner recorded at checkout (`metadata.user_id`), ignoring empty placeholders. */
+function readOrderUserId(metadata: Stripe.Metadata | null | undefined): string | null {
+  const id = metadata?.user_id;
+  return id && id !== 'null' ? id : null;
+}
+
+/**
+ * A signed-in caller may complete an order only as its owner: the recorded `user_id` when set,
+ * otherwise the buyer email. Anonymous callers fall through to the guest flow.
+ */
+function isCallerOrderOwner(user: User | null | undefined, ownerUserId: string | null, buyerEmail: string | null | undefined): boolean {
+  if (!user) return true;
+  if (ownerUserId) return ownerUserId === user.id;
+  const buyer = buyerEmail?.toLowerCase();
+  const caller = user.email?.toLowerCase();
+  return !buyer || !caller || buyer === caller;
 }
 
 /**
@@ -444,23 +466,7 @@ export async function verifyPaymentSession(
       };
     }
 
-    if (user && session.metadata?.user_id &&
-        session.metadata.user_id !== '' &&
-        session.metadata.user_id !== 'null' &&
-        session.metadata.user_id !== user.id) {
-      return {
-        session_id: session.id,
-        status: session.status || 'unknown',
-        payment_status: session.payment_status,
-        error: 'Session does not belong to current user'
-      };
-    }
-
-    const sessionEmail = session.customer_details?.email?.toLowerCase();
-    const userEmail = user?.email?.toLowerCase();
-    const sessionUserId = session.metadata?.user_id;
-    const sessionHasMatchingUserId = !!sessionUserId && sessionUserId !== '' && sessionUserId !== 'null' && sessionUserId === user?.id;
-    if (user && !sessionHasMatchingUserId && sessionEmail && userEmail && sessionEmail !== userEmail) {
+    if (!isCallerOrderOwner(user, readOrderUserId(session.metadata), session.customer_details?.email)) {
       return {
         session_id: session.id,
         status: session.status || 'unknown',
@@ -481,6 +487,10 @@ export async function verifyPaymentSession(
       created: session.created,
       expires_at: session.expires_at,
     };
+
+    if (await isForeignStripeMarker(readStripeInstanceMarker(session) ?? readStripeInstanceMarker(session.payment_intent))) {
+      return { ...baseResponse, access_granted: false, error: OTHER_INSTALLATION_ERROR };
+    }
 
     // Subscription mode: customer.subscription.* webhooks handle persistence + access.
     // One-time RPC below would reject trials (amount=0) and paid subs (amount mismatch).
@@ -844,6 +854,15 @@ export async function verifyPaymentIntent(
           const ownerSession = ownerSessions.data[0];
           const canonicalSessionId = ownerSession?.id || paymentIntent.id;
           const piAmountSubtotal = ownerSession?.amount_subtotal ?? undefined;
+
+          if (await isForeignStripeMarker(readStripeInstanceMarker(paymentIntent) ?? readStripeInstanceMarker(ownerSession))) {
+            return { ...baseResponse, access_granted: false, error: OTHER_INSTALLATION_ERROR };
+          }
+
+          const ownerUserId = readOrderUserId(paymentIntent.metadata) ?? readOrderUserId(ownerSession?.metadata);
+          if (!isCallerOrderOwner(user, ownerUserId, customerEmail || ownerSession?.customer_details?.email)) {
+            return { ...baseResponse, access_granted: false, error: 'Session does not belong to current user' };
+          }
 
           // Process payment using database function (multi-bump UUID array)
           const rpcParams = {

@@ -14,7 +14,8 @@ vi.mock('@/lib/auth/magic-link/deliver', () => ({ deliverMagicLink }));
 vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: async () => true, checkRateLimitForIdentifier: async () => true }));
 vi.mock('@/lib/captcha/verify', () => ({ verifyCaptchaToken: async () => ({ success: true }) }));
 vi.mock('@/lib/actions/validate-email', () => ({ validateEmailAction: async () => ({ isValid: true }) }));
-vi.mock('@/lib/events/mail', () => ({ eventMailForSlug: async () => ({ purchase_product: 'Course', purchase_amount: '10 PLN' }) }));
+const eventMailForSlug = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/events/mail', () => ({ eventMailForSlug }));
 vi.mock('@/lib/embed/checkout-embed', () => ({ getSellfBaseUrl: () => 'https://shop.example.com' }));
 
 import { requestMagicLink } from '@/lib/auth/magic-link/request';
@@ -28,7 +29,11 @@ const rows = (email: string) => db.from('auth_mail_retries').select('*').eq('ema
 const due = (email: string) => db.from('auth_mail_retries').update({ next_attempt_at: new Date(Date.now() - 1000).toISOString() }).eq('email', email);
 const paidLink = (email: string) => requestMagicLink({ email, captchaToken: 'ok', flow: 'post_checkout', productSlug: 'course', locale: 'pl' });
 
-beforeEach(() => { vi.stubEnv('DEMO_MODE', 'false'); deliverMagicLink.mockReset(); });
+beforeEach(() => {
+  vi.stubEnv('DEMO_MODE', 'false');
+  deliverMagicLink.mockReset();
+  eventMailForSlug.mockReset().mockResolvedValue({ purchase_product: 'Course', purchase_amount: '10 PLN' });
+});
 afterAll(async () => { await db.from('auth_mail_retries').delete().in('email', emails); vi.unstubAllEnvs(); });
 
 describe('auth mail retry @J292', () => {
@@ -48,6 +53,49 @@ describe('auth mail retry @J292', () => {
     await runAuthMailRetries(db);
     expect(deliverMagicLink).toHaveBeenLastCalledWith(expect.objectContaining({ email, redirectTo: parked[0].redirect_to, data: parked[0].data }));
     expect((await rows(email)).data).toEqual([]);
+  });
+
+  it('a retried post-payment link carries only the purchase details current at delivery @J292', async () => {
+    const email = `retry-fresh-${run}@example.com`; emails.push(email);
+    eventMailForSlug.mockResolvedValue({
+      purchase_product: 'Course', purchase_amount: '10 PLN', event_date: '1 Dec 2026, 18:00', event_online_url: 'https://meet.example.com/room',
+    });
+    deliverMagicLink.mockResolvedValueOnce({ ok: false, code: 'rate_limited' });
+    await paidLink(email);
+    expect((await rows(email)).data![0].data).toMatchObject({ event_online_url: 'https://meet.example.com/room' });
+
+    eventMailForSlug.mockResolvedValue({});
+    await due(email);
+    deliverMagicLink.mockResolvedValue({ ok: true });
+    await runAuthMailRetries(db);
+    expect(deliverMagicLink).toHaveBeenLastCalledWith(expect.objectContaining({ email, data: { locale: 'pl' } }));
+  });
+
+  it('a parked link whose purchase never appears leaves the queue after the waiting window, without polling @J292', async () => {
+    const email = `retry-never-${run}@example.com`; emails.push(email);
+    eventMailForSlug.mockResolvedValue({ purchase_mail_pending: 'true' });
+    await paidLink(email);
+    expect((await rows(email)).data).toHaveLength(1);
+    await db.from('auth_mail_retries').update({ created_at: new Date(Date.now() - 2 * 3_600_000).toISOString(), next_attempt_at: new Date(Date.now() - 1000).toISOString() }).eq('email', email);
+
+    await runAuthMailRetries(db);
+    expect(deliverMagicLink).not.toHaveBeenCalled();
+    expect(eventMailForSlug).toHaveBeenLastCalledWith(email, 'course', 'pl', { wait: false });
+    expect((await rows(email)).data).toEqual([]);
+  });
+
+  it('claims refused license mails ahead of post-payment links @J292', async () => {
+    const prefix = `retry-order-${run}`;
+    const older = new Date(Date.now() - 3_600_000).toISOString();
+    const parked = Array.from({ length: 21 }, (_, i) => ({ email: `${prefix}-${i}@example.com`, redirect_to: `https://shop.example.com/auth/callback?n=${i}`, kind: 'post_checkout', next_attempt_at: older }));
+    const license = { email: `${prefix}-license@example.com`, redirect_to: 'https://shop.example.com/auth/callback?license=1', kind: 'license', next_attempt_at: new Date(Date.now() - 1000).toISOString() };
+    emails.push(...parked.map(r => r.email), license.email);
+    expect((await db.from('auth_mail_retries').insert([...parked, license])).error).toBeNull();
+
+    const { data: claimed, error } = await db.rpc('claim_auth_mail_retries', { p_limit: 20 });
+    expect(error).toBeNull();
+    expect((claimed as Array<{ email: string }>).map(r => r.email)).toContain(license.email);
+    await db.from('auth_mail_retries').delete().like('email', `${prefix}-%`);
   });
 
   it('backs off after each refusal and gives up after the last attempt @J292', async () => {
