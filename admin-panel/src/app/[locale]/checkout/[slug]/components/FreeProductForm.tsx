@@ -140,7 +140,7 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
         if (!response.ok) {
           const errorData = await response.json();
           if (errorData.fieldErrors) { setCustomFieldErrors(errorData.fieldErrors); return; }
-          toast.error(getCheckoutRequestError(response.status, errorData.error, t('failedToRequestAccess'), t('requestRateLimit')));
+          toast.error(getCheckoutRequestError(response.status, errorData.error, t('failedToRequestAccess'), t('requestRateLimit'), { code: errorData.code, messages: { MAINTENANCE: tCheckout('shopMaintenance') } }));
           return;
         }
 
@@ -232,7 +232,9 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
               ? tCompliance('securityVerificationRequired')
               : result.reason === 'rate_limited'
                   ? t('rateLimitError')
-                  : t('unexpectedError');
+                  : result.reason === 'maintenance'
+                    ? tCheckout('shopMaintenance')
+                    : t('unexpectedError');
         setMessage({ type: 'error', text });
         return;
       }

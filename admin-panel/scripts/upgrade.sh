@@ -841,6 +841,106 @@ done
 
 log "Backup created at $BACKUP_DIR"
 
+# ===== STEP 5b: MAINTENANCE MODE =====
+# maintenance-file:start
+# From here until the update ends the shop answers with the maintenance page: the app reads the
+# maintenance file before any database query (src/lib/maintenance/file.ts), so the page also shows
+# while the new version starts. Path, the same rule as the app: SELLF_MAINTENANCE_FILE from the
+# environment, else from .env.local, else MAINTENANCE; a relative path is relative to $INSTALL_DIR.
+#
+# Every file this run writes carries a random run token, and the file is rewritten or removed only
+# while it still holds exactly what this run wrote: a file the operator created or put in place
+# (any other content, also JSON without the token) is never changed. This run's own file is removed
+# on every exit except an unknown migration result, where it stays (reason migration_state_unknown)
+# so that nobody takes orders against a database in an unknown state. A marker an earlier update
+# left (an updater file with a token) stays during this run and is removed only after it succeeds.
+maintenance_trim() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  printf '%s' "${value%"${value##*[![:space:]]}"}"
+}
+maintenance_file_path() {
+  local value
+  value=$(maintenance_trim "${SELLF_MAINTENANCE_FILE:-}")
+  [ -n "$value" ] || value=$(maintenance_trim "$(read_env_value SELLF_MAINTENANCE_FILE || true)")
+  [ -n "$value" ] || value=MAINTENANCE
+  case "$value" in
+    /*) printf '%s' "$value" ;;
+    *) printf '%s/%s' "$INSTALL_DIR" "$value" ;;
+  esac
+}
+MAINTENANCE_FILE=$(maintenance_file_path)
+MAINTENANCE_RUN=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
+MAINTENANCE_MARKER='^\{"reason":"(upgrade|migration_state_unknown)","started_at":"[0-9TZ:-]+","run":"[0-9a-f]{32}"\}$'
+MAINTENANCE_OURS=""
+MAINTENANCE_EARLIER=""
+MAINTENANCE_KEEP=false
+MAINTENANCE_SUCCEEDED=false
+maintenance_current() {
+  [ -f "$MAINTENANCE_FILE" ] && cat "$MAINTENANCE_FILE" 2>/dev/null
+}
+# Writes this run's file: "create" never replaces an existing file, "replace" does.
+maintenance_write() {
+  local mode="$1" content tmp="$MAINTENANCE_FILE.tmp.$$"
+  content=$(printf '{"reason":"%s","started_at":"%s","run":"%s"}' "$2" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$MAINTENANCE_RUN")
+  printf '%s\n' "$content" > "$tmp" && chmod 644 "$tmp" || { rm -f "$tmp"; return 1; }
+  if [ "$mode" = create ]; then
+    ln "$tmp" "$MAINTENANCE_FILE" 2>/dev/null || { rm -f "$tmp"; return 1; }
+    rm -f "$tmp"
+  else
+    mv -f "$tmp" "$MAINTENANCE_FILE" || { rm -f "$tmp"; return 1; }
+  fi
+  MAINTENANCE_OURS="$content"
+}
+maintenance_begin() {
+  local current
+  mkdir -p "$(dirname "$MAINTENANCE_FILE")" 2>/dev/null || true
+  if [ -e "$MAINTENANCE_FILE" ]; then
+    current=$(maintenance_current || true)
+    if [[ "$current" =~ $MAINTENANCE_MARKER ]]; then
+      MAINTENANCE_EARLIER="$current"
+      log "Maintenance file $MAINTENANCE_FILE was left by an earlier update; it stays until this update succeeds"
+    else
+      log "Maintenance file $MAINTENANCE_FILE was created by the operator; leaving it as it is"
+    fi
+    return 0
+  fi
+  if maintenance_write create upgrade; then
+    log "Maintenance mode on: $MAINTENANCE_FILE"
+  else
+    log "WARNING: Could not create $MAINTENANCE_FILE; the update continues without the maintenance page"
+  fi
+}
+# Unknown migration result: maintenance stays on whatever happens next.
+maintenance_keep() {
+  local current
+  MAINTENANCE_KEEP=true
+  current=$(maintenance_current || true)
+  if [ ! -e "$MAINTENANCE_FILE" ]; then
+    maintenance_write create migration_state_unknown || true
+  elif [ -n "$current" ] && { [ "$current" = "$MAINTENANCE_OURS" ] || [ "$current" = "$MAINTENANCE_EARLIER" ]; }; then
+    maintenance_write replace migration_state_unknown || true
+  fi
+  log "Maintenance mode left on: $MAINTENANCE_FILE"
+}
+maintenance_on_exit() {
+  local current
+  [ "$MAINTENANCE_KEEP" != true ] || return 0
+  current=$(maintenance_current || true)
+  if [ -n "$current" ] && [ "$current" = "$MAINTENANCE_OURS" ]; then
+    rm -f "$MAINTENANCE_FILE" && log "Maintenance mode off: removed $MAINTENANCE_FILE"
+  elif [ "$MAINTENANCE_SUCCEEDED" = true ] && [ -n "$current" ] && [ "$current" = "$MAINTENANCE_EARLIER" ]; then
+    rm -f "$MAINTENANCE_FILE" && log "Maintenance mode off: removed the marker of the earlier update, $MAINTENANCE_FILE"
+  elif [ -n "$current" ] && [ "$current" = "$MAINTENANCE_EARLIER" ]; then
+    log "Maintenance mode stays on: this update did not finish, so the marker of the earlier update stays in $MAINTENANCE_FILE"
+  elif [ -e "$MAINTENANCE_FILE" ] && [ -n "$MAINTENANCE_OURS$MAINTENANCE_EARLIER" ]; then
+    log "Maintenance file $MAINTENANCE_FILE was replaced during the update; leaving it as it is"
+  fi
+}
+# maintenance-file:end
+maintenance_begin
+trap 'maintenance_on_exit; rm -rf "${TMP_DIR:-}"; rm -f "${LOCK_FILE:-}"' EXIT
+
 # ===== STEP 6: STOP PM2 =====
 
 write_progress "stopping" 55 "Stopping application..."
@@ -980,6 +1080,8 @@ log "Files swapped"
 # .env.local is dotenv data (JSON/PEM/quotes), never executable shell. This
 # preserves Stackpilot's environment contract in the downloaded runner too.
 load_pm2_environment() {
+  # The started app reads the maintenance file this update manages (same rule, resolved above).
+  [ -z "${MAINTENANCE_FILE:-}" ] || export SELLF_MAINTENANCE_FILE="$MAINTENANCE_FILE"
   [ -f "$INSTALL_DIR/.env.local" ] || return 0
   local environment_file="$TMP_DIR/pm2-environment" key value
   if ! "${NODE_BIN:-node}" -e '
@@ -996,6 +1098,7 @@ load_pm2_environment() {
     export "$key=$value"
   done < "$environment_file"
   rm -f "$environment_file"
+  [ -z "${MAINTENANCE_FILE:-}" ] || export SELLF_MAINTENANCE_FILE="$MAINTENANCE_FILE"
 }
 
 # Restore only code/configuration. A failed migration batch is rolled back by the
@@ -1233,8 +1336,9 @@ if [ -n "$MIGRATION_UNKNOWN" ]; then
   FIRST_PENDING="${PENDING_MIGRATIONS[0]%%_*}"
   LAST_PENDING="${LAST_MIGRATION%%_*}"
   log "ERROR: Migration outcome unknown; application left stopped"
-  write_failure migration_state_unknown "The result of the database migration is unknown: ${MIGRATION_CAUSE%.}. The migration registry $REGISTRY_TEXT. The application was left stopped so that neither the old nor the new version runs against a database in an unknown state. Check supabase_migrations.schema_migrations for versions $FIRST_PENDING to $LAST_PENDING: if all $MIGRATION_PENDING_COUNT are present, run the update again (it skips them and starts the new version); if none is present, run the update again or restore the previous code from $BACKUP_DIR; if only some are present, restore the database from your latest backup first." \
-    cause "$MIGRATION_CAUSE"
+  maintenance_keep
+  write_failure migration_state_unknown "The result of the database migration is unknown: ${MIGRATION_CAUSE%.}. The migration registry $REGISTRY_TEXT. The application was left stopped so that neither the old nor the new version runs against a database in an unknown state. Check supabase_migrations.schema_migrations for versions $FIRST_PENDING to $LAST_PENDING: if all $MIGRATION_PENDING_COUNT are present, run the update again (it skips them and starts the new version); if none is present, run the update again or restore the previous code from $BACKUP_DIR; if only some are present, restore the database from your latest backup first. Maintenance mode stays on (file $MAINTENANCE_FILE), so the shop takes no orders even if the application is started; a successful update removes it, or delete it yourself once the database is checked: rm $MAINTENANCE_FILE" \
+    cause "$MIGRATION_CAUSE" maintenance_file "$MAINTENANCE_FILE"
   rm -rf "$TMP_DIR"
   exit 1
 fi
@@ -1314,6 +1418,7 @@ for i in $(seq 1 12); do
 done
 
 if [ "$HEALTH_OK" = "true" ]; then
+  MAINTENANCE_SUCCEEDED=true
   "$PM2_BIN" save >> "$LOG_FILE" 2>&1 || true
   write_progress "done" 100 "Upgrade to ${TAG_NAME} completed successfully!"
   log "Upgrade complete! Version: $TAG_NAME"

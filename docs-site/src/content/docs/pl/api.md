@@ -24,6 +24,14 @@ Wbudowany endpoint MCP `/api/mcp` powstaje z tego opisu: jedno narzędzie na ka�
 
 Opis powstaje z jednego rejestru w kodzie. Test w CI nie przepuści trasy bez wpisu w rejestrze ani różnicy między opisanym uprawnieniem lub parametrami zapytania a tym, co trasa faktycznie sprawdza, więc plik zgadza się z wersją, którą masz zainstalowaną. Część o API w `/llms.txt` (na Twojej instancji i na docs.sellf.app) powstaje z tego samego rejestru: instrukcja dla agenta, opisy grup i po jednej linii na operację (metoda, ścieżka, `operationId`, uprawnienie, krótki opis).
 
+## Przerwa w działaniu
+
+`GET /system/maintenance` (`system:read`) zwraca stan przerwy, jej źródło (`file`, `env`, `database`)
+i ścieżkę pliku na serwerze. `PATCH /system/maintenance` (`system:write`) z
+`{ "enabled": true, "message"?, "expected_end_at"? }` włącza przełącznik w bazie, a `{ "enabled": false }`
+go wyłącza. W czasie przerwy trasy koszyka odpowiadają `503` z `code: "MAINTENANCE"` i `Retry-After`;
+API v1 i webhooki Stripe działają dalej. Szczegóły: [Przerwa w działaniu](/pl/maintenance/).
+
 ## Ustawienia koszyka
 
 `GET /settings/checkout` (`system:read`) zwraca `{ "invoice_recipient_enabled": false }`.

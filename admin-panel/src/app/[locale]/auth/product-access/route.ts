@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -7,12 +8,17 @@ import { isInternalHostname } from '@/lib/security/internal-hostname';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
 import { claimFreeAttribution } from '@/lib/attribution/store';
 import { loadProductContentConfig } from '@/lib/services/product-content-config';
+import { getMaintenanceState } from '@/lib/maintenance/state';
+import { buildMaintenanceResponse } from '@/lib/maintenance/response';
 
 /**
  * Product Access Route
  *
  * Handles the magic link callback after a user claims a free product.
  * Flow: FreeProductForm -> magic link email -> /auth/callback -> this route
+ *
+ * During maintenance a NEW free grant is refused with the 503 maintenance page; a link carrying a
+ * request recorded before the break (free_grant) still completes (@see lib/maintenance/guard.ts).
  *
  * Query params:
  *   product    - product slug (required)
@@ -96,6 +102,10 @@ export async function GET(request: Request) {
         ...(requestedLocale === 'pl' || requestedLocale === 'en' ? { locale: requestedLocale } : {}),
       });
 
+      if (result.maintenance) {
+        const maintenance = await getMaintenanceState();
+        if (maintenance) return buildMaintenanceResponse(new NextRequest(request), 'page', maintenance);
+      }
       if (!result.accessGranted) {
         // Product is paid and no valid full-discount coupon was supplied (or the
         // coupon was rejected). Send them to the product page so they can buy.

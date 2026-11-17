@@ -56,6 +56,22 @@ when the app does not listen on IPv4 loopback (for example `HOSTNAME=::1` or a s
 setup), e.g. `SELLF_INTERNAL_URL=http://[::1]:3000`. Never point it at another host:
 requests carry the caller's API key.
 
+## Maintenance mode
+
+Both variables belong to the server source of [maintenance mode](/maintenance/), which works
+without the database. Normally leave them unset: the update in **Settings → System** manages the
+file itself.
+
+| Variable | When to set it |
+|----------|----------------|
+| `SELLF_MAINTENANCE` | Docker and other deployments without a file you can reach: `true` (also `1`, `on`, `yes`) pauses the shop until you remove it and restart the app. |
+| `SELLF_MAINTENANCE_FILE` | The maintenance file should live somewhere other than `MAINTENANCE` next to `.env.local`. Absolute, or relative to the installation directory (the one with `.env.local`). Put it in `.env.local`; an environment variable of the process wins over `.env.local`. |
+
+The app and the update script use the same file: the update started from the panel receives the
+path the running app uses and passes it on to the version it starts. A changed value takes effect
+after the app restarts with a fresh environment (for example a Stackpilot update or restart); an
+update from the panel keeps the path the app was running with.
+
 ## Price display
 
 Prices follow the selected page language in the storefront, checkout and admin panel.

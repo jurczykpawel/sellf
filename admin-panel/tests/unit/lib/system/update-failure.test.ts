@@ -62,6 +62,19 @@ describe('describeUpdateFailure', () => {
       .toEqual(['failure.migration_state_unknown', 'failure.migrationStateNext']);
   });
 
+  it('says that maintenance mode stays on and which file ends it after an unknown migration result', () => {
+    expect(describeUpdateFailure({ code: 'migration_state_unknown', details: { maintenance_file: '/opt/stacks/sellf-tsa/admin-panel/MAINTENANCE' } }, { t, formatTime: time, attempt: true }))
+      .toEqual(['failure.migration_state_unknown', 'failure.migrationStateNext', 'failure.maintenanceKept {"file":"/opt/stacks/sellf-tsa/admin-panel/MAINTENANCE"}']);
+  });
+
+  it('keeps only an absolute maintenance file path from the progress file', () => {
+    expect(sanitizeUpdateFailure({ code: 'migration_state_unknown', details: { maintenance_file: '/opt/stacks/sellf-tsa/admin-panel/MAINTENANCE' } })?.details)
+      .toEqual({ maintenance_file: '/opt/stacks/sellf-tsa/admin-panel/MAINTENANCE' });
+    for (const value of ['MAINTENANCE', '/x/MAINTENANCE; rm -rf /', '/x/<b>MAINTENANCE', '/x/other-file', 42]) {
+      expect(sanitizeUpdateFailure({ code: 'migration_state_unknown', details: { maintenance_file: value } })?.details).toEqual({});
+    }
+  });
+
   it.each([
     ['pl', ['nie wiadomo', 'zatrzymana', 'supabase_migrations.schema_migrations', 'kopii zapasowej', 'log aktualizacji']],
     ['en', ['not known', 'stopped', 'supabase_migrations.schema_migrations', 'backup', 'update log']],

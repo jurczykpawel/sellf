@@ -1,11 +1,12 @@
 /** Validated free-checkout answers retained before email and bound to the eventual grant. */
 import 'server-only';
+import { isMaintenanceActive } from '@/lib/maintenance/guard';
 import { validateCustomFieldDefinitions, validateCustomFieldValues } from '@/lib/validations/custom-checkout-fields';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 
 interface FreeGrantFields { productId: string; productName: string; values: Record<string, string> }
-type FieldsResult = ({ ok: true } & FreeGrantFields) | { ok: false; code: 'invalid_request' | 'send_failed'; fieldErrors?: Record<string, string> };
+type FieldsResult = ({ ok: true } & FreeGrantFields) | { ok: false; code: 'invalid_request' | 'send_failed' | 'maintenance'; fieldErrors?: Record<string, string> };
 export async function validateFreeGrantFields(db: SupabaseClient<Database>, slug: string, input: unknown): Promise<FieldsResult> {
   const product = await db.from('products').select('id,name,custom_checkout_fields,is_active').eq('slug', slug).single();
   if (product.error || !product.data?.is_active) return { ok: false, code: 'invalid_request' };
@@ -14,7 +15,9 @@ export async function validateFreeGrantFields(db: SupabaseClient<Database>, slug
   const fields = validateCustomFieldValues(definitions.value, input ?? {});
   return fields.ok ? { ok: true, productId: product.data.id, productName: product.data.name, values: fields.values } : { ok: false, code: 'invalid_request', fieldErrors: fields.errors };
 }
+/** Records a NEW free-product request, so none is recorded while the shop is down for maintenance. */
 export async function prepareFreeGrantRequest(db: SupabaseClient<Database>, email: string, slug: string, input: unknown): Promise<(FieldsResult & { requestId?: string })> {
+  if (await isMaintenanceActive()) return { ok: false, code: 'maintenance' };
   const fields = await validateFreeGrantFields(db, slug, input);
   if (!fields.ok) return fields;
   const request = await db.rpc('prepare_free_grant', { p_email: email.trim().toLowerCase(), p_product_id: fields.productId, p_values: fields.values });

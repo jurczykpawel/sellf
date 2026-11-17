@@ -497,7 +497,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           if (product.event_mode && (response.status === 409 || response.status === 429)) {
             throw Object.assign(new Error(eventText(response.status === 429 ? 'holdLimit' : data.error === 'sold_out' ? 'soldOut' : 'priceChanged')), { eventAvailability: true });
           }
-          throw Object.assign(new Error(getCheckoutRequestError(response.status, data.error, t('createSessionError'), t('requestRateLimit'), { code: data.code, messages: { AMOUNT_BELOW_MINIMUM: t('amountBelowMinimum'), [CHECKOUT_UPDATE_IN_PROGRESS]: t('createSessionError') } })), { details: data.details });
+          throw Object.assign(new Error(getCheckoutRequestError(response.status, data.error, t('createSessionError'), t('requestRateLimit'), { code: data.code, messages: { AMOUNT_BELOW_MINIMUM: t('amountBelowMinimum'), MAINTENANCE: t('shopMaintenance'), [CHECKOUT_UPDATE_IN_PROGRESS]: t('createSessionError') } })), { details: data.details });
         }
         return await response.json() as CheckoutSessionResponse;
       },

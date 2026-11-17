@@ -55,6 +55,22 @@ tylko wtedy, gdy aplikacja nie nasłuchuje na pętli zwrotnej IPv4 (np. `HOSTNAM
 albo układ z sidecarem), np. `SELLF_INTERNAL_URL=http://[::1]:3000`. Nigdy nie wskazuj
 innego hosta: żądania niosą klucz API wywołującego.
 
+## Przerwa w działaniu
+
+Obie zmienne dotyczą źródła na serwerze [przerwy w działaniu](/pl/maintenance/), które działa bez
+bazy danych. Zwykle zostaw je nieustawione: aktualizacja w **Ustawienia → System** sama zarządza
+plikiem.
+
+| Zmienna | Kiedy ustawić |
+|---------|---------------|
+| `SELLF_MAINTENANCE` | Docker i inne wdrożenia bez dostępu do pliku: `true` (także `1`, `on`, `yes`) wstrzymuje sklep, dopóki jej nie usuniesz i nie uruchomisz aplikacji ponownie. |
+| `SELLF_MAINTENANCE_FILE` | Plik przerwy ma leżeć gdzie indziej niż `MAINTENANCE` obok `.env.local`. Ścieżka bezwzględna albo względna wobec katalogu instalacji (tego z `.env.local`). Wpisz ją do `.env.local`; zmienna środowiskowa procesu ma pierwszeństwo przed `.env.local`. |
+
+Aplikacja i skrypt aktualizacji używają tego samego pliku: aktualizacja uruchomiona z panelu
+dostaje ścieżkę, której używa działająca aplikacja, i przekazuje ją uruchamianej wersji. Zmieniona
+wartość zaczyna działać po ponownym uruchomieniu aplikacji ze świeżym środowiskiem (np. aktualizacja
+albo restart przez Stackpilot); aktualizacja z panelu zachowuje ścieżkę, z którą działała aplikacja.
+
 ## Wyświetlanie cen
 
 Ceny w sklepie, checkout i panelu administracyjnym używają wybranego języka strony.

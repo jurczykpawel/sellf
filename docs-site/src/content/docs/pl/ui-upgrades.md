@@ -90,6 +90,12 @@ i co zrobić dalej; dokładny zakres wersji i katalog z poprzednim kodem podaje 
 aktualizacji. Pusta lub nieczytelna odpowiedź rejestru nie dowodzi, że baza się nie
 zmieniła.
 
+Od zatrzymania działającej wersji do uruchomienia nowej sklep pokazuje stronę przerwy technicznej:
+aktualizator tworzy `<stack>/admin-panel/MAINTENANCE` i usuwa go po sukcesie, po przywróceniu
+poprzedniego kodu i przy wcześniejszym zakończeniu. Po `migration_state_unknown` plik zostaje, więc
+sklep nie przyjmuje zamówień, nawet jeśli aplikacja zostanie uruchomiona; zobacz
+[Przerwa w działaniu](/pl/maintenance/).
+
 Zastrzeżenie: dwa odczyty w odstępie 15 s nie wykryją transakcji, która zatwierdzi
 się później niż 15 s po zerwaniu połączenia. Wtedy aktualizator uznałby, że zmian
 nie było, i przywrócił poprzedni kod. Jeśli po takim błędzie sklep działa

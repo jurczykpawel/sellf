@@ -6,6 +6,8 @@ description: Konfiguracja Fakturowni i obsługa faktur zamówień.
 W **Ustawienia → Sklep → Faktury** wybierz Fakturownię, wpisz domenę konta
 (`twoje-konto.fakturownia.pl`) i token API, a następnie **Sprawdź połączenie**.
 Najpierw uzupełnij nazwę sprzedawcy, NIP i adres w ustawieniach danych firmy.
+Przy **Dostawca: Wyłączone** Sellf nie wystawia faktur, a sekcja pokazuje tylko wybór dostawcy
+i **Zapisz**; pola Fakturowni są ukryte i zachowują zapisane wartości na wypadek ponownego włączenia.
 Serwer wymaga `APP_ENCRYPTION_KEY`. Puste pole tokenu zachowuje zapisany token;
 przy zmianie domeny konta wpisz nowy token.
 

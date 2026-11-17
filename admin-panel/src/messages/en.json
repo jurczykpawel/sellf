@@ -66,6 +66,7 @@
     "column": "Invoice",
     "provider": "Provider",
     "none": "Disabled",
+    "disabledHelp": "Invoicing is off, so Sellf issues no invoices. Choose Fakturownia to connect your account; previously saved settings are kept.",
     "domain": "Fakturownia account domain",
     "token": "API token",
     "tokenHelp": "Leave blank to keep the saved token. The saved token is never displayed.",
@@ -401,6 +402,7 @@
     "loadError": "Failed to load checkout. Please try again later.",
     "createSessionError": "Failed to create checkout session",
     "amountBelowMinimum": "This product cannot be purchased right now. The seller needs to correct its price.",
+    "shopMaintenance": "The shop is down for maintenance. We’ll be back soon.",
     "netPrice": "Net price",
     "vat": "VAT",
     "vatExempt": "VAT-exempt sale",
@@ -1467,6 +1469,7 @@
     "preparingLoginLink": "Preparing your login link…",
     "invalidSession": "Invalid payment session ID.",
     "verificationFailed": "Could not verify payment. Please try again.",
+    "freeAccessMaintenance": "The shop is down for maintenance, so free access cannot be granted right now. Please come back soon.",
     "paidLinkSendError": "Your purchase is paid; we could not send the login link. Please try again.",
     "paidLinkQueued": "Your purchase is paid. Our mail server is busy, so the login link will arrive automatically within a few minutes; you can close this page.",
     "paidLinkRateLimitError": "Your purchase is paid; we could not send the login link due to a sending limit. Please wait before trying again.",
@@ -3468,6 +3471,37 @@
     "errorLoadingConfiguration": "Unable to load application configuration. Please check your connection and try again."
   },
   "settings": {
+      "maintenance": {
+        "title": "Maintenance mode",
+        "description": "While it is on, the shop, product pages, checkout, embedded checkout and the login wall show “Down for maintenance, we’ll be back soon” (HTTP 503), and no new payment can start.",
+        "keepsWorking": "Keeps working: the admin panel, API v1, buyers’ accounts and Stripe webhooks, so payments already in progress are completed. Products and settings do not change.",
+        "loading": "Loading…",
+        "statusOff": "Off: the shop is open.",
+        "statusOn": {
+          "database": "On: switched on here in the panel (or through API v1).",
+          "file": "On: a maintenance file on the server switched it on. It wins over the switch below.",
+          "env": "On: the SELLF_MAINTENANCE setting on the server switched it on. It wins over the switch below."
+        },
+        "file": {
+          "duringUpdate": "An update is running and created the file. It is removed when the update finishes.",
+          "afterFailedUpdate": "An update stopped with an unknown database migration result and left maintenance mode on, so that no orders are taken against a database in an unknown state. Check the database first (see the update message).",
+          "manual": "Someone created the file on the server.",
+          "howToEnd": "To end it, delete the file on the server:"
+        },
+        "env": "To end it, remove SELLF_MAINTENANCE from the server environment (.env.local) and restart the application.",
+        "message": "Note for visitors (optional)",
+        "messageHelp": "Shown on the maintenance page, at most 500 characters.",
+        "expectedEnd": "Expected end (optional)",
+        "expectedEndHelp": "Shown on the page and sent to browsers and search engines as the time to come back.",
+        "turnOn": "Turn on maintenance mode",
+        "update": "Save note and time",
+        "turnOff": "Turn off maintenance mode",
+        "turnedOn": "Maintenance mode is on",
+        "turnedOff": "Maintenance mode is off",
+        "databaseShadowed": "The switch here is on too; after the server source ends, the shop stays in maintenance until you turn this off.",
+        "invalid": "Check the note (at most 500 characters) and the expected end (it must be in the future).",
+        "error": "Maintenance mode could not be changed. Try again."
+      },
       "invoiceRecipient": {
         "title": "Invoice recipient",
         "description": "When one institution pays and another receives the invoice (e.g. the municipality buys, the school is the recipient), the buyer can enter a separate recipient.",
@@ -5448,6 +5482,7 @@
       "migration_failed": "Database migration failed: {cause}",
       "migration_state_unknown": "It is not known whether the database migrations of this release were applied. The application is stopped so that neither the old nor the new version runs against a database in an unknown state.",
       "migrationStateCause": "Migration error: {cause}",
+      "maintenanceKept": "Maintenance mode stays on (file {file}): the shop takes no orders even if the application is started. A successful update removes the file; otherwise delete it yourself once the database is checked.",
       "migrationStateNext": "Check the release's versions in the migration registry (table supabase_migrations.schema_migrations); the update log gives their range and the folder with the previous code. If all are present, run the update again. If none is present, run it again or restore the previous code from that folder. If only some are present, restore the database from your latest backup first. If in doubt, contact your server administrator.",
       "pm2_stop_failed": "PM2 could not confirm that the application stopped, so the update was cancelled before any file or the database was changed.",
       "pm2_stop_failed_offline": "PM2 could not confirm that the application stopped, so the update was cancelled before any file or the database was changed. PM2 also did not confirm that the application started again.",

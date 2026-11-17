@@ -8,7 +8,8 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { getMaintenanceFilePath } from '@/lib/maintenance/file';
 
 const execute = promisify(execFile);
 const source = readFileSync(path.resolve(__dirname, '../../../scripts/upgrade.sh'), 'utf8');
@@ -39,6 +40,16 @@ interface FixtureOptions {
   pm2Restart?: { exit?: number; state?: 'online' | 'stopped' };
   /** pm2 jlist prints something that is not a process list. */
   pm2JlistBroken?: boolean;
+  /** Content of the maintenance file before the update starts (absent when undefined). */
+  maintenanceBefore?: string;
+  /** Where the app reads the maintenance file: absolute, or relative to the install dir (default MAINTENANCE). */
+  maintenancePath?: string;
+  /** Extra .env.local lines. */
+  envLocal?: string;
+  /** Extra environment of the updater process. */
+  processEnv?: Record<string, string>;
+  /** Someone replaces the maintenance file with this content while PM2 stops the old version. */
+  replaceMaintenanceOnStop?: string;
 }
 
 async function runUpgrade(options: FixtureOptions = {}) {
@@ -106,7 +117,11 @@ async function runUpgrade(options: FixtureOptions = {}) {
     writeFileSync(path.join(install, `supabase/migrations/${name}.sql`), 'SELECT 1;');
   }
   const quote = options.quotedEnv ? '"' : '';
-  writeFileSync(path.join(install, '.env.local'), `SUPABASE_URL=${quote}http://127.0.0.1:${address.port}${quote}\nSUPABASE_SERVICE_ROLE_KEY=${quote}fixture-key${quote}\nPORT=${quote}${address.port}${quote}\n`);
+  const maintenanceFile = path.resolve(install, options.maintenancePath ?? 'MAINTENANCE');
+  mkdirSync(path.dirname(maintenanceFile), { recursive: true });
+  if (options.maintenanceBefore !== undefined) writeFileSync(maintenanceFile, options.maintenanceBefore);
+  if (options.replaceMaintenanceOnStop !== undefined) writeFileSync(path.join(dir, 'replacement'), options.replaceMaintenanceOnStop);
+  writeFileSync(path.join(install, '.env.local'), `SUPABASE_URL=${quote}http://127.0.0.1:${address.port}${quote}\nSUPABASE_SERVICE_ROLE_KEY=${quote}fixture-key${quote}\nPORT=${quote}${address.port}${quote}\n${options.envLocal ?? ''}`);
   let systemPath = process.env.PATH ?? '';
   if (options.withoutJq) {
     const system = path.join(dir, 'system');
@@ -136,6 +151,9 @@ exec ${JSON.stringify(executable)} "$@"
   writeFileSync(path.join(dir, 'pm2.state'), 'online');
   writeFileSync(path.join(bin, 'pm2'), `#!/bin/bash
 printf '%s\\n' "$*" >> "$FIXTURE_DIR/pm2.log"
+case "$1" in start|stop|restart) printf '%s %s\\n' "$1" "$([ -e "$FIXTURE_MAINTENANCE" ] && echo on || echo off)" >> "$FIXTURE_DIR/maintenance.log" ;; esac
+[ "$1" != stop ] || [ ! -f "$FIXTURE_DIR/replacement" ] || cp "$FIXTURE_DIR/replacement" "$FIXTURE_MAINTENANCE"
+[ "$1" != start ] || printf '%s\\n' "\${SELLF_MAINTENANCE_FILE:-}" >> "$FIXTURE_DIR/app-maintenance-file"
 state="$FIXTURE_DIR/pm2.state"
 case "$1" in
   start) cat "$FIXTURE_DIR/install/.next/standalone/admin-panel/server.js" >> "$FIXTURE_DIR/started"; echo online > "$state" ;;
@@ -174,12 +192,16 @@ ${source.slice(start, end)}
 `);
   try {
     const result = await execute('bash', [path.join(dir, 'harness.sh')], {
-      env: { ...process.env, FIXTURE_DIR: dir, PATH: `${bin}:${systemPath}` },
+      env: { ...process.env, ...options.processEnv, FIXTURE_DIR: dir, FIXTURE_MAINTENANCE: maintenanceFile, PATH: `${bin}:${systemPath}` },
     }).then(({ stdout }) => ({ code: 0, stdout })).catch((error: { code: number; stdout: string }) => ({ code: error.code, stdout: error.stdout }));
     const read = (name: string) => readFileSync(path.join(dir, name), 'utf8');
     const optional = (name: string) => existsSync(path.join(dir, name)) ? read(name) : '';
     return {
-      ...result, dir, requests, read, pm2State: read('pm2.state').trim(), log: optional('upgrade.log'), started: optional('started'), pm2: optional('pm2.log'), statusReadsAfterApply, statusReads, apiKeys: [...apiKeys],
+      ...result, dir, requests, read, pm2State: read('pm2.state').trim(),
+      maintenanceSeen: optional('maintenance.log').trim().split('\n').filter(Boolean),
+      maintenanceFile, maintenanceAfter: existsSync(maintenanceFile) ? readFileSync(maintenanceFile, 'utf8') : null,
+      defaultMaintenanceExists: existsSync(path.join(install, 'MAINTENANCE')),
+      appMaintenanceFiles: optional('app-maintenance-file').trim().split('\n').filter(Boolean), log: optional('upgrade.log'), started: optional('started'), pm2: optional('pm2.log'), statusReadsAfterApply, statusReads, apiKeys: [...apiKeys],
       installedMigrations: () => readdirSync(path.join(install, 'supabase/migrations')).sort(),
     };
   } finally {
@@ -488,4 +510,135 @@ it('reads quoted .env.local values the way dotenv does', async () => {
   expect(result.apiKeys).toEqual(['fixture-key']);
   expect(result.started).toBe('new-code');
   expect(result.stdout).toContain('PROGRESS: done');
+});
+
+describe('maintenance mode during the update', () => {
+  const marker = (reason: string, run = 'a'.repeat(32)) => `{"reason":"${reason}","started_at":"2026-11-17T10:00:00Z","run":"${run}"}\n`;
+
+  it('the shop shows the maintenance page from before the stop until the new version is up, then the file is removed @J653', async () => {
+    const result = await runUpgrade();
+    expect(result.code).toBe(0);
+    expect(result.maintenanceSeen).toEqual(['stop on', 'start on']);
+    expect(result.maintenanceAfter).toBeNull();
+    expect(result.log).toContain('Maintenance mode off');
+  });
+
+  it.each([
+    ['a migration fails and the previous code is restored', { status: 500, body: '{"message":"Migration 20261110235900_fixture failed: boom"}', statusAfterApply: { code: 200, body: '[]' } }],
+    ['the health check fails and the previous code is restored', { healthFailure: true }],
+    ['PM2 cannot stop the old process (nothing changed)', { pm2Stop: { exit: 1, state: 'online' as const } }],
+  ] as const)('removes the file when %s', async (_, options) => {
+    const result = await runUpgrade(options);
+    expect(result.code).toBe(1);
+    expect(result.maintenanceSeen[0]).toBe('stop on');
+    expect(result.maintenanceAfter).toBeNull();
+  });
+
+  it('keeps maintenance on, with the reason, when the migration result is unknown, and says how to end it', async () => {
+    const result = await runUpgrade({
+      applyDrop: true, statusAfterApply: { code: 503, body: 'unavailable' },
+    });
+    expect(result.stdout).toContain('code=migration_state_unknown');
+    expect(result.started).toBe('');
+    expect(JSON.parse(result.maintenanceAfter!)).toMatchObject({ reason: 'migration_state_unknown' });
+    const file = path.join(result.dir, 'install/MAINTENANCE');
+    expect(result.stdout).toContain(`Maintenance mode stays on (file ${file})`);
+    expect(result.stdout).toContain(`rm ${file}`);
+  });
+
+  it('a successful rerun removes the marker an earlier update left on', async () => {
+    const result = await runUpgrade({ maintenanceBefore: marker('migration_state_unknown') });
+    expect(result.code).toBe(0);
+    expect(result.maintenanceSeen).toEqual(['stop on', 'start on']);
+    expect(result.maintenanceAfter).toBeNull();
+  });
+
+  it.each([
+    ['PM2 cannot stop the old process', { pm2Stop: { exit: 1, state: 'online' as const } }],
+    ['a migration fails and the previous code is restored', { status: 500, body: '{"message":"Migration 20261110235900_fixture failed: boom"}', statusAfterApply: { code: 200, body: '[]' } }],
+    ['the health check fails', { healthFailure: true }],
+  ] as const)('a failed rerun keeps the marker of the earlier unknown migration result when %s', async (_, options) => {
+    const before = marker('migration_state_unknown');
+    const result = await runUpgrade({ ...options, maintenanceBefore: before });
+    expect(result.code).toBe(1);
+    expect(result.maintenanceAfter).toBe(before);
+  });
+
+  it('leaves a file the operator created exactly as it was', async () => {
+    const result = await runUpgrade({ maintenanceBefore: 'Planned break until 14:00' });
+    expect(result.code).toBe(0);
+    expect(result.maintenanceSeen).toEqual(['stop on', 'start on']);
+    expect(result.maintenanceAfter).toBe('Planned break until 14:00');
+    expect(result.log).toContain('created by the operator');
+  });
+
+  it('does not take over an operator JSON file that only looks like the updater file', async () => {
+    const before = '{"reason":"upgrade","message":"Operator planned break"}';
+    const result = await runUpgrade({ maintenanceBefore: before });
+    expect(result.code).toBe(0);
+    expect(result.maintenanceAfter).toBe(before);
+  });
+
+  it.each([
+    ['the update succeeds', {}],
+    ['the update fails', { healthFailure: true }],
+    ['the migration result is unknown', { applyDrop: true, statusAfterApply: { code: 503, body: 'unavailable' } }],
+  ] as const)('never deletes or overwrites a file the operator put in place during the update when %s', async (_, options) => {
+    const result = await runUpgrade({ ...options, replaceMaintenanceOnStop: 'Operator: back at 15:00' });
+    expect(result.maintenanceSeen[0]).toBe('stop on');
+    expect(result.maintenanceAfter).toBe('Operator: back at 15:00');
+  });
+
+  describe('SELLF_MAINTENANCE_FILE', () => {
+    it.each([
+      ['an absolute path in .env.local', (dir: string) => ({ maintenancePath: path.join(dir, 'state/maintenance.flag'), envLocal: `SELLF_MAINTENANCE_FILE="${path.join(dir, 'state/maintenance.flag')}"\n` })],
+      ['a path relative to the installation in .env.local', () => ({ maintenancePath: 'var/maintenance.flag', envLocal: 'SELLF_MAINTENANCE_FILE=var/maintenance.flag\n' })],
+      ['the process environment, which wins over .env.local', (dir: string) => ({ maintenancePath: path.join(dir, 'env.flag'), envLocal: 'SELLF_MAINTENANCE_FILE=ignored.flag\n', processEnv: { SELLF_MAINTENANCE_FILE: path.join(dir, 'env.flag') } })],
+    ])('the update and the started app use the same file from %s', async (_, configure) => {
+      const scratch = mkdtempSync(path.join(tmpdir(), 'sellf-maintenance-path-'));
+      directories.push(scratch);
+      const result = await runUpgrade(configure(scratch));
+      expect(result.code).toBe(0);
+      expect(result.maintenanceSeen).toEqual(['stop on', 'start on']);
+      expect(result.defaultMaintenanceExists).toBe(false);
+      expect(result.maintenanceAfter).toBeNull();
+      expect(result.appMaintenanceFiles.map(file => path.resolve(file))).toEqual([result.maintenanceFile]);
+    });
+
+    it('a path handed over by the panel launcher reaches every started version, also the restored one', async () => {
+      // The launcher passes the running app's resolved path (route.ts, --setenv); .env.local says otherwise.
+      const scratch = mkdtempSync(path.join(tmpdir(), 'sellf-maintenance-launcher-'));
+      directories.push(scratch);
+      const launched = path.join(scratch, 'pm2.flag');
+      const result = await runUpgrade({ maintenancePath: launched, envLocal: 'SELLF_MAINTENANCE_FILE=dotenv.flag\n', processEnv: { SELLF_MAINTENANCE_FILE: launched }, healthFailure: true });
+      expect(result.stdout).toContain('rollback=true');
+      expect(result.maintenanceSeen).toContain('stop on');
+      expect(result.appMaintenanceFiles.length).toBeGreaterThanOrEqual(2);
+      expect(new Set(result.appMaintenanceFiles)).toEqual(new Set([launched]));
+      expect(existsSync(path.join(result.dir, 'install/dotenv.flag'))).toBe(false);
+    });
+
+    it('the app resolves the .env.local value to the file the update manages', async () => {
+      const result = await runUpgrade({ maintenancePath: 'var/maintenance.flag', envLocal: 'SELLF_MAINTENANCE_FILE=var/maintenance.flag\n' });
+      const cwd = vi.spyOn(process, 'cwd').mockReturnValue(path.join(result.dir, 'install/.next/standalone/admin-panel'));
+      vi.stubEnv('SELLF_MAINTENANCE_FILE', 'var/maintenance.flag');
+      try {
+        expect(getMaintenanceFilePath()).toBe(result.maintenanceFile);
+      } finally {
+        cwd.mockRestore();
+        vi.unstubAllEnvs();
+      }
+    });
+
+    it('keeps maintenance on in the configured file when the migration result is unknown', async () => {
+      const result = await runUpgrade({
+        maintenancePath: 'var/maintenance.flag', envLocal: 'SELLF_MAINTENANCE_FILE=var/maintenance.flag\n',
+        applyDrop: true, statusAfterApply: { code: 503, body: 'unavailable' },
+      });
+      expect(result.stdout).toContain('code=migration_state_unknown');
+      expect(JSON.parse(result.maintenanceAfter!)).toMatchObject({ reason: 'migration_state_unknown' });
+      expect(result.defaultMaintenanceExists).toBe(false);
+      expect(result.stdout).toContain(`rm ${result.maintenanceFile}`);
+    });
+  });
 });

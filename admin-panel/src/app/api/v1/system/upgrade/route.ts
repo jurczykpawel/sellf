@@ -21,6 +21,7 @@ import { spawn } from 'child_process';
 import { openSync, closeSync, readFileSync } from 'fs';
 import { resolve, basename, dirname, isAbsolute } from 'path';
 import { findUpgradeScript, getUpgradeInstallDir, getUpgradeCapability } from '@/lib/system/upgrade-runtime-server';
+import { getMaintenanceFilePath } from '@/lib/maintenance/file';
 import {
   handleCorsPreFlight,
   jsonResponse,
@@ -189,6 +190,13 @@ async function launchUpgrade(request: NextRequest, auth: Awaited<ReturnType<type
       console.warn(`[system/upgrade] Skipped ${droppedCount} unusable PATH entries`);
     }
     const upgradePath = [...new Set([...validPathEntries, dirname(process.execPath)])].join(':');
+    // The updater turns maintenance on with the file THIS process reads (its environment wins over
+    // .env.local) and hands the same path to the version it starts: one file before the stop and
+    // after the start. systemd-run gives the unit a clean environment, so pass it explicitly.
+    const maintenanceFile = getMaintenanceFilePath();
+    if (!isAbsolute(maintenanceFile) || /[\x00-\x1f\x7f]/.test(maintenanceFile)) {
+      throw new Error('Maintenance file path cannot be passed to the updater');
+    }
     const systemdRunArgs = [
       `--unit=sellf-upgrade-${token}`,
       '--collect',   // auto-remove unit after exit
@@ -200,6 +208,7 @@ async function launchUpgrade(request: NextRequest, auth: Awaited<ReturnType<type
       '--setenv=HOME=/root',
       '--setenv=PM2_HOME=/root/.pm2',
       `--setenv=PATH=${upgradePath}`,
+      `--setenv=SELLF_MAINTENANCE_FILE=${maintenanceFile}`,
       '--',
       'bash', ...scriptArgs,
     ];

@@ -2,6 +2,7 @@
 import { execFileSync } from 'child_process';
 import { accessSync, constants, existsSync } from 'fs';
 import { basename, dirname, isAbsolute, resolve } from 'path';
+import { getUpgradeInstallDir } from '@/lib/system/install-dir';
 import { detectUpgradeRuntime } from '@/lib/system/upgrade-runtime';
 import type { UpgradeCapability } from '@/lib/system/upgrade-runtime';
 
@@ -11,10 +12,7 @@ export function findUpgradeScript(): string | null {
     .find(candidate => existsSync(candidate)) ?? null;
 }
 
-export function getUpgradeInstallDir(): string | null {
-  const cwd = process.cwd();
-  return cwd.endsWith('/.next/standalone/admin-panel') ? resolve(cwd, '../../..') : null;
-}
+export { getUpgradeInstallDir };
 
 function isExecutable(file: string): boolean {
   try { accessSync(file, constants.X_OK); return true; } catch { return false; }

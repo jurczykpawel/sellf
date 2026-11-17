@@ -66,6 +66,7 @@
     "column": "Faktura",
     "provider": "Dostawca",
     "none": "Wyłączone",
+    "disabledHelp": "Faktury są wyłączone, więc Sellf ich nie wystawia. Wybierz Fakturownię, żeby połączyć konto; wcześniej zapisane ustawienia zostają.",
     "domain": "Domena konta Fakturowni",
     "token": "Token API",
     "tokenHelp": "Puste pole zachowuje zapisany token. Zapisany token nigdy nie jest wyświetlany.",
@@ -401,6 +402,7 @@
     "loadError": "Nie udało się załadować płatności. Spróbuj ponownie później.",
     "createSessionError": "Nie udało się utworzyć sesji płatności",
     "amountBelowMinimum": "Tego produktu nie można teraz kupić. Sprzedawca musi poprawić cenę.",
+    "shopMaintenance": "Sklep ma przerwę techniczną. Wracamy wkrótce.",
     "netPrice": "Cena netto",
     "vat": "VAT",
     "vatExempt": "Sprzedaż zwolniona z VAT",
@@ -1467,6 +1469,7 @@
     "preparingLoginLink": "Przygotowuję link logowania…",
     "invalidSession": "Nieprawidłowy identyfikator sesji płatności.",
     "verificationFailed": "Nie udało się zweryfikować płatności. Spróbuj ponownie.",
+    "freeAccessMaintenance": "Sklep ma przerwę techniczną, więc teraz nie możemy dać darmowego dostępu. Wróć wkrótce.",
     "paidLinkSendError": "Zakup jest opłacony; nie udało się wysłać linku logowania. Spróbuj ponownie.",
     "paidLinkQueued": "Zakup jest opłacony. Serwer pocztowy jest chwilowo przeciążony, więc link logowania przyjdzie automatycznie w ciągu kilku minut; możesz zamknąć tę stronę.",
     "paidLinkRateLimitError": "Zakup jest opłacony; nie udało się wysłać linku logowania z powodu limitu wysyłki. Poczekaj przed kolejną próbą.",
@@ -3468,6 +3471,37 @@
     "errorLoadingConfiguration": "Nie można załadować konfiguracji aplikacji. Sprawdź połączenie i spróbuj ponownie."
   },
   "settings": {
+      "maintenance": {
+        "title": "Przerwa w działaniu",
+        "description": "Gdy jest włączona, sklep, strony produktów, koszyk, osadzony koszyk i login wall pokazują „Przerwa techniczna, wracamy wkrótce” (HTTP 503) i nie da się rozpocząć nowej płatności.",
+        "keepsWorking": "Działa dalej: panel administratora, API v1, konta kupujących i webhooki Stripe, więc płatności w toku się realizują. Produkty i ustawienia się nie zmieniają.",
+        "loading": "Wczytywanie…",
+        "statusOff": "Wyłączona: sklep działa.",
+        "statusOn": {
+          "database": "Włączona: tutaj w panelu (albo przez API v1).",
+          "file": "Włączona: przez plik serwisowy na serwerze. Ma pierwszeństwo przed przełącznikiem poniżej.",
+          "env": "Włączona: przez ustawienie SELLF_MAINTENANCE na serwerze. Ma pierwszeństwo przed przełącznikiem poniżej."
+        },
+        "file": {
+          "duringUpdate": "Trwa aktualizacja, która utworzyła ten plik. Zniknie, gdy aktualizacja się skończy.",
+          "afterFailedUpdate": "Aktualizacja zatrzymała się z nieznanym wynikiem migracji bazy danych i zostawiła przerwę włączoną, żeby sklep nie przyjmował zamówień, gdy stan bazy jest nieznany. Najpierw sprawdź bazę (patrz komunikat aktualizacji).",
+          "manual": "Ktoś utworzył ten plik na serwerze.",
+          "howToEnd": "Żeby ją zakończyć, usuń plik na serwerze:"
+        },
+        "env": "Żeby ją zakończyć, usuń SELLF_MAINTENANCE z ustawień serwera (.env.local) i uruchom aplikację ponownie.",
+        "message": "Komunikat dla odwiedzających (opcjonalnie)",
+        "messageHelp": "Widoczny na stronie przerwy, najwyżej 500 znaków.",
+        "expectedEnd": "Przewidywany koniec (opcjonalnie)",
+        "expectedEndHelp": "Widoczny na stronie i przekazywany przeglądarkom i wyszukiwarkom jako czas powrotu.",
+        "turnOn": "Włącz przerwę w działaniu",
+        "update": "Zapisz komunikat i czas",
+        "turnOff": "Wyłącz przerwę w działaniu",
+        "turnedOn": "Przerwa w działaniu włączona",
+        "turnedOff": "Przerwa w działaniu wyłączona",
+        "databaseShadowed": "Przełącznik tutaj też jest włączony: po zakończeniu przerwy z serwera sklep zostanie w przerwie, dopóki go nie wyłączysz.",
+        "invalid": "Sprawdź komunikat (najwyżej 500 znaków) i przewidywany koniec (musi być w przyszłości).",
+        "error": "Nie udało się zmienić przerwy w działaniu. Spróbuj ponownie."
+      },
       "invoiceRecipient": {
         "title": "Odbiorca faktury",
         "description": "Gdy fakturę opłaca jedna placówka, a dostaje inna (np. gmina kupuje, szkoła jest odbiorcą), kupujący może podać osobnego odbiorcę.",
@@ -5448,6 +5482,7 @@
       "migration_failed": "Migracja bazy danych nie powiodła się: {cause}",
       "migration_state_unknown": "Nie wiadomo, czy migracje bazy danych z tego wydania zostały zastosowane. Aplikacja jest zatrzymana, żeby ani stara, ani nowa wersja nie działała na bazie w nieznanym stanie.",
       "migrationStateCause": "Błąd migracji: {cause}",
+      "maintenanceKept": "Tryb serwisowy zostaje włączony (plik {file}): sklep nie przyjmuje zamówień, nawet jeśli aplikacja zostanie uruchomiona. Udana aktualizacja usunie ten plik; w przeciwnym razie usuń go sam po sprawdzeniu bazy danych.",
       "migrationStateNext": "Sprawdź w rejestrze migracji (tabela supabase_migrations.schema_migrations) wersje z tego wydania; ich zakres i katalog kopii poprzedniego kodu podaje log aktualizacji. Jeśli są wszystkie, uruchom aktualizację ponownie. Jeśli nie ma żadnej, uruchom ją ponownie albo przywróć poprzedni kod z kopii. Jeśli jest tylko część, najpierw przywróć bazę danych z ostatniej kopii zapasowej. W razie wątpliwości skontaktuj się z administratorem serwera.",
       "pm2_stop_failed": "PM2 nie potwierdził, że aplikacja się zatrzymała, więc aktualizacja została przerwana, zanim zmienił się jakikolwiek plik albo baza danych.",
       "pm2_stop_failed_offline": "PM2 nie potwierdził, że aplikacja się zatrzymała, więc aktualizacja została przerwana, zanim zmienił się jakikolwiek plik albo baza danych. PM2 nie potwierdził też ponownego uruchomienia aplikacji.",

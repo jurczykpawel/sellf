@@ -6768,6 +6768,24 @@ COMMENT ON FUNCTION public.get_hourly_revenue_stats(p_target_date date, p_produc
 
 
 --
+-- Name: get_maintenance_mode(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.get_maintenance_mode() RETURNS TABLE(enabled boolean, message text, expected_end_at timestamp with time zone)
+    LANGUAGE sql STABLE SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+  SELECT m.enabled,
+         CASE WHEN m.enabled THEN m.message END,
+         CASE WHEN m.enabled THEN m.expected_end_at END
+  FROM public.maintenance_mode m
+  WHERE m.id;
+$$;
+
+
+ALTER FUNCTION public.get_maintenance_mode() OWNER TO postgres;
+
+--
 -- Name: get_migration_status(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -7688,11 +7706,24 @@ ALTER FUNCTION public.grant_bundle_component_access_impl(user_id_param uuid, pro
 --
 
 CREATE FUNCTION public.grant_free_product_access(product_slug_param text, access_duration_days_param integer DEFAULT NULL::integer, coupon_code_param text DEFAULT NULL::text) RETURNS boolean
-    LANGUAGE plpgsql
+    LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO ''
     AS $$
-DECLARE previous text := current_setting('sellf.grant_source', true); result boolean;
+DECLARE
+  previous text := current_setting('sellf.grant_source', true);
+  saved_request uuid := nullif(current_setting('sellf.free_grant_context', true), '')::uuid;
+  result boolean;
 BEGIN
+  IF (select auth.role()) IS DISTINCT FROM 'service_role'
+     AND EXISTS (SELECT 1 FROM public.maintenance_mode m WHERE m.id AND m.enabled)
+     AND NOT EXISTS (
+       SELECT 1 FROM public.free_grant_contexts c
+       JOIN public.products p ON p.id = c.product_id
+       JOIN auth.users u ON lower(u.email) = c.email
+       WHERE c.id = saved_request AND p.slug = product_slug_param AND u.id = (select auth.uid())
+         AND c.claimed_at IS NULL AND c.expires_at > now()) THEN
+    RAISE EXCEPTION 'Down for maintenance' USING ERRCODE = '55000';
+  END IF;
   PERFORM set_config('sellf.grant_source', 'free', true);
   result := public.grant_free_product_access_impl(product_slug_param, access_duration_days_param, coupon_code_param);
   PERFORM set_config('sellf.grant_source', coalesce(previous, ''), true);
@@ -12367,6 +12398,53 @@ END $$;
 ALTER FUNCTION public.set_invoicing_auto_since() OWNER TO postgres;
 
 --
+-- Name: set_maintenance_mode(boolean, text, timestamp with time zone, uuid, jsonb); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.set_maintenance_mode(p_enabled boolean, p_message text, p_expected_end_at timestamp with time zone, p_performed_by uuid, p_details jsonb DEFAULT '{}'::jsonb) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+DECLARE
+  v_row public.maintenance_mode;
+  v_message text := nullif(btrim(p_message), '');
+  v_previous jsonb;
+  v_next jsonb;
+BEGIN
+  IF (select auth.role()) IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'Service role required' USING ERRCODE = '42501';
+  END IF;
+  IF p_enabled IS NULL OR p_performed_by IS NULL
+     OR (v_message IS NOT NULL AND char_length(v_message) > 500)
+     OR (p_details IS NOT NULL AND jsonb_typeof(p_details) <> 'object') THEN
+    RAISE EXCEPTION 'Invalid maintenance mode change' USING ERRCODE = '22023';
+  END IF;
+
+  INSERT INTO public.maintenance_mode (id) VALUES (true) ON CONFLICT (id) DO NOTHING;
+  SELECT * INTO v_row FROM public.maintenance_mode WHERE id FOR UPDATE;
+
+  v_previous := jsonb_build_object('enabled', v_row.enabled, 'message', v_row.message, 'expected_end_at', v_row.expected_end_at);
+  v_next := jsonb_build_object('enabled', p_enabled, 'message', v_message, 'expected_end_at', p_expected_end_at);
+
+  UPDATE public.maintenance_mode
+  SET enabled = p_enabled,
+      message = v_message,
+      expected_end_at = p_expected_end_at,
+      changed_at = now(),
+      changed_by = p_performed_by
+  WHERE id;
+
+  INSERT INTO public.audit_log (table_name, operation, user_id, performed_by, old_values, new_values)
+  VALUES ('maintenance_mode', 'UPDATE', p_performed_by, p_performed_by, v_previous, coalesce(p_details, '{}'::jsonb) || v_next);
+
+  RETURN v_previous;
+END;
+$$;
+
+
+ALTER FUNCTION public.set_maintenance_mode(p_enabled boolean, p_message text, p_expected_end_at timestamp with time zone, p_performed_by uuid, p_details jsonb) OWNER TO postgres;
+
+--
 -- Name: set_payment_order_buyer(jsonb, text, text, boolean); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -14361,6 +14439,31 @@ CREATE TABLE public.license_mail_receipts (
 
 
 ALTER TABLE public.license_mail_receipts OWNER TO postgres;
+
+--
+-- Name: maintenance_mode; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.maintenance_mode (
+    id boolean DEFAULT true NOT NULL,
+    enabled boolean DEFAULT false NOT NULL,
+    message text,
+    expected_end_at timestamp with time zone,
+    changed_at timestamp with time zone DEFAULT now() NOT NULL,
+    changed_by uuid,
+    CONSTRAINT maintenance_mode_id_check CHECK (id),
+    CONSTRAINT maintenance_mode_message_check CHECK (((message IS NULL) OR ((char_length(message) >= 1) AND (char_length(message) <= 500))))
+);
+
+
+ALTER TABLE public.maintenance_mode OWNER TO postgres;
+
+--
+-- Name: TABLE maintenance_mode; Type: COMMENT; Schema: public; Owner: postgres
+--
+
+COMMENT ON TABLE public.maintenance_mode IS 'Singleton: maintenance mode switched from the panel or API v1. Changed only through set_maintenance_mode (audited).';
+
 
 --
 -- Name: product_price_history; Type: TABLE; Schema: public; Owner: postgres
@@ -16380,6 +16483,14 @@ ALTER TABLE ONLY public.license_mail_receipts
 
 
 --
+-- Name: maintenance_mode maintenance_mode_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.maintenance_mode
+    ADD CONSTRAINT maintenance_mode_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: order_bumps order_bumps_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -18234,6 +18345,13 @@ CREATE INDEX lead_submissions_product_idx ON public.lead_submissions USING btree
 
 
 --
+-- Name: maintenance_mode_changed_by_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX maintenance_mode_changed_by_idx ON public.maintenance_mode USING btree (changed_by);
+
+
+--
 -- Name: order_payment_attempt_open_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -19685,6 +19803,14 @@ ALTER TABLE ONLY public.lead_nonces
 
 ALTER TABLE ONLY public.lead_submissions
     ADD CONSTRAINT lead_submissions_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE SET NULL;
+
+
+--
+-- Name: maintenance_mode maintenance_mode_changed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.maintenance_mode
+    ADD CONSTRAINT maintenance_mode_changed_by_fkey FOREIGN KEY (changed_by) REFERENCES auth.users(id) ON DELETE SET NULL;
 
 
 --
@@ -21593,6 +21719,26 @@ CREATE POLICY lead_submissions_service ON public.lead_submissions TO service_rol
 ALTER TABLE public.license_mail_receipts ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: maintenance_mode; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.maintenance_mode ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: maintenance_mode maintenance_mode_admin_read; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY maintenance_mode_admin_read ON public.maintenance_mode FOR SELECT TO authenticated USING (( SELECT public.is_admin() AS is_admin));
+
+
+--
+-- Name: maintenance_mode maintenance_mode_service; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY maintenance_mode_service ON public.maintenance_mode TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
+
+
+--
 -- Name: product_offer_config offer_config_admin_read; Type: POLICY; Schema: public; Owner: postgres
 --
 
@@ -22765,6 +22911,10 @@ function | public.get_detailed_revenue_stats(p_product_id uuid, p_goal_start_dat
 function | public.get_hourly_revenue_stats(p_target_date date, p_product_id uuid, p_timezone text) | authenticated | EXECUTE | postgres | -
 function | public.get_hourly_revenue_stats(p_target_date date, p_product_id uuid, p_timezone text) | postgres | EXECUTE | postgres | -
 function | public.get_hourly_revenue_stats(p_target_date date, p_product_id uuid, p_timezone text) | service_role | EXECUTE | postgres | -
+function | public.get_maintenance_mode() | anon | EXECUTE | postgres | -
+function | public.get_maintenance_mode() | authenticated | EXECUTE | postgres | -
+function | public.get_maintenance_mode() | postgres | EXECUTE | postgres | -
+function | public.get_maintenance_mode() | service_role | EXECUTE | postgres | -
 function | public.get_migration_status() | postgres | EXECUTE | postgres | -
 function | public.get_migration_status() | service_role | EXECUTE | postgres | -
 function | public.get_oto_coupon_info(coupon_code_param text, email_param text) | anon | EXECUTE | postgres | -
@@ -22820,7 +22970,6 @@ function | public.grant_bundle_component_access_impl(user_id_param uuid, product
 function | public.grant_free_product_access(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | authenticated | EXECUTE | postgres | -
 function | public.grant_free_product_access(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | postgres | EXECUTE | postgres | -
 function | public.grant_free_product_access(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | service_role | EXECUTE | postgres | -
-function | public.grant_free_product_access_impl(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | authenticated | EXECUTE | postgres | -
 function | public.grant_free_product_access_impl(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | postgres | EXECUTE | postgres | -
 function | public.grant_free_product_access_impl(product_slug_param text, access_duration_days_param integer, coupon_code_param text) | service_role | EXECUTE | postgres | -
 function | public.grant_free_with_context(product_slug_param text, coupon_code_param text, p_request_id uuid) | authenticated | EXECUTE | postgres | -
@@ -23042,6 +23191,8 @@ function | public.set_invoice_recipient_enabled(p_enabled boolean, p_performed_b
 function | public.set_invoice_recipient_enabled(p_enabled boolean, p_performed_by uuid, p_details jsonb) | service_role | EXECUTE | postgres | -
 function | public.set_invoicing_auto_since() | postgres | EXECUTE | postgres | -
 function | public.set_invoicing_auto_since() | service_role | EXECUTE | postgres | -
+function | public.set_maintenance_mode(p_enabled boolean, p_message text, p_expected_end_at timestamp with time zone, p_performed_by uuid, p_details jsonb) | postgres | EXECUTE | postgres | -
+function | public.set_maintenance_mode(p_enabled boolean, p_message text, p_expected_end_at timestamp with time zone, p_performed_by uuid, p_details jsonb) | service_role | EXECUTE | postgres | -
 function | public.set_payment_order_buyer(p_buyer jsonb, p_session_id text, p_payment_intent_id text, p_only_if_missing boolean) | postgres | EXECUTE | postgres | -
 function | public.set_payment_order_buyer(p_buyer jsonb, p_session_id text, p_payment_intent_id text, p_only_if_missing boolean) | service_role | EXECUTE | postgres | -
 function | public.set_payment_order_details(p_details jsonb, p_product_id uuid, p_quantity integer, p_session_id text, p_payment_intent_id text, p_custom_field_values jsonb) | postgres | EXECUTE | postgres | -
@@ -24267,6 +24418,17 @@ table | public.license_mail_receipts | service_role | SELECT | postgres | -
 table | public.license_mail_receipts | service_role | TRIGGER | postgres | -
 table | public.license_mail_receipts | service_role | TRUNCATE | postgres | -
 table | public.license_mail_receipts | service_role | UPDATE | postgres | -
+table | public.maintenance_mode | authenticated | SELECT | postgres | -
+table | public.maintenance_mode | postgres | DELETE | postgres | -
+table | public.maintenance_mode | postgres | INSERT | postgres | -
+table | public.maintenance_mode | postgres | REFERENCES | postgres | -
+table | public.maintenance_mode | postgres | SELECT | postgres | -
+table | public.maintenance_mode | postgres | TRIGGER | postgres | -
+table | public.maintenance_mode | postgres | TRUNCATE | postgres | -
+table | public.maintenance_mode | postgres | UPDATE | postgres | -
+table | public.maintenance_mode | service_role | INSERT | postgres | -
+table | public.maintenance_mode | service_role | SELECT | postgres | -
+table | public.maintenance_mode | service_role | UPDATE | postgres | -
 table | public.order_bumps | anon | SELECT | postgres | -
 table | public.order_bumps | authenticated | DELETE | postgres | -
 table | public.order_bumps | authenticated | INSERT | postgres | -
@@ -25299,6 +25461,7 @@ issued_licenses | 0
 lead_nonces | 0
 lead_submissions | 0
 license_mail_receipts | 0
+maintenance_mode | 1
 order_bumps | 0
 order_payment_attempts | 0
 oto_offers | 0

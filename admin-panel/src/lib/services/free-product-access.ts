@@ -1,6 +1,10 @@
 import { prepareFreeGrantRequest, validateFreeGrantFields } from '@/lib/services/free-grant-context';
 import { emitFreeAccessLead } from '@/lib/services/free-access-events';
+import { isMaintenanceActive } from '@/lib/maintenance/guard';
 import type { SupabaseClient } from '@supabase/supabase-js';
+
+/** SQLSTATE of the database refusing a new free grant during maintenance (grant_free_product_access). */
+const MAINTENANCE_SQLSTATE = '55000';
 
 export interface FreeProductInput {
   product: {
@@ -22,6 +26,11 @@ export interface FreeProductInput {
   grantRequestId?: string;
   locale?: 'pl' | 'en';
   deferLeadEvent?: boolean;
+  /**
+   * The caller verified a submission recorded before (a lead confirmation token), so the grant
+   * completes it and is allowed during maintenance mode like a saved free-grant request.
+   */
+  completesSubmission?: boolean;
 }
 
 export interface FreeProductAccessResult {
@@ -29,6 +38,8 @@ export interface FreeProductAccessResult {
   accessGranted: boolean;
   otoInfo: Record<string, unknown> | null;
   error?: string;
+  /** Refused because the shop is down for maintenance (answer 503, not "not free"). */
+  maintenance?: true;
 }
 
 /**
@@ -50,7 +61,7 @@ export interface FreeProductAccessResult {
 export async function grantFreeProductAccess(
   userClient: SupabaseClient<any, any>,
   adminClient: SupabaseClient<any, any>,
-  { product, user, couponCode, customFieldValues, grantRequestId, locale, deferLeadEvent }: FreeProductInput,
+  { product, user, couponCode, customFieldValues, grantRequestId, locale, deferLeadEvent, completesSubmission }: FreeProductInput,
 ): Promise<FreeProductAccessResult> {
   // 1. Pre-check for existing active access so callers can distinguish a fresh
   //    grant from a repeat click. The RPC would also short-circuit, but it
@@ -77,10 +88,14 @@ export async function grantFreeProductAccess(
   //    - UPA upsert
   //    - coupon_redemptions insert + usage counter bump + reservation cleanup
   //    all in one transaction.
+  //    During maintenance only a grant that completes a submission recorded before the break goes
+  //    on: a saved free-grant request (found below) or one the caller verified (lead token).
   if (!alreadyHadAccess) {
+    const refused: FreeProductAccessResult = { alreadyHadAccess: false, accessGranted: false, otoInfo: null, error: 'Down for maintenance', maintenance: true };
     let contextId = grantRequestId;
     if (customFieldValues !== undefined) {
       const prepared = await prepareFreeGrantRequest(adminClient, user.email, product.slug, customFieldValues);
+      if (!prepared.ok && prepared.code === 'maintenance') return refused;
       if (!prepared.ok || prepared.productId !== product.id) return { alreadyHadAccess: false, accessGranted: false, otoInfo: null, error: 'Invalid checkout fields' };
       contextId = prepared.requestId; customFieldValues = prepared.values;
     } else {
@@ -90,12 +105,23 @@ export async function grantFreeProductAccess(
       const fields = await validateFreeGrantFields(adminClient, product.slug, saved?.custom_field_values ?? {});
       if (!fields.ok || fields.productId !== product.id) return { alreadyHadAccess: false, accessGranted: false, otoInfo: null, error: 'Invalid checkout fields' };
       contextId = saved?.request_id; customFieldValues = fields.values;
+      if (!contextId && completesSubmission) {
+        // Record the verified submission as a saved request (service role only), so the database,
+        // which refuses NEW free grants during maintenance, completes it like any saved request.
+        const recorded = await adminClient.rpc('prepare_free_grant', { p_email: user.email.trim().toLowerCase(), p_product_id: product.id, p_values: fields.values });
+        if (recorded.error || !recorded.data) return { alreadyHadAccess: false, accessGranted: false, otoInfo: null, error: 'Checkout request unavailable' };
+        contextId = recorded.data as string;
+      }
+      if (!contextId && await isMaintenanceActive()) return refused;
     }
     const { data: grantResult, error: grantError } = contextId
       ? await userClient.rpc('grant_free_with_context', { product_slug_param: product.slug, coupon_code_param: couponCode ?? null, p_request_id: contextId })
       : await userClient.rpc('grant_free_product_access', { product_slug_param: product.slug, coupon_code_param: couponCode ?? null });
 
 
+    // The database refuses a new free grant while its maintenance switch is on (55000), also when
+    // the switch flipped after the check above.
+    if (grantError?.code === MAINTENANCE_SQLSTATE) return refused;
     if (grantError) {
       console.error('[grantFreeProductAccess] RPC error:', grantError);
       return { alreadyHadAccess: false, accessGranted: false, otoInfo: null, error: 'Failed to grant access' };

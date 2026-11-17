@@ -6,6 +6,8 @@ description: Configure Fakturownia and manage order invoices.
 In **Settings → Shop → Invoicing**, choose Fakturownia, enter the account domain
 (`your-account.fakturownia.pl`) and API token, then **Check connection**. Complete
 seller name, tax number and address in the shop's legal settings first.
+With **Provider: Disabled** Sellf issues no invoices and the section shows only the provider and
+**Save**; the Fakturownia fields are hidden and keep their saved values for when you switch back.
 `APP_ENCRYPTION_KEY` must be configured on the server. A blank token field keeps
 the saved token; enter a new token when changing the account domain.
 

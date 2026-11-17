@@ -66,6 +66,7 @@ const VISUAL_TESTS = [
 // `chromium-heavy` project so the sharded runner can give them their own fresh servers.
 // NOTE: tests/smoke/critical-paths.spec.ts is also route-dense but stays in `chromium`
 // so `bun run test:smoke` (playwright test tests/smoke --project=chromium) keeps working.
+const MAINTENANCE_SPEC = '**/maintenance-mode.spec.ts';
 const HEAVY_SPECS = [
   '**/variants-admin-ui.spec.ts',
   '**/tracking-events.spec.ts',
@@ -142,7 +143,7 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
       // Rate-limiting, visual, accessibility, and route-heavy specs are excluded here
-      testIgnore: ['**/bank-transfer.spec.ts', '**/public-hydration.spec.ts', '**/stripe-live/**', '**/rate-limiting.spec.ts', '**/rate-limiting-v1.spec.ts', '**/accessibility.spec.ts', ...HEAVY_SPECS, ...SECTION_FIXTURE_FILES.map(file => `**/${file}`)],
+      testIgnore: ['**/bank-transfer.spec.ts', '**/public-hydration.spec.ts', '**/stripe-live/**', '**/rate-limiting.spec.ts', '**/rate-limiting-v1.spec.ts', '**/accessibility.spec.ts', MAINTENANCE_SPEC, ...HEAVY_SPECS, ...SECTION_FIXTURE_FILES.map(file => `**/${file}`)],
     },
     {
       // Route-dense specs split off so the sharded runner can isolate them on their own
@@ -150,6 +151,14 @@ export default defineConfig({
       name: 'chromium-heavy',
       use: { ...devices['Desktop Chrome'] },
       testMatch: HEAVY_SPECS,
+    },
+    {
+      // Maintenance mode is one global switch: while its spec has it on, every shop page answers
+      // 503, so it runs alone after the parallel projects (run it directly with --no-deps).
+      name: 'maintenance',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: MAINTENANCE_SPEC,
+      dependencies: ['chromium', 'chromium-heavy'],
     },
     {
       name: 'rate-limiting',

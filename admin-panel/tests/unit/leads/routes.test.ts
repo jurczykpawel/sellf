@@ -194,7 +194,7 @@ describe('lead confirmation', () => {
     const pending = rows.lead_submissions[0]; pending.id = 'lead-1'; pending.product = product;
     const secret = new URL(m.send.mock.calls[0][0].redirectTo).searchParams.get('redirect_to')!.split('token=')[1];
     const result = await confirmLead(secret, { id: 'u1', email: 'viewer@example.com' }, {} as never);
-    expect(result.ok).toBe(true); expect(m.grant).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.objectContaining({ deferLeadEvent: true }));
+    expect(result.ok).toBe(true); expect(m.grant).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.objectContaining({ deferLeadEvent: true, completesSubmission: true }));
     expect(m.trigger).toHaveBeenCalledWith('lead.captured', expect.objectContaining({ marketingConsent: true, consentVersion: '1:en', consentConfirmedAt: '2026-01-01T00:00:00Z', source: 'https://files.example.com/video.mp4' }), expect.anything(), product.id, 'lead:lead-1');
   });
   it.each(['email', 'expiry', 'grant'])('does not confirm after %s rejection', async reason => {

@@ -23,6 +23,7 @@ vi.mock('@/components/settings/OmnibusSettings', () => ({ default: () => React.c
 vi.mock('@/components/settings/AttributionSettings', () => ({ default: () => React.createElement('div', null, 'AttributionSettings') }));
 vi.mock('@/components/settings/LicenseSettings', () => ({ default: () => React.createElement('div', null, 'LicenseSettings') }));
 vi.mock('@/components/settings/LicenseKeysSettings', () => ({ default: () => React.createElement('div', null, 'LicenseKeysSettings') }));
+vi.mock('@/components/settings/MaintenanceSettings', () => ({ default: () => React.createElement('div', null, 'MaintenanceSettings') }));
 vi.mock('@/components/settings/SystemUpdateSettings', () => ({ default: () => React.createElement('div', null, 'SystemUpdateSettings') }));
 vi.mock('@/components/settings/SecurityAuditSettings', () => ({ default: () => React.createElement('div', null, 'SecurityAuditSettings') }));
 afterEach(cleanup);

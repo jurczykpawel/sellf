@@ -7,6 +7,9 @@ import { buildContentSecurityPolicyWithNonce } from './lib/security/headers'
 import { DEMO_MODE_API_ERROR } from './lib/demo-guard'
 import { getLoginReturnPath } from '@/lib/auth/magic-link-redirect';
 import { getRuntimeSupabaseUrl, getRuntimeSupabaseAnonKey } from '@/lib/config/runtime-env';
+import { classifyMaintenancePath } from '@/lib/maintenance/surfaces';
+import { getMaintenanceState } from '@/lib/maintenance/state';
+import { buildMaintenanceResponse } from '@/lib/maintenance/response';
 
 /**
  * Header name used to forward the per-request CSP nonce from middleware
@@ -213,6 +216,21 @@ export async function proxy(request: NextRequest) {
       response.headers.set('Refresh', `${Math.max(1, Math.ceil((issuedAt + 600000 - Date.now()) / 1000))};url=${url.pathname}${url.search}`)
     }
     return response
+  }
+
+  // Maintenance mode: the shop, checkout, embed, login wall and new payments answer 503. Runs before
+  // any database request (the server file is checked first, the database switch is cached), so it
+  // also works while the database is down or an update runs. Preflights pass to the route's CORS.
+  const maintenanceSurface = request.method === 'OPTIONS' ? null : classifyMaintenancePath(pathname)
+  if (maintenanceSurface) {
+    const maintenance = await getMaintenanceState()
+    if (maintenance) {
+      const response = buildMaintenanceResponse(request, maintenanceSurface, maintenance)
+      if (process.env.DISABLE_HSTS !== 'true') {
+        response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+      }
+      return response
+    }
   }
 
   // Per-request CSP nonce — forwarded to React Server Components via the

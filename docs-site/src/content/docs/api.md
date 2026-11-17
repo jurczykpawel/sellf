@@ -604,6 +604,11 @@ the TSA instance, so there is no separate generator.
 | GET | `/system/update-check` | `system:read` | Check for updates |
 | POST | `/system/upgrade` | `system:read` | Trigger self-upgrade |
 | GET | `/system/upgrade-status` | `system:read` | Poll upgrade progress |
+| GET | `/system/maintenance` | `system:read` | Maintenance mode: state, source (`file`, `env`, `database`), server file path |
+| PATCH | `/system/maintenance` | `system:write` | Switch maintenance mode (database source): `{ "enabled": true, "message"?, "expected_end_at"? }` |
+
+While maintenance mode is on, the checkout routes answer `503` with `code: "MAINTENANCE"` and
+`Retry-After`; API v1 and Stripe webhooks keep working. See [Maintenance mode](/maintenance/).
 
 ### Checkout settings
 

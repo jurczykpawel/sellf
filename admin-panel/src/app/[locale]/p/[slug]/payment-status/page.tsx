@@ -129,6 +129,9 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
         if (freeAccessResult.otoInfo) {
           otoInfo = freeAccessResult.otoInfo as unknown as OtoInfo;
         }
+      } else if (freeAccessResult.maintenance) {
+        paymentStatus = 'failed';
+        errorMessage = t('freeAccessMaintenance');
       } else if (freeAccessResult.error?.includes('not be free or active')) {
         paymentStatus = 'expired';
         errorMessage = 'Your access has expired. Please purchase again.';

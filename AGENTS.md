@@ -1594,6 +1594,48 @@ Our paid event for an existing but inactive/archived product is fulfilled (`allo
 the completion RPC; amount/currency checks unchanged). Any new Stripe create call for a payment object must spread the marker
 (guard: `tests/unit/stripe/instance-marker.test.ts`).
 
+### Maintenance mode ("Przerwa w działaniu")
+
+One switch that pauses the shop: storefront/product pages, checkout, embed checkout, login wall and
+every request that starts a NEW payment answer `503` (HTML page PL/EN with optional note and expected
+end, or JSON `code: "MAINTENANCE"`, always `Retry-After`). The admin panel, sign-in, buyer accounts,
+API v1, cron, health, payment return pages and Stripe webhooks keep working, so purchases already
+paid complete. Products and settings never change.
+
+**Two sources (like WordPress `.maintenance`), on when either is on, the server source wins:**
+- **Server:** the file `<install>/MAINTENANCE` (next to `.env.local`) or `SELLF_MAINTENANCE=true`.
+  Path rule shared by the app (`file.ts`) and `upgrade.sh` (`maintenance_file_path`): env
+  `SELLF_MAINTENANCE_FILE`, else `.env.local`, else `MAINTENANCE`; relative = relative to the install
+  dir; the panel launcher (`api/v1/system/upgrade`) passes the running app's resolved path to the
+  updater (`--setenv=SELLF_MAINTENANCE_FILE=`), and upgrade.sh exports it to every app it starts
+  (new or restored), so one file holds the shop before the stop and after the start. Read with `fs` only, before any
+  database request, so it works while the database is down or an update runs. `scripts/upgrade.sh`
+  creates the file (JSON with a random run token) right before stopping PM2 and removes it on every
+  exit (EXIT trap) except `migration_state_unknown`, where it is rewritten with that reason and left
+  on. It rewrites/removes only while the file holds exactly what this run wrote, so an operator file
+  (before or during the run, also token-less JSON) is never touched; a marker an earlier run left
+  stays during the rerun and is removed only after the health check passes.
+- **Free grants and submissions** are refused where they happen (`lib/maintenance/guard.ts`):
+  `grantFreeProductAccess` (new grant without a saved free-grant request; `completesSubmission` for
+  a verified lead token), `prepareFreeGrantRequest` (magic link / embed `free_product`), leads and
+  waitlist routes. A grant completing a request made before the break, and payment verification
+  with `session_id`/`payment_intent`, still work. The database enforces the same rule for the
+  public RPC: `grant_free_product_access` (SECURITY DEFINER wrapper; `_impl` is service-role only)
+  raises `55000 Down for maintenance` while the database switch is on, unless it completes a saved
+  `free_grant_contexts` request of the caller (set by `grant_free_with_context`); a verified lead
+  token is recorded as such a request (`prepare_free_grant`, service role) before the grant. The
+  server file is invisible to SQL; the app checks it before calling.
+- **Database:** singleton `public.maintenance_mode`, switched only through
+  `set_maintenance_mode` (service role; change + `audit_log` entry in one transaction). The proxy
+  reads it through the anon RPC `get_maintenance_mode` (message/time only while on), cached 5 s on
+  `globalThis` and invalidated in-process on change. An unreachable database never switches it on.
+
+**Where:** `src/proxy.ts` (check before the CSP/auth database calls; OPTIONS pass), what is paused in
+`src/lib/maintenance/surfaces.ts` (pure path list: add new payment-starting routes there),
+`file.ts`, `state.ts`, `response.ts`, `setting.ts`; panel `MaintenanceSettings` (Settings → System),
+action `lib/actions/maintenance.ts`, API `GET/PATCH /api/v1/system/maintenance`, migration
+`20261117130000_maintenance_mode.sql`. Docs: `docs-site/.../maintenance.md` (PL/EN).
+
 ### Stable Versions & Known Issues
 
 - **Supabase CLI**: 2.101.0 (run via `npx supabase`) — pin via `npx supabase@2.101.0` if needed
