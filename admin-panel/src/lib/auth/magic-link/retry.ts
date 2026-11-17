@@ -64,7 +64,8 @@ export async function runAuthMailRetries(db: SupabaseClient = createAdminClient(
           continue;
         }
         if (context.purchase_mail_pending === 'true') purchaseReady = false;
-        row.data = { ...row.data, ...context };
+        // Purchase and event details are re-read at delivery; values parked earlier may be stale.
+        row.data = { locale: row.data.locale === 'pl' ? 'pl' : 'en', ...context };
       }
     }
     const keys = row.data.license_keys && typeof row.data.license_keys === 'object'
