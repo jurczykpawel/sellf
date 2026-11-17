@@ -21,6 +21,21 @@ export interface RecentSupporters {
   totalCount: number;
 }
 
+interface SupporterProduct {
+  is_active: boolean | null;
+  archived_at: string | null;
+  checkout_template: string | null;
+  available_from: string | null;
+  available_until: string | null;
+}
+
+/** Supporters are public only for a tip jar the shop currently offers. */
+function isOfferedTipJar(product: SupporterProduct, now = Date.now()): boolean {
+  return product.is_active === true && !product.archived_at && product.checkout_template === 'tip-jar'
+    && (!product.available_from || Date.parse(product.available_from) <= now)
+    && (!product.available_until || Date.parse(product.available_until) > now);
+}
+
 // Shared loader used by:
 //   - GET /api/public/products/[slug]/recent-supporters (public JSON endpoint)
 //   - <TipJarSidebar /> (RSC inline render — same cache, single source)
@@ -35,10 +50,10 @@ export function getRecentSupporters(slug: string) {
       const supabase = createAdminClient();
       const { data: product, error: productError } = await supabase
         .from('products')
-        .select('id, icon')
+        .select('id, icon, is_active, archived_at, checkout_template, available_from, available_until')
         .eq('slug', slug)
         .single();
-      if (productError || !product) return null;
+      if (productError || !product || !isOfferedTipJar(product)) return null;
 
       const [{ data: txRows }, { count: completedCount }] = await Promise.all([
         supabase
