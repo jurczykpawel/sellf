@@ -2257,13 +2257,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "order_bundle_components_component_product_id_fkey"
-            columns: ["component_product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "order_bundle_components_transaction_id_fkey"
             columns: ["transaction_id"]
             isOneToOne: false

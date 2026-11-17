@@ -8,7 +8,9 @@
 
 CREATE TABLE public.order_bundle_components (
   transaction_id uuid NOT NULL REFERENCES public.payment_transactions(id) ON DELETE CASCADE,
-  component_product_id uuid NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  -- No foreign keys to products: the record outlives a deleted product, and a second path from
+  -- orders to products would make the API's order -> product embedding ambiguous.
+  component_product_id uuid NOT NULL,
   bundle_product_id uuid NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (transaction_id, component_product_id)

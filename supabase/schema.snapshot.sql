@@ -20014,14 +20014,6 @@ ALTER TABLE ONLY public.order_bumps
 
 
 --
--- Name: order_bundle_components order_bundle_components_component_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.order_bundle_components
-    ADD CONSTRAINT order_bundle_components_component_product_id_fkey FOREIGN KEY (component_product_id) REFERENCES public.products(id) ON DELETE CASCADE;
-
-
---
 -- Name: order_bundle_components order_bundle_components_transaction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
