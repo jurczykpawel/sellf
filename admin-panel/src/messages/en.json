@@ -4652,7 +4652,7 @@
       },
       "mcp": {
         "title": "MCP server",
-        "desc": "Connect Claude Desktop and other agents. 45 tools, 4 resources, 6 prompts. Drive your shop from a chat."
+        "desc": "Built-in MCP endpoint for Claude, Codex, Cursor and other agents. Tools generated from the API, limited by your key's permissions. Drive your shop from a chat."
       }
     },
     "howItWorks": {
@@ -4903,7 +4903,7 @@
         "deploy": "Zero-downtime deploys",
         "price": "~$4-14/mo",
         "specs": "2-core CPU, 8GB RAM, 100GB NVMe",
-        "mcpReady": "MCP server (Claude Desktop integration)"
+        "mcpReady": "Built-in MCP endpoint for AI agents"
       },
       "demoPrompt": "Want to see it in action first?",
       "demoPromptSubtitle": "Explore the full admin panel, test checkout with Stripe test cards, and browse sample products. No setup required.",
@@ -4950,7 +4950,7 @@
       "categoryLabel": "TECHNOLOGY",
       "mcp": {
         "name": "MCP",
-        "desc": "Claude Desktop integration via 45-tool MCP server"
+        "desc": "Built-in MCP endpoint generated from the API (Claude, Codex, Cursor)"
       },
       "bun": {
         "name": "Bun",
@@ -5017,7 +5017,7 @@
         },
         {
           "q": "Can I drive Sellf from Claude / an AI agent?",
-          "a": "Yes — Sellf ships an MCP server with 45 tools, 4 resources, and 6 prompts. Add it to Claude Desktop and ask it to list products, refund a payment, or pull analytics."
+          "a": "Yes — every Sellf has a built-in MCP endpoint at /api/mcp. Connect Claude, Codex or Cursor with an API key and ask it to list products, refund a payment or pull analytics; it can do only what the key's permissions allow."
         },
         {
           "q": "Do you handle VAT / Polish JPK / OSS?",

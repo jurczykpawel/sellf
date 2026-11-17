@@ -28,6 +28,14 @@ const bodies = {
 const offerBodies = { ...bodies, reset: z.strictObject({ expectedRevision: z.unknown(), field: z.unknown() }), history: z.strictObject({ beforeRevision: z.unknown().optional(), limit: z.unknown().optional() }) };
 export interface TemplateHttpPreviewResult extends PreviewResult { previewPath: string }
 type Operation = keyof typeof offerBodies | 'read' | 'capabilities' | 'license_status';
+export type TemplateHttpOperation = Operation;
+
+/** API-key scope a template/offer HTTP operation requires. The OpenAPI registry is checked against this. */
+export function templateOperationScope(operation: Operation): typeof API_SCOPES[keyof typeof API_SCOPES] {
+  if (operation === 'draft' || operation === 'reset' || operation === 'license_save') return API_SCOPES.TEMPLATES_WRITE;
+  if (operation === 'publish' || operation === 'rollback') return API_SCOPES.TEMPLATES_ACTIVATE;
+  return API_SCOPES.TEMPLATES_READ;
+}
 const json = (data: unknown, status = 200): NextResponse => NextResponse.json(data, { status, headers: { ...PREVIEW_HEADERS, ...(status === 429 ? { 'Retry-After': '60' } : {}) } });
 function responseFailure(code: string, status: number, validation: ValidationResult | null, operation: Operation): NextResponse {
   return json({ code, message: `Storefront ${operation} could not be completed`, validation, currentRevision: null }, status);
@@ -44,9 +52,7 @@ export async function templateHttp(request: NextRequest, operation: Operation, p
   try {
     const auth = await templateRequestPrincipal(request);
     if (!auth) return failure('UNAUTHORIZED', 401);
-    const scope = operation === 'draft' || operation === 'reset' || operation === 'license_save' ? API_SCOPES.TEMPLATES_WRITE
-      : operation === 'publish' || operation === 'rollback' ? API_SCOPES.TEMPLATES_ACTIVATE : API_SCOPES.TEMPLATES_READ;
-    const actor = getTemplatePrincipal(auth, scope);
+    const actor = getTemplatePrincipal(auth, templateOperationScope(operation));
     if (!actor) return failure('FORBIDDEN', 403);
     if (!(await checkRateLimit('storefront_http', 120, 1, actor.userId))) return failure('RATE_LIMITED', 429);
     if (productId !== undefined && !z.uuid().safeParse(productId).success) return failure('INVALID', 422, result([{ code: 'SCHEMA', path: '/productId', message: 'Invalid product identifier' }]));

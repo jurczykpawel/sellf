@@ -4652,7 +4652,7 @@
       },
       "mcp": {
         "title": "MCP server",
-        "desc": "Podłącz Claude Desktop i innych agentów. 45 narzędzi, 4 zasoby, 6 promptów. Sterujesz sklepem z czatu."
+        "desc": "Wbudowany endpoint MCP dla Claude, Codex, Cursor i innych agentów. Narzędzia powstają z API i są ograniczone uprawnieniami klucza. Sterujesz sklepem z czatu."
       }
     },
     "howItWorks": {
@@ -4903,7 +4903,7 @@
         "deploy": "Wdrożenia bez przestojów",
         "price": "~17-56 zł/mies",
         "specs": "2-rdzeniowy CPU, 8GB RAM, 100GB NVMe",
-        "mcpReady": "Serwer MCP (integracja z Claude Desktop)"
+        "mcpReady": "Wbudowany endpoint MCP dla agentów AI"
       },
       "demoPrompt": "Chcesz najpierw zobaczyć w akcji?",
       "demoPromptSubtitle": "Przejrzyj panel admina, przetestuj checkout kartami testowymi Stripe i zobacz przykładowe produkty. Bez instalacji.",
@@ -4950,7 +4950,7 @@
       "categoryLabel": "TECHNOLOGIA",
       "mcp": {
         "name": "MCP",
-        "desc": "Integracja z Claude Desktop przez serwer MCP (45 narzędzi)"
+        "desc": "Wbudowany endpoint MCP generowany z API (Claude, Codex, Cursor)"
       },
       "bun": {
         "name": "Bun",
@@ -5017,7 +5017,7 @@
         },
         {
           "q": "Czy mogę sterować Sellfem z Claude / agenta AI?",
-          "a": "Tak — Sellf ma własny serwer MCP: 45 narzędzi, 4 zasoby, 6 promptów. Dodajesz do Claude Desktop i prosisz: wylistuj produkty, zrób refund, ściągnij analitykę."
+          "a": "Tak — każdy Sellf ma wbudowany endpoint MCP pod /api/mcp. Podłączasz Claude, Codex albo Cursor kluczem API i prosisz: wylistuj produkty, zrób zwrot, pobierz analitykę. Agent zrobi tylko to, na co pozwalają uprawnienia klucza."
         },
         {
           "q": "Co z VAT / JPK / OSS w Polsce?",

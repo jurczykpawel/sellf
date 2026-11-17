@@ -39,7 +39,6 @@ themes/
 layouts/
 bruno/
 docs/
-mcp-server/
 priv/
 release/
 *.tar.gz

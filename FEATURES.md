@@ -570,51 +570,16 @@ Sellf does not send transactional emails for subscription events. It dispatches 
 
 ---
 
-## 21. MCP Server (Model Context Protocol)
+## 21. MCP endpoint (Model Context Protocol)
 
 ### Architecture
-- **Thin wrapper** - Thin layer over REST API v1
-- **stdio transport** - Communication via stdin/stdout
-- **Claude Desktop** - Integration with Claude Desktop
-
-### Tools (45 tools)
-- **Products** - 8 tools (list, get, create, update, delete, toggle, duplicate, stats)
-- **Users** - 8 tools (list, get, search, grant_access, revoke_access, extend_access, bulk_grant, purchases)
-- **Payments** - 7 tools (list, get, search, refund, export, failed, stats)
-- **Coupons** - 7 tools (list, get, create, update, delete, stats, deactivate)
-- **Analytics** - 8 tools (dashboard, revenue, by_product, trends, top_products, conversion, refund_stats, compare)
-- **Webhooks** - 5 tools (list, create, update, delete, logs)
-- **System** - 2 tools (health, api_usage)
-
-### Resources (4 resources)
-- `sellf://dashboard` - Dashboard data (5min refresh)
-- `sellf://products/active` - Active products (1min refresh)
-- `sellf://alerts` - Alerts (pending refunds, failed webhooks)
-- `sellf://recent-sales` - Recent sales (1min refresh)
-
-### Prompts (6 prompts)
-- `weekly-report` - Weekly sales summary
-- `product-analysis` - Product analysis
-- `revenue-forecast` - Revenue forecast
-- `user-cohort-analysis` - User cohort analysis
-- `coupon-effectiveness` - Coupon effectiveness
-- `refund-analysis` - Refund analysis
-
-### Claude Desktop Configuration
-```json
-{
-  "mcpServers": {
-    "sellf": {
-      "command": "npx",
-      "args": ["tsx", "/path/to/mcp-server/src/index.ts"],
-      "env": {
-        "SELLF_API_KEY": "sf_live_xxx...",
-        "SELLF_API_URL": "https://app.example.com"
-      }
-    }
-  }
-}
-```
+- **Built in** - `POST /api/mcp` on every instance, stateless Streamable HTTP; nothing to install
+- **Generated** - one tool per API v1 operation, built from the OpenAPI description (`/api/v1/openapi.json`); no hand-written tools or schemas
+- **Same rules as the API** - `Authorization: Bearer <API key>` only (a panel session is refused); each call is a request to `/api/v1` with that key, so scopes, rate limits and audit apply
+- **Scope-aware** - a key sees only the operations its scopes allow; key management and CSV export are excluded
+- **Compact mode** - `/api/mcp?mode=compact` exposes `search_operations` + `call_operation` instead of ~100 tools
+- **Clients** - Claude Code, Codex and Cursor connect by URL; Claude Desktop through `mcp-remote`. OAuth sign-in (Claude.ai / ChatGPT connectors) is planned
+- Setup: https://docs.sellf.app/connect-ai-agent/
 
 ---
 
@@ -707,7 +672,6 @@ configured hostname or a direct subdomain qualifies. Source of truth:
 
 ### E2E Tests (Playwright)
 - **1,000+ E2E tests** - Comprehensive coverage
-- **82 MCP unit tests** - Vitest
 - **53 test files** - Modular structure
 
 ### Tested Areas
@@ -941,20 +905,18 @@ configured hostname or a direct subdomain qualifies. Source of truth:
 | Test Framework | Playwright + Vitest |
 | Latest verified unit run | 100% pass |
 
-## MCP Server
+## MCP endpoint
 | Metric | Value |
 |--------|-------|
-| Tools | 45 |
-| Resources | 4 |
-| Prompts | 6 |
-| Transport | stdio |
+| Tools | generated, one per allowed API operation (~100 at full scope) or 2 in compact mode |
+| Transport | Streamable HTTP (`/api/mcp`) |
 
 ## Tech Stack
 - **Frontend**: Next.js 16, TypeScript 5.9, Tailwind CSS 4
 - **Backend**: Supabase (PostgreSQL + Auth + Realtime)
 - **Payments**: Stripe (Elements, Checkout, Billing)
 - **API**: REST API v1 + OpenAPI 3.1 + Zod schemas
-- **AI Integration**: MCP Server for Claude Desktop
+- **AI Integration**: built-in MCP endpoint generated from OpenAPI
 - **Security**: Cloudflare Turnstile, AES-256-GCM, API Keys
 - **Testing**: Playwright + Vitest
 - **i18n**: next-intl (EN, PL)

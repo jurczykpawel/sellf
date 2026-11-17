@@ -11,7 +11,6 @@
  */
 
 import { NextRequest } from 'next/server';
-import { z } from 'zod';
 import {
   API_SCOPES,
   apiError,
@@ -22,10 +21,8 @@ import {
   parseJsonBody,
   successResponse,
 } from '@/lib/api';
-import { changeInvoiceRecipientEnabled, readInvoiceRecipientEnabled } from '@/lib/checkout/invoice-recipient-setting';
+import { changeInvoiceRecipientEnabled, checkoutSettingsSchema, readInvoiceRecipientEnabled } from '@/lib/checkout/invoice-recipient-setting';
 import type { SettingsClient } from '@/lib/checkout/invoice-recipient-setting';
-
-const patchSchema = z.object({ invoice_recipient_enabled: z.boolean() }).strict();
 
 export async function OPTIONS(request: NextRequest) {
   return handleCorsPreFlight(request);
@@ -44,7 +41,7 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const auth = await authenticate(request, [API_SCOPES.SYSTEM_WRITE]);
-    const parsed = patchSchema.safeParse(await parseJsonBody<unknown>(request));
+    const parsed = checkoutSettingsSchema.safeParse(await parseJsonBody<unknown>(request));
     if (!parsed.success) {
       return apiError(request, 'INVALID_INPUT', 'Expected exactly { "invoice_recipient_enabled": boolean }');
     }

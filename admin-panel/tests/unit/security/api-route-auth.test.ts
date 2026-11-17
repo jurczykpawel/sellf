@@ -113,6 +113,7 @@ const PUBLIC_ROUTES = new Set([
   'gus/fetch-company-data/route.ts',          // NIP autofill for checkout — public, rate-limited
   'loginwall/login.js/route.ts',              // Login wall loader script — per-product, rate-limited, no secrets
   'licenses/jwks/route.ts',                   // Seller license public keys — public keys only, rate-limited
+  'v1/openapi.json/route.ts',                 // OpenAPI description of API v1 — no data or secrets, rate-limited
   'licenses/revoked/route.ts',                // Seller revocation list — public, rate-limited
   'loginwall/gate.js/route.ts',               // Element gating runtime script — per-product, rate-limited, no secrets
 ]);
@@ -127,6 +128,7 @@ const SPECIAL_AUTH_ROUTES = new Set([
   'update-payment-metadata/route.ts',          // CORS + PaymentIntent ID (pre-auth payment flow)
   'verify-payment/route.ts',                   // session_id + ownership check
   'loginwall/verify/route.ts',                 // bearer HMAC gate token (no user session), allowlist-scoped CORS
+  'mcp/route.ts',                              // API key only (no session); tool calls go through /api/v1 with that key
 ]);
 
 /** Auth-required routes: must verify user session */
@@ -152,7 +154,8 @@ const allRoutes = findRoutes(API_DIR);
 function isAdminRoute(rel: string): boolean {
   return ADMIN_ROUTE_PREFIXES.some(p => rel.startsWith(p)) &&
     !CRON_OR_SECRET_ROUTES.has(rel) &&
-    !SPECIAL_AUTH_ROUTES.has(rel);
+    !SPECIAL_AUTH_ROUTES.has(rel) &&
+    !PUBLIC_ROUTES.has(rel); // explicitly public, even under an admin prefix (v1/openapi.json)
 }
 
 function isKnownRoute(rel: string): boolean {
@@ -195,6 +198,14 @@ function hasUserAuthCheck(source: string): boolean {
 // ============================================================================
 
 describe('Area 4: API Route Authentication & Authorization', () => {
+
+  it('MCP endpoint accepts only an API key and never forwards cookies', () => {
+    const source = allRoutes.find(r => r.rel === 'mcp/route.ts')!.source;
+    expect(source).toContain('authenticateApiKeyPrincipal(request)');
+    expect(source).not.toMatch(/\bauthenticate\(|createAdminClient|getUser\(/);
+    expect(source).toMatch(/FORWARDED_HEADERS = \[[^\]]*\]/);
+    expect(/FORWARDED_HEADERS = \[([^\]]*)\]/.exec(source)![1]).not.toContain('cookie');
+  });
 
   it('payout CSV delegates to its session admin adapter', () => {
     const route = allRoutes.find(r => r.rel === 'affiliates/payouts/[id]/csv/route.ts');

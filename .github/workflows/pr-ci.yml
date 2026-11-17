@@ -2,8 +2,8 @@ name: PR CI
 
 # Merge gate for pull requests (notably Dependabot's, see dependabot-auto-merge.yml).
 # Needs no secrets: Dependabot PRs run without them. The unit/E2E suites need a local
-# Supabase and stay out of this gate; typecheck + lint + production build catch the
-# breakage a dependency bump can cause.
+# Supabase and stay out of this gate; typecheck + lint + the API contract test + production
+# build catch the breakage a dependency bump can cause.
 
 on:
   pull_request:
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   admin-panel:
-    name: admin-panel (typecheck, lint, build)
+    name: admin-panel (typecheck, lint, API contract, build)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -31,6 +31,9 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
       - run: bun run lint
+      # API v1 contract: every route has an OpenAPI registry entry with the scope and query it
+      # really uses, and the generated document is valid OpenAPI 3.1. No database needed.
+      - run: bun run test:api-contract
       - run: bun run build
         env:
           NODE_ENV: production

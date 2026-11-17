@@ -3,8 +3,9 @@
 Use HTTPS for remote Sellf, loopback HTTP for a disposable local instance.
 HTTP works with only origin + key; no MCP installation or source access is required.
 Send `Authorization: Bearer <key>` or `X-API-Key: <key>` and JSON content type.
-MCP uses `SELLF_API_URL` (origin), `SELLF_API_KEY`; its `templates_*` tools return
-identical top-level API JSON as text and structured content, not a `data` wrapper.
+MCP is the instance's built-in endpoint `<origin>/api/mcp` with the same key; its tools are
+generated from the API (names = `operationId`, e.g. `get_template_config`, `publish_template`),
+take the JSON body under `body`, and return the API's top-level JSON as text, not a `data` wrapper.
 Do not print the key or turn on shell tracing. Files for candidate/evidence belong
 in a private temporary directory outside the application checkout.
 

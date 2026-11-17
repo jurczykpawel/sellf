@@ -126,7 +126,7 @@ Sellf gives you **complete control** over your digital product business. No mont
 - Zero-downtime key rotation with configurable grace period
 - Per-key rate limiting (1–1000 req/min)
 - Cursor-based pagination with sorting (`sort_by`, `sort_order`), OpenAPI 3.1 spec
-- MCP Server for Claude Desktop (45 tools, 4 resources, 6 prompts)
+- Built-in MCP endpoint (`/api/mcp`, Streamable HTTP, API-key auth): tools generated from the OpenAPI description, one per allowed operation, or a compact search + call mode
 - Bruno API collection for testing (includes all query params)
 
 📖 **[Full API Documentation →](https://docs.sellf.app/api/)**
@@ -291,7 +291,6 @@ sellf/
 │   │   ├── messages/  # i18n (EN, PL)
 │   │   └── types/     # TypeScript definitions
 │   └── tests/         # Playwright E2E + Vitest unit
-├── mcp-server/        # MCP server for Claude Desktop
 ├── supabase/          # Migrations, seed data, RPC functions
 ├── bruno/             # API collection (Bruno client)
 ├── scripts/           # Utility scripts
@@ -352,7 +351,7 @@ See **[FEATURES.md](./FEATURES.md)** for details on all integrations.
 | [Deployment](https://docs.sellf.app/deployment/) | All deployment paths with decision tree |
 | [Stripe Testing Guide](https://docs.sellf.app/stripe-testing-guide/) | Testing payments locally |
 | [BACKLOG.md](./BACKLOG.md) | Development roadmap |
-| [mcp-server/README.md](./mcp-server/README.md) | MCP Server setup guide |
+| [Connect your AI agent](https://docs.sellf.app/connect-ai-agent/) | MCP setup (Claude Code, Claude Desktop, Codex, Cursor) |
 
 ---
 
@@ -361,7 +360,8 @@ See **[FEATURES.md](./FEATURES.md)** for details on all integrations.
 - [x] Dark/Light theme with admin control
 - [x] Theme System (presets, editor, import/export)
 - [x] REST API v1 with OpenAPI 3.1
-- [x] MCP Server for Claude Desktop
+- [x] Built-in MCP endpoint generated from the OpenAPI description
+- [ ] MCP sign-in with OAuth (Claude.ai / ChatGPT connectors)
 - [x] Simple Funnel System (OTO chaining)
 - [x] Stripe Subscriptions (recurring billing, trials, coupon duration, customer portal)
 - [ ] Zero-Config Setup Wizard (no .env needed)
@@ -381,7 +381,7 @@ Full roadmap: [BACKLOG.md](./BACKLOG.md)
 ├── 36 database tables
 ├── 73 RPC functions
 ├── 92 RLS policies
-├── MCP Server (45 tools, 4 resources, 6 prompts)
+├── MCP endpoint generated from the OpenAPI description
 └── 2 languages (EN, PL)
 ```
 

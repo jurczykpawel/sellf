@@ -86,7 +86,7 @@ All identified security vulnerabilities have been addressed. For the security po
 
 This security policy applies to:
 - Sellf Admin Panel (`admin-panel/`)
-- MCP Server (`mcp-server/`)
+- MCP endpoint (`admin-panel/src/app/api/mcp/`)
 - Database migrations (`supabase/migrations/`)
 - Sellf SDK (`sellf.js`)
 

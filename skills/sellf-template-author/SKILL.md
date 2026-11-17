@@ -82,13 +82,14 @@ Layout reads accept unique known-ID order subsets; save writes materialize the f
 ## Product offer composition
 
 Use [offer authoring](references/offers.md) for an opt-in `/offer/[slug]` page.
-Read `templates_capabilities.offers` and `schemas["offer-config"]`, choose an existing
+Read `get_template_capabilities` → `offers` and `schemas["offer-config"]`, choose an existing
 product by name from supplied public bindings, then use its UUID as route context.
 [offer.json](examples/offer.json) is a complete factual workshop starter; adapt it
 only to supplied seller facts, preserving existing copy. An absent offer reads as
 revision 0 with null draft/publication. Start there from the example if authorized.
-Use `offers_read/draft/validate/preview/diff/publish/rollback/reset/history` through
-MCP or the equivalent HTTP calls. Template scopes remain independent of product
+Use the offer operations (MCP tools `get_offer`, `update_offer_draft`, `validate_offer`,
+`preview_offer`, `diff_offer`, `publish_offer`, `rollback_offer`, `reset_offer_field`,
+`list_offer_history`) or the equivalent HTTP calls. Template scopes remain independent of product
 scopes. Product price, slug, visibility and checkout belong to core product APIs.
 An enabled draft alone does not opt in; only publishing does. Null baseline rollback
 opts out; disabled publication retains copy. Do not modify the storefront singleton.
