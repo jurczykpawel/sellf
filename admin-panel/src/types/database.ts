@@ -1174,6 +1174,57 @@ export type Database = {
         }
         Relationships: []
       }
+      checkout_cart_versions: {
+        Row: {
+          amount: number
+          coupon_id: string | null
+          created_at: string
+          custom_field_values: Json | null
+          lines: Json
+          metadata: Json
+          state: string
+          transaction_id: string
+          version: number
+        }
+        Insert: {
+          amount: number
+          coupon_id?: string | null
+          created_at?: string
+          custom_field_values?: Json | null
+          lines: Json
+          metadata?: Json
+          state: string
+          transaction_id: string
+          version: number
+        }
+        Update: {
+          amount?: number
+          coupon_id?: string | null
+          created_at?: string
+          custom_field_values?: Json | null
+          lines?: Json
+          metadata?: Json
+          state?: string
+          transaction_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkout_cart_versions_coupon_id_fkey"
+            columns: ["coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkout_cart_versions_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       consent_logs: {
         Row: {
           anonymous_id: string | null
@@ -4953,6 +5004,10 @@ export type Database = {
       }
     }
     Functions: {
+      _apply_cart_version: {
+        Args: { p_transaction_id: string; p_version: number }
+        Returns: undefined
+      }
       _claim_guest_purchases_before_disputes: {
         Args: { p_user_id: string }
         Returns: Json
@@ -5518,6 +5573,10 @@ export type Database = {
         Args: { product_slugs_param: string[] }
         Returns: Json
       }
+      begin_pending_order_update: {
+        Args: { p_lines: Json; p_order: Json }
+        Returns: Json
+      }
       business_event_actor: { Args: never; Returns: Json }
       business_event_order: { Args: { p_transaction: string }; Returns: Json }
       business_event_partner: { Args: { p_member: string }; Returns: Json }
@@ -5836,6 +5895,10 @@ export type Database = {
       finish_license_mail: {
         Args: { p_completed: boolean; p_error?: string; p_retry_id: string }
         Returns: undefined
+      }
+      finish_pending_order_update: {
+        Args: { p_confirmed: boolean; p_session_id: string; p_version: number }
+        Returns: Json
       }
       free_grant_context: {
         Args: { p_product_id: string; p_request_id?: string }
@@ -6659,6 +6722,7 @@ export type Database = {
           amount_subtotal_param?: number
           amount_total: number
           bump_product_ids_param?: string[]
+          cart_version_param?: number
           coupon_id_param?: string
           currency_param: string
           customer_email_param: string
@@ -6747,10 +6811,6 @@ export type Database = {
           p_permanent: boolean
           p_product_id: string
         }
-        Returns: Json
-      }
-      replace_pending_order: {
-        Args: { p_lines: Json; p_order: Json }
         Returns: Json
       }
       replace_seller_license_key: {

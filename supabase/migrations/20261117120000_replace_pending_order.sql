@@ -1,12 +1,22 @@
--- W219: a cart change on an open Stripe checkout updates the same Checkout Session, so the saved
--- order snapshot (the webhook validates the payment against it) must follow the new cart in place.
+-- W219/W219b: a cart change on an open Stripe checkout updates the same Checkout Session. A paid
+-- payment must always settle, whatever the order of the cart change, the Stripe update and the
+-- payment, so every cart the session may carry is kept as a numbered version until the order is
+-- paid, and the payment settles against the version Stripe actually charged (session metadata
+-- `sellf_cart_version`, written in the same Stripe call as the line items).
 --
 -- 1. public._price_order_lines: line validation and pricing extracted unchanged from
---    public._place_order_without_event, so placing and replacing an order share one rule set.
+--    public._place_order_without_event, so placing and updating an order share one rule set.
 -- 2. public._place_order_without_event: same behaviour, now pricing through the helper.
--- 3. public.replace_pending_order: replaces the lines, amount, coupon and context of a pending
---    Stripe order of the same product and buyer, atomically; events (seat holds) are excluded.
+-- 3. public.checkout_cart_versions: the carts of one pending order (service role only). Version 1
+--    is the cart the order was placed with; a row in state 'updating' younger than 60 seconds is
+--    the single in-flight update of that session (a second one is refused, the browser retries).
+-- 4. public.begin_pending_order_update / finish_pending_order_update: store the new cart and lock
+--    the session before the Stripe call; make it the saved order only after Stripe confirmed it.
+--    An unconfirmed or failed update keeps the saved order and every version.
+-- 5. public.process_stripe_payment_completion_with_bump: new cart_version_param; the paid version
+--    becomes the saved order before the usual amount, coupon and line checks run.
 -- @see admin-panel/src/app/api/create-payment-intent/route.ts
+-- @see admin-panel/src/lib/stripe/checkout-session-update.ts
 -- @see admin-panel/src/lib/orders/place-order.ts
 
 CREATE FUNCTION public._price_order_lines(p_order jsonb, p_lines jsonb)
@@ -133,11 +143,59 @@ END;
 $$;
 REVOKE EXECUTE ON FUNCTION public._place_order_without_event(jsonb,jsonb) FROM PUBLIC, anon, authenticated, service_role;
 
-CREATE FUNCTION public.replace_pending_order(p_order jsonb, p_lines jsonb)
+-- ===== 3. Cart versions of a pending order =====
+CREATE TABLE public.checkout_cart_versions (
+  transaction_id uuid NOT NULL REFERENCES public.payment_transactions(id) ON DELETE CASCADE,
+  version integer NOT NULL CHECK (version BETWEEN 1 AND 100),
+  lines jsonb NOT NULL CHECK (jsonb_typeof(lines) = 'array'),
+  amount numeric NOT NULL CHECK (amount >= 0),
+  coupon_id uuid REFERENCES public.coupons(id) ON DELETE RESTRICT,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  custom_field_values jsonb,
+  state text NOT NULL CHECK (state IN ('placed', 'updating', 'unconfirmed', 'applied')),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (transaction_id, version)
+);
+CREATE INDEX idx_checkout_cart_versions_coupon ON public.checkout_cart_versions (coupon_id) WHERE coupon_id IS NOT NULL;
+ALTER TABLE public.checkout_cart_versions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Service role full access" ON public.checkout_cart_versions
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Admin read" ON public.checkout_cart_versions
+  FOR SELECT TO authenticated USING ((select public.is_admin()));
+REVOKE ALL ON public.checkout_cart_versions FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.checkout_cart_versions TO authenticated;
+GRANT ALL ON public.checkout_cart_versions TO service_role;
+
+-- Makes a stored version the saved order: lines, amount, coupon, cart metadata and field values.
+CREATE FUNCTION public._apply_cart_version(p_transaction_id uuid, p_version integer)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+  ver public.checkout_cart_versions%ROWTYPE;
+BEGIN
+  SELECT * INTO STRICT ver FROM public.checkout_cart_versions
+    WHERE transaction_id = p_transaction_id AND version = p_version;
+  DELETE FROM public.payment_line_items WHERE transaction_id = p_transaction_id;
+  PERFORM public._insert_order_lines(p_transaction_id,
+    (SELECT upper(currency) FROM public.payment_transactions WHERE id = p_transaction_id), ver.lines, false);
+  UPDATE public.payment_transactions SET
+    amount = ver.amount,
+    coupon_id = ver.coupon_id,
+    metadata = coalesce(metadata, '{}'::jsonb) || ver.metadata,
+    custom_field_values = coalesce(ver.custom_field_values, custom_field_values),
+    updated_at = now()
+  WHERE id = p_transaction_id;
+END;
+$$;
+REVOKE EXECUTE ON FUNCTION public._apply_cart_version(uuid,integer) FROM PUBLIC, anon, authenticated, service_role;
+
+-- ===== 4. Update of an open session: begin before the Stripe call, finish after it =====
+CREATE FUNCTION public.begin_pending_order_update(p_order jsonb, p_lines jsonb)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
   tx public.payment_transactions%ROWTYPE;
   priced jsonb;
+  next_version integer;
+  base_metadata jsonb;
 BEGIN
   IF jsonb_typeof(p_order) IS DISTINCT FROM 'object' OR coalesce(p_order->>'payment_provider', 'stripe') <> 'stripe'
     OR coalesce(p_order->>'session_id', '') = '' THEN
@@ -145,7 +203,7 @@ BEGIN
   END IF;
   SELECT * INTO tx FROM public.payment_transactions WHERE session_id = p_order->>'session_id' FOR UPDATE;
   -- Only an unpaid online order of the same product, buyer and currency; event orders hold seats
-  -- for the ordered quantity and are placed again instead.
+  -- for the ordered quantity and get a new session instead.
   IF NOT FOUND OR tx.status <> 'pending' OR tx.payment_provider <> 'stripe'
     OR tx.product_id IS DISTINCT FROM (p_order->>'product_id')::uuid
     OR tx.user_id IS DISTINCT FROM (p_order->>'user_id')::uuid
@@ -155,18 +213,160 @@ BEGIN
     OR EXISTS (SELECT 1 FROM public.seat_reservations WHERE transaction_id = tx.id) THEN
     RETURN jsonb_build_object('success', false, 'error', 'order_not_replaceable');
   END IF;
+  IF EXISTS (SELECT 1 FROM public.checkout_cart_versions WHERE transaction_id = tx.id
+    AND state = 'updating' AND created_at > now() - interval '60 seconds') THEN
+    RETURN jsonb_build_object('success', false, 'error', 'update_in_progress');
+  END IF;
+  -- An update that never finished: Stripe may or may not carry it, so it stays payable.
+  UPDATE public.checkout_cart_versions SET state = 'unconfirmed' WHERE transaction_id = tx.id AND state = 'updating';
   priced := public._price_order_lines(p_order, p_lines);
-  DELETE FROM public.payment_line_items WHERE transaction_id = tx.id;
-  PERFORM public._insert_order_lines(tx.id, upper(tx.currency), priced->'lines', false);
-  UPDATE public.payment_transactions SET
-    amount = (priced->>'charge')::numeric,
-    coupon_id = (p_order->>'coupon_id')::uuid,
-    metadata = coalesce(metadata, '{}'::jsonb) || coalesce(p_order->'metadata', '{}'::jsonb),
-    custom_field_values = coalesce(p_order->'custom_field_values', custom_field_values),
-    updated_at = now()
-  WHERE id = tx.id;
-  RETURN jsonb_build_object('success', true, 'transaction_id', tx.id, 'amount', (priced->>'charge')::numeric);
+  IF NOT EXISTS (SELECT 1 FROM public.checkout_cart_versions WHERE transaction_id = tx.id) THEN
+    INSERT INTO public.checkout_cart_versions (transaction_id, version, lines, amount, coupon_id, metadata, custom_field_values, state)
+    SELECT tx.id, 1, coalesce(jsonb_agg(to_jsonb(li)), '[]'::jsonb), tx.amount, tx.coupon_id,
+      coalesce(tx.metadata, '{}'::jsonb), tx.custom_field_values, 'placed'
+    FROM public.payment_line_items li WHERE li.transaction_id = tx.id;
+  END IF;
+  SELECT max(version) + 1, (array_agg(metadata ORDER BY version))[1] INTO next_version, base_metadata
+    FROM public.checkout_cart_versions WHERE transaction_id = tx.id;
+  IF next_version > 100 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'order_not_replaceable');
+  END IF;
+  INSERT INTO public.checkout_cart_versions (transaction_id, version, lines, amount, coupon_id, metadata, custom_field_values, state)
+  VALUES (tx.id, next_version, priced->'lines', (priced->>'charge')::numeric, (p_order->>'coupon_id')::uuid,
+    base_metadata || coalesce(p_order->'metadata', '{}'::jsonb), p_order->'custom_field_values', 'updating');
+  RETURN jsonb_build_object('success', true, 'transaction_id', tx.id, 'version', next_version, 'amount', (priced->>'charge')::numeric);
 END;
 $$;
-REVOKE EXECUTE ON FUNCTION public.replace_pending_order(jsonb,jsonb) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.replace_pending_order(jsonb,jsonb) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.begin_pending_order_update(jsonb,jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.begin_pending_order_update(jsonb,jsonb) TO service_role;
+
+-- p_confirmed: Stripe answered with this version's metadata and the cart's subtotal. Only then the
+-- version becomes the saved order and the reservation of a coupon it dropped is released (the old
+-- cart can no longer be paid). Otherwise the saved order stays and the version stays payable.
+CREATE FUNCTION public.finish_pending_order_update(p_session_id text, p_version integer, p_confirmed boolean)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+  tx public.payment_transactions%ROWTYPE;
+  ver public.checkout_cart_versions%ROWTYPE;
+BEGIN
+  SELECT * INTO tx FROM public.payment_transactions WHERE session_id = p_session_id FOR UPDATE;
+  IF FOUND THEN
+    SELECT * INTO ver FROM public.checkout_cart_versions WHERE transaction_id = tx.id AND version = p_version;
+  END IF;
+  IF ver.transaction_id IS NULL OR ver.state <> 'updating' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'update_not_in_progress');
+  END IF;
+  IF NOT coalesce(p_confirmed, false) OR tx.status <> 'pending' THEN
+    UPDATE public.checkout_cart_versions SET state = 'unconfirmed' WHERE transaction_id = tx.id AND version = p_version;
+    RETURN jsonb_build_object('success', false, 'error', 'update_not_confirmed');
+  END IF;
+  PERFORM public._apply_cart_version(tx.id, p_version);
+  UPDATE public.checkout_cart_versions SET state = 'applied' WHERE transaction_id = tx.id AND version = p_version;
+  IF tx.coupon_id IS NOT NULL AND tx.coupon_id IS DISTINCT FROM ver.coupon_id THEN
+    DELETE FROM public.coupon_reservations
+      WHERE coupon_id = tx.coupon_id AND customer_email = lower(trim(tx.customer_email));
+  END IF;
+  RETURN jsonb_build_object('success', true, 'transaction_id', tx.id, 'version', p_version);
+END;
+$$;
+REVOKE EXECUTE ON FUNCTION public.finish_pending_order_update(text,integer,boolean) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.finish_pending_order_update(text,integer,boolean) TO service_role;
+
+-- ===== 5. Completion settles the cart version Stripe charged =====
+DROP FUNCTION public.process_stripe_payment_completion_with_bump(text,uuid,text,numeric,text,text,uuid,uuid[],uuid,numeric,boolean);
+CREATE FUNCTION public.process_stripe_payment_completion_with_bump(
+  session_id_param text, product_id_param uuid, customer_email_param text,
+  amount_total numeric, currency_param text,
+  stripe_payment_intent_id text DEFAULT NULL, user_id_param uuid DEFAULT NULL,
+  bump_product_ids_param uuid[] DEFAULT NULL, coupon_id_param uuid DEFAULT NULL,
+  amount_subtotal_param numeric DEFAULT NULL,
+  allow_inactive_product_param boolean DEFAULT false,
+  cart_version_param integer DEFAULT NULL
+) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = ''
+AS $$
+DECLARE
+  pi_param text := stripe_payment_intent_id;
+  tx public.payment_transactions%ROWTYPE;
+  result jsonb;
+  full_bumps uuid[];
+BEGIN
+  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext(coalesce(pi_param, session_id_param)));
+  SELECT pt.* INTO tx FROM public.payment_transactions pt
+    WHERE pt.session_id = session_id_param OR (pi_param IS NOT NULL AND pt.stripe_payment_intent_id = pi_param)
+    ORDER BY (pt.session_id = session_id_param) DESC LIMIT 1 FOR UPDATE;
+
+  IF tx.id IS NOT NULL THEN
+    IF tx.payment_provider <> 'stripe'
+       OR tx.product_id IS DISTINCT FROM product_id_param
+       OR upper(tx.currency) IS DISTINCT FROM upper(currency_param)
+       OR (tx.stripe_payment_intent_id IS NOT NULL AND tx.stripe_payment_intent_id IS DISTINCT FROM pi_param)
+       OR (tx.session_id LIKE 'cs_%' AND session_id_param LIKE 'cs_%' AND tx.session_id <> session_id_param)
+       OR tx.status NOT IN ('pending', 'abandoned', 'completed')
+       OR (tx.status = 'completed' AND (tx.amount IS DISTINCT FROM amount_total OR lower(tx.customer_email) IS DISTINCT FROM lower(trim(customer_email_param))))
+    THEN
+      RETURN jsonb_build_object('success', false, 'error', 'Order details do not match', 'error_kind', 'data');
+    END IF;
+    IF EXISTS (SELECT 1 FROM public.payment_transactions pt
+      WHERE pt.id <> tx.id AND (pt.session_id = session_id_param OR pt.stripe_payment_intent_id = pi_param)) THEN
+      RETURN jsonb_build_object('success', false, 'error', 'Order records need review', 'error_kind', 'data');
+    END IF;
+    -- The cart Stripe charged (no version in the session metadata = the cart the order was placed with).
+    IF tx.status IN ('pending', 'abandoned') AND EXISTS (SELECT 1 FROM public.checkout_cart_versions v
+      WHERE v.transaction_id = tx.id AND v.version = coalesce(cart_version_param, 1)) THEN
+      PERFORM public._apply_cart_version(tx.id, coalesce(cart_version_param, 1));
+      SELECT pt.* INTO tx FROM public.payment_transactions pt WHERE pt.id = tx.id;
+    END IF;
+    IF tx.session_id LIKE 'cs_%' THEN session_id_param := tx.session_id; END IF;
+    IF jsonb_typeof(tx.metadata->'bump_product_ids_full') = 'array' THEN
+      SELECT array_agg(value::uuid) INTO full_bumps
+        FROM jsonb_array_elements_text(tx.metadata->'bump_product_ids_full');
+      IF coalesce(cardinality(full_bumps), 0) > coalesce(cardinality(bump_product_ids_param), 0) THEN
+        bump_product_ids_param := full_bumps;
+      END IF;
+    END IF;
+  END IF;
+
+  -- Attach the order and complete it within one savepoint.
+  BEGIN
+    IF tx.id IS NOT NULL THEN
+      UPDATE public.payment_transactions SET
+        stripe_payment_intent_id = coalesce(pi_param, tx.stripe_payment_intent_id),
+        session_id = session_id_param,
+        status = CASE WHEN status = 'abandoned' THEN 'pending' ELSE status END,
+        amount = CASE WHEN status IN ('pending', 'abandoned') THEN amount_total ELSE amount END,
+        currency = upper(currency_param)
+      WHERE id = tx.id;
+      IF tx.session_id <> session_id_param THEN
+        UPDATE public.guest_purchases SET session_id = session_id_param
+        WHERE session_id = tx.session_id AND product_id = tx.product_id;
+      END IF;
+    END IF;
+    result := public._process_stripe_payment_completion_with_bump_impl(
+      session_id_param, product_id_param, lower(trim(customer_email_param)), amount_total,
+      currency_param, pi_param, user_id_param, bump_product_ids_param, coupon_id_param, amount_subtotal_param,
+      allow_inactive_product_param
+    );
+    IF NOT coalesce((result->>'success')::boolean, false) THEN
+      RAISE EXCEPTION USING MESSAGE = 'Completion not accepted', DETAIL = result::text;
+    END IF;
+  EXCEPTION WHEN raise_exception THEN
+    IF SQLERRM = 'Completion not accepted' THEN
+      GET STACKED DIAGNOSTICS result = PG_EXCEPTION_DETAIL;
+      RETURN result::jsonb || jsonb_build_object('error_kind', CASE WHEN result->>'error' = 'Rate limit exceeded' OR result->>'code' IN ('40001','40P01','57014') THEN 'transient' ELSE 'data' END);
+    END IF;
+    RAISE;
+  END;
+
+  SELECT pt.* INTO tx FROM public.payment_transactions pt WHERE pt.session_id = session_id_param;
+  IF result->>'message' = 'Payment already processed (idempotent)'
+     OR result->>'scenario' = 'idempotent_claimed_for_logged_in_user' THEN
+    result := result || jsonb_build_object('already_had_access', true);
+  END IF;
+  RETURN result || jsonb_build_object('transaction_id', tx.id, 'session_id', tx.session_id,
+    'bump_product_ids', coalesce(bump_product_ids_param, '{}'::uuid[]),
+    'pricing_source', CASE WHEN tx.pricing_snapshot_version IS NULL THEN 'legacy' ELSE 'snapshot' END);
+END;
+$$;
+REVOKE EXECUTE ON FUNCTION public.process_stripe_payment_completion_with_bump(text,uuid,text,numeric,text,text,uuid,uuid[],uuid,numeric,boolean,integer) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.process_stripe_payment_completion_with_bump(text,uuid,text,numeric,text,text,uuid,uuid[],uuid,numeric,boolean,integer) TO service_role;

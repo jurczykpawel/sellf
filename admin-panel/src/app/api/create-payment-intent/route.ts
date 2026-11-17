@@ -15,6 +15,7 @@ import { validateCustomAmount } from '@/lib/payment/custom-amount';
 import { getStripeServer } from '@/lib/stripe/server';
 import { expireBoundCheckoutSession } from '@/lib/stripe/checkout-expiration';
 import { findReusableCheckoutSession, updateCheckoutSessionCart } from '@/lib/stripe/checkout-session-update';
+import { CHECKOUT_UPDATE_IN_PROGRESS } from '@/lib/checkout/request-error';
 import { isStripeTaxNotConfiguredError } from '@/lib/stripe/tax-errors';
 import { getEnabledPaymentMethodsForCurrency } from '@/lib/utils/payment-method-helpers';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
@@ -43,7 +44,7 @@ import { signCheckoutBinding } from '@/lib/security/checkout-binding';
 import { canRenewExpiredLicenseWithActiveAccess } from '@/lib/license-keys/renewal';
 import { findIssuedLicense } from '@/lib/license-keys/lookup';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
-import { placeOrder, replacePendingOrder } from '@/lib/orders/place-order';
+import { beginPendingOrderUpdate, finishPendingOrderUpdate, placeOrder } from '@/lib/orders/place-order';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 import { ATTRIBUTION_REF_KEY, attributionRequestContext, recordFreeAttribution, storeCheckoutAttribution } from '@/lib/attribution/store';
 import { isBelowMinimumCharge } from '@/lib/currency/minor-units';
@@ -877,10 +878,12 @@ export async function POST(request: NextRequest) {
     });
 
     // Cart change (quantity, add-on, coupon, amount) on the buyer's open session: update that
-    // session and its saved order instead of opening a new one. The saved order is replaced
-    // first (the webhook validates the payment against it); if either step fails, the old
-    // session is closed below and a new one is created, as before. Event orders hold seats for
-    // the ordered quantity and always get a new session.
+    // session instead of opening a new one. The new cart is stored as the next version and the
+    // session locked before Stripe is called; it becomes the saved order only once Stripe
+    // confirms it. Any failure or unclear outcome keeps every version payable (the webhook
+    // settles the one Stripe charged), closes the old session below and opens a new one, as
+    // before. A second update of the same session meanwhile gets 409 and the browser retries.
+    // Event orders hold seats for the ordered quantity and always get a new session.
     const reusable = !previousReleased && !product.event_mode
       ? await findReusableCheckoutSession(stripe, {
           clientSecret, bindingToken: previousBindingToken, productId, userId: user?.id ?? null,
@@ -890,13 +893,18 @@ export async function POST(request: NextRequest) {
     if (reusable) {
       // The first visit keeps its purchase source (@see lib/attribution/store.ts).
       checkoutMetadata[ATTRIBUTION_REF_KEY] = reusable.metadata?.[ATTRIBUTION_REF_KEY] || attributionRef;
-      const updated = await replacePendingOrder(dataClient, pendingOrder(reusable), orderLines)
-        && await updateCheckoutSessionCart(stripe, reusable.id, {
-          lineItems: lineItems as Stripe.Checkout.SessionUpdateParams.LineItem[],
-          metadata: checkoutMetadata,
-          expectedSubtotal: lineItemsTotalMinor,
-        });
-      if (updated) {
+      const start = await beginPendingOrderUpdate(dataClient, pendingOrder(reusable), orderLines);
+      if (start.status === 'busy') {
+        return NextResponse.json({ error: 'Checkout is being updated, please retry', code: CHECKOUT_UPDATE_IN_PROGRESS }, { status: 409 });
+      }
+      const confirmed = start.status === 'started' && await updateCheckoutSessionCart(stripe, reusable.id, {
+        lineItems: lineItems as Stripe.Checkout.SessionUpdateParams.LineItem[],
+        metadata: checkoutMetadata,
+        expectedSubtotal: lineItemsTotalMinor,
+        version: start.version,
+      });
+      const saved = start.status === 'started' && await finishPendingOrderUpdate(dataClient, reusable.id, start.version, confirmed);
+      if (confirmed && saved) {
         return NextResponse.json({
           clientSecret,
           checkoutSessionId: reusable.id,

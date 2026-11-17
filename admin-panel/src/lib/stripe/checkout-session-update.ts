@@ -5,12 +5,28 @@
  * for payment mode, `payment_intent_data.metadata`. Language, return URL, mode and the customer
  * email cannot be changed, so a session that differs in those is replaced instead.
  * Discounts are not involved: Sellf prices coupons into the line amounts itself.
+ *
+ * Every update carries a cart version in the session and PaymentIntent metadata, written in the
+ * same Stripe call as the line items, so a payment settles against the cart Stripe charged even
+ * when the update fails, times out or races with the payment (W219b). Sessions of another
+ * installation are never reused.
  * @see https://docs.stripe.com/payments/checkout/dynamically-update-line-items
  * @see https://docs.stripe.com/api/checkout/sessions/update
  * @see src/app/api/create-payment-intent/route.ts
+ * @see supabase/migrations/20261117120000_replace_pending_order.sql (cart versions)
  */
 import type Stripe from 'stripe';
 import { verifyCheckoutBinding } from '@/lib/security/checkout-binding';
+import { isOwnStripeMarker, readStripeInstanceMarker } from '@/lib/stripe/instance-marker';
+
+/** Session/PaymentIntent metadata key holding the cart version Stripe carries. */
+export const CART_VERSION_METADATA_KEY = 'sellf_cart_version';
+
+/** Cart version from Stripe metadata; undefined = the cart the order was placed with. */
+export function readCartVersion(metadata: Stripe.Metadata | null | undefined): number | undefined {
+  const value = metadata?.[CART_VERSION_METADATA_KEY];
+  return typeof value === 'string' && /^[1-9][0-9]{0,2}$/.test(value) ? Number(value) : undefined;
+}
 
 /** A payment attempt Stripe may still complete; changing the session would abandon it. */
 const PAYMENT_IN_PROGRESS = new Set(['processing', 'requires_capture', 'requires_action', 'succeeded']);
@@ -38,6 +54,8 @@ export async function findReusableCheckoutSession(
   try {
     const session = await stripe.checkout.sessions.retrieve(sessionId, { expand: ['payment_intent'] });
     const metadata = session.metadata ?? {};
+    const marker = readStripeInstanceMarker(session);
+    if (marker !== null && !await isOwnStripeMarker(marker)) return null;
     const paymentIntent = session.payment_intent;
     const reusable = session.status === 'open' && session.mode === 'payment' && session.ui_mode === 'elements'
       && session.expires_at - Date.now() / 1000 >= MIN_REMAINING_SECONDS
@@ -55,22 +73,24 @@ export async function findReusableCheckoutSession(
 }
 
 /**
- * Replace the session's items and metadata (also on its PaymentIntent). True only when Stripe
- * now charges exactly the cart: the updated subtotal must equal the sum of the new items.
+ * Replace the session's items and metadata (also on its PaymentIntent) with cart `version`. True
+ * only when Stripe's answer is this version charging exactly the cart: its metadata carries the
+ * version and the updated subtotal equals the sum of the new items.
  */
 export async function updateCheckoutSessionCart(
   stripe: Stripe,
   sessionId: string,
-  input: { lineItems: Stripe.Checkout.SessionUpdateParams.LineItem[]; metadata: Record<string, string>; expectedSubtotal: number },
+  input: { lineItems: Stripe.Checkout.SessionUpdateParams.LineItem[]; metadata: Record<string, string>; expectedSubtotal: number; version: number },
 ): Promise<boolean> {
   try {
+    const metadata = { ...input.metadata, [CART_VERSION_METADATA_KEY]: String(input.version) };
     const updated = await stripe.checkout.sessions.update(sessionId, {
       line_items: input.lineItems,
-      metadata: input.metadata,
-      payment_intent_data: { metadata: input.metadata },
+      metadata,
+      payment_intent_data: { metadata },
     });
-    if (updated.amount_subtotal === input.expectedSubtotal) return true;
-    console.error(`[updateCheckoutSessionCart] Subtotal mismatch: session=${sessionId} stripe=${updated.amount_subtotal} expected=${input.expectedSubtotal}`);
+    if (readCartVersion(updated.metadata) === input.version && updated.amount_subtotal === input.expectedSubtotal) return true;
+    console.error(`[updateCheckoutSessionCart] Unconfirmed update: session=${sessionId} version=${updated.metadata?.[CART_VERSION_METADATA_KEY]}/${input.version} stripe=${updated.amount_subtotal} expected=${input.expectedSubtotal}`);
   } catch (error) {
     console.error('[updateCheckoutSessionCart] Update failed:', error instanceof Error ? error.message : 'Unknown error');
   }

@@ -539,9 +539,13 @@ When a buyer changes the cart on the on-site checkout (quantity, add-on,
 discount code, amount), Sellf updates the open Checkout Session and its pending
 transaction in place: same session ID, new line items, amount, metadata (also on
 the PaymentIntent) and saved order lines, so `checkout.session.completed` arrives
-for that one session. Sellf replaces the session only when Stripe cannot change it:
-another email, language or return address, an event (seats are held for the
-ordered quantity), a payment already in progress, or a failed update. When a buyer
+for that one session. Every cart the session may carry stays stored until payment,
+so a payment is accepted for the cart Stripe actually charged, even when the update
+fails, times out or crosses the payment. Sellf replaces the session only when Stripe
+cannot change it: another email, language or return address, an event (seats are
+held for the ordered quantity), a payment already in progress, or a failed or
+unclear update. A session of another Sellf installation on the same Stripe account
+is never updated or expired. When a buyer
 leaves checkout before confirming payment, or a session is replaced, Sellf expires
 the previous Checkout Session and marks its pending transaction `abandoned`. Returning with the browser's Back button starts at the first step
 without creating a session until the buyer continues. Confirmation redirects

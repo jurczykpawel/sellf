@@ -535,10 +535,13 @@ describe('cart change on an open checkout session (W219)', () => {
     };
     mocks.sessionsRetrieve.mockImplementation(async () => session);
     mocks.sessionsExpire.mockResolvedValue({});
-    mocks.sessionsUpdate.mockImplementation(async (_id: string, params: Params) => ({ ...session, amount_subtotal: sum(params) }));
+    mocks.sessionsUpdate.mockImplementation(async (_id: string, params: Params) => ({
+      ...session, metadata: { ...(session.metadata as object), ...params.metadata }, amount_subtotal: sum(params),
+    }));
     const original = mocks.adminRpc.getMockImplementation()!;
     mocks.adminRpc.mockImplementation(async (name: string, args: unknown) => {
-      if (name === 'replace_pending_order') return { data: { success: true, transaction_id: 'tx-1', amount: 0 }, error: null };
+      if (name === 'begin_pending_order_update') return { data: { success: true, transaction_id: 'tx-1', version: 2, amount: 0 }, error: null };
+      if (name === 'finish_pending_order_update') return { data: { success: true, transaction_id: 'tx-1', version: 2 }, error: null };
       if (name === 'verify_coupon') return { data: { valid: true, id: 'coupon-1', code: 'HALF', discount_type: 'percentage', discount_value: 50, exclude_order_bumps: false }, error: null };
       return original(name, args);
     });
@@ -555,10 +558,13 @@ describe('cart change on an open checkout session (W219)', () => {
     expect(id).toBe('cs_test_open');
     expect(sum(params)).toBe(30000);
     expect(rpcCalls('place_order')).toHaveLength(0);
-    expect(rpcCalls('replace_pending_order')[0][1]).toMatchObject({
+    expect(rpcCalls('begin_pending_order_update')[0][1]).toMatchObject({
       p_order: expect.objectContaining({ session_id: 'cs_test_open', customer_email: EMAIL, coupon_id: null }),
       p_lines: [expect.objectContaining({ product_id: PRODUCT.id, quantity: 3, total_price: 300, discounted_total: 300 })],
     });
+    // Stripe carries the stored cart version; only its confirmed answer makes it the saved order.
+    expect(params.metadata).toMatchObject({ sellf_cart_version: '2' });
+    expect(rpcCalls('finish_pending_order_update')[0][1]).toEqual({ p_session_id: 'cs_test_open', p_version: 2, p_confirmed: true });
   });
 
   it('applies a coupon to the open session with matching amount, metadata and installation marker', async () => {
@@ -569,7 +575,7 @@ describe('cart change on an open checkout session (W219)', () => {
     const sellf_instance = await getStripeInstanceId();
     expect(params.metadata).toMatchObject({ coupon_id: 'coupon-1', has_coupon: 'true', product_id: PRODUCT.id, sellf_instance, sf_attr_ref: 'first-visit' });
     expect(params.payment_intent_data.metadata).toMatchObject({ coupon_id: 'coupon-1', sellf_instance });
-    expect(rpcCalls('replace_pending_order')[0][1].p_order).toMatchObject({ coupon_id: 'coupon-1', metadata: expect.objectContaining({ coupon_id: 'coupon-1' }) });
+    expect(rpcCalls('begin_pending_order_update')[0][1].p_order).toMatchObject({ coupon_id: 'coupon-1', metadata: expect.objectContaining({ coupon_id: 'coupon-1' }) });
   });
 
   it('keeps one session across successive cart changes', async () => {
@@ -599,14 +605,14 @@ describe('cart change on an open checkout session (W219)', () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ checkoutSessionId: 'cs_test_new' });
     expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
-    expect(rpcCalls('replace_pending_order')).toHaveLength(0);
+    expect(rpcCalls('begin_pending_order_update')).toHaveLength(0);
     expect(mocks.sessionsCreate).toHaveBeenCalledTimes(1);
   });
 
   it('replaces the session when the order snapshot cannot be updated', async () => {
     const original = mocks.adminRpc.getMockImplementation()!;
     mocks.adminRpc.mockImplementation(async (name: string, args: unknown) =>
-      name === 'replace_pending_order' ? { data: { success: false, error: 'order_not_replaceable' }, error: null } : original(name, args));
+      name === 'begin_pending_order_update' ? { data: { success: false, error: 'order_not_replaceable' }, error: null } : original(name, args));
     const response = await change({ quantity: 2 });
     expect(response.status).toBe(200);
     expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
@@ -621,6 +627,26 @@ describe('cart change on an open checkout session (W219)', () => {
     expect(mocks.sessionsExpire).toHaveBeenCalledWith('cs_test_open');
     expect(mocks.sessionsCreate).toHaveBeenCalledTimes(1);
     expect(sum(mocks.sessionsCreate.mock.calls[0][0] as Params)).toBe(20000);
+    expect(rpcCalls('finish_pending_order_update')[0][1]).toMatchObject({ p_version: 2, p_confirmed: false });
+  });
+
+  it('replaces the session when Stripe answers without the stored cart version', async () => {
+    mocks.sessionsUpdate.mockImplementation(async (_id: string, params: Params) => ({ ...session, amount_subtotal: sum(params) }));
+    expect((await change({ quantity: 2 })).status).toBe(200);
+    expect(rpcCalls('finish_pending_order_update')[0][1]).toMatchObject({ p_version: 2, p_confirmed: false });
+    expect(mocks.sessionsCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('answers 409 while another update of the same session runs, touching neither Stripe nor the session', async () => {
+    const original = mocks.adminRpc.getMockImplementation()!;
+    mocks.adminRpc.mockImplementation(async (name: string, args: unknown) =>
+      name === 'begin_pending_order_update' ? { data: { success: false, error: 'update_in_progress' }, error: null } : original(name, args));
+    const response = await change({ quantity: 2 });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ code: 'CHECKOUT_UPDATE_IN_PROGRESS' });
+    expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
+    expect(mocks.sessionsExpire).not.toHaveBeenCalled();
+    expect(mocks.sessionsCreate).not.toHaveBeenCalled();
   });
 
   it('refuses to update a session bound to someone else', async () => {
@@ -628,7 +654,7 @@ describe('cart change on an open checkout session (W219)', () => {
     expect((await change({ quantity: 2 })).status).toBe(403);
     expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
     expect(mocks.sessionsCreate).not.toHaveBeenCalled();
-    expect(rpcCalls('replace_pending_order')).toHaveLength(0);
+    expect(rpcCalls('begin_pending_order_update')).toHaveLength(0);
   });
 
   it('closes the open session when a full-discount coupon grants access instead', async () => {
@@ -642,5 +668,39 @@ describe('cart change on an open checkout session (W219)', () => {
     await change({ couponCode: 'free' });
     expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
     expect(mocks.sessionsExpire).toHaveBeenCalledWith('cs_test_open');
+  });
+});
+
+describe("another installation's open session (W219b)", () => {
+  const FOREIGN_SECRET = 'cs_test_foreign_secret_value';
+  const EMAIL = 'guest@example.com';
+  const rpcNames = () => mocks.adminRpc.mock.calls.map(([name]) => name);
+
+  beforeEach(() => {
+    mocks.getUser.mockResolvedValue({ data: { user: null } });
+    mocks.verifyBinding.mockReturnValue(true);
+    mocks.productOverride = { checkout_profile: { v: 1, modules: [{ id: 'quantity', mode: 'checkout', min: 1, max: 5 }] } };
+    mocks.sessionsRetrieve.mockResolvedValue({
+      id: 'cs_test_foreign', object: 'checkout.session', status: 'open', mode: 'payment', ui_mode: 'elements', locale: 'en',
+      payment_intent: null, expires_at: Math.floor(Date.now() / 1000) + 3600, client_secret: FOREIGN_SECRET,
+      metadata: { product_id: PRODUCT.id, user_id: '', email: EMAIL, success_url: '', sellf_instance: 'another-installation-marker' },
+    });
+    mocks.sessionsCreate.mockResolvedValue({ id: 'cs_test_own', client_secret: 'cs_test_own_secret_x' });
+  });
+
+  it('is neither updated nor expired on a cart change; this installation opens its own session', async () => {
+    const response = await POST(makeRequest({ email: EMAIL, quantity: 2, clientSecret: FOREIGN_SECRET, bindingToken: 'binding' }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ checkoutSessionId: 'cs_test_own' });
+    expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
+    expect(mocks.sessionsExpire).not.toHaveBeenCalled();
+    expect(rpcNames()).not.toContain('begin_pending_order_update');
+    expect(mocks.adminInserts.filter(({ table }) => table === 'payment_transactions')).toHaveLength(0);
+  });
+
+  it('is not expired when the page closes', async () => {
+    const response = await POST(makeRequest({ clientSecret: FOREIGN_SECRET, bindingToken: 'binding', expireOnly: true }));
+    expect(response.status).toBe(200);
+    expect(mocks.sessionsExpire).not.toHaveBeenCalled();
   });
 });
