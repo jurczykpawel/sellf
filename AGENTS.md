@@ -602,8 +602,8 @@ the migration history must stay reviewable. Rules:
    The snapshot needs the pinned Supabase CLI (`PINNED_SUPABASE_CLI` in `scripts/schema-snapshot.ts`); point
    `SUPABASE_BIN` at that binary when the one on PATH differs.
 2. **Before the release gate** the release branch is tidied: all migrations added since the last
-   release tag are consolidated into **a few logical files grouped by area** (orders, events,
-   licenses, templates, misc …; target 4–8 files, hard limit **8**). Fix-ups of a migration from
+   release tag are consolidated into **as few files as practical, sensibly grouped by area** (2026.11.1: one file,
+   with area headings inside; the lint limit of **8** is only a safety net). Fix-ups of a migration from
    the same cycle (e.g. `*_repair`, `*_followup`) are folded into the file they fix. This is the
    only moment a migration may be rewritten — it has not been released yet. The entries after the
    last tag in `supabase/migration-order.txt` are rewritten with them (released entries never).
@@ -638,15 +638,18 @@ the migration history must stay reviewable. Rules:
    wrong (see below); `schema:check` fails when the snapshot differs. Only the release build runs
    `lint:migrations --release` (against the previous tag), which also fails when more than 8
    migrations were added since that tag, so an unconsolidated release cannot be built.
-8. **Transport size limits:** each added SQL file must be **at most 120000 bytes** and its
-   complete JSON RPC payload (version, SQL, checksum, including escaping) **at most 128000 bytes**.
-   The installed 10.6 runner passes SQL to `jq --arg` and JSON to `curl -d`; Linux
-   `MAX_ARG_STRLEN` limits each argument to 131072 bytes on 4 KiB-page systems, independently
-   of `ARG_MAX`. A streaming replacement cannot fix the already-installed runner.
-9. **Before release, rehearse locally on a disposable copy of the production backup using
-   the unmodified runner from the previous release tag on Linux.** All pending files must
-   apply successfully; compare the resulting schema against the original source migrations.
-   Direct HTTP tests alone do not exercise the installed runner's argument limits.
+8. **Transport size:** the updater shipped with 2026.11.0 and later streams SQL and JSON from
+   files, so it has no per-file size limit. Releases requiring it set `MIN_UPDATER_VERSION=2`;
+   CI then publishes only the v2 signed manifest. Installations on **2026.10.6 or earlier must
+   first update to 2026.11.0**, then to 2026.11.1. The 11.0 bridge retains SQL ≤120000 bytes and
+   complete JSON RPC payload ≤128000 bytes: its first hop still runs the installed 10.6 runner,
+   whose `jq --arg` / `curl -d` arguments are limited by Linux `MAX_ARG_STRLEN` (131072 bytes).
+9. **Before release, rehearse locally on a disposable copy of the production backup on Linux.**
+   Run the installed previous-release bootstrap and candidate stage 2, require all pending SQL
+   to apply in one transaction, and compare schema and configuration/dictionary content with the
+   original source migrations. Also require the installed 10.6 runner to refuse a release that
+   requires updater 2 before changing code or schema (no legacy manifest). A direct 10.6 SQL
+   transport probe is diagnostic only; the supported upgrade path goes through 11.0.
 10. **Migration order file** `supabase/migration-order.txt`: one migration per line in apply order
    (strictly ascending timestamps), only ever appended at the end, so two branches adding a migration
    conflict in git instead of merging in a silently wrong order. `lint:migrations` fails for a file
@@ -662,12 +665,12 @@ same token, installation, log/progress paths and inherited flock descriptor 200.
 Backup, migrations, swap, health and code rollback therefore use that release's
 runner. Packages without that marker use the installed fallback. The stage-2
 arguments are an internal protocol for an already-verified private extraction.
-`MIN_UPDATER_VERSION=1` in the script keeps 2026.11.0 compatible with unversioned
-10.6 (updater 1); `UPDATER_VERSION=2` identifies the new bootstrap. Both update APIs
+`MIN_UPDATER_VERSION=2` in 2026.11.1 requires the bootstrap shipped with 2026.11.0;
+11.0 used minimum 1 as the bridge for unversioned 10.6. `UPDATER_VERSION=2` identifies the new bootstrap. Both update APIs
 check the signed minimum before launch; the shell checks again before extraction.
 A first hop from an already-installed 10.6/4982c3de still uses that old runner:
 new release code cannot retrofit delegation or version checks into a running old
-script. Use the updated Stackpilot for the downloaded runner on that first hop.
+script. Update to 2026.11.0 first; 2026.11.1 deliberately has no legacy signed manifest.
 Since 2026.11.1 both runners (Sellf stage 2 `migration-batch` block, Stackpilot
 `apps/sellf/apply-migrations.sh`) send all pending files in ONE `apply_migration`
 call: each file is wrapped in a `DO` block whose exception names the file, the
@@ -1190,7 +1193,7 @@ enabled program, while deductions from already-paid commissions always count. On
 (`affiliate_entry_eligible`) decides entries for preview, reservation and CSV export (`affiliate_payout_exportable`). Paid line inserts of a co-creator product enqueue `affiliate_work`
 (`affiliate_cocreator_candidate`); unpaid orders are queued by their later status change. Panel: product "Sales and
 settlement" (co-creator), Affiliate program (creator terms), Partner earnings `/my-affiliate` (acceptance). API: `/api/v1/products/{id}/cocreator`.
-`commission.*` webhooks carry `commission.kind`. Migration `20261117100000_affiliate_cocreator.sql`.
+`commission.*` webhooks carry `commission.kind`. Migration `20261118000000_release_2026_11_1.sql`.
 
 Lock order: payment IDs ascending → member/currency advisory lock → commission/payout.
 Triggers enqueue under the payment lock without taking the member lock. Shared SQL
@@ -1634,7 +1637,7 @@ paid complete. Products and settings never change.
 `src/lib/maintenance/surfaces.ts` (pure path list: add new payment-starting routes there),
 `file.ts`, `state.ts`, `response.ts`, `setting.ts`; panel `MaintenanceSettings` (Settings → System),
 action `lib/actions/maintenance.ts`, API `GET/PATCH /api/v1/system/maintenance`, migration
-`20261117130000_maintenance_mode.sql`. Docs: `docs-site/.../maintenance.md` (PL/EN).
+`20261118000000_release_2026_11_1.sql`. Docs: `docs-site/.../maintenance.md` (PL/EN).
 
 ### Stable Versions & Known Issues
 

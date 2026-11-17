@@ -1,7 +1,7 @@
 /**
  * Close the Stripe payment pages of online payment attempts that the database has just superseded (the order was
  * cancelled, released by the timer or marked paid). The duplicate refund in quick-pay.ts remains the safety net.
- * @see migration 20261115110000_cancelled_order_no_payment.sql (expire_sessions)
+ * @see migration 20261118000000_release_2026_11_1.sql (expire_sessions)
  */
 import type Stripe from 'stripe';
 

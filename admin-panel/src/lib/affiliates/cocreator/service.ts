@@ -3,7 +3,7 @@
  * of every purchase made after the assignment, on top of any partner commission.
  * Callers authenticate first (panel session admin or API key) and pass the service-role client.
  *
- * @see supabase/migrations/20261117100000_affiliate_cocreator.sql
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql
  * @see ./actions.ts (panel) @see src/app/api/v1/products/[id]/cocreator/route.ts (API v1)
  */
 import 'server-only';

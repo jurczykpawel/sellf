@@ -2,7 +2,7 @@
  * Checking a code on the storefront does not hold one of a limited coupon's slots; the slot is held
  * when the payment session is created. The database function is called by the server only.
  * Real local database.
- * @see supabase/migrations/20261117140000_order_entitlement_fixes.sql
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql
  */
 import { createClient } from '@supabase/supabase-js';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';

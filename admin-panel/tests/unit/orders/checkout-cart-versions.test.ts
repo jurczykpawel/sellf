@@ -2,7 +2,7 @@
  * Cart change on an open Stripe checkout (W219/W219b): every cart the session may carry is kept as a
  * numbered version until the order is paid, one update runs per session, and a payment settles
  * against the version Stripe charged — whatever the order of update, failure and payment.
- * @see supabase/migrations/20261117120000_replace_pending_order.sql
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql
  * @see src/app/api/create-payment-intent/route.ts
  */
 import { createClient } from '@supabase/supabase-js';

@@ -13,7 +13,7 @@
  * @see https://docs.stripe.com/payments/checkout/dynamically-update-line-items
  * @see https://docs.stripe.com/api/checkout/sessions/update
  * @see src/app/api/create-payment-intent/route.ts
- * @see supabase/migrations/20261117120000_replace_pending_order.sql (cart versions)
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql (cart versions)
  */
 import type Stripe from 'stripe';
 import { verifyCheckoutBinding } from '@/lib/security/checkout-binding';

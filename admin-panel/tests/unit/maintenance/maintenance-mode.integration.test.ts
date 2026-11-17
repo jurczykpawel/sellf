@@ -5,7 +5,7 @@
  * Every case runs in a rolled-back transaction, so the shop is never put into maintenance for other tests.
  *
  * REQUIRES: the local Supabase stack.
- * @see supabase/migrations/20261117130000_maintenance_mode.sql
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql
  */
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';

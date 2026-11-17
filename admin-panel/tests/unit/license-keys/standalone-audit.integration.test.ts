@@ -3,7 +3,7 @@
  * audit entry: the license, its license.issued event and the audit entry are one transaction,
  * so a refused entry leaves none of the three.
  * @see src/lib/license-keys/request.ts
- * @see supabase/migrations/20261111110000_access_licenses.sql (issue_license_with_audit)
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql (issue_license_with_audit)
  */
 import { useSupabaseBuyerEmails } from '../../helpers/buyer-email-setting';
 useSupabaseBuyerEmails();

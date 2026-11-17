@@ -7,7 +7,7 @@
  * Every case runs as the real `authenticated` role with buyer claims in a rolled-back transaction.
  *
  * REQUIRES: the local Supabase stack.
- * @see supabase/migrations/20261117130000_maintenance_mode.sql
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql
  */
 import { execFileSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';

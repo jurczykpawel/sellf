@@ -5,7 +5,7 @@
  * limit needs the administrator's explicit confirmation. The seat facts come from event_order_seats, the same
  * rule the acceptance applies, so the preview cannot say "free" when acceptance would go over a limit.
  * @see components/admin/BankTransferSection.tsx, app/api/v1/payments/[id]/late-transfer-preview/route.ts,
- *   migration 20261115110000_cancelled_order_no_payment.sql (event_order_seats, admin_bank_transfer_order)
+ *   migration 20261118000000_release_2026_11_1.sql (event_order_seats, admin_bank_transfer_order)
  */
 import { getEffectiveUnitPrice } from '@/lib/services/omnibus';
 import type { SupabaseClient } from '@supabase/supabase-js';

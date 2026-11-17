@@ -5,7 +5,7 @@
  *   - Requires scope webhooks:write
  *   - Only an abandoned event is eligible; it gets fresh attempts and is due on the
  *     worker's next tick.
- * @see supabase/migrations/20261115100000_queue_retries.sql
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql
  */
 
 import { NextRequest } from 'next/server';

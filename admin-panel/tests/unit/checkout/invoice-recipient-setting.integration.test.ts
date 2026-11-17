@@ -6,7 +6,7 @@
  *
  * REQUIRES: the local Supabase stack (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY).
  * @see src/lib/checkout/invoice-recipient-setting.ts
- * @see supabase/migrations/20261116110000_invoice_recipient_setting_atomic.sql
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql
  */
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';

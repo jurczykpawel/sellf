@@ -4,7 +4,7 @@
  * POST /api/v1/products/:id/restore - Move an archived product back to the product list.
  * The product stays inactive until the seller activates it.
  *
- * @see supabase/migrations/20261114100000_product_archive.sql (restore_product_as)
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql (restore_product_as)
  */
 
 import { NextRequest } from 'next/server';

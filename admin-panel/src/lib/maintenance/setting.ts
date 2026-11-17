@@ -8,7 +8,7 @@
  *
  * @see src/lib/actions/maintenance.ts (panel)
  * @see src/app/api/v1/system/maintenance/route.ts (API v1)
- * @see supabase/migrations/20261117130000_maintenance_mode.sql
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql
  */
 import { z } from 'zod';
 import { MAINTENANCE_MESSAGE_MAX, getMaintenanceFilePath, isMaintenanceEnvOn, readServerMaintenance } from '@/lib/maintenance/file';

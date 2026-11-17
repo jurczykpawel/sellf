@@ -3,7 +3,7 @@
  * and redeliveries would never succeed, so the payment is stored in the admin-readable audit log
  * (admin_actions) for the administrator to reconcile (refund or manual access) and the webhook is acknowledged.
  * One record per payment, enforced by the database (unique index on the payment id, shared by Checkout Session
- * and PaymentIntent deliveries); log retention keeps these records (migration 20261115120000).
+ * and PaymentIntent deliveries); log retention keeps these records (migration 20261118000000_release_2026_11_1.sql).
  * @see src/app/api/webhooks/stripe/onetime-handlers.ts
  * @see src/components/admin/PaymentsReconciliationPanel.tsx
  */

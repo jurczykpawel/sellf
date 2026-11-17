@@ -8,7 +8,7 @@
  * participants make the merged details 66 194 B.
  *
  * REQUIRES: the local Supabase stack (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / SUPABASE_ANON_KEY).
- * @see supabase/migrations/20261111000000_checkout_details_reconciliation.sql (set_payment_order_details)
+ * @see supabase/migrations/20261118000000_release_2026_11_1.sql (set_payment_order_details)
  * @see admin-panel/src/app/api/update-payment-metadata/route.ts
  */
 import { createClient } from '@supabase/supabase-js';
