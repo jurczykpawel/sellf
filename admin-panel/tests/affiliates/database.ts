@@ -24,7 +24,8 @@ export function getAffiliateTestWorkdir(): string {
 export function getAffiliateTestConfig(): { API_URL: string; SERVICE_ROLE_KEY: string; ANON_KEY: string } {
   const workdir = getAffiliateTestWorkdir();
   const result = JSON.parse(execFileSync(process.env.SUPABASE_CLI_BINARY_OVERRIDE || 'supabase', ['status', '--workdir', workdir, '-o', 'json'], {
-    encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+    encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 30000,
+    env: { ...process.env, SUPABASE_TELEMETRY_DISABLED: '1' },
   }));
   if (result.API_URL !== process.env.SUPABASE_URL) throw new Error('Affiliate API configuration does not match');
   return result;
@@ -32,5 +33,8 @@ export function getAffiliateTestConfig(): { API_URL: string; SERVICE_ROLE_KEY: s
 
 export function resetAffiliateDatabase(): void {
   const workdir = getAffiliateTestWorkdir();
-  execFileSync('python3', ['-B', fileURLToPath(new URL('../../../supabase/tests/local_stack.py', import.meta.url)), 'reset', workdir], { stdio: 'pipe', timeout: 180000 });
+  execFileSync('python3', ['-B', fileURLToPath(new URL('../../../supabase/tests/local_stack.py', import.meta.url)), 'reset', workdir], {
+    stdio: 'pipe', timeout: 180000,
+    env: { ...process.env, SUPABASE_TELEMETRY_DISABLED: '1' },
+  });
 }
