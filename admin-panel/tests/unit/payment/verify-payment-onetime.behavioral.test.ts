@@ -467,6 +467,91 @@ describe.skipIf(!hasSupabase)('verifyPaymentIntent — success-redirect capture 
     expect(payload?.order?.taxTotal).toBe(230);
   });
 
+  it('binds the order only to its owner: a caller whose id differs from the order user_id is refused before completion', async () => {
+    const product = await createProduct();
+    const cs = uniq('cs');
+    const pi = uniq('pi');
+    const ownerEmail = uniq('owner') + '@example.com';
+    const otherEmail = uniq('other') + '@example.com';
+    createdEmails.push(ownerEmail, otherEmail);
+    const ownerId = await createAuthUser(ownerEmail);
+    const otherId = await createAuthUser(otherEmail);
+    await seedPendingTx({ sessionId: cs, productId: product.id, email: ownerEmail, pi });
+
+    h.stripe = piShim(cs, {
+      id: pi, receipt_email: ownerEmail,
+      metadata: { product_id: product.id, user_id: ownerId, needs_invoice: 'true', nip: '1234567890', company_name: 'Owner Ltd' },
+    });
+
+    const r = await verifyPaymentIntent(pi, asUser(otherId, otherEmail));
+    expect(r.error).toBe('Session does not belong to current user');
+    expect(r.access_granted).toBeFalsy();
+    expect((await fetchTx(cs))?.status).toBe('pending');
+    expect(await hasAccess(otherId, product.id)).toBe(false);
+    const { data: profile } = await db!.from('profiles').select('tax_id, company_name').eq('id', otherId).maybeSingle();
+    expect(profile?.tax_id ?? null).toBeNull();
+    expect(profile?.company_name ?? null).toBeNull();
+    expect(purchaseCalls()).toHaveLength(0);
+  });
+
+  it('uses the owning Checkout Session user_id when the PaymentIntent carries none', async () => {
+    const product = await createProduct();
+    const cs = uniq('cs');
+    const pi = uniq('pi');
+    const ownerEmail = uniq('owner') + '@example.com';
+    const otherEmail = uniq('other') + '@example.com';
+    createdEmails.push(ownerEmail, otherEmail);
+    const ownerId = await createAuthUser(ownerEmail);
+    const otherId = await createAuthUser(otherEmail);
+    await seedPendingTx({ sessionId: cs, productId: product.id, email: ownerEmail, pi });
+
+    const shim = piShim(cs, { id: pi, receipt_email: ownerEmail, metadata: { product_id: product.id } });
+    (shim.checkout.sessions.list as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [{ id: cs, amount_subtotal: 1000, metadata: { product_id: product.id, user_id: ownerId } }],
+    });
+    h.stripe = shim;
+
+    const r = await verifyPaymentIntent(pi, asUser(otherId, otherEmail));
+    expect(r.error).toBe('Session does not belong to current user');
+    expect((await fetchTx(cs))?.status).toBe('pending');
+    expect(await hasAccess(otherId, product.id)).toBe(false);
+  });
+
+  it('refuses a caller whose email differs from the buyer email when the order has no user_id', async () => {
+    const product = await createProduct();
+    const cs = uniq('cs');
+    const pi = uniq('pi');
+    const buyerEmail = uniq('buyer') + '@example.com';
+    const otherEmail = uniq('other') + '@example.com';
+    createdEmails.push(buyerEmail, otherEmail);
+    const otherId = await createAuthUser(otherEmail);
+    await seedPendingTx({ sessionId: cs, productId: product.id, email: buyerEmail, pi });
+
+    h.stripe = piShim(cs, { id: pi, receipt_email: buyerEmail, metadata: { product_id: product.id } });
+
+    const r = await verifyPaymentIntent(pi, asUser(otherId, otherEmail));
+    expect(r.error).toBe('Session does not belong to current user');
+    expect((await fetchTx(cs))?.status).toBe('pending');
+    expect(await hasAccess(otherId, product.id)).toBe(false);
+  });
+
+  it('grants the order to the signed-in owner whose id matches the order user_id', async () => {
+    const product = await createProduct();
+    const cs = uniq('cs');
+    const pi = uniq('pi');
+    const ownerEmail = uniq('owner') + '@example.com';
+    createdEmails.push(ownerEmail);
+    const ownerId = await createAuthUser(ownerEmail);
+    await seedPendingTx({ sessionId: cs, productId: product.id, email: ownerEmail, pi });
+
+    h.stripe = piShim(cs, { id: pi, receipt_email: ownerEmail, metadata: { product_id: product.id, user_id: ownerId } });
+
+    const r = await verifyPaymentIntent(pi, asUser(ownerId, ownerEmail));
+    expect(r.error).toBeUndefined();
+    expect(r.access_granted).toBe(true);
+    expect(await hasAccess(ownerId, product.id)).toBe(true);
+  });
+
   it('missing product_id/email → error', async () => {
     h.stripe = makeStripeShim({
       paymentIntent: { id: 'pi_missing', status: 'succeeded', amount: 1000, currency: 'usd', metadata: {} },
