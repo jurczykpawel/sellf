@@ -11,6 +11,7 @@ import { sendTrustedMagicLink } from '@/lib/auth/magic-link/request';
 import { validateEmailAction } from '@/lib/actions/validate-email';
 import { buildEmbedCorsHeaders, getSellfBaseUrl, loadAllowedOriginsForProduct } from '@/lib/embed/checkout-embed';
 import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
+import { canonicalizeEmailForBucket } from '@/lib/security/email-canonical';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { emitFreeAccessLead } from '@/lib/services/free-access-events';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
@@ -107,7 +108,7 @@ export async function leadSubmit(request: Request): Promise<NextResponse> {
     const consent = consentForLocale(ctx.product, locale);
     if ((!body.product || consent.required) && body.marketingConsent !== true) return reply(request, origins, 400, { error: 'Marketing consent required' });
     if (body.marketingConsent && body.consentVersion !== consent.version) return reply(request, origins, 400, { error: 'Invalid consent version' });
-    if (!await checkRateLimit('leads_submit', 5, 5) || !await checkRateLimitForIdentifier('leads_email', 5, 1440, `email:${body.email}`)) return reply(request, origins, 429, { error: 'Too many requests' });
+    if (!await checkRateLimit('leads_submit', 5, 5) || !await checkRateLimitForIdentifier('leads_email', 5, 1440, `email:${canonicalizeEmailForBucket(body.email)}`)) return reply(request, origins, 429, { error: 'Too many requests' });
     const solution = typeof body.altcha === 'string' ? body.altcha : Buffer.from(JSON.stringify(body.altcha)).toString('base64');
     let validProof = false;
     try {

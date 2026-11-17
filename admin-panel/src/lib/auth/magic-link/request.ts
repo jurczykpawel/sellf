@@ -12,6 +12,7 @@ import {
   getLoginReturnPath,
 } from '@/lib/auth/magic-link-redirect';
 import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
+import { canonicalizeEmailForBucket } from '@/lib/security/email-canonical';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { prepareFreeGrantRequest } from '@/lib/services/free-grant-context';
 
@@ -84,11 +85,12 @@ export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Pr
   }
   const normalizedEmail = input.email.trim().toLowerCase();
 
+  // Address variants that reach the same inbox (+tag, Gmail dots) share one daily limit.
   const emailAllowed = await checkRateLimitForIdentifier(
     'magic_link_email',
     5,
     1440,
-    `email:${normalizedEmail}`,
+    `email:${canonicalizeEmailForBucket(normalizedEmail)}`,
   );
   if (!emailAllowed) return input.retry
     ? queueAuthMailRetry({ email: normalizedEmail, redirectTo: input.redirectTo, data: input.data, kind: input.retry, code: 'rate_limited' })

@@ -97,6 +97,17 @@ describe('requestMagicLink', () => {
     expect(deliverMagicLink).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['Jan.Kowalski+promo@gmail.com', 'email:jankowalski@gmail.com'],
+    ['j.a.n.kowalski@googlemail.com', 'email:jankowalski@googlemail.com'],
+    ['buyer+news@example.com', 'email:buyer@example.com'],
+  ])('counts the per-email daily limit for %s against the inbox it reaches', async (email, bucket) => {
+    await requestMagicLink({ ...BASE_INPUT, email });
+
+    expect(checkRateLimitForIdentifier).toHaveBeenCalledWith('magic_link_email', 5, 1440, bucket);
+    expect(deliverMagicLink).toHaveBeenCalledWith(expect.objectContaining({ email: email.toLowerCase() }));
+  });
+
   it('delivers a login magic link with shouldCreateUser true, the login redirect, and a trimmed lowercased email', async () => {
     const result = await requestMagicLink({ ...BASE_INPUT, flow: 'login' });
 
