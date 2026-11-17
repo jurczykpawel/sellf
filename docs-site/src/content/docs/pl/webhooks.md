@@ -507,7 +507,7 @@ ma ten sam klucz dostawy, więc odbiorca dostaje je raz; mimo to deduplikuj po `
 | `invoicing.issued` | Dostawca (Fakturownia) wystawił fakturę sprzedaży. | `invoice.id/number/providerInvoiceId/viewUrl/attempt/paymentSynced`, `order` (ID, numer, kwota, waluta), `customer`. |
 | `invoicing.failed` | Próba wystawienia się nie udała. Raz na próbę. | `invoice.attempt`, `invoice.error` (komunikat dostawcy), `invoice.willRetry` (`false` po 5. próbie). |
 | `invoicing.corrected` | Wystawioną fakturę oznaczono jako skorygowaną. | `invoice.number`, `statusBefore/statusAfter`, `order`. |
-| `commission.accrued` | Partner zarobił prowizję od opłaconego zamówienia. | `partner` (memberId, code, displayName, status), `commission.amount/currency/baseAmount/eligibleAt/paidAt/livemode`, `order`. |
+| `commission.accrued` | Partner (kupon) albo współtwórca (stały udział w produkcie) zarobił prowizję od opłaconego zamówienia. | `partner` (memberId, code, displayName, status), `commission.kind` (`referral` = partner przez kupon, `cocreator` = udział współtwórcy), `commission.amount/currency/baseAmount/eligibleAt/paidAt/livemode`, `order`. Jeden zakup może wysłać oba rodzaje; sumują się. |
 | `commission.reversed` | Zwrot cofnął (część) prowizji. | `commission.amount` jest ujemne; te same identyfikatory. |
 | `payout.reserved` | Właściciel zatwierdził prowizje do wypłaty (rezerwacja). | `payout.id/amount/currency/cutoff/payeeReference/commissionIds`, `partner`. `product` = `null`. |
 | `payout.paid` | Wypłatę oznaczono jako zapłaconą. | `payout.bankReference/invoiceReference/bankAmount/paidAt`. |

@@ -97,7 +97,9 @@
       "guide",
       "buyer_mail_off",
       "buyer_mail_on",
-      "archive_product"
+      "archive_product",
+      "cocreator_share",
+      "accept_terms"
     ]
   },
   "journeys": [
@@ -5308,6 +5310,71 @@
       },
       "layers": [
         "http",
+        "unit"
+      ]
+    },
+    {
+      "id": "J640",
+      "title": "Seller gives a co-creator a fixed share of a one-time product; every later purchase pays it on top of the partner commission",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "cocreator_share"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Pays the normal price; nothing in the checkout changes.",
+        "seller": "Product > Sales and settlements names the co-creator, the share and since when; purchases made earlier earn nothing, subscriptions cannot get a co-creator, refunds and disputes reverse the share like a partner commission.",
+        "integrator": "commission.accrued / commission.reversed webhooks carry commission.kind = cocreator; with a coupon the partner gets its own row with kind = referral (the shares add up, also for the same person)."
+      },
+      "layers": [
+        "integration",
+        "unit"
+      ]
+    },
+    {
+      "id": "J641",
+      "title": "An integrator assigns, changes and removes a product's co-creator through API v1",
+      "values": {
+        "persona": "integrator",
+        "entry": "api",
+        "product": "paid",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "cocreator_share"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "The panel shows the co-creator set through the API; a stale expected_revision changes nothing.",
+        "integrator": "GET/PUT/DELETE /api/v1/products/{id}/cocreator return the documented shape: 404 for an e-mail without an account, 409 for a stale revision, 400 for a zero share, 204 on removal."
+      },
+      "layers": [
+        "integration"
+      ]
+    },
+    {
+      "id": "J642",
+      "title": "A co-creator accepts the creator terms on the earnings page; held shares become payable",
+      "values": {
+        "persona": "partner",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "none",
+        "moment": "after_hold",
+        "operation": "accept_terms"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Not exercised: no customer state change.",
+        "seller": "Before acceptance the payout preview shows the co-creator shares as held and nothing payable; after acceptance they can be reserved and paid like partner commissions.",
+        "integrator": "Not exercised: acceptance itself sends no webhook; payout.* events follow as before."
+      },
+      "layers": [
+        "integration",
         "unit"
       ]
     }

@@ -22,6 +22,7 @@ export default function PaymentPartnerSection({ transactionId }: { transactionId
   return <section aria-label={t('title')} className="my-4 rounded-xl border border-sf-border bg-sf-base p-4 space-y-3">
     <h4 className="font-semibold text-sf-heading">{t('title')}</h4>
     {state.rows.map(c => <dl key={c.id} className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
+      <dt>{t('kind')}</dt><dd>{t(`kinds.${c.kind}`)}</dd>
       <dt>{t('partner')}</dt><dd>{c.partner}</dd>
       <dt>{t('coupon')}</dt><dd>{c.coupon ?? '—'}</dd>
       <dt>{t('rate')}</dt><dd>{c.percentage_bps !== null ? `${c.percentage_bps / 100}%` : money(Number(c.fixed_minor), c.currency)}</dd>

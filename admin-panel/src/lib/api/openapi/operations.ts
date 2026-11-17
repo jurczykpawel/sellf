@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { API_SCOPES, type ApiScope } from '@/lib/api/scope-constants';
 import { ProductArchivedDTO, ProductCreateDTO, ProductDeletionImpactDTO, ProductRelationsDTO, ProductResponseDTO, ProductUpdateDTO } from '@/lib/api/dto/product';
 import { TAG_SORT_COLUMNS, TagCreateDTO, TagUpdateDTO } from '@/lib/api/dto/tag';
+import { cocreatorPutSchema, cocreatorResponseSchema } from '@/lib/affiliates/cocreator/model';
 import { attributionQuerySchema } from '@/lib/attribution/report';
 import { checkoutSettingsSchema } from '@/lib/checkout/invoice-recipient-setting';
 import { accessLicenseSchema } from '@/lib/license-keys/access';
@@ -194,6 +195,20 @@ const PRODUCTS: ApiOperation[] = [
   {
     operationId: 'restore_product', method: 'POST', path: '/products/{id}/restore', tag: 'Products', scope: S.PRODUCTS_WRITE, noBody: true,
     summary: 'Restore an archived product', description: 'The product returns to the list but stays inactive until activated.', response: ProductResponseDTO,
+  },
+  {
+    operationId: 'get_product_cocreator', method: 'GET', path: '/products/{id}/cocreator', tag: 'Products', scope: S.PRODUCTS_READ,
+    summary: 'Read the co-creator of a product and their share', response: cocreatorResponseSchema,
+    description: 'A co-creator earns a fixed share (percent of the net line amount or a fixed amount) of every one-time purchase, with or without a coupon, added to any partner commission. Payouts of co-creator shares wait until that person accepts the creator terms.',
+  },
+  {
+    operationId: 'set_product_cocreator', method: 'PUT', path: '/products/{id}/cocreator', tag: 'Products', scope: S.PRODUCTS_WRITE,
+    summary: 'Assign a co-creator to a product or change their share', body: cocreatorPutSchema, response: cocreatorResponseSchema,
+    description: 'One person per product, one-time products only. The person needs an account (e-mail). Only purchases after the change earn the new share; earlier purchases keep what they had. 404 when no account has this e-mail; 400 without partner program settings.',
+  },
+  {
+    operationId: 'delete_product_cocreator', method: 'DELETE', path: '/products/{id}/cocreator', tag: 'Products', scope: S.PRODUCTS_WRITE, envelope: 'empty', status: [204],
+    summary: 'Remove the co-creator from future purchases', description: 'Shares already earned stay and follow refunds as before.',
   },
 ];
 

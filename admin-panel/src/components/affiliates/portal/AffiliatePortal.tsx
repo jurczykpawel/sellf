@@ -2,12 +2,17 @@
 import * as React from 'react';
 import { formatMinorDisplay } from '@/lib/affiliates/csv/formatter';
 import { portalMessages } from '@/components/affiliates/portal/messages';
+import { cocreatorMessages } from '@/components/affiliates/products/messages';
+import CreatorTermsAccept from '@/components/affiliates/portal/CreatorTermsAccept';
 import type { PortalData, PortalResult } from '@/lib/affiliates/portal/model';
 import styles from './AffiliatePortal.module.css';
 
 interface Props { data: PortalData; locale: 'en' | 'pl'; currency?: string; memberId?: string }
 export default function AffiliatePortal({ data, locale, currency, memberId }: Props): React.JSX.Element {
   const m = portalMessages[locale];
+  const cm = cocreatorMessages[locale];
+  const creator = data.creator?.active ? data.creator : null;
+  const share = (r: { percentage_bps: number | null; fixed_minor: string | null; currency: string | null }) => r.percentage_bps !== null ? `${r.percentage_bps / 100}%` : money(r.fixed_minor!, r.currency!);
   const money = (amount: string, code: string): string => {
     const result = formatMinorDisplay(amount, code);
     return `${result.success ? locale === 'pl' ? result.data.replace('.', ',') : result.data : amount} ${code}${result.success ? '' : ` (${m.minorUnit})`}`;
@@ -18,7 +23,7 @@ export default function AffiliatePortal({ data, locale, currency, memberId }: Pr
   return <section className={styles.portal} lang={locale} aria-labelledby="affiliate-title">
     <meta name="robots" content="noindex,nofollow" />
     {memberId ? <h2 id="affiliate-title">{m.selectedPartner}</h2> : <h1 id="affiliate-title">{m.title}</h1>}
-    <p><strong>{data.member.code}</strong> · {memberStatus}</p>
+    {data.is_partner !== false && <p><strong>{data.member.code}</strong> · {memberStatus}</p>}
     <p>{m.asOf}: {date(data.as_of)}</p>
     {data.sync_pending && <p className={styles.notice} role="status">{m.pending}</p>}
     {data.needs_review && <p className={styles.notice}>{m.review}</p>}
@@ -33,9 +38,20 @@ export default function AffiliatePortal({ data, locale, currency, memberId }: Pr
     <details className={styles.help}><summary>{m.help}</summary><p>{m.definitions}</p><div className={styles.grid}>
       {data.balances.map(b => <article className={styles.card} key={b.currency}><h3>{b.currency}</h3><dl>{fields.map(field => <div className={styles.row} key={field}><dt>{m[field]}</dt><dd>{money(b[field], b.currency)}</dd></div>)}</dl></article>)}
     </div></details>
-    <div className={styles.grid}><section><h2>{memberId ? m.adminCodes : m.codes}</h2><ul>{data.codes.map(c => <li key={c.code}><code>{c.code}</code> · {c.active ? m.active : m.inactive}</li>)}</ul>
-    </section><section><h2>{m.rules}</h2><p>{m.subscription}</p><ul>{data.rules.map((r, i) => <li key={i}>{r.product}: {r.percentage_bps !== null ? `${r.percentage_bps / 100}%` : money(r.fixed_minor!, r.currency!)} · {r.enabled ? m.active : m.inactive}</li>)}</ul>
-    </section></div><h2>{m.commissions}</h2>
+    {creator && <section aria-labelledby="creator-title" data-testid="creator-portal"><h2 id="creator-title">{cm.portalTitle}</h2>
+      <p>{cm.portalProducts}</p>
+      {creator.rules.length ? <ul>{creator.rules.map((r, i) => <li key={i}>{r.product}: {share(r)}</li>)}</ul> : <p>{cm.portalNone}</p>}
+      {creator.accepted_version ? <p>{cm.acceptedVersion}: <strong>{creator.accepted_version}</strong>{creator.accepted_at && <> · {date(creator.accepted_at)}</>}</p>
+        : !creator.terms ? <p className={styles.notice}>{cm.termsMissing}</p>
+        : memberId ? <p className={styles.notice}>{cm.termsPending}</p> : null}
+      {creator.terms && !memberId && creator.accepted_version !== creator.terms.version && <>
+        {creator.accepted_version && <p className={styles.notice}>{cm.newVersion}</p>}
+        <CreatorTermsAccept terms={creator.terms} locale={locale} />
+      </>}
+    </section>}
+    {data.is_partner !== false && <div className={styles.grid}><section><h2>{memberId ? m.adminCodes : m.codes}</h2><ul>{data.codes.map(c => <li key={c.code}><code>{c.code}</code> · {c.active ? m.active : m.inactive}</li>)}</ul>
+    </section><section><h2>{m.rules}</h2><p>{m.subscription}</p><ul>{data.rules.map((r, i) => <li key={i}>{r.product}: {share(r)} · {r.enabled ? m.active : m.inactive}</li>)}</ul>
+    </section></div>}<h2>{m.commissions}</h2>
     <div className={styles.listHeader} aria-hidden="true"><span>{m.earnedOn}</span><span>{m.product}</span><span>{m.commissionAmount}</span><span>{m.commissionStatus}</span></div>
     <ul className={styles.commissionList}>{data.commissions.map(c => {
       const status = c.needs_review ? m.reviewShort : c.sync_pending ? m.processing : ({ held: m.heldStatus, eligible: m.eligibleStatus, reserved: m.reservedStatus, paid: m.paidStatus, reversed: m.reversedStatus })[c.status];
@@ -43,7 +59,7 @@ export default function AffiliatePortal({ data, locale, currency, memberId }: Pr
         <div className={styles.commissionDate}>{date(c.paid_at)}</div>
         <div className={styles.product}><strong>{c.product}</strong>{c.status === 'held' && !c.sync_pending && !c.needs_review && <small>{c.eligible_at ? <>{m.maturity}: {date(c.eligible_at)}</> : m.never}</small>}</div>
         <strong className={styles.commissionAmount}>{money(c.current_minor, c.currency)}</strong>
-        <div className={styles.chips}><span className={styles.chip}>{status}</span><span className={styles.chip}>{c.livemode ? m.live : m.test}</span></div>
+        <div className={styles.chips}><span className={styles.chip}>{status}</span>{c.kind === 'cocreator' && <span className={styles.chip}>{cm.kindCocreator}</span>}{c.terms_required && <span className={styles.chip}>{cm.waitingForTerms}</span>}<span className={styles.chip}>{c.livemode ? m.live : m.test}</span></div>
       </li>;
     })}</ul>
     {(data.lag || data.commissions.length > 0) && <details className={styles.card}><summary>{m.technical}</summary>

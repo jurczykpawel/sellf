@@ -14,7 +14,7 @@ import type { ActionResponse } from '@/lib/actions/admin-auth';
 import type { AdminOverview, AdminResult, ApplicationProgramInfo, MemberInfo, ProgramInfo, TermsInfo, SyncOverview, SyncWorkInfo } from '@/lib/affiliates/admin/contracts';
 
 const programColumns = 'id,version::text,enabled,hold_days,buffer_days,terms_version,terms,thresholds';
-const memberColumns = 'user_id,id,code,status,display_name,channel,accepted_terms_version,accepted_at,version::text,created_at';
+const memberColumns = 'user_id,id,code,status,display_name,channel,accepted_terms_version,accepted_at,version::text,created_at,is_partner';
 const statusCodes: Record<string, number> = { UNAUTHORIZED: 401, FORBIDDEN: 403, DEMO_MODE: 403, CONFLICT: 409, CODE_TAKEN: 409, TERMS_VERSION_CONFLICT: 409, INVALID_INPUT: 422, RATE_LIMITED: 429, NOT_FOUND: 404 };
 function failure<T>(errorCode: string): AdminResult<T> {
   return { success: false, errorCode, error: 'Affiliate request failed', status: statusCodes[errorCode] ?? 500 };
@@ -86,7 +86,7 @@ export async function getAcceptedTerms(memberId: string): Promise<AdminResult<Te
     if (!memberUpdateSchema.shape.member_id.safeParse(memberId).success) return failure('INVALID_INPUT');
     const { data: member, error } = await client.from('affiliate_memberships').select('accepted_terms_version,accepted_at').eq('id', memberId).maybeSingle();
     if (error) return dbFailure(error.code);
-    if (!member) return failure('NOT_FOUND');
+    if (!member || !member.accepted_at) return failure('NOT_FOUND');
     // Resolve by acceptance timestamp as well as label: a label alone does not identify edited terms.
     const history = await client.from('affiliate_program_versions').select('terms_version,terms')
       .lte('created_at', member.accepted_at).order('created_at', { ascending: false }).order('version', { ascending: false }).limit(1).maybeSingle();
@@ -110,10 +110,12 @@ export async function getApplicationProgram(): Promise<AdminResult<ApplicationPr
     const client = createAdminClient();
     const [program, member] = await Promise.all([
       client.from('affiliate_programs').select('enabled,terms_version,terms').maybeSingle(),
-      client.from('affiliate_memberships').select('status').eq('user_id', session.user.id).maybeSingle(),
+      client.from('affiliate_memberships').select('status,is_partner').eq('user_id', session.user.id).maybeSingle(),
     ]);
     const error = program.error ?? member.error;
-    return error ? dbFailure(error.code) : { success: true, status: 200, data: program.data ? { ...program.data, applicationStatus: member.data?.status ?? null } as ApplicationProgramInfo : null };
+    // A co-creator who never applied has no partner application yet.
+    const applicationStatus = member.data?.is_partner ? member.data.status : null;
+    return error ? dbFailure(error.code) : { success: true, status: 200, data: program.data ? { ...program.data, applicationStatus } as ApplicationProgramInfo : null };
   } catch { return failure('INTERNAL_ERROR'); }
 }
 export async function applyToProgram(input: unknown): Promise<AdminResult<MemberInfo>> {

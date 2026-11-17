@@ -1325,6 +1325,19 @@ DO $$ DECLARE w public.affiliate_work; BEGIN
  END LOOP;
 END $$;
 
+-- Co-creator demo (W220): Anna earns 10% of every purchase of the workbook, without a coupon.
+-- She never applied as a partner and has not accepted the creator terms yet, so her shares stay held.
+INSERT INTO public.affiliate_creator_terms(terms_version,terms,created_at)
+VALUES('demo-creator-v1','{"en":"Demo creator terms: co-creator shares follow refunds and are paid after the hold period.","pl":"Demo regulamin twórcy: udziały współtwórcy podlegają zwrotom i są wypłacane po okresie wstrzymania."}','2026-01-01 00:00:00+00'::timestamptz);
+INSERT INTO public.affiliate_memberships(id,user_id,code,status,display_name,is_partner,created_at)
+VALUES('af000000-0000-4000-a000-000000000020','cccccccc-3333-4333-a333-333333333333','creator-cccccccc33334333a333333333333333','approved','Anna Kowalska',false,'2026-01-01 00:00:00+00'::timestamptz);
+INSERT INTO public.affiliate_membership_events(member_id,version,status,created_at)
+VALUES('af000000-0000-4000-a000-000000000020',1,'approved','2026-01-01');
+INSERT INTO public.products(id,name,slug,price,currency,is_active,is_refundable,refund_period_days)
+VALUES('af000000-0000-4000-a000-000000000021','Co-created Workbook','co-created-workbook',49,'PLN',false,true,14);
+INSERT INTO public.affiliate_cocreator_rules(product_id,revision,member_id,percentage_bps,created_at)
+VALUES('af000000-0000-4000-a000-000000000021',1,'af000000-0000-4000-a000-000000000020',1000,'2026-01-01 00:00:00+00'::timestamptz);
+
 -- A cancelled test-mode transfer remains in the partner's history.
 INSERT INTO public.affiliate_payouts(member_id,currency,earnings_minor,status,cutoff,payee_reference,livemode)
 VALUES('af000000-0000-4000-a000-000000000001','PLN',1000,'cancelled',now()-interval '1 day','Demo test transfer cancelled',false);

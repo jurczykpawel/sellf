@@ -10,11 +10,22 @@ export interface PortalData {
   livemode?: boolean;
   member: { code: string; status: string };
   balances: CurrencyBalance[];
-  commissions: { product: string; status: CommissionStatus; reference: string; currency: string; paid_at: string; eligible_at: string | null; accrued_minor: string; current_minor: string; livemode: boolean; sync_pending: boolean; needs_review: boolean }[];
+  commissions: { product: string; status: CommissionStatus; reference: string; currency: string; paid_at: string; eligible_at: string | null; accrued_minor: string; current_minor: string; livemode: boolean; sync_pending: boolean; needs_review: boolean;
+    /** referral: partner via coupon; cocreator: co-creator share. */
+    kind?: 'referral' | 'cocreator'; terms_required?: boolean }[];
+  /** false for a co-creator who never applied as a partner. */
+  is_partner?: boolean;
+  creator?: CreatorPortal;
   codes: { code: string; active: boolean }[];
   rules: { product: string; percentage_bps: number | null; fixed_minor: string | null; currency: string | null; enabled: boolean }[];
   next_cursor: string | null; as_of: string; sync_pending: boolean; needs_review: boolean;
   lag?: { pending: number; needs_review: number; retrying: number; next_attempt_at: string | null; errors: { sync_failed: number; session_unresolved: number; awaiting_fulfillment: number } };
+}
+export interface CreatorPortal {
+  active: boolean;
+  rules: { product: string; percentage_bps: number | null; fixed_minor: string | null; currency: string | null }[];
+  accepted_version: string | null; accepted_at: string | null;
+  terms: { version: string; en: string; pl: string } | null;
 }
 export type PortalResult = { success: true; data: PortalData } | { success: false; error: 'unauthorized' | 'forbidden' | 'not_found' | 'invalid_input' | 'unavailable' };
 export type CommissionStatus = 'held' | 'eligible' | 'reserved' | 'paid' | 'reversed';
