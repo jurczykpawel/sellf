@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'fs';
+import { mkdtempSync, readFileSync, rmSync } from 'fs';
+import { tmpdir } from 'node:os';
 import path from 'path';
 import { PINNED_SUPABASE_CLI } from '@/../scripts/schema-snapshot';
 
@@ -210,9 +211,23 @@ describe('release candidates stay in the explicit channel', () => {
     expect(buildRelease).toContain("github.event.release.prerelease == true");
     expect(buildRelease).toContain('"$PRERELEASE" != true');
   });
+  it.each([
+    ['v2026.11.1', 'false', true],
+    ['v2026.11.1', 'true', false],
+    ['v2026.11.1-rc.1', 'true', false],
+    ['v2026.11.1-rc.1', 'false', false],
+  ])('month alias for %s with prerelease=%s is %s', (version, prerelease, expected) => {
+    const line = buildRelease.split('\n').find(line => line.includes('pattern={{major}}.{{minor}}'))!;
+    const expression = line.match(/enable=\$\{\{ (.*?) \}\}/)![1];
+    const enabled = new Function('steps', 'contains', `return (${expression});`)(
+      { version: { outputs: { VERSION: version, PRERELEASE: prerelease } } },
+      (value: string, part: string) => value.includes(part),
+    );
+    expect(enabled).toBe(expected);
+  });
   it('turns off implicit latest and stable aliases for rc images', () => {
     expect(buildRelease).toContain('latest=false');
-    expect(buildRelease).toContain("enable=${{ !contains(steps.version.outputs.VERSION, '-rc.') }}");
+    expect(buildRelease).toContain("enable=${{ steps.version.outputs.PRERELEASE != 'true' && !contains(steps.version.outputs.VERSION, '-rc.') }}");
   });
 });
 
@@ -230,6 +245,39 @@ describe('release version shell gates', () => {
     expect(gates).toHaveLength(2);
     for (const gate of gates) {
       expect(spawnSync('bash', ['-c', gate], { env: { ...process.env, RELEASE_VERSION: String(version), PRERELEASE: String(prerelease) } }).status).toBe(status);
+    }
+  });
+});
+
+describe('release version inputs', () => {
+  const steps = [...buildRelease.matchAll(/      - name: Get version\n[\s\S]*?(?=\n      - name:)/g)].map(m => m[0]);
+  it.each(['release', 'workflow_dispatch'])('selects the version literally for %s', (event) => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'sellf-version-step-'));
+    try {
+      for (const [index, step] of steps.entries()) {
+        const output = path.join(dir, String(index));
+        const shell = step.split('run: |')[1];
+        const version = 'v2026.11.1-rc.1';
+        const result = spawnSync('bash', ['-eu', '-c', shell], { encoding: 'utf8', env: {
+          ...process.env, GITHUB_EVENT_NAME: event, GITHUB_OUTPUT: output,
+          RELEASE_TAG: event === 'release' ? version : 'unused',
+          INPUT_VERSION: event === 'workflow_dispatch' ? version : 'unused', PRERELEASE: 'true',
+        } });
+        expect(result.status, result.stderr).toBe(0);
+        expect(readFileSync(output, 'utf8')).toBe(`VERSION=${version}\nPRERELEASE=true\n`);
+      }
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  it('passes event and dispatch versions through the environment in both jobs', () => {
+    expect(steps).toHaveLength(2);
+    for (const step of steps) {
+      const shell = step.split('run: |')[1];
+      expect(shell).not.toContain('${{');
+      expect(step).toContain('RELEASE_TAG: ${{ github.event.release.tag_name }}');
+      expect(step).toContain('INPUT_VERSION: ${{ inputs.version }}');
+      expect(shell).toContain('$RELEASE_TAG');
+      expect(shell).toContain('$INPUT_VERSION');
     }
   });
 });

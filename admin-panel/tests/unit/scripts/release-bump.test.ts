@@ -38,7 +38,11 @@ describe('checkBump', () => {
     expect(checkBump(consistent('2026.11.0'), '2026.11.1-rc.1', [])).toEqual([]);
     expect(checkBump(consistent('2026.11.1-rc.1'), '2026.11.1-rc.2', [])).toEqual([]);
     expect(checkBump(consistent('2026.11.1-rc.2'), '2026.11.1', [])).toEqual([]);
-    expect(checkBump(consistent('2026.11.1'), '2026.11.1-rc.1', []).length).toBeGreaterThan(0);
+    expect(checkBump(consistent('2026.11.1'), '2026.11.1-rc.1', [])).toEqual([]);
+    expect(checkBump(consistent('2026.11.1'), '2026.11.1-rc.2', ['v2026.11.1-rc.1'])).toEqual([]);
+    expect(checkBump(consistent('2026.11.1'), '2026.11.1-rc.1', ['v2026.11.1']).join('\n')).toContain('tag v2026.11.1 already exists');
+    expect(checkBump(consistent('2026.11.1-rc.1'), '2026.11.1-rc.2', ['v2026.11.1']).join('\n')).toContain('tag v2026.11.1 already exists');
+    expect(checkBump(consistent('2026.11.2'), '2026.11.1-rc.1', []).length).toBeGreaterThan(0);
   });
 
   it('rejects a malformed version', () => {

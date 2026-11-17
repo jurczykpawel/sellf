@@ -1,6 +1,6 @@
 /** Shared data-only composition resolution. @see spec/contracts/section-contract.md */
 import { effectiveLayout } from '@/lib/storefront-templates/layout';
-import { APP_VERSION, isNewerVersion } from '@/lib/version';
+import { APP_VERSION, baseVersion, isNewerVersion } from '@/lib/version';
 import { registryEntrySchema } from '@/lib/storefront-templates/schemas';
 import { CORE_SETTINGS, STOREFRONT_TEMPLATES, validateConfig, validateRecipe } from '@/lib/storefront-templates/registry';
 import { resolveSharedPhase2Section } from '@/lib/storefront-templates/phase2-shared';
@@ -56,7 +56,7 @@ export function resolveSelection(input: unknown, availableTemplateIds: readonly 
   if (!validateConfig(input).valid) return fallback('INVALID');
   const config = input as StorefrontConfig;
   const entry = STOREFRONT_TEMPLATES[config.templateId];
-  if (!entry || !registryEntrySchema.safeParse(entry).success || isNewerVersion(APP_VERSION, entry.minSellf) || !validateRecipe(entry.defaults).valid) return fallback('UNSUPPORTED');
+  if (!entry || !registryEntrySchema.safeParse(entry).success || isNewerVersion(baseVersion(APP_VERSION), baseVersion(entry.minSellf)) || !validateRecipe(entry.defaults).valid) return fallback('UNSUPPORTED');
   if (entry.entitlement.kind !== 'free' && !availableTemplateIds.includes(entry.id)) return fallback('DENIED');
   const layout = effectiveLayout(entry, config.overridesByTemplate[config.templateId]);
   const recipe = layout.recipe;

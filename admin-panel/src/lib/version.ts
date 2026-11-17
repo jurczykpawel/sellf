@@ -9,6 +9,10 @@ import pkg from '../../package.json';
 /** Current app version — read from package.json at build time (single source of truth). */
 export const APP_VERSION: string = pkg.version;
 
+export function baseVersion(version: string): string {
+  return version.replace(/-rc\.[1-9]\d*$/, '');
+}
+
 /**
  * Compare two dot-separated version strings (CalVer YYYY.M.patch or semver).
  * Returns true if `latest` is newer than `current`.

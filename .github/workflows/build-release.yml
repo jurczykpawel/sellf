@@ -258,12 +258,17 @@ jobs:
 
       - name: Get version
         id: version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          PRERELEASE: ${{ (github.event_name == 'release' && github.event.release.prerelease == true) || (github.event_name == 'workflow_dispatch' && inputs.prerelease == true) }}
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            echo "VERSION=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_EVENT_NAME" = "release" ]; then
+            echo "VERSION=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
           else
-            echo "VERSION=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+            echo "VERSION=$INPUT_VERSION" >> "$GITHUB_OUTPUT"
           fi
+          echo "PRERELEASE=$PRERELEASE" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         working-directory: ./admin-panel
@@ -510,12 +515,17 @@ jobs:
 
       - name: Get version
         id: version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          PRERELEASE: ${{ (github.event_name == 'release' && github.event.release.prerelease == true) || (github.event_name == 'workflow_dispatch' && inputs.prerelease == true) }}
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            echo "VERSION=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_EVENT_NAME" = "release" ]; then
+            echo "VERSION=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
           else
-            echo "VERSION=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+            echo "VERSION=$INPUT_VERSION" >> "$GITHUB_OUTPUT"
           fi
+          echo "PRERELEASE=$PRERELEASE" >> "$GITHUB_OUTPUT"
 
       # Same strict gate as the tarball manifest (build job): an unmarked RC
       # or a tag differing from admin-panel/package.json must
@@ -550,7 +560,7 @@ jobs:
             latest=false
           tags: |
             type=semver,pattern={{version}},value=${{ steps.version.outputs.VERSION }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ steps.version.outputs.VERSION }},enable=${{ !contains(steps.version.outputs.VERSION, '-rc.') }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ steps.version.outputs.VERSION }},enable=${{ steps.version.outputs.PRERELEASE != 'true' && !contains(steps.version.outputs.VERSION, '-rc.') }}
             type=raw,value=latest,enable=${{ github.event_name == 'release' && !github.event.release.prerelease && !contains(steps.version.outputs.VERSION, '-rc.') }}
 
       - name: Login to GHCR

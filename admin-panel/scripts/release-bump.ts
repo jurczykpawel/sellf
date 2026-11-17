@@ -95,11 +95,15 @@ export function checkBump(versions: Record<string, string | null>, next: string,
   const currentRaw = versions['admin-panel/package.json'];
   const current = currentRaw ? parseCalVer(currentRaw) : null;
   if (current) {
-    if (compareCalVer(target, current) <= 0) errors.push(`${next} must be newer than ${currentRaw}`);
+    const candidateFromBase = current.rc === undefined && target.rc !== undefined &&
+      target.year === current.year && target.month === current.month && target.patch === current.patch;
+    if (!candidateFromBase && compareCalVer(target, current) <= 0) errors.push(`${next} must be newer than ${currentRaw}`);
     else if ((target.year !== current.year || target.month !== current.month) && target.patch !== 0) {
       errors.push(`${next}: a new month starts at patch 0 (${target.year}.${target.month}.0)`);
     }
   }
+  const stableTag = `v${target.year}.${target.month}.${target.patch}`;
+  if (target.rc !== undefined && tags.includes(stableTag)) errors.push(`tag ${stableTag} already exists`);
   if (tags.includes(`v${next}`)) errors.push(`tag v${next} already exists`);
   return errors;
 }
