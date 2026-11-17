@@ -4,6 +4,16 @@ import React, { useEffect, useRef } from 'react';
 import { FORM_SECTIONS, sectionCount, type FormSectionId } from './form-sections';
 import type { ProductFormData, TranslationFunction } from '../types';
 
+/** Steps of the product-form tutorial point at these section buttons. */
+const SECTION_TOUR = {
+  basics: 'form-section-basics',
+  delivery: 'form-section-delivery',
+  cart: 'form-section-cart',
+  schedule: 'form-section-schedule',
+  offer: 'form-section-offer',
+  sales: 'form-section-sales',
+} as const satisfies Record<FormSectionId, string>;
+
 interface FormSectionNavProps {
   current: FormSectionId;
   formData: ProductFormData;
@@ -27,6 +37,7 @@ export function FormSectionNav({ current, formData, onSelect, t }: FormSectionNa
               <button
                 ref={active ? activeRef : undefined}
                 type="button"
+                data-tour={SECTION_TOUR[section]}
                 aria-current={active ? 'true' : undefined}
                 onClick={() => onSelect(section)}
                 className={`whitespace-nowrap px-3 py-1.5 text-sm font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sf-accent ${

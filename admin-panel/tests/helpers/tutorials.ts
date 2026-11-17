@@ -25,6 +25,12 @@ export async function tutorialAdmin(page: Page, prefix: string, autostart = true
   return { ...admin, userId };
 }
 
+/** Records tutorials as already shown, so a test can watch another one start on the same screen. */
+export async function markSeen(userId: string, ids: string[]): Promise<void> {
+  const { error } = await supabaseAdmin.from('tutorial_progress').insert(ids.map(tutorial_id => ({ user_id: userId, tutorial_id })));
+  if (error) throw error;
+}
+
 export async function seenTutorials(userId: string): Promise<string[]> {
   const { data, error } = await supabaseAdmin.from('tutorial_progress').select('tutorial_id').eq('user_id', userId);
   if (error) throw error;

@@ -68,3 +68,22 @@ it('centres the highlighted target before positioning its stage, including targe
   mock.config.onHighlightStarted?.(target);
   expect(scroll).toHaveBeenCalledWith({ block: 'center', inline: 'nearest', behavior: 'instant' });
 });
+
+it('does not start a first-visit tutorial over the one the help menu asked for', async () => {
+  window.history.replaceState(null, '', '/pl/dashboard/products?tutorial=events&open=new');
+  function Screen() {
+    const tutorials = useTutorials()!;
+    const { register, autoStart } = tutorials;
+    React.useEffect(() => autoStart('product-form'), [autoStart]);
+    React.useEffect(() => register('events'), [register]);
+    return null;
+  }
+  try {
+    render(React.createElement(TutorialProvider, { initialSeen: [], autoStart: true, children: React.createElement(Screen) }));
+    await waitFor(() => expect(mock.config).toBeTruthy(), { timeout: 3000 });
+    await new Promise(resolve => setTimeout(resolve, 300));
+    expect(mock.config.steps[0].popover.title).toBe('events.steps.intro.title');
+  } finally {
+    window.history.replaceState(null, '', '/');
+  }
+});

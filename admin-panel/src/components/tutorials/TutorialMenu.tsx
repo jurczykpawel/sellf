@@ -38,7 +38,7 @@ export default function TutorialMenu() {
   const elsewhere = TUTORIAL_IDS.filter(id => !onScreen.includes(id));
   const link = (id: TutorialId) => {
     const { href } = TUTORIALS[id];
-    return `${href}${href.includes('?') ? '&' : '?'}tutorial=${id}${id === 'events' || id === 'b2b-checkout-profile' ? '&open=new' : ''}`;
+    return `${href}${href.includes('?') ? '&' : '?'}tutorial=${id}${'opensNewForm' in TUTORIALS[id] ? '&open=new' : ''}`;
   };
 
   return (

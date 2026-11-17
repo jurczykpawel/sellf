@@ -2022,6 +2022,90 @@
           "exitDiscard": "Odrzuć",
           "exitKeepEditing": "Kontynuuj edycję"
         },
+        "scenario": {
+          "title": "Co sprzedajesz?",
+          "hint": "Wybierz, a ustawimy pasujące pola. Nic się nie zapisuje, a każde ustawienie możesz potem zmienić.",
+          "manual": "Ustawię sam",
+          "cancel": "Zostaw obecny",
+          "current": "Scenariusz:",
+          "manualCurrent": "ustawiasz sam",
+          "change": "Zmień",
+          "changeLabel": "Zmień scenariusz",
+          "choose": "Wybierz scenariusz",
+          "options": {
+            "download": {
+              "name": "Materiał do pobrania lub kurs",
+              "tagline": "jednorazowa płatność, dostęp do treści"
+            },
+            "free": {
+              "name": "Darmowy materiał",
+              "tagline": "za e-mail, bez płatności"
+            },
+            "subscription": {
+              "name": "Abonament",
+              "tagline": "płatność co miesiąc lub co rok"
+            },
+            "donation": {
+              "name": "Wpłata",
+              "tagline": "kupujący sam wybiera kwotę"
+            },
+            "bundle": {
+              "name": "Pakiet",
+              "tagline": "kilka produktów w jednym zakupie"
+            },
+            "event": {
+              "name": "Wydarzenie",
+              "tagline": "terminy, liczba miejsc i progi cenowe"
+            }
+          },
+          "confirm": {
+            "title": "Zmienić scenariusz na „{name}”?",
+            "intro": "Zmienią się te ustawienia:",
+            "rest": "Pozostałe ustawienia zostają bez zmian. Nic się nie zapisze, dopóki nie zapiszesz produktu.",
+            "apply": "Tak, zmień",
+            "cancel": "Nie zmieniaj"
+          },
+          "fields": {
+            "payment": "Sposób płatności",
+            "price": "Cena",
+            "billing": "Abonament",
+            "customPrice": "Kwota wybierana przez kupującego",
+            "customFields": "Dodatkowe pola w koszyku",
+            "bundle": "Pakiet",
+            "event": "Terminy i miejsca",
+            "repeat": "Ponowny zakup"
+          },
+          "values": {
+            "payment": {
+              "standard": "jednorazowa płatność",
+              "subscription": "abonament",
+              "tip-jar": "kwota wybierana przez kupującego",
+              "lead-magnet": "za darmo"
+            },
+            "amount": "{amount}",
+            "billing": "{amount} co {interval}",
+            "billingNoPrice": "co {interval}",
+            "none": "brak",
+            "off": "wyłączone",
+            "customPriceOn": "od {min}, propozycje: {presets}",
+            "customPriceMin": "od {min}",
+            "fieldCount": "{count, plural, =0 {brak} one {# pole} few {# pola} many {# pól} other {# pola}}",
+            "bundleOn": "włączony ({count, plural, one {# produkt} few {# produkty} many {# produktów} other {# produktu}})",
+            "eventOn": "włączone ({count, plural, one {# termin} few {# terminy} many {# terminów} other {# terminu}})",
+            "yes": "tak",
+            "no": "nie"
+          },
+          "intervals": {
+            "day": "{count, plural, one {dzień} few {# dni} many {# dni} other {# dnia}}",
+            "week": "{count, plural, one {tydzień} few {# tygodnie} many {# tygodni} other {# tygodnia}}",
+            "month": "{count, plural, one {miesiąc} few {# miesiące} many {# miesięcy} other {# miesiąca}}",
+            "year": "{count, plural, one {rok} few {# lata} many {# lat} other {# roku}}"
+          },
+          "warnings": {
+            "checkoutProfile": "Ustawienia „Dane w koszyku” nie pasują do tego scenariusza. Zostają zachowane, a przy zapisie formularz wskaże je do poprawy.",
+            "paymentAfterSales": "Sposobu płatności nie da się zmienić, gdy produkt ma już sprzedaż albo przyznany dostęp. Wtedy zapis zostanie odrzucony."
+          }
+        },
         "summary": {
           "label": "Kupujący otrzyma:",
           "sentence": "{text}.",
@@ -6442,6 +6526,48 @@
         "preview": {
           "title": "Podgląd i uczestnicy",
           "body": "Dla zapisanego terminu zobaczysz stan sprzedaży, zamówienia i uczestników oraz pobierzesz ich listę."
+        }
+      }
+    },
+    "product-form": {
+      "name": "Formularz produktu",
+      "where": "Produkty, nowy lub edytowany produkt.",
+      "steps": {
+        "intro": {
+          "title": "Formularz produktu",
+          "body": "Ustawienia produktu są w sześciu sekcjach, ułożonych według tego, co zmieniają u kupującego. Pokażemy je po kolei."
+        },
+        "scenario": {
+          "title": "Co sprzedajesz?",
+          "body": "Scenariusz ustawia pasujące pola, na przykład cenę i terminy. Przed zmianą scenariusza zobaczysz, które ustawienia się zmienią."
+        },
+        "basics": {
+          "title": "Podstawy",
+          "body": "Nazwa, adres strony, sposób płatności i cena."
+        },
+        "delivery": {
+          "title": "Co dostaje klient",
+          "body": "Treści albo przekierowanie po zakupie, składniki pakietu, czas dostępu i klucz licencyjny."
+        },
+        "cart": {
+          "title": "Dane w koszyku",
+          "body": "Pola, które klient wypełni przed zakupem: nabywca, odbiorca, liczba miejsc, uczestnicy, dodatkowe pola i zgody."
+        },
+        "schedule": {
+          "title": "Terminy i miejsca",
+          "body": "Terminy, pule miejsc i progi cenowe. Potrzebne tylko dla wydarzeń."
+        },
+        "offer": {
+          "title": "Oferta",
+          "body": "Opis, zdjęcie, film, kategorie i tagi strony sprzedaży. Nie zmieniają formularza zakupu."
+        },
+        "sales": {
+          "title": "Sprzedaż i rozliczenia",
+          "body": "Kiedy i gdzie można kupić, promocje, co dzieje się po zakupie, zwroty i prowizje."
+        },
+        "summary": {
+          "title": "Kupujący otrzyma",
+          "body": "To podsumowanie zmienia się razem z ustawieniami. Mówi, co kupujący dostanie i jakie dane poda w koszyku."
         }
       }
     },
