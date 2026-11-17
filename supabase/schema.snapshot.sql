@@ -9182,6 +9182,7 @@ CREATE TABLE public.payment_transactions (
     transfer_paid_mail_sent_at timestamp with time zone,
     cancel_note text,
     product_name text,
+    bundle_components_recorded_at timestamp with time zone,
     CONSTRAINT payment_transactions_amount_check CHECK (((amount <= (99999999)::numeric) AND ((amount > (0)::numeric) OR ((amount = (0)::numeric) AND (subscription_id IS NOT NULL) AND (stripe_invoice_id IS NOT NULL))))),
     CONSTRAINT payment_transactions_cancel_note_check CHECK (((cancel_note IS NULL) OR (length(cancel_note) <= 1000))),
     CONSTRAINT payment_transactions_cancel_reason_check CHECK ((cancel_reason = ANY (ARRAY['admin'::text, 'payment_window_expired'::text]))),
@@ -10793,7 +10794,7 @@ CREATE FUNCTION public.order_granted_components(p_transaction_id uuid) RETURNS S
   SELECT b.component_product_id FROM public.payment_transactions t
   JOIN public.bundle_items b ON b.bundle_product_id = t.product_id
   WHERE t.id = p_transaction_id
-    AND NOT EXISTS (SELECT 1 FROM public.order_bundle_components o WHERE o.transaction_id = p_transaction_id);
+    AND t.bundle_components_recorded_at IS NULL;
 $$;
 
 
@@ -12030,6 +12031,16 @@ BEGIN
       JOIN public.bundle_items b ON b.bundle_product_id = other.product_id
       WHERE other.user_id = p_user_id AND other.product_id IS DISTINCT FROM t.product_id
         AND b.component_product_id = a.product_id
+        AND NOT EXISTS (
+          SELECT 1 FROM public.payment_transactions o
+          WHERE o.product_id = other.product_id
+            AND (o.status IN ('completed', 'partially_refunded', 'disputed')
+              OR (o.status = 'awaiting_payment' AND coalesce((o.metadata->>'access_on_placement')::boolean, false)))
+            AND (o.amount = 0 OR coalesce(o.refunded_amount, 0) < o.amount)
+            AND (o.user_id = p_user_id OR EXISTS (
+              SELECT 1 FROM public.guest_purchases g WHERE g.claimed_by_user_id = p_user_id
+                AND (g.transaction_id = o.id OR (g.transaction_id IS NULL AND g.session_id = o.session_id))))
+        )
         AND (other.access_expires_at IS NULL OR other.access_expires_at > now())
     );
   GET DIAGNOSTICS removed = ROW_COUNT;
@@ -12775,18 +12786,22 @@ ALTER FUNCTION public.snapshot_event_tier_label() OWNER TO postgres;
 --
 
 CREATE FUNCTION public.snapshot_order_bundle_components(p_transaction_id uuid) RETURNS void
-    LANGUAGE sql SECURITY DEFINER
+    LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO ''
     AS $$
+DECLARE tx public.payment_transactions;
+BEGIN
+  SELECT * INTO tx FROM public.payment_transactions WHERE id = p_transaction_id FOR UPDATE;
+  IF NOT FOUND OR tx.bundle_components_recorded_at IS NOT NULL
+    OR NOT EXISTS (SELECT 1 FROM public.products WHERE id = tx.product_id AND is_bundle) THEN
+    RETURN;
+  END IF;
   INSERT INTO public.order_bundle_components (transaction_id, component_product_id, bundle_product_id)
-  SELECT t.id, b.component_product_id, b.bundle_product_id
-  FROM public.payment_transactions t
-  JOIN public.products p ON p.id = t.product_id AND p.is_bundle
-  JOIN public.bundle_items b ON b.bundle_product_id = t.product_id
-  WHERE t.id = p_transaction_id
-    AND NOT EXISTS (SELECT 1 FROM public.order_bundle_components o WHERE o.transaction_id = p_transaction_id)
+  SELECT tx.id, b.component_product_id, b.bundle_product_id
+  FROM public.bundle_items b WHERE b.bundle_product_id = tx.product_id
   ON CONFLICT DO NOTHING;
-$$;
+  UPDATE public.payment_transactions SET bundle_components_recorded_at = now() WHERE id = tx.id;
+END $$;
 
 
 ALTER FUNCTION public.snapshot_order_bundle_components(p_transaction_id uuid) OWNER TO postgres;

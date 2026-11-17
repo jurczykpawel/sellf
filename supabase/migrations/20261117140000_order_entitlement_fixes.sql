@@ -1,12 +1,14 @@
--- 11.1 fixes (W264): bundle components per order for grants, refunds and disputes, coupon reservation at payment start, mail retry queue order, ended subscriptions stay ended.
+-- Order component records, coupon reservations, mail queue ordering and subscription state.
 --
 -- ===== Bundle components granted per order =====
 -- An order of a bundle records the components the bundle held at the moment the order grants access
 -- (payment completed, or an unpaid bank-transfer order that grants access on placement). That record
 -- is the one source of the order's components: the grant itself (also a guest's later claim), a full
 -- refund and a dispute all read it, so re-composing or deleting the bundle between placing, paying,
--- claiming and refunding cannot make them differ. Orders created before this migration that already
--- granted access get the current composition as their record.
+-- claiming and refunding cannot make them differ. Historical orders with components get the
+-- current composition as their record; historical empty bundles keep the catalogue fallback.
+
+ALTER TABLE public.payment_transactions ADD COLUMN bundle_components_recorded_at timestamptz;
 
 CREATE TABLE public.order_bundle_components (
   transaction_id uuid NOT NULL REFERENCES public.payment_transactions(id) ON DELETE CASCADE,
@@ -28,16 +30,20 @@ CREATE POLICY order_bundle_components_service ON public.order_bundle_components 
 
 -- Records the bundle's current components for an order that has no record yet; a recorded order keeps its set.
 CREATE FUNCTION public.snapshot_order_bundle_components(p_transaction_id uuid) RETURNS void
-LANGUAGE sql SECURITY DEFINER SET search_path = '' AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE tx public.payment_transactions;
+BEGIN
+  SELECT * INTO tx FROM public.payment_transactions WHERE id = p_transaction_id FOR UPDATE;
+  IF NOT FOUND OR tx.bundle_components_recorded_at IS NOT NULL
+    OR NOT EXISTS (SELECT 1 FROM public.products WHERE id = tx.product_id AND is_bundle) THEN
+    RETURN;
+  END IF;
   INSERT INTO public.order_bundle_components (transaction_id, component_product_id, bundle_product_id)
-  SELECT t.id, b.component_product_id, b.bundle_product_id
-  FROM public.payment_transactions t
-  JOIN public.products p ON p.id = t.product_id AND p.is_bundle
-  JOIN public.bundle_items b ON b.bundle_product_id = t.product_id
-  WHERE t.id = p_transaction_id
-    AND NOT EXISTS (SELECT 1 FROM public.order_bundle_components o WHERE o.transaction_id = p_transaction_id)
+  SELECT tx.id, b.component_product_id, b.bundle_product_id
+  FROM public.bundle_items b WHERE b.bundle_product_id = tx.product_id
   ON CONFLICT DO NOTHING;
-$$;
+  UPDATE public.payment_transactions SET bundle_components_recorded_at = now() WHERE id = tx.id;
+END $$;
 REVOKE EXECUTE ON FUNCTION public.snapshot_order_bundle_components(uuid) FROM PUBLIC, anon, authenticated;
 
 CREATE FUNCTION public.record_order_bundle_components() RETURNS trigger
@@ -54,17 +60,20 @@ REVOKE EXECUTE ON FUNCTION public.record_order_bundle_components() FROM PUBLIC, 
 CREATE TRIGGER record_order_bundle_components AFTER INSERT OR UPDATE OF status ON public.payment_transactions
   FOR EACH ROW EXECUTE FUNCTION public.record_order_bundle_components();
 
-INSERT INTO public.order_bundle_components (transaction_id, component_product_id, bundle_product_id)
-SELECT t.id, b.component_product_id, b.bundle_product_id
-FROM public.payment_transactions t
-JOIN public.products p ON p.id = t.product_id AND p.is_bundle
-JOIN public.bundle_items b ON b.bundle_product_id = t.product_id
-WHERE t.status IN ('completed', 'partially_refunded', 'disputed', 'refunded')
-  OR (t.status = 'awaiting_payment' AND coalesce((t.metadata->>'access_on_placement')::boolean, false))
-ON CONFLICT DO NOTHING;
+DO $$
+DECLARE tx record;
+BEGIN
+  FOR tx IN
+    SELECT t.id FROM public.payment_transactions t JOIN public.products p ON p.id = t.product_id AND p.is_bundle
+    WHERE (t.status IN ('completed', 'partially_refunded', 'disputed', 'refunded')
+      OR (t.status = 'awaiting_payment' AND coalesce((t.metadata->>'access_on_placement')::boolean, false)))
+      AND EXISTS (SELECT 1 FROM public.bundle_items b WHERE b.bundle_product_id = t.product_id)
+  LOOP
+    PERFORM public.snapshot_order_bundle_components(tx.id);
+  END LOOP;
+END $$;
 
--- Components an order granted: its record, or the bundle's current composition for an order that
--- has no record (its bundle had no components when it was paid).
+-- A recorded empty set stays empty. Orders without a record retain the historical catalogue fallback.
 CREATE FUNCTION public.order_granted_components(p_transaction_id uuid) RETURNS SETOF uuid
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
   SELECT component_product_id FROM public.order_bundle_components WHERE transaction_id = p_transaction_id
@@ -72,7 +81,7 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
   SELECT b.component_product_id FROM public.payment_transactions t
   JOIN public.bundle_items b ON b.bundle_product_id = t.product_id
   WHERE t.id = p_transaction_id
-    AND NOT EXISTS (SELECT 1 FROM public.order_bundle_components o WHERE o.transaction_id = p_transaction_id);
+    AND t.bundle_components_recorded_at IS NULL;
 $$;
 REVOKE EXECUTE ON FUNCTION public.order_granted_components(uuid) FROM PUBLIC, anon, authenticated;
 
@@ -113,6 +122,16 @@ BEGIN
       JOIN public.bundle_items b ON b.bundle_product_id = other.product_id
       WHERE other.user_id = p_user_id AND other.product_id IS DISTINCT FROM t.product_id
         AND b.component_product_id = a.product_id
+        AND NOT EXISTS (
+          SELECT 1 FROM public.payment_transactions o
+          WHERE o.product_id = other.product_id
+            AND (o.status IN ('completed', 'partially_refunded', 'disputed')
+              OR (o.status = 'awaiting_payment' AND coalesce((o.metadata->>'access_on_placement')::boolean, false)))
+            AND (o.amount = 0 OR coalesce(o.refunded_amount, 0) < o.amount)
+            AND (o.user_id = p_user_id OR EXISTS (
+              SELECT 1 FROM public.guest_purchases g WHERE g.claimed_by_user_id = p_user_id
+                AND (g.transaction_id = o.id OR (g.transaction_id IS NULL AND g.session_id = o.session_id))))
+        )
         AND (other.access_expires_at IS NULL OR other.access_expires_at > now())
     );
   GET DIAGNOSTICS removed = ROW_COUNT;
@@ -224,7 +243,9 @@ BEGIN
   -- Dispute terms a newly claimable order supersedes: the components that order grants.
   definition := pg_get_functiondef('public.claim_guest_purchases_for_user(uuid)'::regprocedure);
   old_call := 'OR EXISTS(SELECT 1 FROM public.bundle_items b WHERE b.bundle_product_id=g.product_id AND b.component_product_id=p.id)';
-  IF position(old_call IN definition) = 0 THEN RAISE EXCEPTION 'Unexpected guest claim definition'; END IF;
+  IF (length(definition) - length(replace(definition, old_call, ''))) / length(old_call) <> 1 THEN
+    RAISE EXCEPTION 'Unexpected guest claim definition';
+  END IF;
   EXECUTE replace(definition, old_call,
     E'OR EXISTS(SELECT 1 FROM public.payment_transactions o WHERE (o.id=g.transaction_id OR (g.transaction_id IS NULL AND o.session_id=g.session_id))\n      AND o.product_id=g.product_id AND p.id IN (SELECT public.order_granted_components(o.id)))\n    OR (NOT EXISTS(SELECT 1 FROM public.payment_transactions o WHERE o.id=g.transaction_id OR (g.transaction_id IS NULL AND o.session_id=g.session_id))\n      AND EXISTS(SELECT 1 FROM public.bundle_items b WHERE b.bundle_product_id=g.product_id AND b.component_product_id=p.id))');
 END $$;

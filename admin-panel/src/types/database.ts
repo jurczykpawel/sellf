@@ -2708,6 +2708,7 @@ export type Database = {
         Row: {
           abandoned_at: string | null
           amount: number
+          bundle_components_recorded_at: string | null
           cancel_note: string | null
           cancel_reason: string | null
           cancelled_mail_sent_at: string | null
@@ -2770,6 +2771,7 @@ export type Database = {
         Insert: {
           abandoned_at?: string | null
           amount: number
+          bundle_components_recorded_at?: string | null
           cancel_note?: string | null
           cancel_reason?: string | null
           cancelled_mail_sent_at?: string | null
@@ -2832,6 +2834,7 @@ export type Database = {
         Update: {
           abandoned_at?: string | null
           amount?: number
+          bundle_components_recorded_at?: string | null
           cancel_note?: string | null
           cancel_reason?: string | null
           cancelled_mail_sent_at?: string | null
@@ -7206,6 +7209,7 @@ export type Database = {
         Returns: {
           abandoned_at: string | null
           amount: number
+          bundle_components_recorded_at: string | null
           cancel_note: string | null
           cancel_reason: string | null
           cancelled_mail_sent_at: string | null
