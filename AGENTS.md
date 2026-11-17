@@ -532,6 +532,8 @@ The existing `InvoiceProvider`/Fakturownia stays for sellers who want it, but no
 
 `shop_config.supabase_buyer_emails` is false on new shops, true for existing installations on upgrade. Settings → Shop exposes the validated admin-only toggle. `deliverMagicLink` strips transactional context when off and skips notification-only messages; authentication and guest access links remain. Retry workers apply the current policy. `order.participants_needed` carries the personal link for each reminder stage, `license.issued` adds `licenseKey` at signed delivery time, and `purchase.completed` includes entitled event details under `buyerMail`. See docs-site buyer-emails pages for Mailstack setup.
 
+E2E: the setting is one row shared by every Playwright worker. Specs never save/restore it themselves; they take the cross-worker lease in `tests/helpers/buyer-email-setting-playwright.ts` (`useSupabaseBuyerEmails()` = needs it on, `holdBuyerEmailSettingExclusively()` = flips it). The first holder saves the value, the last restores it.
+
 ### Committed business events
 
 `public.business_events` records access, seat and abandoned-order transitions in the same transaction as the change.
@@ -597,6 +599,8 @@ the migration history must stay reviewable. Rules:
 1. **During a cycle** you may add migrations freely on feature/dev branches, one per change.
    Each new migration is appended at the END of `supabase/migration-order.txt` and ships with the
    refreshed `supabase/schema.snapshot.sql` in the same commit (`cd admin-panel && bun run schema:snapshot`).
+   The snapshot needs the pinned Supabase CLI (`PINNED_SUPABASE_CLI` in `scripts/schema-snapshot.ts`); point
+   `SUPABASE_BIN` at that binary when the one on PATH differs.
 2. **Before the release gate** the release branch is tidied: all migrations added since the last
    release tag are consolidated into **a few logical files grouped by area** (orders, events,
    licenses, templates, misc …; target 4–8 files, hard limit **8**). Fix-ups of a migration from

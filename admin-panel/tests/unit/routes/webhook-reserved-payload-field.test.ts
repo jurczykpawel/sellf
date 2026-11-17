@@ -2,6 +2,10 @@
  * Unit test: saving a webhook endpoint with a custom_payload_fields key that
  * collides with a core envelope key (event/timestamp/data) is rejected at
  * write time, on both create (POST) and update (PATCH).
+ *
+ * The URL check resolves the hostname before the custom-field check runs, so DNS is replaced by a
+ * stub answering a public address (same pattern as tests/unit/seed-webhook-endpoints.test.ts):
+ * the test needs no network and fails on the field check, not on "Hostname has no A/AAAA records".
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -9,7 +13,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   authenticate: vi.fn(),
   checkFeature: vi.fn(),
+  lookups: [] as string[],
 }));
+
+vi.mock('node:dns/promises', () => {
+  const answer = async (hostname: string, address: string) => {
+    mocks.lookups.push(hostname);
+    return [address];
+  };
+  const resolve4 = (hostname: string) => answer(hostname, '93.184.215.14');
+  const resolve6 = (hostname: string) => answer(hostname, '2606:2800:21f:cb07:6820:80da:af6b:8b2c');
+  return { default: { resolve4, resolve6 }, resolve4, resolve6 };
+});
 
 vi.mock('@/lib/api', async (importActual) => ({
   ...(await importActual<typeof import('@/lib/api')>()),
@@ -44,6 +59,7 @@ function makePatchRequest(body: unknown) {
 describe('webhook write endpoints — reserved custom_payload_fields keys', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.lookups = [];
     mocks.checkFeature.mockResolvedValue(true);
   });
 
@@ -60,7 +76,9 @@ describe('webhook write endpoints — reserved custom_payload_fields keys', () =
 
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(JSON.stringify(body)).toContain('event');
+    expect(body.error.message).toContain('reserved for the webhook envelope: event');
+    // The URL gate ran against the stub, not the real resolver.
+    expect(mocks.lookups).toContain('example.com');
   });
 
   it('POST /api/v1/webhooks accepts non-colliding custom field names', async () => {
@@ -97,6 +115,6 @@ describe('webhook write endpoints — reserved custom_payload_fields keys', () =
 
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(JSON.stringify(body)).toContain('data');
+    expect(body.error.message).toContain('reserved for the webhook envelope: data');
   });
 });
