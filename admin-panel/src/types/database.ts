@@ -4966,6 +4966,15 @@ export type Database = {
         }
         Returns: Json
       }
+      _insert_order_lines: {
+        Args: {
+          p_currency: string
+          p_lines: Json
+          p_offline: boolean
+          p_transaction_id: string
+        }
+        Returns: undefined
+      }
       _order_grant_and_record: {
         Args: {
           p_coupon_id: string
@@ -4978,6 +4987,10 @@ export type Database = {
         Returns: Json
       }
       _place_order_without_event: {
+        Args: { p_lines: Json; p_order: Json }
+        Returns: Json
+      }
+      _price_order_lines: {
         Args: { p_lines: Json; p_order: Json }
         Returns: Json
       }
@@ -6734,6 +6747,10 @@ export type Database = {
           p_permanent: boolean
           p_product_id: string
         }
+        Returns: Json
+      }
+      replace_pending_order: {
+        Args: { p_lines: Json; p_order: Json }
         Returns: Json
       }
       replace_seller_license_key: {

@@ -290,9 +290,16 @@ Włącz `checkout.session.expired` na endpoincie Stripe wysyłającym zdarzenia 
 w ustawieniach Sellf mają je automatycznie. Dla istniejącego endpointu dodaj to
 zdarzenie w Stripe Dashboard → Workbench → Webhooks → endpoint → Edit events.
 
-Po zmianie koszyka lub opuszczeniu checkoutu przed potwierdzeniem płatności Sellf
-wygasza poprzednią Checkout Session i zmienia status jej oczekującej transakcji
-na `abandoned`. Powrót przyciskiem „Wstecz” przywraca pierwszy krok; nowa sesja
+Po zmianie koszyka w checkoucie na stronie (liczba sztuk, dodatek, kod rabatowy,
+kwota) Sellf aktualizuje otwartą Checkout Session i jej oczekującą transakcję: ten
+sam identyfikator sesji, nowe pozycje, kwota, metadane (także w PaymentIntent)
+i zapisane pozycje zamówienia, więc `checkout.session.completed` przychodzi dla
+tej jednej sesji. Nową sesję Sellf tworzy tylko wtedy, gdy Stripe nie pozwala
+zmienić obecnej: inny e-mail, język lub adres powrotu, wydarzenie (miejsca są
+zarezerwowane na zamówioną liczbę), płatność już w toku albo nieudana
+aktualizacja. Po opuszczeniu checkoutu przed potwierdzeniem płatności albo przy
+zastąpieniu sesji Sellf wygasza poprzednią Checkout Session i zmienia status jej
+oczekującej transakcji na `abandoned`. Powrót przyciskiem „Wstecz” przywraca pierwszy krok; nowa sesja
 powstaje dopiero po wybraniu „Przejdź do płatności”. Przekierowanie podczas
 potwierdzania płatności zachowuje aktywną sesję. Naturalne wygaśnięcie uruchamia tę samą
 zmianę przez zdarzenie Stripe. Zakończone transakcje pozostają bez zmian,

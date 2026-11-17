@@ -244,7 +244,7 @@ describe('create-payment-intent route source verification', () => {
   });
 
   it('stores pending Checkout Session rows without blocking completion webhooks', () => {
-    expect(paymentIntentRouteSource).toContain('session_id: checkoutSession.id');
+    expect(paymentIntentRouteSource).toContain('session_id: session.id');
     expect(paymentIntentRouteSource).toContain('stripe_payment_intent_id: null');
     expect(paymentIntentRouteSource).toContain('bump_product_ids_full');
   });

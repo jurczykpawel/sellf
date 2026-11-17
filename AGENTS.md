@@ -289,6 +289,8 @@ existing analytics-consent gate; its payload includes quantity and selected bump
 5. Guest payments land in `guest_purchases`; authenticated buyers get a row in `user_product_access`
 6. Buyer redirected with `session_id` → `/api/verify-payment` confirms access
 
+**On-site checkout cart changes (W219):** `/api/create-payment-intent` (Checkout Session, `ui_mode: 'elements'`) updates the buyer's open session on a quantity / add-on / coupon / amount change instead of creating another one: `replace_pending_order` swaps the pending order's lines, amount and coupon (the webhook validates the payment against them), then `checkout.sessions.update` replaces `line_items` + metadata (also `payment_intent_data.metadata`) and the updated subtotal must equal the cart. A new session (old one expired, row `abandoned`) only when Stripe cannot change it: other email/language/return URL, event seats, subscription, payment in progress, or a failed step. Coupons are priced into line amounts, never Stripe discounts. @see `admin-panel/src/lib/stripe/checkout-session-update.ts`.
+
 **Embedded Checkout (on a seller's external page):**
 1. Seller pastes the `<script src=".../embed/v1/checkout.js" data-...>` snippet
 2. Loader fetches `/api/embed/checkout-session` for paid products (anonymous, captcha-gated)

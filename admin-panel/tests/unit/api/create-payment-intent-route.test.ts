@@ -36,10 +36,12 @@ const mocks = vi.hoisted(() => ({
   getOrCreateStripeCustomer: vi.fn(),
   sessionsCreate: vi.fn(),
   piUpdate: vi.fn(),
+  piRetrieve: vi.fn(),
   subscriptionUpdate: vi.fn(),
   dynamicSubscription: vi.fn(),
   sessionsRetrieve: vi.fn(),
   sessionsExpire: vi.fn(),
+  sessionsUpdate: vi.fn(),
   verifyBinding: vi.fn(() => false),
   pendingInsertError: null as { message: string } | null,
   pendingInsertThrows: false,
@@ -105,13 +107,14 @@ vi.mock('@/lib/services/product-validation', async (importOriginal) => {
 
 vi.mock('@/lib/stripe/server', () => ({
   getStripeServer: vi.fn(async () => ({
-    paymentIntents: { update: mocks.piUpdate },
+    paymentIntents: { update: mocks.piUpdate, retrieve: mocks.piRetrieve },
     subscriptions: { update: mocks.subscriptionUpdate },
     checkout: {
       sessions: {
         create: mocks.sessionsCreate,
         retrieve: mocks.sessionsRetrieve,
         expire: mocks.sessionsExpire,
+        update: mocks.sessionsUpdate,
       },
     },
   })),
@@ -508,4 +511,136 @@ it.each(['pl', 'en'])('saves checkout language %s for dynamic subscriptions and 
   expect((await POST(makeRequest({ customAmount: 10, locale }))).status).toBe(200);
   expect(mocks.subscriptionUpdate).toHaveBeenCalledWith('sub_test', { metadata: { locale } });
   expect(mocks.piUpdate).toHaveBeenCalledWith('pi_subtest', { metadata: expect.objectContaining({ locale }) });
+});
+
+describe('cart change on an open checkout session (W219)', () => {
+  const OPEN_SECRET = 'cs_test_open_secret_value';
+  const EVENT_SESSION = '22222222-2222-4222-8222-222222222222';
+  const EMAIL = 'guest@example.com';
+  const QUANTITY_PROFILE = { checkout_profile: { v: 1, modules: [{ id: 'quantity', mode: 'checkout', min: 1, max: 5 }] } };
+  type Params = { line_items: Array<{ price_data: { unit_amount: number } }>; metadata: Record<string, string>; payment_intent_data: { metadata: Record<string, string> } };
+  let session: Record<string, unknown>;
+  const sum = (params: Params) => params.line_items.reduce((total, item) => total + item.price_data.unit_amount, 0);
+  const rpcCalls = (name: string) => mocks.adminRpc.mock.calls.filter(([called]) => called === name);
+  const change = (body: Record<string, unknown>) => POST(makeRequest({ email: EMAIL, clientSecret: OPEN_SECRET, bindingToken: 'binding', ...body }));
+
+  beforeEach(() => {
+    mocks.getUser.mockResolvedValue({ data: { user: null } });
+    mocks.verifyBinding.mockReturnValue(true);
+    mocks.productOverride = QUANTITY_PROFILE;
+    session = {
+      id: 'cs_test_open', object: 'checkout.session', status: 'open', mode: 'payment', ui_mode: 'elements', locale: 'en',
+      payment_intent: null, expires_at: Math.floor(Date.now() / 1000) + 3600, client_secret: OPEN_SECRET,
+      metadata: { product_id: PRODUCT.id, user_id: '', email: EMAIL, success_url: '', sf_attr_ref: 'first-visit' },
+    };
+    mocks.sessionsRetrieve.mockImplementation(async () => session);
+    mocks.sessionsExpire.mockResolvedValue({});
+    mocks.sessionsUpdate.mockImplementation(async (_id: string, params: Params) => ({ ...session, amount_subtotal: sum(params) }));
+    const original = mocks.adminRpc.getMockImplementation()!;
+    mocks.adminRpc.mockImplementation(async (name: string, args: unknown) => {
+      if (name === 'replace_pending_order') return { data: { success: true, transaction_id: 'tx-1', amount: 0 }, error: null };
+      if (name === 'verify_coupon') return { data: { valid: true, id: 'coupon-1', code: 'HALF', discount_type: 'percentage', discount_value: 50, exclude_order_bumps: false }, error: null };
+      return original(name, args);
+    });
+  });
+
+  it('updates the same session when the quantity changes and never creates or expires one', async () => {
+    const response = await change({ quantity: 3 });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ clientSecret: OPEN_SECRET, checkoutSessionId: 'cs_test_open' });
+    expect(mocks.sessionsCreate).not.toHaveBeenCalled();
+    expect(mocks.sessionsExpire).not.toHaveBeenCalled();
+    expect(mocks.sessionsUpdate).toHaveBeenCalledTimes(1);
+    const [id, params] = mocks.sessionsUpdate.mock.calls[0] as [string, Params];
+    expect(id).toBe('cs_test_open');
+    expect(sum(params)).toBe(30000);
+    expect(rpcCalls('place_order')).toHaveLength(0);
+    expect(rpcCalls('replace_pending_order')[0][1]).toMatchObject({
+      p_order: expect.objectContaining({ session_id: 'cs_test_open', customer_email: EMAIL, coupon_id: null }),
+      p_lines: [expect.objectContaining({ product_id: PRODUCT.id, quantity: 3, total_price: 300, discounted_total: 300 })],
+    });
+  });
+
+  it('applies a coupon to the open session with matching amount, metadata and installation marker', async () => {
+    expect((await change({ quantity: 2, couponCode: 'half' })).status).toBe(200);
+    expect(mocks.sessionsCreate).not.toHaveBeenCalled();
+    const params = mocks.sessionsUpdate.mock.calls[0][1] as Params;
+    expect(sum(params)).toBe(10000);
+    const sellf_instance = await getStripeInstanceId();
+    expect(params.metadata).toMatchObject({ coupon_id: 'coupon-1', has_coupon: 'true', product_id: PRODUCT.id, sellf_instance, sf_attr_ref: 'first-visit' });
+    expect(params.payment_intent_data.metadata).toMatchObject({ coupon_id: 'coupon-1', sellf_instance });
+    expect(rpcCalls('replace_pending_order')[0][1].p_order).toMatchObject({ coupon_id: 'coupon-1', metadata: expect.objectContaining({ coupon_id: 'coupon-1' }) });
+  });
+
+  it('keeps one session across successive cart changes', async () => {
+    for (const quantity of [2, 4, 1]) expect((await change({ quantity })).status).toBe(200);
+    expect(mocks.sessionsCreate).not.toHaveBeenCalled();
+    expect(mocks.sessionsUpdate.mock.calls.map(([, params]) => sum(params as Params))).toEqual([20000, 40000, 10000]);
+  });
+
+  it.each([
+    ['a different email', () => { session.metadata = { ...(session.metadata as object), email: 'other@example.com' }; }],
+    ['a different language', () => { session.locale = 'pl'; }],
+    ['a completed session', () => { session.status = 'complete'; }],
+    ['a payment already in progress', () => { session.payment_intent = { id: 'pi_1', status: 'processing' }; mocks.piRetrieve.mockResolvedValue({ id: 'pi_1', status: 'processing' }); }],
+    ['an event product', () => {
+      mocks.productOverride = { ...QUANTITY_PROFILE, event_mode: true };
+      const original = mocks.adminRpc.getMockImplementation()!;
+      mocks.adminRpc.mockImplementation(async (name: string, args: unknown) => {
+        if (name === 'event_availability') return { data: [{ id: EVENT_SESSION, title: 'Autumn', starts_at: '2099-01-01T12:00:00Z', remaining: 60, current_tier: { id: 'tier', price: 47, seats_left: 30 } }], error: null };
+        if (name === 'event_hold_limits') return { data: true, error: null };
+        return original(name, args);
+      });
+    }],
+  ])('creates a new session instead of updating %s', async (_label, arrange) => {
+    arrange();
+    mocks.sessionsCreate.mockImplementation(async (params: { expires_at?: number }) => ({ id: 'cs_test_new', client_secret: 'cs_test_new_secret_x', expires_at: params.expires_at ?? 0 }));
+    const response = await change({ quantity: 2, sessionId: EVENT_SESSION });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ checkoutSessionId: 'cs_test_new' });
+    expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
+    expect(rpcCalls('replace_pending_order')).toHaveLength(0);
+    expect(mocks.sessionsCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('replaces the session when the order snapshot cannot be updated', async () => {
+    const original = mocks.adminRpc.getMockImplementation()!;
+    mocks.adminRpc.mockImplementation(async (name: string, args: unknown) =>
+      name === 'replace_pending_order' ? { data: { success: false, error: 'order_not_replaceable' }, error: null } : original(name, args));
+    const response = await change({ quantity: 2 });
+    expect(response.status).toBe(200);
+    expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
+    expect(mocks.sessionsExpire).toHaveBeenCalledWith('cs_test_open');
+    expect(mocks.sessionsCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('replaces the session when Stripe reports a total different from the cart', async () => {
+    mocks.sessionsUpdate.mockImplementation(async () => ({ ...session, amount_subtotal: 1 }));
+    const response = await change({ quantity: 2 });
+    expect(response.status).toBe(200);
+    expect(mocks.sessionsExpire).toHaveBeenCalledWith('cs_test_open');
+    expect(mocks.sessionsCreate).toHaveBeenCalledTimes(1);
+    expect(sum(mocks.sessionsCreate.mock.calls[0][0] as Params)).toBe(20000);
+  });
+
+  it('refuses to update a session bound to someone else', async () => {
+    mocks.verifyBinding.mockReturnValue(false);
+    expect((await change({ quantity: 2 })).status).toBe(403);
+    expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
+    expect(mocks.sessionsCreate).not.toHaveBeenCalled();
+    expect(rpcCalls('replace_pending_order')).toHaveLength(0);
+  });
+
+  it('closes the open session when a full-discount coupon grants access instead', async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: SIGNED_IN } });
+    session.metadata = { ...(session.metadata as object), user_id: SIGNED_IN.id, email: SIGNED_IN.email };
+    const original = mocks.adminRpc.getMockImplementation()!;
+    mocks.adminRpc.mockImplementation(async (name: string, args: unknown) => name === 'verify_coupon'
+      ? { data: { valid: true, id: 'coupon-free', code: 'FREE', discount_type: 'percentage', discount_value: 100, exclude_order_bumps: false }, error: null }
+      : original(name, args));
+    mocks.userRpc.mockResolvedValue({ data: { success: true }, error: null });
+    await change({ couponCode: 'free' });
+    expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
+    expect(mocks.sessionsExpire).toHaveBeenCalledWith('cs_test_open');
+  });
 });

@@ -5269,6 +5269,30 @@
       ]
     },
     {
+      "id": "J650",
+      "title": "Guest changes quantity, add-on and coupon on the open checkout and pays the same Stripe session",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "coupon_bump",
+        "payment": "card",
+        "moment": "after_edit",
+        "operation": "purchase"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Pays exactly the changed cart (quantity, add-on, coupon) in one payment form; no stale total is charged.",
+        "seller": "One Stripe Checkout Session and one order per checkout: the order lines, coupon and amount follow every cart change and the order completes once.",
+        "integrator": "The completed session and its PaymentIntent carry the final cart metadata and installation marker; the webhook accepts the payment against the saved order."
+      },
+      "layers": [
+        "unit",
+        "database",
+        "browser",
+        "sandbox"
+      ]
+    },
+    {
       "id": "J700",
       "title": "An AI agent drives the shop through the built-in MCP endpoint with a scoped API key",
       "values": {
