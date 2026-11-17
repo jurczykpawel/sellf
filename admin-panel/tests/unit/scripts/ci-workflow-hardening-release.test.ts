@@ -74,12 +74,74 @@ describe('release signing stages', () => {
       expect(run(producer.run!, { RELEASE_VERSION: `v${version}`, PRERELEASE: String(version.includes('-rc.')) }).status).toBe(0);
       expect(existsSync(path.join(dir, 'sellf-build.manifest'))).toBe(legacy);
       const signing = jobs['sign-build'].steps.find(step => step.env?.RELEASE_SIGNING_KEY)!;
-      expect(run(signing.run!, { RELEASE_SIGNING_KEY: readFileSync(path.join(dir, 'key.pem'), 'utf8') }).status).toBe(0);
+      expect(run(signing.run!, { RELEASE_SIGNING_KEY: readFileSync(path.join(dir, 'key.pem'), 'utf8'), GITHUB_REF_TYPE: 'tag', GITHUB_REF_NAME: `v${version}`, GITHUB_EVENT_NAME: 'release' }).status).toBe(0);
       const verification = jobs['publish-build'].steps.find(step => step.run?.includes('sign-manifest.sh verify'))!;
       const result = run(verification.run!);
       expect(result.status, result.stderr).toBe(0);
       writeFileSync(path.join(dir, 'sellf-build.tar.gz'), 'different archive');
       expect(run(verification.run!).status).not.toBe(0);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
+
+  it.each(['build', 'image'])('validates every %s manifest before producing signatures', (kind) => {
+    const signing = jobs[`sign-${kind}`].steps.find(step => step.env?.RELEASE_SIGNING_KEY)!;
+    const dir = mkdtempSync(path.join(tmpdir(), 'sellf-manifest-input-'));
+    const name = kind === 'build' ? 'sellf-build.v2.manifest' : 'sellf-image.manifest';
+    const content = kind === 'build'
+      ? `version=2026.11.1\nsha256=${'a'.repeat(64)}\nmin_updater_version=1\n`
+      : `version=2026.11.1\nimage=ghcr.io/example/sellf@sha256:${'b'.repeat(64)}\n`;
+    try {
+      expect(spawnSync('openssl', ['genpkey', '-algorithm', 'ED25519', '-out', 'key.pem'], { cwd: dir }).status).toBe(0);
+      const env = {
+        ...process.env, RELEASE_SIGNING_KEY: readFileSync(path.join(dir, 'key.pem'), 'utf8'),
+        GITHUB_REF_TYPE: 'tag', GITHUB_REF_NAME: 'v2026.11.1', GITHUB_EVENT_NAME: 'release', DISPATCH_VERSION: '',
+      };
+      const run = (overrides = {}) => spawnSync('bash', ['-euo', 'pipefail', '-c', signing.run!], {
+        cwd: dir, encoding: 'utf8', env: { ...env, ...overrides },
+      });
+      const invalid = [
+        content.replace('2026.11.1', '2026.11.2'), content.replace(/[ab]{64}/, 'a'.repeat(63)),
+        content.replace(/[ab]{64}/, 'a'.repeat(65)), content.replace(/[ab]{64}/, 'g'.repeat(64)),
+        ...(kind === 'build' ? [content.replace('min_updater_version=1', 'min_updater_version=0')]
+          : [content.replace('image=', 'digest='), content.replace('@sha256:', '@sha512:')]),
+        `${content}extra\n`, `${content}\n`, content.trimEnd(), content.replace('version=', 'other='),
+        content.split('\n').reverse().join('\n'), content.replace('version=', '\0version='),
+      ];
+      for (const value of invalid) {
+        writeFileSync(path.join(dir, name), value);
+        const result = run();
+        expect(result.status, value).not.toBe(0);
+        expect(existsSync(path.join(dir, `${name}.sig`))).toBe(false);
+      }
+      writeFileSync(path.join(dir, name), content);
+      for (const overrides of [
+        { GITHUB_REF_TYPE: 'branch' }, { GITHUB_REF_NAME: '2026.11.1' },
+        { GITHUB_EVENT_NAME: 'workflow_dispatch', DISPATCH_VERSION: '2026.11.2' },
+        { GITHUB_EVENT_NAME: 'workflow_dispatch', DISPATCH_VERSION: '' },
+      ]) {
+        expect(run(overrides).status).not.toBe(0);
+        expect(existsSync(path.join(dir, `${name}.sig`))).toBe(false);
+      }
+      if (kind === 'build') {
+        writeFileSync(path.join(dir, 'sellf-build.manifest'), content.replace(/min_updater_version=1\n/, '').replace('2026.11.1', '2026.11.2'));
+        expect(run().status).not.toBe(0);
+        expect(existsSync(path.join(dir, `${name}.sig`))).toBe(false);
+        writeFileSync(path.join(dir, 'sellf-build.manifest'), content.replace(/min_updater_version=1\n/, ''));
+        writeFileSync(path.join(dir, name), content.replace('2026.11.1', '2026.11.2'));
+        expect(run().status).not.toBe(0);
+        expect(existsSync(path.join(dir, 'sellf-build.manifest.sig'))).toBe(false);
+        expect(existsSync(path.join(dir, `${name}.sig`))).toBe(false);
+        rmSync(path.join(dir, 'sellf-build.manifest'));
+        writeFileSync(path.join(dir, name), content);
+      }
+      expect(signing.env?.DISPATCH_VERSION).toBe('${{ inputs.version }}');
+      for (const overrides of [{}, { GITHUB_EVENT_NAME: 'workflow_dispatch', DISPATCH_VERSION: '2026.11.1' },
+        { GITHUB_EVENT_NAME: 'workflow_dispatch', DISPATCH_VERSION: 'v2026.11.1' }]) {
+        const result = run(overrides);
+        expect(result.status, result.stderr).toBe(0);
+        expect(result.stdout).toContain(content);
+        expect(readFileSync(path.join(dir, `${name}.sig`))).toHaveLength(64);
+      }
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 
@@ -98,7 +160,7 @@ describe('release signing stages', () => {
         : `version=2026.11.1-rc.1\nimage=ghcr.io/example/sellf@sha256:${'b'.repeat(64)}\n`;
       writeFileSync(path.join(dir, name), content);
       const run = (key: string) => spawnSync('bash', ['-euo', 'pipefail', '-c', shell!], {
-        cwd: dir, encoding: 'utf8', env: { ...process.env, RELEASE_SIGNING_KEY: key },
+        cwd: dir, encoding: 'utf8', env: { ...process.env, RELEASE_SIGNING_KEY: key, GITHUB_REF_TYPE: 'tag', GITHUB_REF_NAME: 'v2026.11.1-rc.1', GITHUB_EVENT_NAME: 'release' },
       });
       expect(run('').status).not.toBe(0);
       const result = run(readFileSync(path.join(dir, 'key.pem'), 'utf8'));
@@ -126,6 +188,26 @@ describe('dependency maintenance policy', () => {
       expect(update.schedule.interval).toBe(update['package-ecosystem'] === 'github-actions' ? 'quarterly' : 'monthly');
       expect(update['open-pull-requests-limit']).toBe(1);
     }
+  });
+  it.each([
+    ['github_actions', '/', 'version-update:semver-major', 'ci'],
+    ['github_actions', '/', 'version-update:semver-minor', 'ci'],
+    ['bun', '/admin-panel', 'version-update:semver-major', 'release-batch'],
+    ['npm_and_yarn', '/docs-site', 'version-update:semver-major', 'release-batch'],
+    ['npm_and_yarn', '/docs-site', 'version-update:semver-patch', 'safe'],
+  ])('classifies %s %s %s as %s', (ecosystem, directory, updateType, expected) => {
+    const classification = parse(readFileSync(path.join(root, '.github/workflows/dependabot-auto-merge.yml'), 'utf8'));
+    const shell = classification.jobs.classify.steps.find((step: { id?: string }) => step.id === 'kind').run;
+    const dir = mkdtempSync(path.join(tmpdir(), 'sellf-classify-'));
+    try {
+      const output = path.join(dir, 'output');
+      const result = spawnSync('bash', ['-euo', 'pipefail', '-c', `gh() { printf '%s' '{"body":"","labels":[]}'; }\n${shell}`], {
+        encoding: 'utf8', env: { ...process.env, PR_URL: 'example', ECOSYSTEM: ecosystem, DIRECTORY: directory,
+          UPDATES: JSON.stringify([{ updateType: 'version-update:semver-patch' }, { updateType }]), GITHUB_OUTPUT: output },
+      });
+      expect(result.status, result.stderr).toBe(0);
+      expect(readFileSync(output, 'utf8')).toBe(`kind=${expected}\n`);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
   });
   it('retains classification and labels without direct merging', () => {
     const source = readFileSync(path.join(root, '.github/workflows/dependabot-auto-merge.yml'), 'utf8');

@@ -441,6 +441,7 @@ jobs:
 
       - name: Sign manifests
         env:
+          DISPATCH_VERSION: ${{ inputs.version }}
           RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
         run: |
           set -euo pipefail
@@ -448,6 +449,32 @@ jobs:
             echo "::error::RELEASE_SIGNING_KEY secret is not set"
             exit 1
           fi
+          if [ "${GITHUB_REF_TYPE:-}" != tag ] || ! [[ "${GITHUB_REF_NAME:-}" =~ ^v[0-9]{4}\.([1-9]|1[0-2])\.(0|[1-9][0-9]*)(-rc\.[1-9][0-9]*)?$ ]]; then
+            echo "::error::A release tag is required"
+            exit 1
+          fi
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [ "${GITHUB_EVENT_NAME:-}" = workflow_dispatch ] && [ "${DISPATCH_VERSION#v}" != "$VERSION" ]; then
+            echo "::error::Dispatch version must match the release tag"
+            exit 1
+          fi
+          [ -f sellf-build.v2.manifest ]
+          for manifest in sellf-build*.manifest; do
+            cat "$manifest"
+            if IFS= read -r -d '' content < "$manifest"; then
+              echo "::error::Invalid manifest contents"
+              exit 1
+            fi
+            case "$manifest" in
+              sellf-build.manifest) pattern=$'^version=[^\n]+\nsha256=[[:xdigit:]]{64}\n$' ;;
+              sellf-build.v2.manifest) pattern=$'^version=[^\n]+\nsha256=[[:xdigit:]]{64}\nmin_updater_version=[1-9][0-9]{0,8}\n$' ;;
+              *) echo "::error::Unexpected manifest name"; exit 1 ;;
+            esac
+            if [ "${content%%$'\n'*}" != "version=$VERSION" ] || ! [[ "$content" =~ $pattern ]]; then
+              echo "::error::Invalid manifest format or version"
+              exit 1
+            fi
+          done
           umask 077
           KEY_FILE="$(mktemp)"
           trap 'rm -f "$KEY_FILE"' EXIT
@@ -686,11 +713,32 @@ jobs:
 
       - name: Sign manifests
         env:
+          DISPATCH_VERSION: ${{ inputs.version }}
           RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
         run: |
           set -euo pipefail
           if [ -z "${RELEASE_SIGNING_KEY:-}" ]; then
             echo "::error::RELEASE_SIGNING_KEY secret is not set"
+            exit 1
+          fi
+          if [ "${GITHUB_REF_TYPE:-}" != tag ] || ! [[ "${GITHUB_REF_NAME:-}" =~ ^v[0-9]{4}\.([1-9]|1[0-2])\.(0|[1-9][0-9]*)(-rc\.[1-9][0-9]*)?$ ]]; then
+            echo "::error::A release tag is required"
+            exit 1
+          fi
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [ "${GITHUB_EVENT_NAME:-}" = workflow_dispatch ] && [ "${DISPATCH_VERSION#v}" != "$VERSION" ]; then
+            echo "::error::Dispatch version must match the release tag"
+            exit 1
+          fi
+          manifest=sellf-image.manifest
+          cat "$manifest"
+          if IFS= read -r -d '' content < "$manifest"; then
+            echo "::error::Invalid manifest contents"
+            exit 1
+          fi
+          pattern=$'^version=[^\n]+\nimage=ghcr\.io/[a-z0-9_.-]+/sellf@sha256:[[:xdigit:]]{64}\n$'
+          if [ "${content%%$'\n'*}" != "version=$VERSION" ] || ! [[ "$content" =~ $pattern ]]; then
+            echo "::error::Invalid manifest format or version"
             exit 1
           fi
           umask 077
