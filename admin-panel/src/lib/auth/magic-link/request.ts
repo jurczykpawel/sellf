@@ -92,7 +92,10 @@ export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Pr
     1440,
     `email:${canonicalizeEmailForBucket(normalizedEmail)}`,
   );
-  if (!emailAllowed) return input.retry
+  // Past the per-address limit only a mail for a known purchase waits in the queue; anything else
+  // is refused, so the queue never sends more than the limit allows.
+  const knownPurchase = input.retry === 'license' || (input.retry === 'post_checkout' && Boolean(input.data?.purchase_product));
+  if (!emailAllowed) return input.retry && knownPurchase
     ? queueAuthMailRetry({ email: normalizedEmail, redirectTo: input.redirectTo, data: input.data, kind: input.retry, code: 'rate_limited' })
     : { ok: false, code: 'rate_limited' };
 

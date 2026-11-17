@@ -353,3 +353,27 @@ it('waits for purchase fulfillment before issuing the first sign-in link', async
   expect(await requestMagicLink({ ...BASE_INPUT, flow: 'post_checkout', productSlug: 'course' })).toEqual({ ok: true });
   expect(deliverMagicLink).not.toHaveBeenCalled();
 });
+
+describe('post-payment link past the daily per-address limit @J292', () => {
+  beforeEach(() => {
+    vi.stubEnv('DEMO_MODE', 'false');
+    policyRetry.mockClear(); deliverMagicLink.mockClear();
+    checkRateLimit.mockResolvedValue(true);
+    checkRateLimitForIdentifier.mockImplementation(async (action: string) => action !== 'magic_link_email');
+    verifyCaptchaToken.mockResolvedValue({ success: true }); validateEmailAction.mockResolvedValue({ isValid: true });
+  });
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('is parked for a confirmed purchase so the buyer still gets it @J292', async () => {
+    eventMailForSlug.mockResolvedValueOnce({ purchase_product: 'Course', purchase_amount: '10 PLN' });
+    await requestMagicLink({ ...BASE_INPUT, flow: 'post_checkout', productSlug: 'course' });
+    expect(policyRetry).toHaveBeenCalledWith(expect.objectContaining({ kind: 'post_checkout', code: 'rate_limited' }));
+  });
+
+  it('is refused, not parked, when no purchase for that address and product is known @J292', async () => {
+    eventMailForSlug.mockResolvedValueOnce({});
+    expect(await requestMagicLink({ ...BASE_INPUT, flow: 'post_checkout', productSlug: 'anything' })).toEqual({ ok: false, code: 'rate_limited' });
+    expect(policyRetry).not.toHaveBeenCalled();
+    expect(deliverMagicLink).not.toHaveBeenCalled();
+  });
+});
