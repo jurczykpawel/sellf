@@ -1,7 +1,8 @@
 /**
  * Every MCP tool name the repository tells people or agents to call must exist in the tool list
  * generated from the OpenAPI registry (W221br P3). Covers docs-site, skills/, docs/, README,
- * FEATURES, BACKLOG and both llms.txt files.
+ * FEATURES, BACKLOG and both llms.txt files (their generated API block, which also lists HTTP-only
+ * operations, is checked against the registry by tests/unit/lib/api/llms-txt.test.ts instead).
  *
  * A token counts as a tool name when it is
  * - the `"name"` of a `{"name": …, "arguments": …}` call,
@@ -16,6 +17,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { LLMS_BEGIN, LLMS_END } from '@/lib/api/openapi/llms';
 import { buildOpenApiSpec } from '@/lib/api/openapi/spec';
 import { COMPACT_TOOLS, mcpOperations, type OpenApiDocument } from '@/lib/mcp/operations';
 
@@ -53,6 +55,15 @@ function files(rel: string, ext = /\.(md|mdx|txt)$/): string[] {
 
 const DOCS = ['docs-site/src/content', 'docs-site/public/llms.txt', 'admin-panel/public/llms.txt', 'skills', 'docs', 'README.md', 'FEATURES.md', 'BACKLOG.md', 'admin-panel/README.md']
   .flatMap((rel) => files(rel));
+
+/** File text with the generated llms.txt block blanked (line numbers kept). */
+function read(file: string): string {
+  const text = readFileSync(file, 'utf8');
+  const start = text.indexOf(LLMS_BEGIN);
+  const end = text.indexOf(LLMS_END);
+  if (start < 0 || end < start) return text;
+  return text.slice(0, start) + text.slice(start, end).replace(/[^\n]/g, '') + text.slice(end);
+}
 
 const cells = (line: string) => line.trim().replace(/^\||\|$/g, '').split('|').map((cell) => cell.trim());
 
@@ -106,14 +117,14 @@ describe('MCP tool names in repository docs', () => {
   });
 
   it('names only tools that the generated list contains', () => {
-    const missing = DOCS.flatMap((file) => toolMentions(readFileSync(file, 'utf8'))
+    const missing = DOCS.flatMap((file) => toolMentions(read(file))
       .filter((m) => m.retired || !tools.has(m.name))
       .map((m) => `${path.relative(REPO, file)}:${m.line} ${m.name}`));
     expect([...new Set(missing)]).toEqual([]);
   });
 
   it('does not point at the removed mcp-server/ package', () => {
-    const stale = DOCS.flatMap((file) => readFileSync(file, 'utf8').split('\n')
+    const stale = DOCS.flatMap((file) => read(file).split('\n')
       .flatMap((line, i) => (/\bmcp-server\//.test(line) ? [`${path.relative(REPO, file)}:${i + 1}`] : [])));
     expect(stale).toEqual([]);
   });
