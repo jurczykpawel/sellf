@@ -15,7 +15,7 @@ vi.mock('@/lib/supabase/server', () => ({ createClient: async () => ({
 vi.mock('next/cache', () => ({ revalidateTag: vi.fn() }));
 vi.mock('@/lib/demo-guard', () => ({ isDemoMode: () => false }));
 import { bindAffiliateCoupon, createAffiliateRule, getAffiliateCoupon, getAffiliateProduct } from '@/lib/affiliates/products/actions';
-import { DELETE, PATCH } from '@/app/api/v1/products/[id]/route';
+import { DELETE } from '@/app/api/v1/products/[id]/route';
 function sql(statement: string): string {
   return execFileSync('docker', ['exec', '-i', getTestDatabaseContainer(), 'psql', '-U', 'postgres', '-At', '-v', 'ON_ERROR_STOP=1', '-c', statement], { encoding: 'utf8' }).trim();
 }
@@ -55,7 +55,7 @@ it('keeps bindings historical and denies pending owners and stale versions', asy
   expect(sql(`SELECT count(*) FROM affiliate_coupon_bindings WHERE coupon_id='${coupon}' AND retired_at IS NOT NULL`)).not.toBe('0');
   expect((await getAffiliateCoupon({ coupon_id: coupon })).data?.members.some(m => m.id === pending)).toBe(false);
 });
-it('retains categories and financial history on DELETE and archives products with and without sales', async () => {
+it('archives on DELETE products with and without sales, keeping categories and financial history', async () => {
   for (const id of [product(), seededProduct]) {
     if (id !== seededProduct) await createAffiliateRule(input(id));
     const category = sql('SELECT id FROM categories LIMIT 1');
@@ -63,12 +63,12 @@ it('retains categories and financial history on DELETE and archives products wit
     const counts = sql(`SELECT (SELECT count(*) FROM payment_transactions WHERE product_id='${id}'),(SELECT count(*) FROM affiliate_rules WHERE product_id='${id}')`);
     const params = { params: Promise.resolve({ id }) };
     const url = `http://localhost/api/v1/products/${id}`;
-    const denied = await DELETE(new NextRequest(url, { method: 'DELETE' }), params);
-    expect(denied.status).toBe(409); expect(JSON.stringify(await denied.json())).toContain('is_active');
-    expect(sql(`SELECT count(*) FROM product_categories WHERE product_id='${id}'`)).toBe('1');
-    const archived = await PATCH(new NextRequest(url, { method: 'PATCH', body: JSON.stringify({ is_active: false }), headers: { 'Content-Type': 'application/json' } }), params);
+    // DELETE without permanent=true archives the product (B18/W250), with or without sales.
+    const archived = await DELETE(new NextRequest(url, { method: 'DELETE' }), params);
     expect(archived.status).toBe(200);
-    expect(sql(`SELECT is_active FROM products WHERE id='${id}'`)).toBe('f');
+    expect((await archived.json()).data).toMatchObject({ id, status: 'archived' });
+    expect(sql(`SELECT is_active, archived_at IS NOT NULL FROM products WHERE id='${id}'`)).toBe('f|t');
+    expect(sql(`SELECT count(*) FROM product_categories WHERE product_id='${id}'`)).toBe('1');
     expect(sql(`SELECT (SELECT count(*) FROM payment_transactions WHERE product_id='${id}'),(SELECT count(*) FROM affiliate_rules WHERE product_id='${id}')`)).toBe(counts);
   }
 });
