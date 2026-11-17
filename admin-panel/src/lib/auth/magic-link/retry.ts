@@ -10,6 +10,7 @@ import 'server-only';
 
 import { eventMailForSlug } from '@/lib/events/mail';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { ADDRESS_MAIL_WINDOW_MINUTES, allowMailToAddress } from './address-limit';
 import { readBuyerEmailPolicy } from './buyer-email-policy';
 import { deliverMagicLink } from './deliver';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -86,6 +87,14 @@ export async function runAuthMailRetries(db: SupabaseClient = createAdminClient(
         processed++;
         continue;
       }
+    }
+    if (purchaseReady && !await allowMailToAddress(row.email)) {
+      // The inbox got its daily maximum: the mail waits for the next day without using up an attempt.
+      await db.from('auth_mail_retries').update({
+        attempts: Math.max(row.attempts - 1, 0), last_error: 'rate_limited',
+        next_attempt_at: new Date(Date.now() + ADDRESS_MAIL_WINDOW_MINUTES * 60_000).toISOString(),
+      }).eq('id', row.id);
+      continue;
     }
     const result: MagicLinkResult = !purchaseReady ? { ok: false, code: 'send_failed' } : await deliverMagicLink({ email: row.email, redirectTo: row.redirect_to, shouldCreateUser: true, transactionalOnly: row.kind === 'license', data: row.data });
     // Purchase data (e.g. a license key) must not linger in the account once the mail was rendered.
