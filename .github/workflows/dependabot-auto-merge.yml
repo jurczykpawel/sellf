@@ -1,33 +1,20 @@
-name: Dependabot Auto-Merge
+name: Dependabot Classification
 
-# Classifies every Dependabot PR:
-#   safe          docs-site, github-actions, non-major only
-#                 -> merged by this workflow once every other check is green.
-#   security      fixes a vulnerability (label `security`) -> never merged here.
-#   release-batch everything else (admin-panel incl. all Bun PRs, runtime deps, Docker,
-#                 majors) -> label `release-batch`, never merged here; the release process
-#                 folds it into the release branch (see sellf-release step 0), and
-#                 build-release.yml blocks a release while one is older than 24 h.
-# Red CI on a safe PR = no merge + one @owner comment.
-#
-# Release window: set the repository variable DEPENDABOT_AUTOMERGE_PAUSED=true before
-# cutting a release (Settings > Secrets and variables > Actions > Variables) and delete
-# it afterwards. While "true" nothing is merged; labelling still happens.
+# Classify and label updates for the release process; merging is reviewed.
 
 on: pull_request
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
 
 jobs:
-  classify-and-merge:
+  classify:
     if: github.actor == 'dependabot[bot]'
     runs-on: ubuntu-latest
     env:
       PR_URL: ${{ github.event.pull_request.html_url }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      OWNER: ${{ github.repository_owner }}
     steps:
       - uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
         id: metadata
@@ -62,28 +49,3 @@ jobs:
           gh label create "$LABEL" --force --color "$([ "$LABEL" = security ] && echo d73a4a || echo fbca04)" \
             --description "Dependabot PR that must ship in the next release" >/dev/null
           gh pr edit "$PR_URL" --add-label "$LABEL"
-
-      - name: Auto-merge safe updates
-        if: steps.kind.outputs.kind == 'safe' && vars.DEPENDABOT_AUTOMERGE_PAUSED != 'true'
-        # `gh pr merge --auto` needs branch protection with required checks, which this
-        # repo does not use. Wait for the other checks ourselves and merge only when all
-        # are green. PR CI (pr-ci.yml) always runs, so "no checks" never means "green".
-        run: |
-          sleep 90  # let the other workflows register their checks
-          for _ in $(seq 1 90); do
-            rollup=$(gh pr view "$PR_URL" --json statusCheckRollup -q \
-              '[.statusCheckRollup[] | select(.name != "classify-and-merge")]')
-            total=$(jq length <<<"$rollup")
-            pending=$(jq '[.[] | select(.status != "COMPLETED")] | length' <<<"$rollup")
-            bad=$(jq '[.[] | select(.conclusion | IN("FAILURE","CANCELLED","TIMED_OUT","ACTION_REQUIRED"))] | length' <<<"$rollup")
-            if [ "$bad" != 0 ]; then
-              gh pr comment "$PR_URL" --body "@${OWNER} CI failed on this dependency update, so it was not merged. Fix it or close it with \`@dependabot ignore this dependency\`."
-              exit 0
-            fi
-            if [ "$total" != 0 ] && [ "$pending" = 0 ]; then
-              gh pr merge "$PR_URL" --squash
-              exit 0
-            fi
-            sleep 20
-          done
-          echo "Checks did not finish in time; not merging."
