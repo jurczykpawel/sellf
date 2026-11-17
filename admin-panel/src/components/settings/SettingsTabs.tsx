@@ -20,6 +20,7 @@ import AttributionSettings from './AttributionSettings'
 import LicenseSettings from './LicenseSettings'
 import LicenseKeysSettings from './LicenseKeysSettings'
 import SystemUpdateSettings from './SystemUpdateSettings'
+import MaintenanceSettings from './MaintenanceSettings'
 import SecurityAuditSettings from './SecurityAuditSettings'
 import { useConfig } from '@/components/providers/config-provider'
 import { useAuth } from '@/contexts/AuthContext'
@@ -117,6 +118,7 @@ export default function SettingsTabs({ siteUrl, initialCheckoutTheme, hasLicense
 
         {active === 'system' && (
           <>
+            {role === 'platform_admin' && <MaintenanceSettings />}
             {role === 'platform_admin' && <SystemUpdateSettings />}
             {role === 'platform_admin' && !demoMode && <SecurityAuditSettings />}
           </>

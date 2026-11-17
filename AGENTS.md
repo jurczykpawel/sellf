@@ -1588,6 +1588,31 @@ Our paid event for an existing but inactive/archived product is fulfilled (`allo
 the completion RPC; amount/currency checks unchanged). Any new Stripe create call for a payment object must spread the marker
 (guard: `tests/unit/stripe/instance-marker.test.ts`).
 
+### Maintenance mode ("Przerwa w działaniu")
+
+One switch that pauses the shop: storefront/product pages, checkout, embed checkout, login wall and
+every request that starts a NEW payment answer `503` (HTML page PL/EN with optional note and expected
+end, or JSON `code: "MAINTENANCE"`, always `Retry-After`). The admin panel, sign-in, buyer accounts,
+API v1, cron, health, payment return pages and Stripe webhooks keep working, so purchases already
+paid complete. Products and settings never change.
+
+**Two sources (like WordPress `.maintenance`), on when either is on, the server source wins:**
+- **Server:** the file `<install>/MAINTENANCE` (next to `.env.local`; `SELLF_MAINTENANCE_FILE`
+  overrides the path) or `SELLF_MAINTENANCE=true`. Read with `fs` only, before any database request,
+  so it works while the database is down or an update runs. `scripts/upgrade.sh` creates the file
+  right before stopping PM2 and removes it on every exit (EXIT trap) except `migration_state_unknown`,
+  where it is rewritten with that reason and left on; a file the operator created is never touched.
+- **Database:** singleton `public.maintenance_mode`, switched only through
+  `set_maintenance_mode` (service role; change + `audit_log` entry in one transaction). The proxy
+  reads it through the anon RPC `get_maintenance_mode` (message/time only while on), cached 5 s on
+  `globalThis` and invalidated in-process on change. An unreachable database never switches it on.
+
+**Where:** `src/proxy.ts` (check before the CSP/auth database calls; OPTIONS pass), what is paused in
+`src/lib/maintenance/surfaces.ts` (pure path list: add new payment-starting routes there),
+`file.ts`, `state.ts`, `response.ts`, `setting.ts`; panel `MaintenanceSettings` (Settings → System),
+action `lib/actions/maintenance.ts`, API `GET/PATCH /api/v1/system/maintenance`, migration
+`20261117130000_maintenance_mode.sql`. Docs: `docs-site/.../maintenance.md` (PL/EN).
+
 ### Stable Versions & Known Issues
 
 - **Supabase CLI**: 2.101.0 (run via `npx supabase`) — pin via `npx supabase@2.101.0` if needed

@@ -67,6 +67,7 @@ export default defineConfig({
 						{ slug: 'events' },
 						{ slug: 'purchase-attribution' },
 						{ slug: 'guided-tutorials' },
+						{ slug: 'maintenance' },
 					],
 				},
 				{

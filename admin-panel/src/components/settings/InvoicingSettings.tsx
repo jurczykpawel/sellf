@@ -24,17 +24,21 @@ export default function InvoicingSettings() {
     finally { setBusy(false); }
   }
   const field = (key: 'domain' | 'token' | 'exemption' | 'template') => <label className="block" key={key}>{t(key)}<input className="block w-full border border-sf-border p-2 bg-sf-base" type={key === 'token' ? 'password' : 'text'} autoComplete="off" value={form[key]} maxLength={key === 'template' ? 300 : 1000} onChange={e => setForm({ ...form, [key]: e.target.value })} /></label>;
+  const disabled = form.provider === 'none';
   return <section aria-label={t('title')} className="space-y-4 border border-sf-border p-6">
     <h2 className="text-xl font-semibold">{t('title')}</h2>
     <label className="block">{t('provider')}<select aria-label={t('provider')} className="block" value={form.provider} onChange={e => setForm({ ...form, provider: e.target.value })}><option value="none">{t('none')}</option><option value="fakturownia">Fakturownia</option></select></label>
-    {field('domain')}{field('token')}
-    <p>{t('tokenHelp')}</p>
-    <label className="block">{t('mode')}<select aria-label={t('mode')} className="block" value={form.mode} onChange={e => setForm({ ...form, mode: e.target.value })}><option value="manual">{t('manual')}</option><option value="auto">{t('auto')}</option></select></label>
-    <p className="text-sm text-sf-muted">{t('autoSinceHelp')}</p>
-    {field('exemption')}{field('template')}
-    <p>{t('templateHelp')}</p>
+    {/* Disabled: the provider fields are hidden but kept in the form, so switching back shows the saved values. */}
+    {disabled ? <p className="text-sm text-sf-muted">{t('disabledHelp')}</p> : <>
+      {field('domain')}{field('token')}
+      <p>{t('tokenHelp')}</p>
+      <label className="block">{t('mode')}<select aria-label={t('mode')} className="block" value={form.mode} onChange={e => setForm({ ...form, mode: e.target.value })}><option value="manual">{t('manual')}</option><option value="auto">{t('auto')}</option></select></label>
+      <p className="text-sm text-sf-muted">{t('autoSinceHelp')}</p>
+      {field('exemption')}{field('template')}
+      <p>{t('templateHelp')}</p>
+    </>}
     <button className="border p-2 mr-3" disabled={!ready || busy} onClick={() => run(false)}>{t('save')}</button>
-    <button className="border p-2" disabled={!ready || busy || form.provider === 'none'} onClick={() => run(true)}>{t('check')}</button>
+    {!disabled && <button className="border p-2" disabled={!ready || busy} onClick={() => run(true)}>{t('check')}</button>}
     <p role="status">{message}</p>
   </section>;
 }

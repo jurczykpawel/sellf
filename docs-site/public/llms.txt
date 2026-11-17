@@ -53,7 +53,7 @@
 
 Admin API of a Sellf instance. Authenticate with `Authorization: Bearer <API key>` (Settings → API Keys). Each operation lists the scope it needs in `x-required-scope`. Amounts are in major currency units unless stated otherwise.
 
-Paths are relative to the Sellf instance origin (e.g. `https://shop.example.com/api/v1/products`). Full machine-readable description with request and response schemas: `/api/v1/openapi.json` (OpenAPI 3.1, public). MCP: `POST /api/mcp` with the same API key exposes one tool per operation, named by `operationId`, with the JSON request body under `body`; `/api/mcp?mode=compact` exposes `search_operations` + `call_operation` instead. 112 operations; each line: method and path — operationId · required scope — summary.
+Paths are relative to the Sellf instance origin (e.g. `https://shop.example.com/api/v1/products`). Full machine-readable description with request and response schemas: `/api/v1/openapi.json` (OpenAPI 3.1, public). MCP: `POST /api/mcp` with the same API key exposes one tool per operation, named by `operationId`, with the JSON request body under `body`; `/api/mcp?mode=compact` exposes `search_operations` + `call_operation` instead. 114 operations; each line: method and path — operationId · required scope — summary.
 
 ### Products
 
@@ -223,12 +223,14 @@ Shop-level settings: checkout options and tracking/consent integrations.
 
 ### System
 
-Instance status and self-upgrade.
+Instance status, maintenance mode and self-upgrade.
 
 - `GET /api/v1/system/status` — `get_system_status` · system:read — Detailed system status
 - `GET /api/v1/system/update-check` — `check_for_update` · system:read — Check for a newer Sellf release
 - `POST /api/v1/system/upgrade` — `start_upgrade` · system:write — Start the self-upgrade
 - `GET /api/v1/system/upgrade-status` — `get_upgrade_status` · system:read — Progress of a running upgrade
+- `GET /api/v1/system/maintenance` — `get_maintenance_mode` · system:read — Read maintenance mode and its source
+- `PATCH /api/v1/system/maintenance` — `update_maintenance_mode` · system:write — Switch maintenance mode (database source) on or off
 
 ### API keys
 

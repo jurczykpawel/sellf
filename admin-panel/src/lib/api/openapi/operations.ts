@@ -20,6 +20,7 @@ import { cocreatorPutSchema, cocreatorResponseSchema } from '@/lib/affiliates/co
 import { attributionQuerySchema } from '@/lib/attribution/report';
 import { checkoutSettingsSchema } from '@/lib/checkout/invoice-recipient-setting';
 import { accessLicenseSchema } from '@/lib/license-keys/access';
+import { maintenanceChangeSchema, maintenanceStatusSchema } from '@/lib/maintenance/setting';
 import { licenseRequestSchema } from '@/lib/license-keys/request';
 import { transferOperationSchema } from '@/lib/orders/bank-transfer-admin';
 import { exportFiltersSchema } from '@/lib/payments/search';
@@ -53,7 +54,7 @@ export const API_TAGS = {
   Webhooks: 'Outgoing signed webhooks: endpoints, delivery logs, retries, abandoned business events.',
   Analytics: 'Read-only sales metrics and purchase attribution.',
   Settings: 'Shop-level settings: checkout options and tracking/consent integrations.',
-  System: 'Instance status and self-upgrade.',
+  System: 'Instance status, maintenance mode and self-upgrade.',
   'API keys': 'Key management. Panel session only: an API key cannot manage keys.',
   Meta: 'This API description.',
 } as const;
@@ -390,6 +391,11 @@ const SYSTEM: ApiOperation[] = [
   { operationId: 'start_upgrade', method: 'POST', path: '/system/upgrade', tag: 'System', scope: S.SYSTEM_WRITE, status: [202], noBody: true, summary: 'Start the self-upgrade',
     description: 'Returns a token immediately; follow progress with get_upgrade_status. One upgrade at a time.' },
   { operationId: 'get_upgrade_status', method: 'GET', path: '/system/upgrade-status', tag: 'System', scope: S.SYSTEM_READ, summary: 'Progress of a running upgrade', query: z.object({ token: uuid }) },
+  { operationId: 'get_maintenance_mode', method: 'GET', path: '/system/maintenance', tag: 'System', scope: S.SYSTEM_READ, summary: 'Read maintenance mode and its source',
+    description: 'Active when the server file, SELLF_MAINTENANCE or the database switch is on; the file wins. Says where the file is looked for.', response: maintenanceStatusSchema },
+  { operationId: 'update_maintenance_mode', method: 'PATCH', path: '/system/maintenance', tag: 'System', scope: S.SYSTEM_WRITE, summary: 'Switch maintenance mode (database source) on or off',
+    description: 'While on, the shop, checkout, embed, login wall and new payments answer 503; the admin panel, API v1 and Stripe webhooks keep working. Turning it off clears message and expected end. Audited.',
+    body: maintenanceChangeSchema, response: maintenanceStatusSchema },
 ];
 
 const sessionOnly = { tag: 'API keys' as const, auth: 'session' as const, mcpExclude: true };

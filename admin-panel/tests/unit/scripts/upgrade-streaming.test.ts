@@ -39,6 +39,8 @@ interface FixtureOptions {
   pm2Restart?: { exit?: number; state?: 'online' | 'stopped' };
   /** pm2 jlist prints something that is not a process list. */
   pm2JlistBroken?: boolean;
+  /** Content of <install>/MAINTENANCE before the update starts (absent when undefined). */
+  maintenanceBefore?: string;
 }
 
 async function runUpgrade(options: FixtureOptions = {}) {
@@ -106,6 +108,7 @@ async function runUpgrade(options: FixtureOptions = {}) {
     writeFileSync(path.join(install, `supabase/migrations/${name}.sql`), 'SELECT 1;');
   }
   const quote = options.quotedEnv ? '"' : '';
+  if (options.maintenanceBefore !== undefined) writeFileSync(path.join(install, 'MAINTENANCE'), options.maintenanceBefore);
   writeFileSync(path.join(install, '.env.local'), `SUPABASE_URL=${quote}http://127.0.0.1:${address.port}${quote}\nSUPABASE_SERVICE_ROLE_KEY=${quote}fixture-key${quote}\nPORT=${quote}${address.port}${quote}\n`);
   let systemPath = process.env.PATH ?? '';
   if (options.withoutJq) {
@@ -136,6 +139,7 @@ exec ${JSON.stringify(executable)} "$@"
   writeFileSync(path.join(dir, 'pm2.state'), 'online');
   writeFileSync(path.join(bin, 'pm2'), `#!/bin/bash
 printf '%s\\n' "$*" >> "$FIXTURE_DIR/pm2.log"
+case "$1" in start|stop|restart) printf '%s %s\\n' "$1" "$([ -e "$FIXTURE_DIR/install/MAINTENANCE" ] && echo on || echo off)" >> "$FIXTURE_DIR/maintenance.log" ;; esac
 state="$FIXTURE_DIR/pm2.state"
 case "$1" in
   start) cat "$FIXTURE_DIR/install/.next/standalone/admin-panel/server.js" >> "$FIXTURE_DIR/started"; echo online > "$state" ;;
@@ -179,7 +183,9 @@ ${source.slice(start, end)}
     const read = (name: string) => readFileSync(path.join(dir, name), 'utf8');
     const optional = (name: string) => existsSync(path.join(dir, name)) ? read(name) : '';
     return {
-      ...result, dir, requests, read, pm2State: read('pm2.state').trim(), log: optional('upgrade.log'), started: optional('started'), pm2: optional('pm2.log'), statusReadsAfterApply, statusReads, apiKeys: [...apiKeys],
+      ...result, dir, requests, read, pm2State: read('pm2.state').trim(),
+      maintenanceSeen: optional('maintenance.log').trim().split('\n').filter(Boolean),
+      maintenanceAfter: existsSync(path.join(install, 'MAINTENANCE')) ? read('install/MAINTENANCE') : null, log: optional('upgrade.log'), started: optional('started'), pm2: optional('pm2.log'), statusReadsAfterApply, statusReads, apiKeys: [...apiKeys],
       installedMigrations: () => readdirSync(path.join(install, 'supabase/migrations')).sort(),
     };
   } finally {
@@ -488,4 +494,51 @@ it('reads quoted .env.local values the way dotenv does', async () => {
   expect(result.apiKeys).toEqual(['fixture-key']);
   expect(result.started).toBe('new-code');
   expect(result.stdout).toContain('PROGRESS: done');
+});
+
+describe('maintenance mode during the update', () => {
+  it('the shop shows the maintenance page from before the stop until the new version is up, then the file is removed @J653', async () => {
+    const result = await runUpgrade();
+    expect(result.code).toBe(0);
+    expect(result.maintenanceSeen).toEqual(['stop on', 'start on']);
+    expect(result.maintenanceAfter).toBeNull();
+    expect(result.log).toContain('Maintenance mode off');
+  });
+
+  it.each([
+    ['a migration fails and the previous code is restored', { status: 500, body: '{"message":"Migration 20261110235900_fixture failed: boom"}', statusAfterApply: { code: 200, body: '[]' } }],
+    ['the health check fails and the previous code is restored', { healthFailure: true }],
+    ['PM2 cannot stop the old process (nothing changed)', { pm2Stop: { exit: 1, state: 'online' as const } }],
+  ] as const)('removes the file when %s', async (_, options) => {
+    const result = await runUpgrade(options);
+    expect(result.code).toBe(1);
+    expect(result.maintenanceSeen[0]).toBe('stop on');
+    expect(result.maintenanceAfter).toBeNull();
+  });
+
+  it('keeps maintenance on, with the reason, when the migration result is unknown, and says how to end it', async () => {
+    const result = await runUpgrade({
+      applyDrop: true, statusAfterApply: { code: 503, body: 'unavailable' },
+    });
+    expect(result.stdout).toContain('code=migration_state_unknown');
+    expect(result.started).toBe('');
+    expect(JSON.parse(result.maintenanceAfter!)).toMatchObject({ reason: 'migration_state_unknown' });
+    const file = path.join(result.dir, 'install/MAINTENANCE');
+    expect(result.stdout).toContain(`Maintenance mode stays on (file ${file})`);
+    expect(result.stdout).toContain(`rm ${file}`);
+  });
+
+  it('a successful rerun removes the file an earlier update left on', async () => {
+    const result = await runUpgrade({ maintenanceBefore: '{"reason":"migration_state_unknown","started_at":"2026-11-17T10:00:00Z"}\n' });
+    expect(result.code).toBe(0);
+    expect(result.maintenanceAfter).toBeNull();
+  });
+
+  it('leaves a file the operator created exactly as it was', async () => {
+    const result = await runUpgrade({ maintenanceBefore: 'Planned break until 14:00' });
+    expect(result.code).toBe(0);
+    expect(result.maintenanceSeen).toEqual(['stop on', 'start on']);
+    expect(result.maintenanceAfter).toBe('Planned break until 14:00');
+    expect(result.log).toContain('created by the operator');
+  });
 });

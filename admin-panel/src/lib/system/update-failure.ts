@@ -14,6 +14,8 @@ export interface UpdateFailureDetails {
   installed_version?: string;
   migration?: string;
   cause?: string;
+  /** Maintenance file the update left on (unknown migration result). */
+  maintenance_file?: string;
 }
 
 export interface UpdateFailure {
@@ -59,7 +61,12 @@ export function describeUpdateFailure(failure: UpdateFailure | undefined, option
   if (details.cause) values.cause = details.cause;
   if (failure.code === 'migration_state_unknown') {
     // Neither version runs: the database may hold some of the release's migrations. Never "nothing changed".
-    return [t('failure.migration_state_unknown'), ...(details.cause ? [t('failure.migrationStateCause', { cause: details.cause })] : []), t('failure.migrationStateNext')];
+    return [
+      t('failure.migration_state_unknown'),
+      ...(details.cause ? [t('failure.migrationStateCause', { cause: details.cause })] : []),
+      t('failure.migrationStateNext'),
+      ...(details.maintenance_file ? [t('failure.maintenanceKept', { file: details.maintenance_file })] : []),
+    ];
   }
   const lines = [t(`failure.${failure.code}`, Object.keys(values).length ? values : undefined)];
   if (details.github_message) lines.push(t('failure.githubSays', { message: details.github_message }));
@@ -139,6 +146,7 @@ const CODE = /^[a-z][a-z0-9_]{0,39}$/;
 const ASSET = /^[A-Za-z0-9._-]{1,100}$/;
 const MIGRATION = /^[0-9]{14}_[a-z0-9_]{1,100}$/;
 const VERSION = /^v?[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}$/;
+const MAINTENANCE_FILE = /^\/[A-Za-z0-9._\/-]{1,300}\/MAINTENANCE$/;
 
 /** Only known, bounded failure fields from an upgrade progress file reach the API. */
 export function sanitizeUpdateFailure(raw: { code?: unknown; details?: unknown }, secretValues: readonly string[] = []): UpdateFailure | undefined {
@@ -156,5 +164,6 @@ export function sanitizeUpdateFailure(raw: { code?: unknown; details?: unknown }
   if (typeof input.migration === 'string' && MIGRATION.test(input.migration)) details.migration = input.migration;
   const cause = sanitizeUpdateText(input.cause, 300, secretValues);
   if (cause) details.cause = cause;
+  if (typeof input.maintenance_file === 'string' && MAINTENANCE_FILE.test(input.maintenance_file)) details.maintenance_file = input.maintenance_file;
   return { code: raw.code, details };
 }

@@ -841,6 +841,50 @@ done
 
 log "Backup created at $BACKUP_DIR"
 
+# ===== STEP 5b: MAINTENANCE MODE =====
+# maintenance-file:start
+# From here until the update ends the shop answers with the maintenance page: the app reads
+# <install>/MAINTENANCE before any database query (src/lib/maintenance/file.ts), so the page also
+# shows while the new version starts. The file is removed on every exit except an unknown migration
+# result, where it stays so that nobody takes orders against a database in an unknown state. A file
+# the operator created (any content not written by this script) is left exactly as it is.
+MAINTENANCE_FILE="$INSTALL_DIR/MAINTENANCE"
+MAINTENANCE_OWNED=false
+MAINTENANCE_KEEP=false
+maintenance_write() {
+  local tmp="$MAINTENANCE_FILE.tmp.$$"
+  printf '{"reason":"%s","started_at":"%s"}\n' "$1" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$tmp" \
+    && chmod 644 "$tmp" && mv -f "$tmp" "$MAINTENANCE_FILE"
+}
+maintenance_begin() {
+  if [ -e "$MAINTENANCE_FILE" ] && ! grep -Eq '^\{"reason":"(upgrade|migration_state_unknown)"' "$MAINTENANCE_FILE" 2>/dev/null; then
+    log "Maintenance file $MAINTENANCE_FILE was created by the operator; leaving it as it is"
+    return 0
+  fi
+  if maintenance_write upgrade; then
+    MAINTENANCE_OWNED=true
+    log "Maintenance mode on: $MAINTENANCE_FILE"
+  else
+    rm -f "$MAINTENANCE_FILE.tmp.$$"
+    log "WARNING: Could not create $MAINTENANCE_FILE; the update continues without the maintenance page"
+  fi
+}
+# Unknown migration result: maintenance stays on whatever happens next.
+maintenance_keep() {
+  MAINTENANCE_KEEP=true
+  if [ "$MAINTENANCE_OWNED" = true ]; then maintenance_write migration_state_unknown || true; fi
+  [ -e "$MAINTENANCE_FILE" ] || maintenance_write migration_state_unknown || true
+  log "Maintenance mode left on: $MAINTENANCE_FILE"
+}
+maintenance_on_exit() {
+  if [ "$MAINTENANCE_OWNED" = true ] && [ "$MAINTENANCE_KEEP" != true ]; then
+    rm -f "$MAINTENANCE_FILE" && log "Maintenance mode off: removed $MAINTENANCE_FILE"
+  fi
+}
+# maintenance-file:end
+maintenance_begin
+trap 'maintenance_on_exit; rm -rf "${TMP_DIR:-}"; rm -f "${LOCK_FILE:-}"' EXIT
+
 # ===== STEP 6: STOP PM2 =====
 
 write_progress "stopping" 55 "Stopping application..."
@@ -1233,8 +1277,9 @@ if [ -n "$MIGRATION_UNKNOWN" ]; then
   FIRST_PENDING="${PENDING_MIGRATIONS[0]%%_*}"
   LAST_PENDING="${LAST_MIGRATION%%_*}"
   log "ERROR: Migration outcome unknown; application left stopped"
-  write_failure migration_state_unknown "The result of the database migration is unknown: ${MIGRATION_CAUSE%.}. The migration registry $REGISTRY_TEXT. The application was left stopped so that neither the old nor the new version runs against a database in an unknown state. Check supabase_migrations.schema_migrations for versions $FIRST_PENDING to $LAST_PENDING: if all $MIGRATION_PENDING_COUNT are present, run the update again (it skips them and starts the new version); if none is present, run the update again or restore the previous code from $BACKUP_DIR; if only some are present, restore the database from your latest backup first." \
-    cause "$MIGRATION_CAUSE"
+  maintenance_keep
+  write_failure migration_state_unknown "The result of the database migration is unknown: ${MIGRATION_CAUSE%.}. The migration registry $REGISTRY_TEXT. The application was left stopped so that neither the old nor the new version runs against a database in an unknown state. Check supabase_migrations.schema_migrations for versions $FIRST_PENDING to $LAST_PENDING: if all $MIGRATION_PENDING_COUNT are present, run the update again (it skips them and starts the new version); if none is present, run the update again or restore the previous code from $BACKUP_DIR; if only some are present, restore the database from your latest backup first. Maintenance mode stays on (file $MAINTENANCE_FILE), so the shop takes no orders even if the application is started; a successful update removes it, or delete it yourself once the database is checked: rm $MAINTENANCE_FILE" \
+    cause "$MIGRATION_CAUSE" maintenance_file "$MAINTENANCE_FILE"
   rm -rf "$TMP_DIR"
   exit 1
 fi

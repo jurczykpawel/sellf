@@ -89,6 +89,11 @@ check in the registry and what to do next; the exact range of versions and the
 folder with the previous code are in the update log. An empty or unreadable registry answer does not prove
 that the database is unchanged.
 
+From the moment the running version stops until the new one is up, the shop shows the maintenance
+page: the updater creates `<stack>/admin-panel/MAINTENANCE` and deletes it on success, on a restore
+of the previous code and on an early stop. After `migration_state_unknown` the file stays, so the
+shop takes no orders even if the application is started; see [Maintenance mode](/maintenance/).
+
 Limitation: two reads 15 s apart do not catch a transaction that commits more than
 15 s after the connection broke. The updater would then assume nothing changed and
 restore the previous code. If the shop misbehaves after such a failure, check the

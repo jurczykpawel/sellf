@@ -99,7 +99,8 @@
       "buyer_mail_on",
       "archive_product",
       "cocreator_share",
-      "accept_terms"
+      "accept_terms",
+      "maintenance"
     ]
   },
   "journeys": [
@@ -5375,6 +5376,114 @@
       },
       "layers": [
         "integration",
+        "unit"
+      ]
+    },
+    {
+      "id": "J650",
+      "title": "Admin turns on maintenance mode; nobody can start a purchase until it is turned off",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "paid",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "maintenance"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Shop, product page and checkout show “Down for maintenance, we’ll be back soon” (503, PL/EN, optional note and expected end); embedded checkout shows the same notice; no payment can be started.",
+        "seller": "Settings > System > Maintenance mode shows it is on and from which source; the admin panel keeps working; turning it off reopens the shop; both changes are in audit_log.",
+        "integrator": "Checkout APIs (create-payment-intent, embed checkout-session, order pay) answer 503 with code MAINTENANCE and Retry-After; API v1 keeps working."
+      },
+      "layers": [
+        "e2e",
+        "integration",
+        "unit"
+      ]
+    },
+    {
+      "id": "J651",
+      "title": "A purchase paid before maintenance mode started is completed by the Stripe webhook during the break",
+      "values": {
+        "persona": "guest",
+        "entry": "webhook",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "maintenance"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Gets the order and access although the shop is in maintenance.",
+        "seller": "The order is recorded as completed as usual.",
+        "integrator": "The Stripe webhook is accepted (200) during maintenance; nothing is lost."
+      },
+      "layers": [
+        "e2e",
+        "unit"
+      ]
+    },
+    {
+      "id": "J652",
+      "title": "An integrator reads and switches maintenance mode through API v1",
+      "values": {
+        "persona": "integrator",
+        "entry": "api",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "maintenance"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Not exercised: no customer state change in this probe.",
+        "seller": "The panel shows the state set through the API; the change is audited with the key owner.",
+        "integrator": "GET/PATCH /api/v1/system/maintenance return the effective state, its source (file, env, database) and the server file path; invalid input and an expected end in the past answer 400."
+      },
+      "layers": [
+        "unit"
+      ]
+    },
+    {
+      "id": "J653",
+      "title": "A self-update puts the shop into maintenance while it runs and takes it out afterwards",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "immediate",
+        "operation": "maintenance"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Sees the maintenance page from the moment the old version stops until the new one runs, then the shop again.",
+        "seller": "The update creates <install>/MAINTENANCE and removes it on success, rollback or an early stop; after an unknown migration result it stays on and the update message names the file to delete.",
+        "integrator": "The server file works without the database: the proxy answers 503 before any database request."
+      },
+      "layers": [
+        "unit"
+      ]
+    },
+    {
+      "id": "J654",
+      "title": "Admin sets the invoice provider to Disabled; the Fakturownia fields disappear",
+      "values": {
+        "persona": "admin",
+        "entry": "dashboard",
+        "product": "not_applicable",
+        "payment": "none",
+        "moment": "after_edit",
+        "operation": "issue_invoice"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Not exercised: no customer state change.",
+        "seller": "Settings > Invoicing with Provider = Disabled shows only the provider, a short note and Save; domain, token, mode, VAT basis, template and Check connection come back with the saved values when Fakturownia is chosen.",
+        "integrator": "Not exercised: no API or webhook change."
+      },
+      "layers": [
         "unit"
       ]
     }

@@ -2086,6 +2086,48 @@ export type Database = {
         }
         Relationships: []
       }
+      maintenance_mode: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          enabled: boolean
+          expected_end_at: string | null
+          id: boolean
+          message: string | null
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          enabled?: boolean
+          expected_end_at?: string | null
+          id?: boolean
+          message?: string | null
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          enabled?: boolean
+          expected_end_at?: string | null
+          id?: boolean
+          message?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_mode_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "maintenance_mode_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       order_bumps: {
         Row: {
           access_duration_days: number | null
@@ -6109,6 +6151,14 @@ export type Database = {
           orders: number
         }[]
       }
+      get_maintenance_mode: {
+        Args: never
+        Returns: {
+          enabled: boolean
+          expected_end_at: string
+          message: string
+        }[]
+      }
       get_migration_status: { Args: never; Returns: Json }
       get_oto_coupon_info: {
         Args: { coupon_code_param: string; email_param: string }
@@ -7132,6 +7182,16 @@ export type Database = {
       set_invoice_recipient_enabled: {
         Args: { p_details?: Json; p_enabled: boolean; p_performed_by: string }
         Returns: boolean
+      }
+      set_maintenance_mode: {
+        Args: {
+          p_details?: Json
+          p_enabled: boolean
+          p_expected_end_at: string
+          p_message: string
+          p_performed_by: string
+        }
+        Returns: Json
       }
       set_payment_order_buyer: {
         Args: {
