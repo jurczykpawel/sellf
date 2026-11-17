@@ -52,7 +52,22 @@ async function paidOrder(buyer: { id: string; email: string }, productId: string
   return tx!;
 }
 
-async function fullRefund(tx: { id: string; session_id: string }, buyerId: string, productId: string) {
+/** Unpaid bank-transfer order for `productId`; `accessOnPlacement` mirrors the shop setting at placement. */
+async function unpaidTransfer(buyer: { id: string; email: string }, productId: string, accessOnPlacement = false): Promise<{ id: string; session_id: string | null }> {
+  const tx = await checked(await db.from('payment_transactions').insert({
+    product_id: productId, customer_email: buyer.email, user_id: buyer.id, amount: 4000, currency: 'PLN',
+    status: 'awaiting_payment', payment_provider: 'bank_transfer', pricing_snapshot_version: 1,
+    metadata: { access_on_placement: accessOnPlacement },
+  }).select('id,session_id').single());
+  return tx!;
+}
+
+async function recompose(bundle: string, remove: string, add: string) {
+  await checked(await db.from('bundle_items').delete().eq('bundle_product_id', bundle).eq('component_product_id', remove));
+  await checked(await db.from('bundle_items').insert({ bundle_product_id: bundle, component_product_id: add, display_order: 9 }));
+}
+
+async function fullRefund(tx: { id: string; session_id: string | null }, buyerId: string, productId: string) {
   await checked(await db.from('payment_transactions').update({ status: 'refunded', refunded_amount: 4000 }).eq('id', tx.id));
   return revokeTransactionAccess(db, { transactionId: tx.id, userId: buyerId, productId, sessionId: tx.session_id });
 }
@@ -135,5 +150,62 @@ describe('full refund of a bundle order @J34', () => {
 
     await fullRefund(tx, buyer.id, bundle);
     expect(await accessTo(buyer.id, [bundle, kept, removed, added])).toEqual([]);
+  });
+
+  it('grants and ends the same components when the bundle changes between placing and paying the order @J34', async () => {
+    const [before, after] = [await product('comp-before'), await product('comp-after')];
+    const bundle = await bundleOf([before]);
+    const buyer = await user();
+    const tx = await unpaidTransfer(buyer, bundle);
+    await recompose(bundle, before, after);
+
+    const paid = await checked(await db.rpc('complete_offline_order', { p_transaction_id: tx.id, p_paid_minor: 4000 }));
+    expect((paid as { success: boolean }).success).toBe(true);
+    expect(await accessTo(buyer.id, [bundle, before, after])).toEqual([bundle, after].sort());
+
+    await fullRefund(tx, buyer.id, bundle);
+    expect(await accessTo(buyer.id, [bundle, before, after])).toEqual([]);
+  });
+
+  it('grants a claiming guest the components paid for and ends exactly those on refund @J34', async () => {
+    const [paidFor, addedLater] = [await product('guest-paid-for'), await product('guest-added-later')];
+    const bundle = await bundleOf([paidFor]);
+    const email = `bundle-guest-${randomUUID()}@example.com`;
+    const sessionId = `cs_${randomUUID().replaceAll('-', '')}`;
+    const tx = await checked(await db.from('payment_transactions').insert({
+      product_id: bundle, customer_email: email, amount: 4000, currency: 'PLN', status: 'completed', payment_provider: 'stripe', session_id: sessionId,
+    }).select('id,session_id').single());
+    await checked(await db.from('guest_purchases').insert({ product_id: bundle, customer_email: email, transaction_amount: 4000, transaction_id: tx!.id, session_id: sessionId }));
+    await recompose(bundle, paidFor, addedLater);
+    const created = await checked(await db.auth.admin.createUser({ email, email_confirm: true }));
+    userIds.push(created.user!.id);
+    await checked(await db.rpc('claim_guest_purchases_for_user', { p_user_id: created.user!.id }));
+    expect(await accessTo(created.user!.id, [bundle, paidFor, addedLater])).toEqual([bundle, paidFor].sort());
+
+    await fullRefund(tx!, created.user!.id, bundle);
+    expect(await accessTo(created.user!.id, [bundle, paidFor, addedLater])).toEqual([]);
+  });
+
+  it('ends a component when the buyer only has an unpaid order for it @J34', async () => {
+    const [one, two] = [await product('comp-unpaid'), await product('comp-unpaid-two')];
+    const bundle = await bundleOf([one, two]);
+    const buyer = await user();
+    const tx = await paidOrder(buyer, bundle);
+    await unpaidTransfer(buyer, one);
+
+    await fullRefund(tx, buyer.id, bundle);
+    expect(await accessTo(buyer.id, [bundle, one, two])).toEqual([]);
+  });
+
+  it('keeps a component the buyer holds through another bundle granted without an order @J34', async () => {
+    const [shared, onlyRefunded] = [await product('comp-manual-shared'), await product('comp-manual-only')];
+    const refundedBundle = await bundleOf([shared, onlyRefunded]);
+    const grantedBundle = await bundleOf([shared]);
+    const buyer = await user();
+    const tx = await paidOrder(buyer, refundedBundle);
+    await checked(await db.rpc('grant_product_and_bundle_components', { user_id_param: buyer.id, product_id_param: grantedBundle }));
+
+    await fullRefund(tx, buyer.id, refundedBundle);
+    expect(await accessTo(buyer.id, [refundedBundle, grantedBundle, shared, onlyRefunded])).toEqual([grantedBundle, shared].sort());
   });
 });

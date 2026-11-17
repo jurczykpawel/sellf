@@ -128,7 +128,7 @@ BEGIN
     BEGIN
       PERFORM set_config('sellf.transfer_order',coalesce(claim.transaction_id::text,''),true);
       UPDATE public.guest_purchases SET claimed_by_user_id=p_user_id,claimed_at=now() WHERE id=claim.id;
-      result:=public.grant_product_and_bundle_components(p_user_id,claim.product_id);
+      result:=public.grant_product_and_bundle_components(p_user_id,claim.product_id,NULL,claim.transaction_id);
       IF (result->>'success')::boolean IS DISTINCT FROM true THEN RAISE EXCEPTION 'Access grant failed'; END IF;
       claimed:=claimed+1;
       UPDATE public.payment_transactions SET user_id=p_user_id,updated_at=now()
@@ -247,7 +247,7 @@ BEGIN
       SELECT 1 FROM public.guest_purchases gp WHERE gp.transaction_id=tx.id AND gp.customer_email=u.email AND gp.claimed_by_user_id IS NULL);
   END IF;
   IF p_user_id IS NOT NULL THEN
-    PERFORM public.grant_product_and_bundle_components(p_user_id,tx.product_id);
+    PERFORM public.grant_product_and_bundle_components(p_user_id,tx.product_id,NULL,tx.id);
     FOR line IN SELECT product_id,access_duration_override FROM public.payment_line_items WHERE transaction_id=tx.id AND item_type='order_bump' LOOP
       PERFORM public.grant_product_access_service_role(p_user_id,line.product_id,override_duration_days_param=>line.access_duration_override);
     END LOOP;
@@ -507,7 +507,7 @@ BEGIN
           SELECT 1 FROM public.guest_purchases
           WHERE session_id = session_id_param AND claimed_by_user_id IS NULL
         ) THEN
-          PERFORM public.grant_product_and_bundle_components(current_user_id, product_id_param);
+          PERFORM public.grant_product_and_bundle_components(current_user_id, product_id_param, NULL, existing_transaction_id);
 
           FOR bump_rec IN
             SELECT pli.product_id, pli.access_duration_override
@@ -4346,7 +4346,10 @@ BEGIN
   END LOOP;
   -- A separate newly claimable order retains its own normal grant policy.
   FOR term IN SELECT DISTINCT p.id::text key FROM public.guest_purchases g JOIN public.products p ON
-    p.id=g.product_id OR EXISTS(SELECT 1 FROM public.bundle_items b WHERE b.bundle_product_id=g.product_id AND b.component_product_id=p.id)
+    p.id=g.product_id OR EXISTS(SELECT 1 FROM public.payment_transactions o WHERE (o.id=g.transaction_id OR (g.transaction_id IS NULL AND o.session_id=g.session_id))
+      AND o.product_id=g.product_id AND p.id IN (SELECT public.order_granted_components(o.id)))
+    OR (NOT EXISTS(SELECT 1 FROM public.payment_transactions o WHERE o.id=g.transaction_id OR (g.transaction_id IS NULL AND o.session_id=g.session_id))
+      AND EXISTS(SELECT 1 FROM public.bundle_items b WHERE b.bundle_product_id=g.product_id AND b.component_product_id=p.id))
     OR EXISTS(SELECT 1 FROM public.payment_line_items l WHERE l.transaction_id=g.transaction_id AND l.product_id=p.id)
     WHERE g.customer_email=buyer_email AND g.claimed_by_user_id IS NULL AND NOT g.metadata ? '_dispute_access_terms'
       AND NOT EXISTS(SELECT 1 FROM public.payment_transactions t
@@ -8213,18 +8216,19 @@ COMMENT ON FUNCTION public.grant_product_access_service_role_impl(user_id_param 
 
 
 --
--- Name: grant_product_and_bundle_components(uuid, uuid, integer); Type: FUNCTION; Schema: public; Owner: postgres
+-- Name: grant_product_and_bundle_components(uuid, uuid, integer, uuid); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
-CREATE FUNCTION public.grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer DEFAULT NULL::integer) RETURNS jsonb
+CREATE FUNCTION public.grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer DEFAULT NULL::integer, transaction_id_param uuid DEFAULT NULL::uuid) RETURNS jsonb
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO ''
     AS $$
 DECLARE
-  is_bundle_var BOOLEAN;
-  comp_rec RECORD;
-  comp_result JSONB;
-  granted INTEGER := 0;
+  is_bundle_var boolean;
+  order_scoped boolean;
+  comp_rec record;
+  comp_result jsonb;
+  granted integer := 0;
 BEGIN
   PERFORM public.grant_product_access_service_role(
     user_id_param, product_id_param, override_duration_days_param => override_duration_days_param
@@ -8233,22 +8237,27 @@ BEGIN
 
   SELECT is_bundle INTO is_bundle_var FROM public.products WHERE id = product_id_param;
   IF is_bundle_var IS TRUE THEN
+    order_scoped := transaction_id_param IS NOT NULL AND EXISTS (
+      SELECT 1 FROM public.payment_transactions WHERE id = transaction_id_param AND product_id = product_id_param);
+    IF order_scoped THEN PERFORM public.snapshot_order_bundle_components(transaction_id_param); END IF;
     FOR comp_rec IN
-      SELECT component_product_id FROM public.bundle_items
-      WHERE bundle_product_id = product_id_param
-      ORDER BY display_order
+      SELECT c.component_product_id FROM (
+        SELECT g AS component_product_id FROM public.order_granted_components(transaction_id_param) g WHERE order_scoped
+        UNION ALL
+        SELECT b.component_product_id FROM public.bundle_items b WHERE NOT order_scoped AND b.bundle_product_id = product_id_param
+      ) c
+      LEFT JOIN public.bundle_items d ON d.bundle_product_id = product_id_param AND d.component_product_id = c.component_product_id
+      ORDER BY d.display_order NULLS LAST
     LOOP
       BEGIN
         -- Grants the component regardless of is_active (an inactive component is a SUCCESS).
         comp_result := public.grant_bundle_component_access(user_id_param, comp_rec.component_product_id);
-        IF COALESCE((comp_result->>'success')::BOOLEAN, false) THEN
+        IF COALESCE((comp_result->>'success')::boolean, false) THEN
           granted := granted + 1;
         ELSE
-          -- Helper returned a real failure (e.g. concurrency conflict, missing product) without
-          -- raising. Surface it; the safe-log is wrapped so logging can never escape this loop.
           BEGIN
             PERFORM public.log_admin_action(
-              'bundle_component_grant_failure', 'bundle_items', product_id_param::TEXT,
+              'bundle_component_grant_failure', 'bundle_items', product_id_param::text,
               jsonb_build_object('severity', 'ERROR', 'user_id', user_id_param,
                 'component_product_id', comp_rec.component_product_id,
                 'error', comp_result->>'error',
@@ -8258,11 +8267,10 @@ BEGIN
           END;
         END IF;
       EXCEPTION WHEN OTHERS THEN
-        -- Unexpected raise from the component grant. Isolate it (one bad component must not block
-        -- the rest of the bundle) and log safely.
+        -- One bad component must not block the rest of the bundle; logging can never escape this loop.
         BEGIN
           PERFORM public.log_admin_action(
-            'bundle_component_grant_failure', 'bundle_items', product_id_param::TEXT,
+            'bundle_component_grant_failure', 'bundle_items', product_id_param::text,
             jsonb_build_object('severity', 'ERROR', 'user_id', user_id_param,
               'component_product_id', comp_rec.component_product_id,
               'error_code', SQLSTATE, 'error_message', SQLERRM,
@@ -8275,11 +8283,10 @@ BEGIN
   END IF;
 
   RETURN jsonb_build_object('success', true, 'granted', granted);
-END;
-$$;
+END $$;
 
 
-ALTER FUNCTION public.grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer) OWNER TO postgres;
+ALTER FUNCTION public.grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer, transaction_id_param uuid) OWNER TO postgres;
 
 --
 -- Name: handle_new_user_registration(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -11563,13 +11570,9 @@ CREATE FUNCTION public.record_order_bundle_components() RETURNS trigger
     SET search_path TO ''
     AS $$
 BEGIN
-  IF NEW.product_id IS NOT NULL AND NEW.status IN ('awaiting_payment', 'completed')
-    AND NOT EXISTS (SELECT 1 FROM public.order_bundle_components WHERE transaction_id = NEW.id) THEN
-    INSERT INTO public.order_bundle_components (transaction_id, component_product_id, bundle_product_id)
-    SELECT NEW.id, b.component_product_id, b.bundle_product_id
-    FROM public.bundle_items b JOIN public.products p ON p.id = b.bundle_product_id AND p.is_bundle
-    WHERE b.bundle_product_id = NEW.product_id
-    ON CONFLICT DO NOTHING;
+  IF NEW.product_id IS NOT NULL AND (NEW.status = 'completed' OR (NEW.status = 'awaiting_payment'
+    AND coalesce((NEW.metadata->>'access_on_placement')::boolean, false))) THEN
+    PERFORM public.snapshot_order_bundle_components(NEW.id);
   END IF;
   RETURN NULL;
 END $$;
@@ -12012,7 +12015,8 @@ BEGIN
     AND NOT EXISTS (
       SELECT 1 FROM public.payment_transactions o
       WHERE o.id <> t.id
-        AND o.status IN ('awaiting_payment', 'completed', 'partially_refunded', 'disputed')
+        AND (o.status IN ('completed', 'partially_refunded', 'disputed')
+          OR (o.status = 'awaiting_payment' AND coalesce((o.metadata->>'access_on_placement')::boolean, false)))
         AND (o.amount = 0 OR coalesce(o.refunded_amount, 0) < o.amount)
         AND (o.user_id = p_user_id OR EXISTS (
           SELECT 1 FROM public.guest_purchases g
@@ -12020,6 +12024,13 @@ BEGIN
         AND (o.product_id = a.product_id
           OR EXISTS (SELECT 1 FROM public.payment_line_items l WHERE l.transaction_id = o.id AND l.product_id = a.product_id)
           OR a.product_id IN (SELECT public.order_granted_components(o.id)))
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM public.user_product_access other
+      JOIN public.bundle_items b ON b.bundle_product_id = other.product_id
+      WHERE other.user_id = p_user_id AND other.product_id IS DISTINCT FROM t.product_id
+        AND b.component_product_id = a.product_id
+        AND (other.access_expires_at IS NULL OR other.access_expires_at > now())
     );
   GET DIAGNOSTICS removed = ROW_COUNT;
   RETURN removed;
@@ -12758,6 +12769,27 @@ END $$;
 
 
 ALTER FUNCTION public.snapshot_event_tier_label() OWNER TO postgres;
+
+--
+-- Name: snapshot_order_bundle_components(uuid); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.snapshot_order_bundle_components(p_transaction_id uuid) RETURNS void
+    LANGUAGE sql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+  INSERT INTO public.order_bundle_components (transaction_id, component_product_id, bundle_product_id)
+  SELECT t.id, b.component_product_id, b.bundle_product_id
+  FROM public.payment_transactions t
+  JOIN public.products p ON p.id = t.product_id AND p.is_bundle
+  JOIN public.bundle_items b ON b.bundle_product_id = t.product_id
+  WHERE t.id = p_transaction_id
+    AND NOT EXISTS (SELECT 1 FROM public.order_bundle_components o WHERE o.transaction_id = p_transaction_id)
+  ON CONFLICT DO NOTHING;
+$$;
+
+
+ALTER FUNCTION public.snapshot_order_bundle_components(p_transaction_id uuid) OWNER TO postgres;
 
 --
 -- Name: snapshot_purchase_attribution(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -14715,7 +14747,7 @@ ALTER TABLE public.order_bundle_components OWNER TO postgres;
 -- Name: TABLE order_bundle_components; Type: COMMENT; Schema: public; Owner: postgres
 --
 
-COMMENT ON TABLE public.order_bundle_components IS 'Bundle components an order grants, recorded when the order is placed or paid; refunds and disputes act on this set.';
+COMMENT ON TABLE public.order_bundle_components IS 'Bundle components an order grants, recorded when the order grants access; grants, refunds and disputes act on this set.';
 
 
 --
@@ -23184,8 +23216,8 @@ function | public.grant_product_access_service_role(user_id_param uuid, product_
 function | public.grant_product_access_service_role(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer) | service_role | EXECUTE | postgres | -
 function | public.grant_product_access_service_role_impl(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer) | postgres | EXECUTE | postgres | -
 function | public.grant_product_access_service_role_impl(user_id_param uuid, product_id_param uuid, max_retries integer, override_duration_days_param integer) | service_role | EXECUTE | postgres | -
-function | public.grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer) | postgres | EXECUTE | postgres | -
-function | public.grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer) | service_role | EXECUTE | postgres | -
+function | public.grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer, transaction_id_param uuid) | postgres | EXECUTE | postgres | -
+function | public.grant_product_and_bundle_components(user_id_param uuid, product_id_param uuid, override_duration_days_param integer, transaction_id_param uuid) | service_role | EXECUTE | postgres | -
 function | public.handle_new_user_registration() | postgres | EXECUTE | postgres | -
 function | public.handle_new_user_registration() | service_role | EXECUTE | postgres | -
 function | public.handle_user_email_confirmation() | postgres | EXECUTE | postgres | -
@@ -23420,6 +23452,8 @@ function | public.set_webhook_endpoint_scoping(p_endpoint_id uuid, p_mode text, 
 function | public.set_webhook_endpoint_scoping(p_endpoint_id uuid, p_mode text, p_product_ids uuid[]) | service_role | EXECUTE | postgres | -
 function | public.snapshot_event_tier_label() | postgres | EXECUTE | postgres | -
 function | public.snapshot_event_tier_label() | service_role | EXECUTE | postgres | -
+function | public.snapshot_order_bundle_components(p_transaction_id uuid) | postgres | EXECUTE | postgres | -
+function | public.snapshot_order_bundle_components(p_transaction_id uuid) | service_role | EXECUTE | postgres | -
 function | public.snapshot_purchase_attribution() | postgres | EXECUTE | postgres | -
 function | public.snapshot_purchase_attribution() | service_role | EXECUTE | postgres | -
 function | public.snapshot_purchase_attribution_inserted() | postgres | EXECUTE | postgres | -

@@ -6465,6 +6465,7 @@ export type Database = {
         Args: {
           override_duration_days_param?: number
           product_id_param: string
+          transaction_id_param?: string
           user_id_param: string
         }
         Returns: Json
@@ -7335,6 +7336,10 @@ export type Database = {
       }
       set_webhook_endpoint_scoping: {
         Args: { p_endpoint_id: string; p_mode: string; p_product_ids: string[] }
+        Returns: undefined
+      }
+      snapshot_order_bundle_components: {
+        Args: { p_transaction_id: string }
         Returns: undefined
       }
       snapshot_purchase_attribution_row: {
