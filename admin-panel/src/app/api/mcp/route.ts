@@ -16,7 +16,7 @@
 import { Server, WebStandardStreamableHTTPServerTransport, type CallToolResult, type Tool } from '@modelcontextprotocol/server';
 import { ApiAuthError, authenticateApiKeyPrincipal } from '@/lib/api/middleware';
 import { buildOpenApiSpec } from '@/lib/api/openapi/spec';
-import { buildApiRequest, mcpOperations, scopeAllows, searchOperations, type McpOperation, type OpenApiDocument } from '@/lib/mcp/operations';
+import { buildApiRequest, COMPACT_TOOLS, mcpOperations, scopeAllows, searchOperations, type McpOperation, type OpenApiDocument } from '@/lib/mcp/operations';
 import { APP_VERSION } from '@/lib/version';
 import type { NextRequest } from 'next/server';
 
@@ -36,21 +36,6 @@ const CALL_TIMEOUT_MS = 60_000;
 function internalOrigin(): string {
   return process.env.SELLF_INTERNAL_URL?.replace(/\/+$/, '') || `http://127.0.0.1:${process.env.PORT || 3000}`;
 }
-
-const COMPACT_TOOLS: Tool[] = [
-  {
-    name: 'search_operations',
-    description: 'Search the Sellf API operations this key may call. Every word must match the operation name, path, summary, description or group; an empty query matches all; at most 20 results. Returns each operation\'s operationId and input schema for call_operation.',
-    inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'], additionalProperties: false },
-    annotations: { title: 'Search API operations', readOnlyHint: true },
-  },
-  {
-    name: 'call_operation',
-    description: 'Call an API operation found with search_operations. `params` follows that operation\'s input schema (path and query parameters by name, JSON request body under `body`).',
-    inputSchema: { type: 'object', properties: { operationId: { type: 'string' }, params: { type: 'object' } }, required: ['operationId'], additionalProperties: false },
-    annotations: { title: 'Call an API operation', readOnlyHint: false },
-  },
-];
 
 const toolError = (text: string): CallToolResult => ({ content: [{ type: 'text', text }], isError: true });
 const asTool = (op: McpOperation): Tool => ({ name: op.name, description: op.description, inputSchema: op.inputSchema, annotations: op.annotations });

@@ -38,6 +38,64 @@ export async function OPTIONS(request: NextRequest) { await authenticate(request
     expect(one(`export function OPTIONS() { return new Response(null, { status: 204 }); }`)).toEqual([]);
   });
 
+  it('requires a registry entry for an OPTIONS handler that is not an empty CORS preflight (W221br P2)', () => {
+    // 200 with a cookie is not a preflight, even though the body is null.
+    const [cookie] = one(`export function OPTIONS() { return new Response(null, { status: 200, headers: { 'Set-Cookie': 'x=y' } }); }`);
+    expect(cookie?.method).toBe('OPTIONS');
+    // Status other than 204, missing status, or extra init keys are not the recognised preflight.
+    expect(one(`export function OPTIONS() { return new Response(null, { status: 200 }); }`)).toHaveLength(1);
+    expect(one(`export function OPTIONS() { return new Response(null); }`)).toHaveLength(1);
+    expect(one(`export function OPTIONS() { return new Response(null, { status: 204, statusText: 'x' }); }`)).toHaveLength(1);
+    expect(one(`const H = { 'Access-Control-Allow-Origin': '*', 'Set-Cookie': 'x=y' };\nexport function OPTIONS() { return new Response(null, { status: 204, headers: { ...H } }); }`)).toHaveLength(1);
+    expect(one(`declare const h: Record<string, string>;\nexport function OPTIONS() { return new Response(null, { status: 204, headers: h }); }`)).toHaveLength(1);
+    // The recognised preflight: empty 204 with CORS headers only (inline or via a const spread).
+    expect(one(`const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, OPTIONS' };
+export function OPTIONS() { return new NextResponse(null, { status: 204, headers: { ...CORS, 'Access-Control-Max-Age': '86400' } }); }`)).toEqual([]);
+  });
+
+  it('ignores the body of a nested function that is never called (W221br P1)', () => {
+    // The reviewer's probe: the only real check passes no scope; the scoped one is dead code.
+    const [dead] = one(`export async function GET(request: NextRequest) {
+  await authenticate(request, []);
+  async function unused() { await authenticate(request, [API_SCOPES.PRODUCTS_READ]); }
+  void unused;
+  return Response.json({});
+}`);
+    expect(dead.scopes).toEqual([]);
+    expect(dead.unresolved).toEqual([expect.stringContaining('execution')]);
+
+    const [uncalled] = one(`export async function GET(request: NextRequest) {
+  await authenticate(request, []);
+  const later = async () => authenticate(request, [API_SCOPES.PRODUCTS_READ]);
+  return Response.json({});
+}`);
+    expect(uncalled.scopes).toEqual([]);
+    expect(uncalled.unresolved).toEqual([]);
+  });
+
+  it('marks a nested function whose execution it cannot prove as unresolved', () => {
+    const [callback] = one(`declare function later(f: () => unknown): void;
+export async function GET(request: NextRequest) {
+  later(async () => authenticate(request, [API_SCOPES.PRODUCTS_READ]));
+  return Response.json({});
+}`);
+    expect(callback.scopes).toEqual([]);
+    expect(callback.unresolved).toEqual([expect.stringContaining('execution')]);
+  });
+
+  it('follows a nested function that the handler calls, and an immediately invoked one', () => {
+    const [called] = one(`export async function GET(request: NextRequest) {
+  const check = async () => authenticate(request, [API_SCOPES.PRODUCTS_READ]);
+  async function read() { return request.nextUrl.searchParams.get('q'); }
+  await check();
+  await (async () => { await read(); })();
+  return Response.json({});
+}`);
+    expect(called.scopes).toEqual(['PRODUCTS_READ']);
+    expect(called.query).toEqual(['q']);
+    expect(called.unresolved).toEqual([]);
+  });
+
   it('resolves `export { handle as GET }` and `export const GET = async () => …` to their implementation', () => {
     const routes = one(`
 async function handle(request: NextRequest) { await authenticate(request, [API_SCOPES.COUPONS_READ]); return Response.json({}); }
