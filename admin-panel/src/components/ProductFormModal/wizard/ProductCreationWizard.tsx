@@ -6,12 +6,15 @@ import { useTranslations, useLocale } from 'next-intl';
 import { Product } from '@/types';
 import { BaseModal, ModalHeader, ModalBody, Message } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Modal';
+import TutorialTrigger from '@/components/tutorials/TutorialTrigger';
 import { useProductForm } from '../hooks';
 import { EventSection } from '../sections/EventSection';
 import { WizardFooter } from './WizardFooter';
 import { FormSection } from './FormSection';
 import { FormSectionNav } from './FormSectionNav';
 import { BuyerSummary } from './BuyerSummary';
+import { ScenarioBar } from './ScenarioBar';
+import { applyScenario, type ScenarioId } from './scenarios';
 import { BasicsPanel } from './panels/BasicsPanel';
 import { DeliveryPanel } from './panels/DeliveryPanel';
 import { CartPanel } from './panels/CartPanel';
@@ -19,7 +22,7 @@ import { OfferPanel } from './panels/OfferPanel';
 import { SalesPanel } from './panels/SalesPanel';
 import { FORM_SECTIONS, initialSection, sectionForErrors, type FormSectionId } from './form-sections';
 import { headerPriceBadge } from './header-price-badge';
-import type { ProductFormData } from '../types';
+import { initialFormData, type ProductFormData } from '../types';
 
 export interface ProductCreationWizardProps {
   tutorial?: string;
@@ -50,6 +53,8 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
   const locale = useLocale();
 
   const isEditMode = !!(product && product.id);
+  // A blank new product opens on "What are you selling?" instead of the name field.
+  const isBlankNew = !product && !defaultIsBundle;
 
   const titleId = useId();
   const [currentSection, setCurrentSection] = useState<FormSectionId>(() => initialSection(tutorial));
@@ -102,7 +107,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
     proceedWithSubmit,
     dismissWaitlistWarning,
     hasWaitlistWebhook,
-  } = useProductForm({ product, isOpen, onSubmit, defaultIsBundle });
+  } = useProductForm({ product, isOpen, onSubmit, defaultIsBundle, focusName: !isBlankNew });
 
   // Check if form has been touched (for exit confirmation)
   const isFormDirty = useCallback(() => {
@@ -167,6 +172,13 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
     handleSubmit(syntheticEvent);
   }, [handleSubmit]);
 
+  // A scenario sets existing fields on the form as it is now; the price field shows the amount it set.
+  const applyScenarioChange = useCallback((id: ScenarioId) => {
+    const price = applyScenario(formData, id).price;
+    if (price !== formData.price) setPriceDisplayValue(price ? String(price).replace('.', ',') : '');
+    setFormData(prev => applyScenario(prev, id));
+  }, [formData, setFormData, setPriceDisplayValue]);
+
   const priceBadge = headerPriceBadge(formData, priceDisplayValue, t('free'), locale);
 
   if (!isOpen) return null;
@@ -213,6 +225,15 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
         <FormSectionNav current={currentSection} formData={formData} onSelect={setCurrentSection} t={t} />
 
         <ModalBody>
+          <TutorialTrigger id="product-form" />
+          <ScenarioBar
+            formData={formData}
+            onApply={applyScenarioChange}
+            t={t}
+            startOpen={isBlankNew}
+            pristine={product ? null : initialFormData}
+            isStored={isEditMode}
+          />
           {error && (
             <Message
               type="error"

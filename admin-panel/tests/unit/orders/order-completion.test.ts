@@ -203,7 +203,7 @@ describe('offline completion and claiming', () => {
 
 describe('profile completeness on completion', () => {
   it.each([false, true])('completes normally and marks missing required details (%s)', async completeDetails => {
-    const profile = { v: 1, modules: [{ id: 'buyer', types: ['person'], gus: false }, { id: 'phone', required: true }, { id: 'quantity', mode: 'checkout', min: 1, max: 5 }, { id: 'participants', required: true, prefill_from_buyer: true }] };
+    const profile = { v: 1, modules: [{ id: 'buyer', types: ['person'] }, { id: 'phone', required: true }, { id: 'quantity', mode: 'checkout', min: 1, max: 5 }, { id: 'participants', required: true, prefill_from_buyer: true }] };
     await checked(await db.from('products').update({ checkout_profile: profile }).eq('id', products[0]));
     try {
       const details = completeDetails ? { buyer: { v: 1, type: 'person', first_name: 'Jan', last_name: 'Nowak', email }, phone: { v: 1, value: '+48500100200' }, quantity: { v: 1, value: 2 }, participants: { v: 1, people: [{ first_name: 'Jan', last_name: 'Nowak', email }, { first_name: 'Anna', last_name: 'Nowak', email: 'anna@example.com' }] } } : {};

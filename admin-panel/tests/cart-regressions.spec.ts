@@ -55,7 +55,7 @@ test.beforeAll(async ({ baseURL }) => {
     const row = await insert('products', { name: `Cart ${run} ${template}`, slug: `cart-${run}-${template}`, price: 49, currency: 'PLN', is_active: true, is_listed: true,
       seller_id: sellerId, embed_enabled: true, allow_custom_price: template === 'tip-jar', vat_exempt: true, checkout_template: ['bank', 'mixed'].includes(template) ? 'default' : template,
       ...(['bank', 'mixed'].includes(template) ? { checkout_profile: { v: 1, modules: [
-        { id: 'buyer', types: template === 'mixed' ? ['person', 'organization'] : ['organization'], gus: false, bank_transfer_for: ['organization'] },
+        { id: 'buyer', types: template === 'mixed' ? ['person', 'organization'] : ['organization'], bank_transfer_for: ['organization'] },
         { id: 'quantity', min: 1, max: 3, mode: 'checkout' },
       ] } } : {}) });
     products.push({ ...row, template });

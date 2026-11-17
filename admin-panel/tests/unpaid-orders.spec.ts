@@ -50,7 +50,7 @@ test.beforeAll(async () => {
   await checked(await db.from('invoicing_config').update({ provider: 'none', mode: 'manual' }).eq('id', true).select());
   await checked(await db.from('bank_transfer_config').update({ bank_transfer_enabled: true, bank_account_holder: 'Testowy sklep', bank_account_number: 'PL61109010140000071219812874',
     bank_transfer_grant_access_on_placement: true, bank_transfer_max_unpaid_per_email: 20, reservation_enabled: true, reservation_reminder_hours: 24, reservation_release_hours: 48, declared_hold_hours: 72 }).eq('id', true).select());
-  const profile = { v: 1, modules: [{ id: 'buyer', types: ['person', 'organization'], gus: false, bank_transfer_for: ['organization'] }] };
+  const profile = { v: 1, modules: [{ id: 'buyer', types: ['person', 'organization'], bank_transfer_for: ['organization'] }] };
   event = await checked(await db.from('products').insert({ name: 'Warsztat z rezerwacją', slug: `unpaid-${randomUUID()}`, price: 100, currency: 'PLN', is_active: true, is_listed: true,
     event_mode: true, vat_exempt: true, checkout_profile: profile }).select('id,slug').single());
   sessionId = (await checked(await db.from('product_sessions').insert({ product_id: event.id, title: 'Edycja grudniowa', starts_at: '2099-12-01T10:00:00Z', timezone: 'Europe/Warsaw', capacity: 1 }).select('id').single())).id;

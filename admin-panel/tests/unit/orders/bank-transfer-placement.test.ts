@@ -17,7 +17,7 @@ import { POST } from '@/app/api/orders/bank-transfer/route';
 const productId = '10000000-0000-4000-8000-000000000001';
 const product = { id: productId, name: 'Workshop', price: 100, currency: 'PLN', vat_rate: 23, price_includes_vat: false,
   custom_checkout_fields: [], checkout_profile: { v: 1, modules: [
-    { id: 'buyer', types: ['organization'], gus: false, bank_transfer_for: ['organization'] },
+    { id: 'buyer', types: ['organization'], bank_transfer_for: ['organization'] },
     { id: 'quantity', min: 1, max: 10, mode: 'checkout' },
   ] } };
 const body = { productId, email: 'buyer@example.com', termsAccepted: true, captchaToken: 'solved', moduleValues: {
@@ -126,7 +126,7 @@ it('returns 403 for an invalid token with the configured ALTCHA provider', async
 describe('order size', () => {
   // 100 participants valid for the modules: the placed payload is far over the place_order limit.
   const bigProfile = { v: 1, modules: [
-    { id: 'buyer', types: ['organization'], gus: false, bank_transfer_for: ['organization'] },
+    { id: 'buyer', types: ['organization'], bank_transfer_for: ['organization'] },
     { id: 'quantity', min: 1, max: 100, mode: 'checkout' },
     { id: 'participants', required: true, prefill_from_buyer: false },
   ] };

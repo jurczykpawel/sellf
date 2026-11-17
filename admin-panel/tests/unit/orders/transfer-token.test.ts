@@ -17,7 +17,7 @@ describe('transfer instructions link', () => {
     expect(verifyTransferToken(token, id, 1001)).toBe(false);
   });
   it('refreshes the selected method when buyer eligibility changes', () => {
-    const profile = { v: 1, modules: [{ id: 'buyer', types: ['person', 'organization'], gus: false, bank_transfer_for: ['organization'] }] };
+    const profile = { v: 1, modules: [{ id: 'buyer', types: ['person', 'organization'], bank_transfer_for: ['organization'] }] };
     expect(availableTransferMethod('transfer', true, profile, 'organization')).toBe('transfer');
     expect(availableTransferMethod('transfer', true, profile, 'person')).toBe('online');
     expect(availableTransferMethod('transfer', false, profile, 'organization')).toBe('online');

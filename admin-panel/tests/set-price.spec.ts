@@ -52,7 +52,7 @@ for (const event of [false, true]) test(`${event ? 'event tier 67' : 'product 49
   expect(Number(lines.unit_price)).toBe(event ? 67 : 49); expect(Number(lines.discounted_total)).toBe(30);
 });
 test('product 49 from coupon link places a transfer for 30', async ({ page }) => {
-  await checked(await db.from('products').update({ checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'], gus: false, bank_transfer_for: ['organization'] }] } }).eq('id', product.id).select());
+  await checked(await db.from('products').update({ checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'], bank_transfer_for: ['organization'] }] } }).eq('id', product.id).select());
   await mockGusNotFound(page); await acceptAllCookies(page);
   await page.goto(`/pl/checkout/${product.slug}?coupon=${code}`);
   await expect(page.getByRole('button', { name: /Usuń kod/ })).toBeVisible();

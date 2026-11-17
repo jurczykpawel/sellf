@@ -15,6 +15,8 @@ export interface TutorialDef {
   href: string;
   /** Tutorials rendered inside a form modal can only be started once the form is open. */
   needsOpenForm?: boolean;
+  /** The help-menu link opens a new product form for it. */
+  opensNewForm?: boolean;
   steps: readonly TutorialStepDef[];
 }
 
@@ -44,6 +46,7 @@ export const TUTORIALS = {
   'b2b-checkout-profile': {
     href: '/dashboard/products',
     needsOpenForm: true,
+    opensNewForm: true,
     steps: [intro,
       { key: 'enable', target: 'profile-enable', requires: 'profile-buyer' },
       { key: 'buyer', target: 'profile-buyer' },
@@ -54,6 +57,7 @@ export const TUTORIALS = {
   events: {
     href: '/dashboard/products',
     needsOpenForm: true,
+    opensNewForm: true,
     steps: [intro,
       { key: 'enable', target: 'event-enable', requires: 'event-add-session' },
       { key: 'addSession', target: 'event-add-session', requires: 'event-session' },
@@ -61,6 +65,20 @@ export const TUTORIALS = {
       { key: 'tier', target: 'event-tier' },
       { key: 'addTier', target: 'event-add-tier' },
       { key: 'preview', target: 'event-preview' }],
+  },
+  'product-form': {
+    href: '/dashboard/products',
+    needsOpenForm: true,
+    opensNewForm: true,
+    steps: [intro,
+      { key: 'scenario', target: 'form-scenario' },
+      { key: 'basics', target: 'form-section-basics' },
+      { key: 'delivery', target: 'form-section-delivery' },
+      { key: 'cart', target: 'form-section-cart' },
+      { key: 'schedule', target: 'form-section-schedule' },
+      { key: 'offer', target: 'form-section-offer' },
+      { key: 'sales', target: 'form-section-sales' },
+      { key: 'summary', target: 'buyer-summary' }],
   },
   'bank-transfer-setup': {
     href: '/dashboard/settings?tab=payments',

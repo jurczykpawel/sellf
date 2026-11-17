@@ -182,7 +182,8 @@ export default function TutorialProvider({ initialSeen, autoStart, children }: T
   }, []);
 
   const autoStartTutorial = useCallback((id: TutorialId) => {
-    if (!autoStart || seen.current.has(id) || requestedTutorial() === id) return () => {};
+    // A tutorial asked for from the help menu wins over a first-visit one on the same screen.
+    if (!autoStart || seen.current.has(id) || requestedTutorial() !== null) return () => {};
     const timer = setTimeout(() => { if (!seen.current.has(id)) void runRef.current(id, true); }, AUTO_START_DELAY_MS);
     return () => clearTimeout(timer);
   }, [autoStart]);

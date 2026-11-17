@@ -44,9 +44,11 @@ interface UseProductFormProps {
   onSubmit: (formData: ProductFormData) => Promise<void>;
   /** Seed a brand-new product as a bundle (ignored when editing an existing product). */
   defaultIsBundle?: boolean;
+  /** Focus the name field on open; off when the form opens on another first question. */
+  focusName?: boolean;
 }
 
-export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: UseProductFormProps) {
+export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle, focusName = true }: UseProductFormProps) {
   const { trustedDownloadDomains } = useConfig();
   const locale = useLocale();
   const [formData, setFormData] = useState<ProductFormData>(initialFormData);
@@ -396,14 +398,14 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
 
   // Allow the modal to mount, but preserve focus if the user has moved on.
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !focusName) return;
     const timer = setTimeout(() => {
       const activeElement = document.activeElement;
       if (activeElement?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) return;
       nameInputRef.current?.focus();
     }, 100);
     return () => clearTimeout(timer);
-  }, [isOpen]);
+  }, [isOpen, focusName]);
 
   // Fetch products for OTO dropdown using v1 API
   useEffect(() => {

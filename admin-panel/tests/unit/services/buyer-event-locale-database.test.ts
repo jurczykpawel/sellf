@@ -169,7 +169,7 @@ it.each([false, true])('completes and reopens transfer orders with license issua
   const { data: config, error: configError } = await db.from('bank_transfer_config').select('*').single();
   if (configError) throw configError;
   const actor = checked(await db.from('admin_users').select('user_id').limit(1).single()).data!.user_id;
-  checked(await db.from('products').update({ issue_license_on_purchase: licensed, checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'], gus: false, bank_transfer_for: ['organization'] }] } }).eq('id', productId));
+  checked(await db.from('products').update({ issue_license_on_purchase: licensed, checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'], bank_transfer_for: ['organization'] }] } }).eq('id', productId));
   checked(await db.from('bank_transfer_config').update({ bank_transfer_enabled: true, bank_account_holder: 'Transfer shop',
     bank_account_number: 'PL61109010140000071219812874', bank_transfer_grant_access_on_placement: false }).eq('id', true));
   try {

@@ -27,7 +27,7 @@ test.beforeAll(async () => {
   bankConfig = await checked(await db.from('bank_transfer_config').select('*').single());
   invoiceConfig = await checked(await db.from('invoicing_config').select('*').single());
   product = await checked(await db.from('products').insert({ name: 'Przelew warsztat', slug: `transfer-${randomUUID()}`, price: 100, currency: 'PLN', is_active: true, is_listed: true, event_mode: true, vat_exempt: false, vat_rate: 23, price_includes_vat: false,
-    checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['person', 'organization'], gus: false, bank_transfer_for: ['organization'] }] },
+    checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['person', 'organization'], bank_transfer_for: ['organization'] }] },
   }).select('id,slug').single());
   sessionId = (await checked(await db.from('product_sessions').insert({ product_id: product.id, title: 'Edycja testowa', starts_at: '2099-06-01T12:00:00Z', timezone: 'Europe/Warsaw', capacity: 3 }).select('id').single())).id;
   await checked(await db.from('product_price_tiers').insert({ session_id: sessionId, price: 100, sort: 0 }).select());

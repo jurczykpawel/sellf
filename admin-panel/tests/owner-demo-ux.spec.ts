@@ -55,7 +55,7 @@ async function submit(page: Page) {
   await expect(button).toBeEnabled({ timeout: 30000 });
   await button.click();
 }
-const base = [{ id: 'buyer', types: ['person'], gus: false }, { id: 'quantity', min: 1, max: 20, mode: 'checkout' }];
+const base = [{ id: 'buyer', types: ['person'] }, { id: 'quantity', min: 1, max: 20, mode: 'checkout' }];
 
 test('dashboard funnel adds up and keeps details collapsed on a phone @J200', async ({ page }) => {
   const product = await makeProduct('Funnel UX', []);
@@ -129,9 +129,9 @@ test('the buyer can add participants later when the product allows it @J202', as
 });
 
 test('phone is required, optional or hidden per product @J203', async ({ page }) => {
-  const required = await makeProduct('Phone required', [{ id: 'buyer', types: ['person'], gus: false }, { id: 'phone', required: true }]);
-  const optional = await makeProduct('Phone optional', [{ id: 'buyer', types: ['person'], gus: false }, { id: 'phone', required: false }]);
-  const hidden = await makeProduct('Phone hidden', [{ id: 'buyer', types: ['person'], gus: false }]);
+  const required = await makeProduct('Phone required', [{ id: 'buyer', types: ['person'] }, { id: 'phone', required: true }]);
+  const optional = await makeProduct('Phone optional', [{ id: 'buyer', types: ['person'] }, { id: 'phone', required: false }]);
+  const hidden = await makeProduct('Phone hidden', [{ id: 'buyer', types: ['person'] }]);
   await acceptAllCookies(page);
   for (const [item, visible] of [[required, true], [optional, true], [hidden, false]] as const) {
     await page.goto(`/pl/checkout/${item.slug}`);

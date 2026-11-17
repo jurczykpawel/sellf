@@ -201,7 +201,7 @@ it.each([true, false])('resolves transfer availability before deciding how to in
   mocks.transfer.mockImplementationOnce(() => new Promise(done => { resolve = done; }));
   mocks.fetch.mockImplementation(() => new Promise(() => {})); vi.stubGlobal('fetch', mocks.fetch);
   render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(PaidProductForm, {
-    product: { id: 'test-product', name: 'Course', slug: 'course', price: 49, currency: 'PLN', checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'], gus: false, bank_transfer_for: ['organization'] }] } } as Product,
+    product: { id: 'test-product', name: 'Course', slug: 'course', price: 49, currency: 'PLN', checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'], bank_transfer_for: ['organization'] }] } } as Product,
     collectTermsOfService: false,
   })));
   expect(mocks.fetch).not.toHaveBeenCalled(); expect(mocks.stripe).not.toHaveBeenCalled();

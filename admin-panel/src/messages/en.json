@@ -2022,6 +2022,93 @@
           "exitDiscard": "Discard",
           "exitKeepEditing": "Keep Editing"
         },
+        "scenario": {
+          "title": "What are you selling?",
+          "hint": "Pick one and we set the matching fields. Nothing is saved, and you can change every setting later.",
+          "manual": "I'll set it up myself",
+          "cancel": "Keep current",
+          "current": "Scenario:",
+          "manualCurrent": "set up by hand",
+          "change": "Change",
+          "changeLabel": "Change scenario",
+          "choose": "Choose a scenario",
+          "options": {
+            "download": {
+              "name": "Download or course",
+              "tagline": "one-time payment, access to content"
+            },
+            "free": {
+              "name": "Free material",
+              "tagline": "for an email, no payment"
+            },
+            "subscription": {
+              "name": "Subscription",
+              "tagline": "paid every month or year"
+            },
+            "donation": {
+              "name": "Donation",
+              "tagline": "the buyer chooses the amount"
+            },
+            "bundle": {
+              "name": "Bundle",
+              "tagline": "several products in one purchase"
+            },
+            "event": {
+              "name": "Event",
+              "tagline": "dates, seats and price tiers"
+            }
+          },
+          "confirm": {
+            "title": "Switch the scenario to “{name}”?",
+            "intro": "These settings will change:",
+            "rest": "All other settings stay as they are. Nothing is saved until you save the product.",
+            "apply": "Yes, switch",
+            "cancel": "Don't switch"
+          },
+          "fields": {
+            "payment": "How it is paid",
+            "price": "Price",
+            "billing": "Subscription",
+            "trial": "Trial period",
+            "customPrice": "Amount chosen by the buyer",
+            "customFields": "Extra checkout fields",
+            "bundle": "Bundle",
+            "event": "Dates and seats",
+            "repeat": "Repeat purchase"
+          },
+          "values": {
+            "payment": {
+              "standard": "one-time payment",
+              "subscription": "subscription",
+              "tip-jar": "amount chosen by the buyer",
+              "lead-magnet": "free"
+            },
+            "amount": "{amount}",
+            "billing": "{amount} every {interval}",
+            "billingNoPrice": "every {interval}",
+            "trialDays": "{count, plural, one {# day} other {# days}}",
+            "none": "none",
+            "off": "off",
+            "customPriceOn": "from {min}, suggestions: {presets}",
+            "customPriceMin": "from {min}",
+            "fieldCount": "{count, plural, =0 {none} one {# field} other {# fields}}",
+            "bundleOn": "on ({count, plural, one {# product} other {# products}})",
+            "eventOn": "on ({count, plural, one {# date} other {# dates}})",
+            "yes": "yes",
+            "no": "no"
+          },
+          "intervals": {
+            "day": "{count, plural, one {day} other {# days}}",
+            "week": "{count, plural, one {week} other {# weeks}}",
+            "month": "{count, plural, one {month} other {# months}}",
+            "year": "{count, plural, one {year} other {# years}}"
+          },
+          "warnings": {
+            "eventIncompatible": "An event cannot be a subscription or a bundle, or let the buyer choose the amount. Saving it like this will be refused.",
+            "checkoutProfile": "The “Checkout details” settings do not fit this scenario. They are kept, and saving will point you to them.",
+            "paymentAfterSales": "How the product is paid cannot change once it has a sale or granted access. Saving is then refused."
+          }
+        },
         "summary": {
           "label": "Buyer gets:",
           "sentence": "{text}.",
@@ -6442,6 +6529,48 @@
         "preview": {
           "title": "Preview and attendees",
           "body": "For a saved date you see the sales state, the orders and attendees, and can download their list."
+        }
+      }
+    },
+    "product-form": {
+      "name": "Product form",
+      "where": "Products, new or edited product.",
+      "steps": {
+        "intro": {
+          "title": "Product form",
+          "body": "Product settings sit in six sections, ordered by what they change for the buyer. We show them one by one."
+        },
+        "scenario": {
+          "title": "What are you selling?",
+          "body": "A scenario sets the matching fields, such as the price and dates. Before switching the scenario you see which settings change."
+        },
+        "basics": {
+          "title": "Basics",
+          "body": "Name, page address, how it is paid and the price."
+        },
+        "delivery": {
+          "title": "What the buyer gets",
+          "body": "Content or a redirect after purchase, bundle items, access period and license key."
+        },
+        "cart": {
+          "title": "Checkout details",
+          "body": "Fields the buyer fills in before paying: buyer, recipient, number of seats, participants, extra fields and consents."
+        },
+        "schedule": {
+          "title": "Dates and seats",
+          "body": "Dates, seat pools and price tiers. Needed only for events."
+        },
+        "offer": {
+          "title": "Offer",
+          "body": "Description, image, video, categories and tags of the sales page. They do not change the checkout form."
+        },
+        "sales": {
+          "title": "Sales and settlement",
+          "body": "When and where the product can be bought, promotions, what happens after purchase, refunds and commissions."
+        },
+        "summary": {
+          "title": "Buyer gets",
+          "body": "This summary follows your settings. It says what the buyer gets and which details they enter at checkout."
         }
       }
     },

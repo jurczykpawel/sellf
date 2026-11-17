@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 import { supabaseAdmin as db } from './helpers/admin-auth';
 import { checkAccessibility } from './helpers/axe';
-import { menuName, mustAct, popover, popoverTitle, seenTutorials, stepText, tutorialAdmin, walk } from './helpers/tutorials';
+import { markSeen, menuName, mustAct, popover, popoverTitle, seenTutorials, stepText, tutorialAdmin, walk } from './helpers/tutorials';
 import { openFormSection } from './helpers/product-form';
 import type { Page } from '@playwright/test';
 
@@ -68,6 +68,8 @@ test('product offer tutorial walks the offer editor of a chosen product @J211', 
 
 test('business cart tutorial starts when the custom cart is switched on and its prompt waits for a click when started by hand @J212', async ({ page }) => {
   const session = await admin(page, 'tour-profile');
+  // The one-off form tutorial was already shown; this test watches the cart tutorial start on its own.
+  await markSeen(session.userId, ['product-form']);
   const product = await productFixture('Koszyk samouczek');
   await openProductSection(page, product.name, 'Dane w koszyku');
   await expect(page.getByLabel('Własny koszyk dla tego produktu')).not.toBeChecked();
@@ -77,7 +79,7 @@ test('business cart tutorial starts when the custom cart is switched on and its 
   await page.getByLabel('Własny koszyk dla tego produktu').check();
   await expect(popoverTitle(page)).toHaveText(stepText('b2b-checkout-profile', 'intro').title);
   await walk(page, 'b2b-checkout-profile', ['intro', 'enable', 'buyer', 'recipient', 'quantity', 'participants']);
-  await expect.poll(() => seenTutorials(session.userId)).toEqual(['b2b-checkout-profile']);
+  await expect.poll(() => seenTutorials(session.userId)).toEqual(['b2b-checkout-profile', 'product-form']);
 
   await page.getByLabel('Własny koszyk dla tego produktu').uncheck();
   await page.getByTestId('tutorial-help-b2b-checkout-profile').click();
@@ -91,6 +93,7 @@ test('business cart tutorial starts when the custom cart is switched on and its 
 
 test('event tutorial leads from switching on event mode to adding a date and a price tier @J213', async ({ page }) => {
   const session = await admin(page, 'tour-events');
+  await markSeen(session.userId, ['product-form']);
   const product = await productFixture('Wydarzenie samouczek');
   await openProductSection(page, product.name, 'Terminy i miejsca');
   await expect(page.getByRole('region', { name: 'Terminy i ceny' })).toBeVisible();
@@ -104,7 +107,31 @@ test('event tutorial leads from switching on event mode to adding a date and a p
   await page.getByRole('button', { name: 'Dodaj termin', exact: true }).click();
   await walk(page, 'events', ['session', 'tier', 'addTier']);
   await expect(page.getByRole('group', { name: /^Termin 1/ })).toBeVisible();
-  await expect.poll(() => seenTutorials(session.userId)).toEqual(['events']);
+  await expect.poll(() => seenTutorials(session.userId)).toEqual(['events', 'product-form']);
+});
+
+test('product form tutorial starts once on the first form opening, walks the six sections and the buyer summary, and replays from the form', async ({ page }) => {
+  const session = await admin(page, 'tour-form');
+  await page.goto('/pl/dashboard/products');
+  await page.locator('button', { hasText: /Dodaj produkt/i }).click();
+  await expect(popoverTitle(page)).toHaveText(stepText('product-form', 'intro').title);
+  await walk(page, 'product-form', ['intro', 'scenario', 'basics', 'delivery', 'cart', 'schedule', 'offer', 'sales', 'summary']);
+  await expect.poll(() => seenTutorials(session.userId)).toEqual(['product-form']);
+  await expect(page.getByRole('dialog')).toHaveCount(1);
+
+  await page.reload();
+  await page.locator('button', { hasText: /Dodaj produkt/i }).click();
+  await expect(page.getByRole('dialog').getByRole('group', { name: 'Co sprzedajesz?' })).toBeVisible();
+  await page.waitForFunction(() => performance.now() > 3000);
+  await expect(popover(page)).toHaveCount(0);
+
+  const help = page.getByTestId('tutorial-help-product-form');
+  await help.click();
+  await expect(popoverTitle(page)).toHaveText(stepText('product-form', 'intro').title);
+  await page.keyboard.press('Escape');
+  await expect(popover(page)).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(1);
+  await expect(help).toBeFocused();
 });
 
 test('bank transfer settings tutorial covers the payment tab @J214', async ({ page }) => {

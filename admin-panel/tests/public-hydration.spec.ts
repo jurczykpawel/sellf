@@ -23,7 +23,7 @@ test.beforeAll(async () => {
   const profileProduct = await admin.from('products').insert({
     slug: `${slug}-profile`, name: 'Profile hydration', price: 49, currency: 'PLN', is_active: true,
     checkout_profile: { v: 1, modules: [
-      { id: 'buyer', types: ['person', 'organization'], gus: false, bank_transfer_for: ['organization'] },
+      { id: 'buyer', types: ['person', 'organization'], bank_transfer_for: ['organization'] },
       { id: 'recipient', for: ['organization'] }, { id: 'phone', required: true },
       { id: 'quantity', min: 1, max: 5, mode: 'checkout' },
       { id: 'participants', required: true, prefill_from_buyer: false },

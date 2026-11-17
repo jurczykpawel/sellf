@@ -34,7 +34,7 @@ export function BuyerSummary({ formData, t }: BuyerSummaryProps) {
   const list = new Intl.ListFormat(locale, { type: 'conjunction' }).format([accessText, ...extras.map(extra)]);
   const text = noDatesOrParticipants ? t('summary.withoutDates', { list }) : list;
   return (
-    <div className="flex items-start gap-2 px-6 py-2 border-t border-sf-border bg-sf-accent-soft text-sm text-sf-body">
+    <div data-tour="buyer-summary" className="flex items-start gap-2 px-6 py-2 border-t border-sf-border bg-sf-accent-soft text-sm text-sf-body">
       <p id={id} data-buyer-summary="" className={`min-w-0 flex-1 ${expanded ? '' : 'line-clamp-1 sm:line-clamp-none'}`}>
         <b className="font-semibold text-sf-heading">{t('summary.label')}</b> {t('summary.sentence', { text })}
       </p>

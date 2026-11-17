@@ -95,11 +95,11 @@ async function setup(s: Scenario, loggedIn: boolean): Promise<void> {
   });
   s.productIds.push(main.id);
   if (s.netCouponQuantity) {
-    expect((await supabaseAdmin.from('products').update({ checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['person'], gus: false }, { id: 'quantity', min: 1, max: 5, mode: 'product_page' }] } }).eq('id', main.id)).error).toBeNull();
+    expect((await supabaseAdmin.from('products').update({ checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['person'] }, { id: 'quantity', min: 1, max: 5, mode: 'product_page' }] } }).eq('id', main.id)).error).toBeNull();
   }
   if (s.profile) {
     const { error } = await supabaseAdmin.from('products').update({ checkout_profile: { v: 1, modules: [
-      { id: 'buyer', types: ['organization'], gus: false }, { id: 'recipient', for: ['organization'] },
+      { id: 'buyer', types: ['organization'] }, { id: 'recipient', for: ['organization'] },
       { id: 'phone', required: true }, { id: 'quantity', min: 1, max: 5, mode: 'product_page' },
       { id: 'participants', required: true, prefill_from_buyer: true },
     ] } }).eq('id', main.id);
@@ -213,7 +213,7 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
   try {
     await setup(s, !!options.loggedIn);
     if (options.event) {
-      expect((await supabaseAdmin.from('products').update({ event_mode: true, issue_license_on_purchase: false, custom_checkout_fields: [], checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['person'], gus: false }, { id: 'quantity', min: 1, max: 5, mode: 'product_page' }] } }).eq('id',s.productIds[0])).error).toBeNull();
+      expect((await supabaseAdmin.from('products').update({ event_mode: true, issue_license_on_purchase: false, custom_checkout_fields: [], checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['person'] }, { id: 'quantity', min: 1, max: 5, mode: 'product_page' }] } }).eq('id',s.productIds[0])).error).toBeNull();
       const eventSession = await insert('product_sessions', { product_id: s.productIds[0], starts_at: '2099-06-01T12:00:00Z', timezone: 'Europe/Warsaw', title: 'June workshop', capacity: 60 });
       s.eventSession = eventSession.id;
       await insert('product_price_tiers', { session_id: eventSession.id, price: 47, seats: 30, sale_ends_at: '2099-05-01T12:00:00Z', sort: 0 });
@@ -561,7 +561,7 @@ test('PLN net coupons through transfer placement and offline completion @J11', a
     expect((await supabaseAdmin.from('bank_transfer_config').update({ bank_transfer_enabled: true, bank_account_holder: 'Local test shop', bank_account_number: 'PL61109010140000071219812874', bank_transfer_grant_access_on_placement: false }).eq('id', true)).error).toBeNull();
     const main = await insert('products', { slug: `net-transfer-${randomUUID()}`, name: 'Net workshop', price: 100, currency: 'PLN', is_active: true,
       vat_rate: 23, vat_exempt: false, price_includes_vat: false, checkout_profile: { v: 1, modules: [
-        { id: 'buyer', types: ['person'], gus: false, bank_transfer_for: ['person'] }, { id: 'quantity', min: 1, max: 5, mode: 'checkout' },
+        { id: 'buyer', types: ['person'], bank_transfer_for: ['person'] }, { id: 'quantity', min: 1, max: 5, mode: 'checkout' },
       ] } });
     productIds.push(main.id);
     const bump = await insert('products', { slug: `net-bump-${randomUUID()}`, name: 'Bonus', price: 19, currency: 'PLN', is_active: true, vat_exempt: true });

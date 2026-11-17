@@ -18,17 +18,18 @@ describe('traditional transfers', () => {
     expect(bankTransferConfigSchema.parse({}).bank_transfer_max_unpaid_per_email).toBe(3);
   });
   it('requires the store, profile and matching buyer type', () => {
+    // A stored legacy profile (with the removed `gus` key) still sells by transfer, but is no longer accepted on save.
     const profile = { v: 1, modules: [{ id: 'buyer', types: ['person', 'organization'], gus: false, bank_transfer_for: ['organization'] }] };
     expect(canUseBankTransfer(true, profile, 'organization')).toBe(true);
     expect(canUseBankTransfer(false, profile, 'organization')).toBe(false);
     expect(canUseBankTransfer(true, null, 'organization')).toBe(false);
     expect(canUseBankTransfer(true, profile, 'person')).toBe(false);
-    expect(canUseBankTransfer(true, { v: 1, modules: [{ id: 'buyer', types: ['organization'], gus: false }] }, 'organization')).toBe(false);
+    expect(canUseBankTransfer(true, { v: 1, modules: [{ id: 'buyer', types: ['organization'] }] }, 'organization')).toBe(false);
     expect(checkoutProfileSchema.safeParse(profile).success).toBe(false);
     expect(storedCheckoutProfileSchema.safeParse(profile).success).toBe(true);
   });
   it('shares module validation and records explicit consent', () => {
-    const result = validateCheckoutModules({ v: 1, modules: [{ id: 'buyer', types: ['person'], gus: false }] }, {
+    const result = validateCheckoutModules({ v: 1, modules: [{ id: 'buyer', types: ['person'] }] }, {
       buyer: { type: 'person', first_name: 'Anna', last_name: 'Nowak', email: 'anna@example.com' },
     }, { currency: 'PLN', locale: 'pl', termsAccepted: true });
     expect(result.success).toBe(true);
