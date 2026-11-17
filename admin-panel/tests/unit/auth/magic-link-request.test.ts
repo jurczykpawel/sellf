@@ -100,7 +100,8 @@ describe('requestMagicLink', () => {
   it.each([
     ['Jan.Kowalski+promo@gmail.com', 'email:jankowalski@gmail.com'],
     ['j.a.n.kowalski@googlemail.com', 'email:jankowalski@googlemail.com'],
-    ['buyer+news@example.com', 'email:buyer@example.com'],
+    ['buyer+news@outlook.com', 'email:buyer@outlook.com'],
+    ['sales+uk@custom.example', 'email:sales+uk@custom.example'],
   ])('counts the per-email daily limit for %s against the inbox it reaches', async (email, bucket) => {
     await requestMagicLink({ ...BASE_INPUT, email });
 
