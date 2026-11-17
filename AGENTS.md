@@ -1131,7 +1131,7 @@ Two tables needed a product decision rather than a mechanical "keep vs remove" c
 order/event/endpoint before HTTP dispatch. `purchase.completed` uses the PI (or
 CS for orders without a PI), or the transaction UUID for offline orders; `invoice.paid` uses `invoice.stripeInvoiceId`.
 The queue row UUID is the top-level payload `id` and `X-Sellf-Delivery-Id` header.
-Automatic and manual retries reuse that ID. Receivers must **deduplicate on this
+Automatic and manual retries reuse that ID. Endpoint URL changes stamp `url_changed_at` and close older scheduled deliveries. `webhook_delivery_target` resolves the current eligible destination immediately before dispatch; queued business events retain their original creation date. Manual retry operations require an admin panel session and return 409 for earlier destinations. Receivers must **deduplicate on this
 id** and verify the existing signature against the raw body. Delivery is at least
 once; an accepted request can be retried after an interrupted sender.
 

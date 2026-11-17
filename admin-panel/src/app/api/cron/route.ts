@@ -145,7 +145,7 @@ export async function handleWebhookDeliveriesRetry(): Promise<CronJobResult> {
           { id: endpoint.id, url: endpoint.url, secret: endpoint.secret, custom_headers_encrypted: endpoint.custom_headers_encrypted },
           delivery.eventType,
           payload,
-          { attemptCount: nextAttempt, deliveryId: delivery.id },
+          { attemptCount: nextAttempt, deliveryId: delivery.id, client: adminClient },
         );
 
         if (result.ok) {

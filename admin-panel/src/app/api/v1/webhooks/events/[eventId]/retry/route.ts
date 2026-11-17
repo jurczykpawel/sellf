@@ -2,21 +2,22 @@
  * Webhooks API v1 - Retry an abandoned business event
  *
  * POST /api/v1/webhooks/events/:eventId/retry
- *   - Requires scope webhooks:write
+ *   - Requires an admin session
  *   - Only an abandoned event is eligible; it gets fresh attempts and is due on the
  *     worker's next tick.
  * @see supabase/migrations/20261118000000_release_2026_11_1.sql
  */
 
 import { NextRequest } from 'next/server';
+import { requireAdminApi } from '@/lib/auth-server';
+import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import {
   handleCorsPreFlight,
   jsonResponse,
   apiError,
-  authenticate,
   handleApiError,
   successResponse,
-  API_SCOPES,
 } from '@/lib/api';
 import { validateUUID } from '@/lib/validations/product';
 
@@ -30,11 +31,15 @@ export async function OPTIONS(request: NextRequest) {
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const auth = await authenticate(request, [API_SCOPES.WEBHOOKS_WRITE]);
+    if (request.headers.has('authorization') || request.headers.has('x-api-key')) {
+      return apiError(request, 'FORBIDDEN', 'Manual delivery operations require an admin session');
+    }
+    await requireAdminApi(await createClient(), request);
+    const supabase = createAdminClient();
     const { eventId } = await params;
     if (!validateUUID(eventId).isValid) return apiError(request, 'INVALID_INPUT', 'Invalid event ID format');
 
-    const { data, error } = await auth.supabase.rpc('retry_business_event', { p_id: eventId });
+    const { data, error } = await supabase.rpc('retry_business_event', { p_id: eventId });
     if (error) {
       console.error('[v1/webhooks/events/retry] Retry failed:', error.message);
       return apiError(request, 'INTERNAL_ERROR', 'Failed to retry the event');

@@ -4954,6 +4954,7 @@ export type Database = {
           secret: string
           updated_at: string
           url: string
+          url_changed_at: string | null
         }
         Insert: {
           created_at?: string
@@ -4968,6 +4969,7 @@ export type Database = {
           secret?: string
           updated_at?: string
           url: string
+          url_changed_at?: string | null
         }
         Update: {
           created_at?: string
@@ -4982,6 +4984,7 @@ export type Database = {
           secret?: string
           updated_at?: string
           url?: string
+          url_changed_at?: string | null
         }
         Relationships: []
       }
@@ -5875,6 +5878,10 @@ export type Database = {
         Returns: boolean
       }
       check_waitlist_config: { Args: never; Returns: Json }
+      check_webhook_delivery_target: {
+        Args: { p_id: string }
+        Returns: boolean
+      }
       claim_auth_mail_retries: {
         Args: { p_limit?: number }
         Returns: {
@@ -7428,6 +7435,30 @@ export type Database = {
           reserve_param?: boolean
         }
         Returns: Json
+      }
+      webhook_delivery_target: {
+        Args: { p_id: string }
+        Returns: {
+          created_at: string
+          custom_headers_encrypted: string | null
+          custom_payload_fields: Json | null
+          description: string | null
+          events: string[]
+          id: string
+          is_active: boolean | null
+          payload_field_selection: Json | null
+          product_filter_mode: string
+          secret: string
+          updated_at: string
+          url: string
+          url_changed_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "webhook_endpoints"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
     }
     Enums: {

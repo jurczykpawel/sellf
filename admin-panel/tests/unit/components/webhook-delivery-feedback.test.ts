@@ -4,9 +4,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { useWebhooks } from '@/hooks/useWebhooks';
+import { useWebhookDeliveries } from '@/hooks/useWebhookDeliveries';
 import WebhookLogsDrawer from '@/components/WebhookLogsDrawer';
 import WebhookFailuresPanel from '@/components/WebhookFailuresPanel';
 import en from '@/messages/en.json';
+import pl from '@/messages/pl.json';
 import type { WebhookEndpoint } from '@/types/webhooks';
 
 const mocks = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
@@ -51,4 +53,25 @@ describe('webhook delivery feedback', () => {
     render(React.createElement(WebhookFailuresPanel, { refreshTrigger: 0 }), { wrapper });
     await waitFor(() => expect(fetch).toHaveBeenCalledWith(expect.stringContaining('status=all_failed'), expect.anything()));
   });
+});
+
+
+it.each(['pl', 'en'] as const)('explains delivery conflicts accurately in %s', async locale => {
+  const messages = locale === 'pl' ? pl : en;
+  const localized = ({ children }: { children: React.ReactNode }) => React.createElement(NextIntlClientProvider, { locale, messages }, children);
+  const logError = vi.spyOn(console, 'error').mockImplementation(() => {});
+  try {
+    for (const operation of ['replay', 'forceRetry'] as const) {
+      for (const changed of [true, false]) {
+        vi.stubGlobal('fetch', vi.fn(async (_url: string, init?: RequestInit) => new Response(JSON.stringify(init?.method === 'POST'
+          ? { error: { code: 'CONFLICT', message: changed ? 'Endpoint URL changed; this delivery cannot be retried' : 'Delivery status changed' } }
+          : { data: [] }), { status: init?.method === 'POST' ? 409 : 200 })));
+        const { result, unmount } = renderHook(useWebhookDeliveries, { wrapper: localized });
+        await act(async () => { await result.current[operation]('delivery'); });
+        expect(mocks.error).toHaveBeenLastCalledWith(changed ? messages.admin.webhooks.logs.destinationChanged
+          : operation === 'replay' ? messages.admin.webhooks.logs.replayError : messages.common.error);
+        unmount();
+      }
+    }
+  } finally { logError.mockRestore(); }
 });

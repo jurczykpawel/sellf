@@ -19,6 +19,9 @@ vi.mock('@/lib/api', async original => {
   return { ...api, authenticate: async () => ({ method: 'api_key', apiKey: { id: randomUUID() }, admin: { userId: randomUUID() }, scopes: [api.API_SCOPES.WEBHOOKS_READ, api.API_SCOPES.WEBHOOKS_WRITE], supabase: createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!) }) };
 });
 
+vi.mock('@/lib/auth-server', () => ({ requireAdminApi: async () => ({ user: { id: 'admin' }, role: 'platform_admin' }) }));
+vi.mock('@/lib/supabase/server', () => ({ createClient: async () => ({}) }));
+
 import { GET as listEvents } from '@/app/api/v1/webhooks/events/route';
 import { POST as retryEvent } from '@/app/api/v1/webhooks/events/[eventId]/retry/route';
 import { runBusinessEvents } from '@/lib/services/business-events';

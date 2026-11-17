@@ -196,13 +196,13 @@ Outgoing signed webhooks: endpoints, delivery logs, retries, abandoned business 
 - `POST /api/v1/webhooks/{id}/rotate-secret` — `rotate_webhook_secret` · webhooks:write — Replace the signing secret of an endpoint
 - `POST /api/v1/webhooks/{id}/test` — `test_webhook` · webhooks:write — Send a test delivery
 - `GET /api/v1/webhooks/logs` — `list_webhook_logs` · webhooks:read — List webhook delivery logs
-- `POST /api/v1/webhooks/logs/{logId}/retry` — `retry_webhook_log` · webhooks:write — Retry a failed delivery now
-- `POST /api/v1/webhooks/logs/{logId}/force-retry` — `force_retry_webhook_log` · webhooks:write — Run a pending retry on the next worker tick
+- `POST /api/v1/webhooks/logs/{logId}/retry` — `retry_webhook_log` · panel session only · not in MCP — Retry a failed delivery now
+- `POST /api/v1/webhooks/logs/{logId}/force-retry` — `force_retry_webhook_log` · panel session only · not in MCP — Run a pending retry on the next worker tick
 - `POST /api/v1/webhooks/logs/{logId}/cancel` — `cancel_webhook_log` · webhooks:write — Cancel a pending retry (marks it permanently failed)
-- `POST /api/v1/webhooks/logs/{logId}/replay` — `replay_webhook_log` · webhooks:write — Replay a permanently failed delivery
+- `POST /api/v1/webhooks/logs/{logId}/replay` — `replay_webhook_log` · panel session only · not in MCP — Replay a permanently failed delivery
 - `POST /api/v1/webhooks/logs/{logId}/archive` — `archive_webhook_log` · webhooks:write — Archive a delivery log entry
 - `GET /api/v1/webhooks/events` — `list_abandoned_webhook_events` · webhooks:read — List business events whose hand-off to delivery failed
-- `POST /api/v1/webhooks/events/{eventId}/retry` — `retry_webhook_event` · webhooks:write — Retry an abandoned business event
+- `POST /api/v1/webhooks/events/{eventId}/retry` — `retry_webhook_event` · panel session only · not in MCP — Retry an abandoned business event
 
 ### Analytics
 

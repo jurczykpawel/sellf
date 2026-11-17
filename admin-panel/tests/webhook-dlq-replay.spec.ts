@@ -379,3 +379,45 @@ test('order delivery retry retains metadata in the logs panel @J71', async ({ pa
     await admin.cleanup();
   }
 });
+
+test('URL changes keep earlier deliveries closed in API and panel @J71', async ({ page, request }) => {
+  const admin = await createTestAdmin('delivery-destination');
+  let endpointId: string | undefined;
+  try {
+    await loginAsAdmin(page, admin.email, admin.password);
+    const createdKey = await page.request.post('/api/v1/api-keys', { data: { name: 'Delivery configuration', scopes: ['webhooks:write'] } });
+    expect(createdKey.status()).toBe(201);
+    const keyBody = await createdKey.json();
+    const key = keyBody.data.key;
+    expect(key).toMatch(/^sf_/);
+    const headers = { Authorization: `Bearer ${key}` };
+    const url = `https://example.com/destination-${Date.now()}`;
+    const endpoint = await supabaseAdmin.from('webhook_endpoints').insert({ url, secret: 'whsec_destination', events: ['purchase.completed'], is_active: true }).select('id').single();
+    expect(endpoint.error).toBeNull();
+    endpointId = endpoint.data!.id;
+    const log = await supabaseAdmin.from('webhook_logs').insert({ endpoint_id: endpointId, event_type: 'purchase.completed', payload: {}, status: 'pending_retry', attempt_count: 1, next_retry_at: new Date(Date.now() + 3600000).toISOString() }).select('id').single();
+    expect(log.error).toBeNull();
+    const changed = await request.patch(`/api/v1/webhooks/${endpointId}`, { headers, data: { url: `${url}-new` } });
+    expect(changed.status()).toBe(200);
+    const path = `/api/v1/webhooks/logs/${log.data!.id}`;
+    for (const action of ['replay', 'force-retry', 'retry']) {
+      expect((await request.post(`${path}/${action}`, { headers, data: {} })).status()).toBe(403);
+      expect((await page.request.post(`${path}/${action}`, { data: {} })).status()).toBe(409);
+    }
+    const closed = await supabaseAdmin.from('webhook_logs').select('status,next_retry_at').eq('id', log.data!.id).single();
+    expect(closed.data).toMatchObject({ status: 'permanently_failed', next_retry_at: null });
+    for (const [locale, message] of [['pl', 'Adres webhooka został zmieniony.'], ['en', 'The endpoint URL changed.']]) {
+      await page.goto(`/${locale}/dashboard/webhooks/deliveries`);
+      const row = page.locator('tr', { hasText: `${url}-new` });
+      await expect(row).toBeVisible();
+      await row.getByRole('button', { name: /Powtórz|Replay/i }).click();
+      await expect(page.getByText(message, { exact: false })).toBeVisible();
+    }
+    const fresh = await supabaseAdmin.from('webhook_logs').insert({ endpoint_id: endpointId, event_type: 'purchase.completed', payload: {}, status: 'permanently_failed' }).select('id').single();
+    expect(fresh.error).toBeNull();
+    expect((await page.request.post(`/api/v1/webhooks/logs/${fresh.data!.id}/replay`, { data: {} })).status()).toBe(200);
+  } finally {
+    if (endpointId) { await supabaseAdmin.from('webhook_logs').delete().eq('endpoint_id', endpointId); await supabaseAdmin.from('webhook_endpoints').delete().eq('id', endpointId); }
+    await admin.cleanup();
+  }
+});

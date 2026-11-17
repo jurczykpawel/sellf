@@ -2674,6 +2674,7 @@
         "replay": "Powtórz",
         "replayConfirm": "Zresetować licznik prób i ponownie wstawić do kolejki?",
         "replaySuccess": "Dostawa ponownie w kolejce",
+        "destinationChanged": "Adres webhooka został zmieniony. Nie można ponowić dostaw utworzonych przed zmianą.",
         "replayError": "Nie udało się ponownie wstawić dostawy",
         "forceRetry": "Ponów teraz",
         "forceRetrySuccess": "Próba zaplanowana",

@@ -9,7 +9,7 @@ import { SupabaseWebhookQueue } from '@/lib/services/webhook-queue/supabase-queu
 import type { AttemptResult } from '@/lib/services/webhook-queue/types';
 import { computeNextRetry, DEFAULT_MAX_ATTEMPTS } from '@/lib/services/webhook-queue/retry-policy';
 import { runBatch } from '@/lib/webhooks/batch-runner';
-import { post } from './setup';
+import { postAsAdmin as post } from './setup';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -425,4 +425,47 @@ describe('Batch DLQ actions via runBatch + REST', () => {
 
     expect(result).toEqual({ succeeded: 1, failed: 1 });
   });
+});
+
+it('admin event retry keeps the event date when a destination is added later', async () => {
+  const { execFileSync } = await import('node:child_process');
+  const { getTestDatabaseContainer } = await import('../helpers/database-container');
+  const { runBusinessEvents } = await import('@/lib/services/business-events');
+  const cleared = await sellerClient.from('business_events').update({ dispatched_at: new Date().toISOString(), leased_until: null }).is('dispatched_at', null);
+  expect(cleared.error).toBeNull();
+  const ids: string[] = [];
+  let eventId: string | undefined;
+  try {
+    const original = await sellerClient.from('webhook_endpoints').insert({
+      url: 'https://original.invalid/events', secret: 'test', events: ['access.granted'], is_active: true,
+    }).select('id').single();
+    expect(original.error).toBeNull();
+    ids.push(original.data.id);
+    eventId = execFileSync('docker', ['exec', '-i', getTestDatabaseContainer(), 'psql', '-U', 'postgres', '-At', '-v', 'ON_ERROR_STOP=1'], {
+      input: `INSERT INTO public.business_events(event_type,payload,abandoned_at,attempts) VALUES('access.granted','{}',clock_timestamp(),5) RETURNING id;`, encoding: 'utf8',
+    }).trim().split('\n')[0];
+    const added = await sellerClient.from('webhook_endpoints').insert({
+      url: 'https://added.invalid/events', secret: 'test', events: ['access.granted'], is_active: true,
+    }).select('id').single();
+    expect(added.error).toBeNull();
+    ids.push(added.data.id);
+    const retried = await post(`/api/v1/webhooks/events/${eventId}/retry`, {});
+    expect(retried.status).toBe(200);
+    await runBusinessEvents(sellerClient);
+    const logs = await sellerClient.from('webhook_logs').select('id,endpoint_id,status').in('endpoint_id', ids)
+      .like('delivery_key', `%:business_${eventId}`);
+    expect(logs.error).toBeNull();
+    expect(logs.data).toHaveLength(2);
+    const prior = logs.data.find((row: { endpoint_id: string }) => row.endpoint_id === ids[0]);
+    const later = logs.data.find((row: { endpoint_id: string }) => row.endpoint_id === ids[1]);
+    expect(prior.status).toBe('pending_retry');
+    expect(later.status).toBe('permanently_failed');
+    const target = await sellerClient.rpc('webhook_delivery_target', { p_id: later.id });
+    expect(target.error).toBeNull();
+    expect(target.data).toEqual([]);
+  } finally {
+    await sellerClient.from('webhook_logs').delete().in('endpoint_id', ids);
+    await sellerClient.from('webhook_endpoints').delete().in('id', ids);
+    if (eventId) await sellerClient.from('business_events').delete().eq('id', eventId);
+  }
 });

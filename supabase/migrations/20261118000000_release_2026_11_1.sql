@@ -172,6 +172,88 @@ END $$;
 REVOKE ALL ON FUNCTION public.save_invoicing_config(jsonb, jsonb, uuid) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.save_invoicing_config(jsonb, jsonb, uuid) TO service_role;
 
+-- ===== Webhook delivery destinations =====
+ALTER TABLE public.webhook_endpoints ADD COLUMN url_changed_at timestamptz;
+ALTER TABLE public.webhook_logs ALTER COLUMN created_at SET DEFAULT clock_timestamp();
+
+CREATE FUNCTION public.stamp_webhook_url() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN NEW.url_changed_at := clock_timestamp();
+  ELSIF NEW.url IS DISTINCT FROM OLD.url THEN NEW.url_changed_at := clock_timestamp();
+  ELSE NEW.url_changed_at := OLD.url_changed_at;
+  END IF;
+  RETURN NEW;
+END $$;
+REVOKE ALL ON FUNCTION public.stamp_webhook_url() FROM PUBLIC, anon, authenticated;
+CREATE TRIGGER stamp_webhook_url BEFORE INSERT OR UPDATE ON public.webhook_endpoints
+  FOR EACH ROW EXECUTE FUNCTION public.stamp_webhook_url();
+
+CREATE FUNCTION public.close_previous_webhook_deliveries() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  UPDATE public.webhook_logs SET status = 'permanently_failed', next_retry_at = NULL,
+    failed_permanently_at = clock_timestamp(), error_message = 'Endpoint URL changed'
+  WHERE endpoint_id = NEW.id AND created_at < NEW.url_changed_at AND status = 'pending_retry';
+  RETURN NEW;
+END $$;
+REVOKE ALL ON FUNCTION public.close_previous_webhook_deliveries() FROM PUBLIC, anon, authenticated;
+CREATE TRIGGER close_previous_webhook_deliveries AFTER UPDATE OF url ON public.webhook_endpoints
+  FOR EACH ROW WHEN (NEW.url IS DISTINCT FROM OLD.url)
+  EXECUTE FUNCTION public.close_previous_webhook_deliveries();
+
+CREATE FUNCTION public.check_webhook_delivery_date() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE changed timestamptz; source_created timestamptz;
+BEGIN
+  IF TG_OP = 'INSERT' AND NEW.delivery_key ~ ':business_[0-9a-f-]{36}$' THEN
+    SELECT created_at INTO source_created FROM public.business_events
+      WHERE id = substring(NEW.delivery_key from ':business_([0-9a-f-]{36})$')::uuid;
+    NEW.created_at := least(NEW.created_at, source_created);
+  ELSIF TG_OP = 'UPDATE' THEN
+    NEW.created_at := OLD.created_at;
+    NEW.endpoint_id := OLD.endpoint_id;
+  END IF;
+  SELECT url_changed_at INTO changed FROM public.webhook_endpoints WHERE id = NEW.endpoint_id;
+  IF NEW.created_at < changed THEN
+    IF TG_OP = 'UPDATE' AND NEW.status = 'pending_retry' AND OLD.status <> 'pending_retry' THEN
+      RAISE EXCEPTION 'Endpoint URL changed' USING ERRCODE = 'PT409';
+    END IF;
+    IF NEW.status = 'pending_retry' THEN
+      NEW.status := 'permanently_failed';
+      NEW.next_retry_at := NULL;
+      NEW.failed_permanently_at := clock_timestamp();
+      NEW.error_message := 'Endpoint URL changed';
+    END IF;
+  END IF;
+  RETURN NEW;
+END $$;
+REVOKE ALL ON FUNCTION public.check_webhook_delivery_date() FROM PUBLIC, anon, authenticated;
+CREATE TRIGGER check_webhook_delivery_date BEFORE INSERT OR UPDATE ON public.webhook_logs
+  FOR EACH ROW EXECUTE FUNCTION public.check_webhook_delivery_date();
+
+CREATE FUNCTION public.webhook_delivery_target(p_id uuid)
+RETURNS SETOF public.webhook_endpoints
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+  SELECT e.* FROM public.webhook_endpoints e JOIN public.webhook_logs l ON l.endpoint_id = e.id
+  WHERE l.id = p_id AND l.status = 'pending_retry'
+    AND (e.url_changed_at IS NULL OR l.created_at >= e.url_changed_at);
+$$;
+REVOKE ALL ON FUNCTION public.webhook_delivery_target(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.webhook_delivery_target(uuid) TO service_role;
+
+CREATE FUNCTION public.check_webhook_delivery_target(p_id uuid) RETURNS boolean
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.webhook_logs l JOIN public.webhook_endpoints e ON e.id=l.endpoint_id
+    WHERE l.id=p_id AND l.created_at < e.url_changed_at) THEN
+    RAISE EXCEPTION 'Endpoint URL changed' USING ERRCODE = 'PT409';
+  END IF;
+  RETURN true;
+END $$;
+REVOKE ALL ON FUNCTION public.check_webhook_delivery_target(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.check_webhook_delivery_target(uuid) TO service_role;
+
 -- ===== Product events =====
 -- ===== Source: 20261111100000_product_lifecycle_webhooks.sql =====
 -- Public catalogue lifecycle snapshots share the committed business-event outbox.

@@ -530,10 +530,10 @@ change Omnibus lowest-price history. This type is available to all sellers.
 | DELETE | `/webhooks/{id}` | `webhooks:write` | Delete webhook |
 | POST | `/webhooks/{id}/test` | `webhooks:write` | Send test event |
 | GET | `/webhooks/logs` | `webhooks:read` | List delivery logs |
-| POST | `/webhooks/logs/{logId}/retry` | `webhooks:write` | Retry failed delivery |
+| POST | `/webhooks/logs/{logId}/retry` | panel session | Retry failed delivery |
 | POST | `/webhooks/logs/{logId}/archive` | `webhooks:write` | Archive log entry |
 | GET | `/webhooks/events?status=abandoned` | `webhooks:read` | Business events abandoned before delivery (no payload) |
-| POST | `/webhooks/events/{id}/retry` | `webhooks:write` | Re-queue an abandoned business event |
+| POST | `/webhooks/events/{id}/retry` | panel session | Re-queue an abandoned business event |
 
 ### Integrations
 

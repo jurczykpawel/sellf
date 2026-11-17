@@ -10,6 +10,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
 import { createHash, randomBytes } from 'crypto';
 import { ALL_SCOPES } from '@/lib/api/scope-constants';
 import { deleteBundleItemsFor } from '../helpers/db-cleanup';
@@ -219,6 +220,29 @@ export function post<T = unknown>(path: string, body: unknown) {
     method: 'POST',
     body: JSON.stringify(body),
   });
+}
+
+let adminCookies: Promise<string> | undefined;
+
+/** Session-only operations use the same admin fixture as the API key suite. */
+export async function postAsAdmin<T = unknown>(path: string, body: unknown) {
+  adminCookies ??= (async () => {
+    await createTestApiKey();
+    const { data, error } = await supabase.auth.admin.getUserById(testAuthUserId!);
+    if (error || !data.user.email) throw error ?? new Error('Admin fixture unavailable');
+    let cookies: Array<{ name: string; value: string }> = [];
+    const client = createServerClient(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+      cookies: { getAll: () => cookies, setAll: values => { cookies = values; } },
+    });
+    const signedIn = await client.auth.signInWithPassword({ email: data.user.email, password: 'TestPassword123!' });
+    if (signedIn.error) throw signedIn.error;
+    return cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ');
+  })();
+  const response = await fetch(`${API_URL}${path}`, {
+    method: 'POST', body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json', Cookie: await adminCookies, Origin: API_URL },
+  });
+  return { status: response.status, data: await response.json() as T, headers: response.headers };
 }
 
 /**
