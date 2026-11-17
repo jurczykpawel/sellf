@@ -4,7 +4,7 @@ import { formatPrice } from '@/lib/constants';
 import { fromMinorUnits } from '@/lib/currency/minor-units';
 import { eventMailData } from '@/lib/events/presentation';
 import { trialMailAmount } from '@/lib/checkout/trial-display';
-interface PurchaseMailOptions { allowPending?: boolean; transactionId?: string }
+interface PurchaseMailOptions { allowPending?: boolean; transactionId?: string; /** Poll briefly for a payment still being stored (default); false reads once. */ wait?: boolean }
 async function readPurchaseEventMail(email: string, productId: string, sessionId?: string, paymentIntentId?: string, locale = 'en', options: PurchaseMailOptions = {}): Promise<Record<string, string>> {
   const db = createAdminClient();
   let q = db.from('payment_transactions').select('id,amount,currency,subscription_id,session_id,stripe_payment_intent_id,stripe_invoice_id,fulfillment_pending').eq('product_id', productId).eq('customer_email', email).eq('status', 'completed');
@@ -34,19 +34,20 @@ async function readPurchaseEventMail(email: string, productId: string, sessionId
 }
 /** Wait briefly for payment persistence before composing the first purchase mail. */
 export async function purchaseEventMail(email: string, productId: string, sessionId?: string, paymentIntentId?: string, locale = 'en', options: PurchaseMailOptions = {}): Promise<Record<string, string>> {
-  for (let attempt = 0; attempt < 10; attempt++) {
+  const attempts = options.wait === false ? 1 : 10;
+  for (let attempt = 0; attempt < attempts; attempt++) {
     const data = await readPurchaseEventMail(email.trim().toLowerCase(), productId, sessionId, paymentIntentId, locale, options);
     if (data.purchase_product && data.purchase_amount) {
       if (attempt) console.info(`[purchase-mail] context ready after ${attempt + 1} attempts`);
       return data;
     }
-    if (attempt < 9) await new Promise(resolve => setTimeout(resolve, 250));
+    if (attempt < attempts - 1) await new Promise(resolve => setTimeout(resolve, 250));
   }
   console.info('[purchase-mail] context not ready');
   const { data: product } = await createAdminClient().from('products').select('issue_license_on_purchase').eq('id', productId).maybeSingle();
   return product?.issue_license_on_purchase ? { purchase_mail_pending: 'true' } : {};
 }
-export async function eventMailForSlug(email: string, slug: string, locale = 'en'): Promise<Record<string, string>> {
+export async function eventMailForSlug(email: string, slug: string, locale = 'en', options: Pick<PurchaseMailOptions, 'wait'> = {}): Promise<Record<string, string>> {
   const { data } = await createAdminClient().from('products').select('id').eq('slug', slug).maybeSingle();
-  return data ? purchaseEventMail(email.trim().toLowerCase(), data.id, undefined, undefined, locale) : {};
+  return data ? purchaseEventMail(email.trim().toLowerCase(), data.id, undefined, undefined, locale, options) : {};
 }

@@ -71,6 +71,33 @@ describe('auth mail retry @J292', () => {
     expect(deliverMagicLink).toHaveBeenLastCalledWith(expect.objectContaining({ email, data: { locale: 'pl' } }));
   });
 
+  it('a parked link whose purchase never appears leaves the queue after the waiting window, without polling @J292', async () => {
+    const email = `retry-never-${run}@example.com`; emails.push(email);
+    eventMailForSlug.mockResolvedValue({ purchase_mail_pending: 'true' });
+    await paidLink(email);
+    expect((await rows(email)).data).toHaveLength(1);
+    await db.from('auth_mail_retries').update({ created_at: new Date(Date.now() - 2 * 3_600_000).toISOString(), next_attempt_at: new Date(Date.now() - 1000).toISOString() }).eq('email', email);
+
+    await runAuthMailRetries(db);
+    expect(deliverMagicLink).not.toHaveBeenCalled();
+    expect(eventMailForSlug).toHaveBeenLastCalledWith(email, 'course', 'pl', { wait: false });
+    expect((await rows(email)).data).toEqual([]);
+  });
+
+  it('claims refused license mails ahead of post-payment links @J292', async () => {
+    const prefix = `retry-order-${run}`;
+    const older = new Date(Date.now() - 3_600_000).toISOString();
+    const parked = Array.from({ length: 21 }, (_, i) => ({ email: `${prefix}-${i}@example.com`, redirect_to: `https://shop.example.com/auth/callback?n=${i}`, kind: 'post_checkout', next_attempt_at: older }));
+    const license = { email: `${prefix}-license@example.com`, redirect_to: 'https://shop.example.com/auth/callback?license=1', kind: 'license', next_attempt_at: new Date(Date.now() - 1000).toISOString() };
+    emails.push(...parked.map(r => r.email), license.email);
+    expect((await db.from('auth_mail_retries').insert([...parked, license])).error).toBeNull();
+
+    const { data: claimed, error } = await db.rpc('claim_auth_mail_retries', { p_limit: 20 });
+    expect(error).toBeNull();
+    expect((claimed as Array<{ email: string }>).map(r => r.email)).toContain(license.email);
+    await db.from('auth_mail_retries').delete().like('email', `${prefix}-%`);
+  });
+
   it('backs off after each refusal and gives up after the last attempt @J292', async () => {
     const email = `retry-backoff-${run}@example.com`; emails.push(email);
     deliverMagicLink.mockResolvedValue({ ok: false, code: 'rate_limited' });

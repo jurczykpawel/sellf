@@ -399,3 +399,40 @@ END;
 $$;
 REVOKE EXECUTE ON FUNCTION public.verify_coupon(text, uuid, text, text, boolean) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.verify_coupon(text, uuid, text, text, boolean) TO service_role;
+
+-- ===== Mail retry queue: license mails first, a re-sent link keeps its attempts =====
+-- Refused license mails are claimed ahead of post-payment links. Re-sending a post-payment link
+-- whose retries ran out puts it back with its attempt count and a fresh wait, so it is not due at
+-- once with a full set of attempts; a repeated license grant still starts over (unchanged).
+CREATE OR REPLACE FUNCTION public.claim_auth_mail_retries(p_limit integer DEFAULT 20)
+RETURNS SETOF public.auth_mail_retries LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  -- A purged license mail was never delivered: dropping its receipt lets a repeated grant send it again.
+  WITH purged AS (
+    DELETE FROM public.auth_mail_retries WHERE given_up_at < now() - interval '7 days' RETURNING license_mail_key
+  )
+  DELETE FROM public.license_mail_receipts r USING purged p WHERE r.mail_key = p.license_mail_key;
+  RETURN QUERY
+  UPDATE public.auth_mail_retries r SET attempts = r.attempts + 1, next_attempt_at = now() + interval '10 minutes'
+  WHERE r.id IN (SELECT q.id FROM public.auth_mail_retries q WHERE q.given_up_at IS NULL AND q.next_attempt_at <= now()
+    ORDER BY (q.kind = 'license') DESC, q.next_attempt_at LIMIT least(greatest(coalesce(p_limit, 20), 1), 100) FOR UPDATE SKIP LOCKED)
+  RETURNING r.*;
+END $$;
+REVOKE EXECUTE ON FUNCTION public.claim_auth_mail_retries(integer) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_auth_mail_retries(integer) TO service_role;
+
+CREATE OR REPLACE FUNCTION public.queue_auth_mail_retry(p_email text, p_redirect_to text, p_data jsonb, p_kind text, p_error text)
+RETURNS void LANGUAGE sql SECURITY DEFINER SET search_path = '' AS $$
+  INSERT INTO public.auth_mail_retries(email, redirect_to, data, kind, next_attempt_at, last_error)
+  VALUES (lower(btrim(p_email)), p_redirect_to, coalesce(p_data, '{}'::jsonb), p_kind, now() + interval '2 minutes', left(p_error, 40))
+  ON CONFLICT (email, redirect_to) DO UPDATE SET data = CASE WHEN public.auth_mail_retries.kind='license' AND EXCLUDED.kind='post_checkout' THEN public.auth_mail_retries.data ELSE EXCLUDED.data END,
+    kind = CASE WHEN public.auth_mail_retries.kind='license' THEN 'license' ELSE EXCLUDED.kind END, last_error = EXCLUDED.last_error,
+    given_up_at = NULL,
+    attempts = CASE WHEN public.auth_mail_retries.given_up_at IS NULL THEN public.auth_mail_retries.attempts
+      WHEN public.auth_mail_retries.kind = 'post_checkout' AND EXCLUDED.kind = 'post_checkout' THEN public.auth_mail_retries.attempts
+      ELSE 0 END,
+    next_attempt_at = CASE WHEN public.auth_mail_retries.given_up_at IS NULL THEN public.auth_mail_retries.next_attempt_at
+      ELSE greatest(public.auth_mail_retries.next_attempt_at, EXCLUDED.next_attempt_at) END;
+$$;
+REVOKE EXECUTE ON FUNCTION public.queue_auth_mail_retry(text, text, jsonb, text, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.queue_auth_mail_retry(text, text, jsonb, text, text) TO service_role;
