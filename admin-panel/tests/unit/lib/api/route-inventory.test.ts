@@ -73,6 +73,52 @@ export function OPTIONS() { return new NextResponse(null, { status: 204, headers
     expect(uncalled.unresolved).toEqual([]);
   });
 
+  it('credits a nested function only when its call is reachable from the executed body (W221cr P2)', () => {
+    // Reviewer probe 1: `check` is called only from `unused`, which never runs.
+    const [deadCaller] = one(`export async function GET(request: NextRequest) {
+  await authenticate(request, []);
+  async function check() { await authenticate(request, [API_SCOPES.PRODUCTS_READ]); }
+  async function unused() { await check(); }
+  return Response.json({});
+}`);
+    expect(deadCaller.scopes).toEqual([]);
+    expect(deadCaller.unresolved).toEqual([]);
+
+    // Reviewer probe 2: `check` is called only from a callback handed to a function that drops it.
+    const [dropped] = one(`export async function GET(request: NextRequest) {
+  await authenticate(request, []);
+  async function check() { await authenticate(request, [API_SCOPES.PRODUCTS_READ]); }
+  const neverRuns = (_f: unknown) => {};
+  neverRuns(async () => { await check(); });
+  return Response.json({});
+}`);
+    expect(dropped.scopes).toEqual([]);
+    expect(dropped.unresolved).toEqual([expect.stringContaining('execution')]);
+  });
+
+  it('follows reachable calls through nested functions, recursively and without looping on cycles', () => {
+    const [chain] = one(`export async function GET(request: NextRequest) {
+  await outer();
+  async function outer() { await inner(); }
+  async function inner() { await authenticate(request, [API_SCOPES.PRODUCTS_READ]); if (Math.random() > 2) await outer(); }
+  async function ping(): Promise<void> { await pong(); }
+  async function pong(): Promise<void> { await ping(); }
+  return Response.json({});
+}`);
+    expect(chain.scopes).toEqual(['PRODUCTS_READ']);
+    expect(chain.unresolved).toEqual([]);
+
+    // A function passed on under another name (alias) is not proven to run.
+    const [alias] = one(`export async function GET(request: NextRequest) {
+  await authenticate(request, []);
+  async function check() { await authenticate(request, [API_SCOPES.PRODUCTS_READ]); }
+  const run = check;
+  return Response.json({ run });
+}`);
+    expect(alias.scopes).toEqual([]);
+    expect(alias.unresolved).toEqual([expect.stringContaining('execution')]);
+  });
+
   it('marks a nested function whose execution it cannot prove as unresolved', () => {
     const [callback] = one(`declare function later(f: () => unknown): void;
 export async function GET(request: NextRequest) {
