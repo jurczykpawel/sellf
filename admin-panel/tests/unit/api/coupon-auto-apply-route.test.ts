@@ -7,7 +7,7 @@ vi.mock('@/lib/rate-limiting', () => rateLimiting);
 const userClient = vi.hoisted(() => ({ auth: { getUser: vi.fn() }, rpc: vi.fn() }));
 vi.mock('@/lib/supabase/server', () => ({ createClient: async () => userClient }));
 
-const serviceClient = vi.hoisted(() => ({ rpc: vi.fn() }));
+const serviceClient = vi.hoisted(() => ({ rpc: vi.fn(), from: vi.fn() }));
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: () => serviceClient }));
 
 import { POST } from '@/app/api/coupons/auto-apply/route';
@@ -56,6 +56,20 @@ describe('POST /api/coupons/auto-apply', () => {
       product_id_param: PRODUCT_ID,
     });
     expect(serviceClient.rpc).not.toHaveBeenCalled();
+  });
+
+  it('checks a found set-price coupon without holding a slot of it', async () => {
+    userClient.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
+    const productQuery = { select: () => productQuery, eq: () => productQuery, single: async () => ({ data: { currency: 'PLN' }, error: null }) };
+    serviceClient.from.mockReturnValue(productQuery);
+    serviceClient.rpc.mockImplementation(async (name: string) => name === 'find_auto_apply_coupon'
+      ? { data: { found: true, code: 'fixed49', discount_type: 'set_price' }, error: null }
+      : { data: { valid: true, code: 'FIXED49', discount_type: 'set_price' }, error: null });
+
+    const res = await POST(request({ email: 'guest@example.com', productId: PRODUCT_ID }));
+
+    expect(res.status).toBe(200);
+    expect(serviceClient.rpc).toHaveBeenCalledWith('verify_coupon', expect.objectContaining({ product_id_param: PRODUCT_ID, reserve_param: false }));
   });
 
   it('returns 429 before any lookup when the client is over its limit', async () => {

@@ -67,23 +67,7 @@ describe('check_rate_limit scope', () => {
     expect(results.map((r) => r.error)).not.toContain(TOO_MANY);
   });
 
-  it('keeps a separate coupon bucket per customer e-mail', async () => {
-    const code = `MAIL${RUN_ID}`.toUpperCase();
-    for (let i = 0; i < 6; i++) await verify(anon, code, `first-${RUN_ID}@example.com`);
-    expect((await verify(anon, code, `first-${RUN_ID}@example.com`)).error).toBe(TOO_MANY);
-
-    const other = await verify(anon, code, `second-${RUN_ID}@example.com`);
-    expect(other.error).not.toBe(TOO_MANY);
+  it('leaves coupon checks to the server: the storefront roles cannot call the coupon function', async () => {
+    await expect(verify(anon, `ANON${RUN_ID}`.toUpperCase(), null)).rejects.toMatchObject({ code: '42501' });
   });
-
-  it('still limits repeated anonymous calls for one code', async () => {
-    // check_rate_limit counts in fixed 60 s windows aligned to the minute; a burst that
-    // crosses a boundary splits across two windows, so start early in a window.
-    const msLeft = 60_000 - (Date.now() % 60_000);
-    if (msLeft < 20_000) await new Promise((resolve) => setTimeout(resolve, msLeft + 1000));
-    const code = `ANON${RUN_ID}`.toUpperCase();
-    const results = [];
-    for (let i = 0; i < 7; i++) results.push(await verify(anon, code, null));
-    expect(results.map((r) => r.error)).toContain(TOO_MANY);
-  }, 40_000);
 });

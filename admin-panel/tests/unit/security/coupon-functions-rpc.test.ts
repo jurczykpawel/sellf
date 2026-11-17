@@ -843,42 +843,11 @@ describe('verify_coupon', () => {
     expect(data.error).toBe('Code usage limit reached');
   });
 
-  it('rate limits verify_coupon after too many attempts', async () => {
-    // Clear rate limits before this test to ensure a clean baseline
-    await supabaseAdmin.from('rate_limits').delete().gte('created_at', '1970-01-01');
-
+  it('refuses direct calls from the storefront role', async () => {
     const product = await createProduct();
-    const coupon = await createCoupon({
-      code: `RATE-LIMIT-${TS}`,
-      allowed_emails: [],
-      allowed_product_ids: [],
-    });
-
-    // Direct anonymous RPC calls without an e-mail share one bucket per code
-    // (5 per minute), so the sixth call is refused.
-    const results = [];
-    for (let i = 0; i < 6; i++) {
-      const { data } = await supabaseAnon.rpc('verify_coupon', {
-        code_param: coupon.code,
-        product_id_param: product.id,
-      });
-      results.push(data);
-    }
-
-    expect(results.slice(0, 5).every((r) => r?.valid === true)).toBe(true);
-    const lastResult = results[results.length - 1];
-    expect(lastResult?.valid).toBe(false);
-    expect(lastResult?.error).toContain('Too many attempts');
-
-    // Verify that rate_limits table has entries showing calls were tracked
-    const { data: rateLimitEntries } = await supabaseAdmin
-      .from('rate_limits')
-      .select('function_name, call_count, created_at')
-      .like('function_name', '%verify_coupon%');
-
-    expect(rateLimitEntries).not.toBeNull();
-    expect(rateLimitEntries!.length).toBeGreaterThan(0);
-    expect(rateLimitEntries!.length).toBeGreaterThanOrEqual(1);
+    const coupon = await createCoupon({ code: `RATE-LIMIT-${TS}`, allowed_emails: [], allowed_product_ids: [] });
+    const { error } = await supabaseAnon.rpc('verify_coupon', { code_param: coupon.code, product_id_param: product.id });
+    expect(error?.code).toBe('42501');
   });
 
   it('returns valid coupon details on success', async () => {

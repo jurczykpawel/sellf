@@ -5248,6 +5248,7 @@ export type Database = {
           currency_param: string
           customer_email_param: string
           product_id_param: string
+          reserve_param?: boolean
         }
         Returns: Json
       }
@@ -7418,6 +7419,7 @@ export type Database = {
           currency_param?: string
           customer_email_param?: string
           product_id_param: string
+          reserve_param?: boolean
         }
         Returns: Json
       }
