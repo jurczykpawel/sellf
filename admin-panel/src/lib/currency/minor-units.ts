@@ -46,3 +46,10 @@ export function minimumChargeAmount(currency: string): number {
 export function isBelowMinimumCharge(minor: number, currency: string): boolean {
   return minor > 0 && minor < toMinorUnits(minimumChargeAmount(currency), currency);
 }
+
+/** Parses a typed decimal ("12,5" or "12.50") into exact minor units with `decimals` places; null when invalid. */
+export function decimalMinor(value: string, decimals: number): string | null {
+  const match = /^(\d{1,19})(?:[.,](\d{1,2}))?$/.exec(value.trim());
+  if (!match || (match[2]?.length ?? 0) > decimals) return null;
+  return BigInt(match[1] + (match[2] ?? '').padEnd(decimals, '0')).toString();
+}

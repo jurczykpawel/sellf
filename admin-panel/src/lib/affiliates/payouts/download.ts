@@ -1,4 +1,4 @@
-/** Private CSV response adapter for the A1.8 route shell. @see reads.ts */
+/** Private CSV response adapter for the A1.8 route shell. @see reads.ts @see supabase/migrations/20261117100000_affiliate_cocreator.sql (affiliate_payout_exportable) */
 import 'server-only';
 import { getAffiliateLivemode } from '@/lib/stripe/affiliate-mode';
 import { AFFILIATE_PROGRAM_DEFAULTS } from '@/lib/affiliates/program-defaults';
@@ -22,10 +22,13 @@ export async function downloadPayoutCsv(input: unknown): Promise<Response> {
     const [preview, member, program] = await Promise.all([
       readPreview(dataClient, p.member_id, p.currency, new Date().toISOString()),
       dataClient.from('affiliate_memberships').select('code,status,user_id').eq('id', p.member_id).single(),
-      dataClient.from('affiliate_programs').select('enabled,thresholds').maybeSingle(),
+      dataClient.from('affiliate_programs').select('thresholds').maybeSingle(),
     ]);
     const settings = program.data ?? AFFILIATE_PROGRAM_DEFAULTS;
-    if (!preview || preview.sync_required || member.error || member.data.status !== 'approved' || !member.data.user_id || program.error || !settings.enabled || !settings.thresholds[p.currency] || BigInt(p.earnings_minor) < BigInt(settings.thresholds[p.currency])) return { success: false, errorCode: '409' };
+    if (!preview || preview.sync_required || member.error || member.data.status !== 'approved' || !member.data.user_id || program.error || !settings.thresholds[p.currency] || BigInt(p.earnings_minor) < BigInt(settings.thresholds[p.currency])) return { success: false, errorCode: '409' };
+    // Same entry eligibility as preview/reservation (program switch gates partner shares only).
+    const exportable = await dataClient.rpc('affiliate_payout_exportable', { p_payout: p.id });
+    if (exportable.error || exportable.data !== true) return { success: false, errorCode: '409' };
     let positive = BigInt(0), negative = BigInt(0), cursor = '';
     while (true) {
       let query = dataClient.from('affiliate_payout_allocations').select('entry_id,entry:affiliate_ledger!inner(amount_minor::text,commission:affiliate_commissions!inner(livemode))').eq('payout_id', p.id).is('released_at', null).order('entry_id').limit(100);

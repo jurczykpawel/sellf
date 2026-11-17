@@ -104,8 +104,8 @@ harmonogramu (nie wpisuj prawdziwego sekretu do współdzielonego przykładu cro
 ```
 
 To osobne zadanie od `webhook-deliveries-retry`; skonfiguruj oba, jeśli korzystasz
-z obu funkcji. Worker przetwarza opłacone zamówienia z kuponem i późniejsze zwroty;
-nie wykonuje przelewów. Kolejne uruchomienia odzyskują przerwane dzierżawy zadań.
+z obu funkcji. Worker przetwarza opłacone zamówienia z kuponem, opłacone zamówienia
+produktów ze współtwórcą i późniejsze zwroty; nie wykonuje przelewów. Kolejne uruchomienia odzyskują przerwane dzierżawy zadań.
 
 W **Panel → Partnerzy → Naliczanie prowizji** zadania opóźnione o ponad 15 minut
 wywołują ostrzeżenie. Najpierw sprawdź harmonogram i odpowiedzi HTTP.
@@ -120,6 +120,17 @@ Produkty z bezterminowym zwrotem tworzą trwale wstrzymane prowizje: nie można 
 wypłacić, również przez ręczne korekty. Przed kolejną sprzedażą ustaw ograniczony
 okres zwrotu, jeśli prowizje mają dojrzewać; zapisane prowizje zachowują pierwotną
 politykę. Prowizje testowe są widoczne, ale nie wchodzą do rzeczywistych wypłat.
+
+**Udział współtwórcy.** W **Produkt → Sprzedaż i rozliczenia → Udział współtwórcy** dajesz jednej osobie (po adresie
+e-mail jej konta) procent albo stałą kwotę z każdej sprzedaży produktu jednorazowego, z kuponem lub bez. Udział
+sumuje się z prowizją partnera, także gdy to ta sama osoba, i dotyczy tylko zakupów po zapisaniu. Opublikuj
+**regulamin twórcy** w **Panel → Program partnerski → Regulamin twórcy**: osoba akceptuje go na stronie **Moje prowizje**
+i dopiero wtedy wypłaty obejmują jej udziały (do tego czasu są wstrzymane). Kto jest partnerem i współtwórcą,
+akceptuje oba regulaminy. Przełącznik programu partnerskiego dotyczy tylko zapisów partnerów i prowizji z kuponów;
+udziały współtwórcy wymagają ustawień programu (okres wstrzymania, progi), ale nie przełącznika. Przy wyłączonym
+przełączniku dług z prowizji partnera, które już wypłaciłeś (np. po zwrocie), nadal jest potrącany. Współtwórca, który
+zgłosi się do programu partnerskiego, czeka na Twoją akceptację jak każdy zgłaszający; jego udziały współtwórcy w tym
+czasie dalej się naliczają, a wypłaty wracają po akceptacji.
 
 Przy instalacji lub aktualizacji przez StackPilot dodaj ten harmonogram jawnie
 na hoście lub w zewnętrznym schedulerze i sprawdź poprawne wywołanie po restarcie

@@ -1151,8 +1151,8 @@ Phase 1 attributes one-time paid orders through existing coupon redemptions, wit
 checkout metadata changes. The affiliate tables are `affiliate_programs`,
 `affiliate_program_versions`, `affiliate_memberships`, `affiliate_membership_events`,
 `affiliate_rules`, `affiliate_coupon_bindings`, `affiliate_commissions`,
-`affiliate_ledger`, `affiliate_payouts`, `affiliate_payout_allocations`, and
-`affiliate_work`. Program versions and membership events preserve accounting history;
+`affiliate_ledger`, `affiliate_payouts`, `affiliate_payout_allocations`, `affiliate_work`,
+`affiliate_cocreator_rules` and `affiliate_creator_terms`. Program versions and membership events preserve accounting history;
 the ledger and commission snapshots are immutable. Never use audit-log retention as
 an accounting source. Affiliate projections exclude buyer data.
 
@@ -1169,6 +1169,24 @@ in `docs-site/src/content/docs/configuration.md`. Admin commission processing wa
 when pending work is overdue by more than 15 minutes and offers reason-required, audited retry
 for failed work through `affiliate_work_retry`; the actor always comes from the session.
 Missing net snapshots must be repaired before retry. Never manually edit queue generations.
+
+**Co-creator share (11.1, W220).** Besides coupon commissions (`kind='referral'`), the seller can give one
+person a fixed share of a one-time product (`affiliate_cocreator_rules`, append-only revisions per product,
+`member_id NULL` = removed; commissions with `kind='cocreator'`, `cocreator_rule_id`, no rule/binding).
+Rules: the share is ADDED to a partner commission on the same line (also for the same person: 20% + 10% = 30%);
+percent of the line net or a fixed amount (capped at the net); subscriptions never; the rule in force at the
+checkout session time decides, so assignments never apply to earlier purchases; refunds and disputes reverse it
+through the same correction loop. The person needs an account (assignment by e-mail via
+`affiliate_cocreator_set`); a person who never applied gets a membership with `is_partner=false` (no partner
+terms, cannot own coupons; applying later upgrades the same row to `is_partner=true, status='pending'` for the seller to
+approve; co-creator shares keep accruing while pending, payouts wait for approval). Payouts include co-creator entries only after
+the person accepts the separate creator terms (`affiliate_creator_terms`, newest row current;
+`affiliate_creator_accept`, stored as `creator_terms_version/creator_accepted_at`); positive partner entries keep needing an
+enabled program, while deductions from already-paid commissions always count. One rule
+(`affiliate_entry_eligible`) decides entries for preview, reservation and CSV export (`affiliate_payout_exportable`). Paid line inserts of a co-creator product enqueue `affiliate_work`
+(`affiliate_cocreator_candidate`); unpaid orders are queued by their later status change. Panel: product "Sales and
+settlement" (co-creator), Affiliate program (creator terms), Partner earnings `/my-affiliate` (acceptance). API: `/api/v1/products/{id}/cocreator`.
+`commission.*` webhooks carry `commission.kind`. Migration `20261117100000_affiliate_cocreator.sql`.
 
 Lock order: payment IDs ascending → member/currency advisory lock → commission/payout.
 Triggers enqueue under the payment lock without taking the member lock. Shared SQL

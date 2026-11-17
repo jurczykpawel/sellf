@@ -55,7 +55,7 @@ it('runs application, decisions, conflicts, exact versions and reconstructable t
   expect(audit.data!.every(row => row.performed_by === 'dddddddd-0000-4000-a000-000000000000')).toBe(true);
   const page = await getAdminOverview({ limit: 1 }); expect(page.data?.members).toHaveLength(1); expect(page.data?.next_cursor).toBeTruthy();
   const selected = page.data!.members[0];
-  expect(Object.keys(selected).sort()).toEqual(['user_id', 'id', 'code', 'status', 'display_name', 'email', 'channel', 'accepted_terms_version', 'accepted_at', 'version', 'created_at'].sort());
+  expect(Object.keys(selected).sort()).toEqual(['user_id', 'id', 'code', 'status', 'display_name', 'email', 'channel', 'accepted_terms_version', 'accepted_at', 'version', 'created_at', 'is_partner'].sort());
   const membership = await service.from('affiliate_memberships').select('user_id').eq('id', selected.id).single();
   expect(membership.error).toBeNull(); expect(membership.data!.user_id).toBeTruthy();
   const owner = await service.auth.admin.getUserById(membership.data!.user_id!);

@@ -355,7 +355,7 @@ export const WEBHOOK_MOCK_PAYLOADS: Record<string, any> = {
   }])),
   ...Object.fromEntries((['accrued', 'reversed'] as const).map(kind => [`commission.${kind}`, {
     amountUnit: 'minor', actor: SYSTEM_ACTOR, occurredAt: SAMPLE_TIME, partner: SAMPLE_PARTNER, product: SAMPLE_PRODUCT,
-    commission: { id: '00000000-0000-4000-8000-000000000051', ledgerEntryId: '00000000-0000-4000-8000-000000000052', amount: kind === 'accrued' ? 2460 : -2460,
+    commission: { id: '00000000-0000-4000-8000-000000000051', ledgerEntryId: '00000000-0000-4000-8000-000000000052', kind: 'referral', amount: kind === 'accrued' ? 2460 : -2460,
       currency: 'PLN', baseAmount: 12300, accruedAmount: 2460, paidAt: SAMPLE_TIME, eligibleAt: '2026-03-31T00:00:00Z', selfReferral: false, livemode: true },
     order: { orderId: '00000000-0000-4000-8000-000000000001', orderNumber: 1001, amount: 12300, currency: 'PLN', paymentProvider: 'stripe', status: kind === 'accrued' ? 'completed' : 'refunded' },
   }])),

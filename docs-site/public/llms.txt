@@ -53,7 +53,7 @@
 
 Admin API of a Sellf instance. Authenticate with `Authorization: Bearer <API key>` (Settings → API Keys). Each operation lists the scope it needs in `x-required-scope`. Amounts are in major currency units unless stated otherwise.
 
-Paths are relative to the Sellf instance origin (e.g. `https://shop.example.com/api/v1/products`). Full machine-readable description with request and response schemas: `/api/v1/openapi.json` (OpenAPI 3.1, public). MCP: `POST /api/mcp` with the same API key exposes one tool per operation, named by `operationId`, with the JSON request body under `body`; `/api/mcp?mode=compact` exposes `search_operations` + `call_operation` instead. 109 operations; each line: method and path — operationId · required scope — summary.
+Paths are relative to the Sellf instance origin (e.g. `https://shop.example.com/api/v1/products`). Full machine-readable description with request and response schemas: `/api/v1/openapi.json` (OpenAPI 3.1, public). MCP: `POST /api/mcp` with the same API key exposes one tool per operation, named by `operationId`, with the JSON request body under `body`; `/api/mcp?mode=compact` exposes `search_operations` + `call_operation` instead. 112 operations; each line: method and path — operationId · required scope — summary.
 
 ### Products
 
@@ -66,6 +66,9 @@ Catalogue items: price, delivery, checkout modules, licensing, subscriptions. DE
 - `DELETE /api/v1/products/{id}` — `delete_product` · products:write — Delete or archive a product
 - `GET /api/v1/products/{id}/deletion-impact` — `get_product_deletion_impact` · products:read — What deleting a product would affect
 - `POST /api/v1/products/{id}/restore` — `restore_product` · products:write — Restore an archived product
+- `GET /api/v1/products/{id}/cocreator` — `get_product_cocreator` · products:read — Read the co-creator of a product and their share
+- `PUT /api/v1/products/{id}/cocreator` — `set_product_cocreator` · products:write — Assign a co-creator to a product or change their share
+- `DELETE /api/v1/products/{id}/cocreator` — `delete_product_cocreator` · products:write — Remove the co-creator from future purchases
 
 ### Offers
 

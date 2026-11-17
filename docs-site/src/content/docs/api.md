@@ -89,6 +89,7 @@ All paths below are relative to `/api/v1`. Units apply to both input and output 
 | `GET/POST /products`, `GET/PATCH /products/{id}` | `price`, `sale_price`, `recurring_price`, `custom_price_min`, each `custom_price_presets` entry | Major |
 | `GET/POST /order-bumps`, `GET/PATCH /order-bumps/{id}` | `bump_price`, nested product prices | Major |
 | `GET/PUT /products/{id}/oto` | `discount_value`, `downsell_discount_value` | Major when the corresponding discount type is `fixed`; percentage points when `percentage` (`25` = 25%) |
+| `GET/PUT /products/{id}/cocreator` | `rule.fixed_minor` / `cocreator.fixed_minor` (decimal string); `percentage_bps` | Minor; `percentage_bps` in basis points (`1000` = 10%) |
 | `GET/POST /coupons`, `GET/PATCH /coupons/{id}` | `discount_value` | Major for `fixed`; percentage points for `percentage` |
 | `GET /coupons/{id}/stats` | `summary.total_discount_amount`, redemption `discount_amount`, `daily_usage[].amount`, `usage_by_product[].amount` | Major |
 | `GET /payments`, `GET /payments/{id}`, `PATCH /payments/{id}` | `amount`, `refunded_amount`, `refund.amount`, `net_total`, `tax_total` where returned | Minor |
@@ -398,6 +399,9 @@ All endpoints are prefixed with `/api/v1`. Every endpoint also supports `OPTIONS
 | GET | `/products/{id}/oto` | `products:read` | Get one-time offer config |
 | PUT | `/products/{id}/oto` | `products:write` | Set one-time offer |
 | DELETE | `/products/{id}/oto` | `products:write` | Remove one-time offer |
+| GET | `/products/{id}/cocreator` | `products:read` | Read the co-creator and their share |
+| PUT | `/products/{id}/cocreator` | `products:write` | Assign a co-creator or change the share |
+| DELETE | `/products/{id}/cocreator` | `products:write` | Remove the co-creator from future purchases |
 
 ### Deleting products and the archive
 
@@ -425,6 +429,28 @@ Orders, invoices and licenses are never deleted together with a product.
 
 Webhooks: archive and restore send `product.updated` (`changedFields` contains `archivedAt`; archiving an active product also
 sends `product.unpublished`). A permanent delete sends exactly one `product.deleted`.
+
+### Co-creator share
+
+A co-creator is one person who earns a fixed share of every purchase of a **one-time** product, with or without a
+coupon (for example an author sharing revenue with the shop). The share is **added** to the partner commission on the
+same purchase, also when the partner and the co-creator are the same person (20% + 10% = 30%).
+
+```http
+PUT /api/v1/products/{id}/cocreator
+{ "email": "author@example.com", "rule": { "percentage_bps": 1000 }, "expected_revision": 0 }
+```
+
+- `rule` is either `{ "percentage_bps": 1..10000 }` (percent of the line's net amount) or
+  `{ "fixed_minor": "1500", "currency": "PLN" }` (minor units, capped at the line's net amount).
+- The person needs an account: they sign in once with that e-mail. Unknown e-mail: **404**. Subscriptions and missing
+  partner program settings (hold days, payout thresholds): **400**. Stale `expected_revision`: **409** (omit it to overwrite).
+- Only purchases whose checkout started after the change earn the new share; earlier purchases keep what they had.
+  `DELETE` stops it for future purchases (**204**); earned shares stay and follow refunds and disputes.
+- `GET` returns `revision`, `program_configured` and `cocreator` (`display_name`, `email`, the share, `since`,
+  `terms_accepted`). Co-creator shares are paid out only after the person accepts the **creator terms**
+  (Dashboard → Affiliate program → Creator terms; the person accepts them on their earnings page).
+- `commission.accrued` / `commission.reversed` webhooks carry `commission.kind` (`referral` or `cocreator`).
 
 ### Users & Access
 

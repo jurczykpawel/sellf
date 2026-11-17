@@ -9,15 +9,10 @@ import { commissionRuleSchema } from '@/lib/affiliates/model';
 import { bindAffiliateCoupon, createAffiliateRule, getAffiliateCoupon, getAffiliateProduct } from '@/lib/affiliates/products/actions';
 import { productAffiliateMessages } from '@/components/affiliates/products/messages';
 import type { AffiliateCouponInfo, AffiliateProductInfo } from '@/lib/affiliates/products/actions';
-import { currencyExponent } from '@/lib/currency/minor-units';
+import { currencyExponent, decimalMinor } from '@/lib/currency/minor-units';
 
 const inputClass = 'block w-full min-w-0 rounded border border-sf-border bg-sf-input px-3 py-2 text-sf-heading';
 const buttonClass = 'max-w-full break-words rounded border border-sf-border px-3 py-2 text-sf-heading disabled:opacity-50 focus-visible:outline-2';
-function decimalMinor(value: string, decimals: number): string | null {
-  const match = /^(\d{1,19})(?:[.,](\d{1,2}))?$/.exec(value.trim());
-  if (!match || (match[2]?.length ?? 0) > decimals) return null;
-  return BigInt(match[1] + (match[2] ?? '').padEnd(decimals, '0')).toString();
-}
 function useCopy() { return productAffiliateMessages[useLocale() === 'pl' ? 'pl' : 'en']; }
 
 interface AffiliateRuleEditorProps {

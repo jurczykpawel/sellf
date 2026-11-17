@@ -26,4 +26,11 @@ it.each([
   const r = await getPaymentPartnerDetails(id);
   expect(r.data?.[0]).toMatchObject({ partner: 'Partner', coupon: 'SAVE', percentage_bps: 1500, accrued_minor: 1000, status });
 });
+it('shows a co-creator share without a coupon @J640', async () => {
+  m.rows = [{ id, kind: 'cocreator', currency: 'PLN', accrued_minor: 1000, eligible_at: null, dispute_seen: false, dispute_reviewed_at: null,
+    member: { display_name: 'Creator', code: 'creator-1' }, binding: null, rule: null, cocreator_rule: { percentage_bps: 1000, fixed_minor: null },
+    payment: { status: 'completed' }, ledger: [{ amount_minor: 1000, allocations: [] }] }];
+  const r = await getPaymentPartnerDetails(id);
+  expect(r.data?.[0]).toMatchObject({ kind: 'cocreator', partner: 'Creator', coupon: null, percentage_bps: 1000, status: 'held' });
+});
 it('returns an error rather than an empty section when reading fails', async () => { m.error = { message: 'db' }; expect((await getPaymentPartnerDetails(id)).success).toBe(false); });

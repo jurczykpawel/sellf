@@ -83,4 +83,5 @@
 20261115110000_cancelled_order_no_payment.sql
 20261115120000_stripe_marker_reconciliation.sql
 20261116110000_invoice_recipient_setting_atomic.sql
+20261117100000_affiliate_cocreator.sql
 20261117120000_replace_pending_order.sql

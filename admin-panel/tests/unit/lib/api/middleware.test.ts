@@ -7,6 +7,8 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest, NextResponse } from 'next/server';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   getApiCorsHeaders,
   handleCorsPreFlight,
@@ -114,10 +116,20 @@ describe('API Middleware', () => {
       expect(headers['Vary']).toBe('Origin');
     });
 
+    it('allows every HTTP method exported by a v1 route in the shared preflight', () => {
+      const root = join(process.cwd(), 'src/app/api/v1');
+      const files = (readdirSync(root, { recursive: true }) as string[]).filter(file => file.endsWith('route.ts'));
+      const exported = new Set(files.flatMap(file => [...readFileSync(join(root, file), 'utf8')
+        .matchAll(/export (?:async function|const) (GET|POST|PUT|PATCH|DELETE)\b/g)].map(match => match[1])));
+      expect(exported.has('PUT')).toBe(true);
+      const allowed = getApiCorsHeaders(null)['Access-Control-Allow-Methods'].split(', ');
+      expect([...exported].filter(method => !allowed.includes(method))).toEqual([]);
+    });
+
     it('should include all required CORS headers', () => {
       const headers = getApiCorsHeaders(null);
 
-      expect(headers['Access-Control-Allow-Methods']).toBe('GET, POST, PATCH, DELETE, OPTIONS');
+      expect(headers['Access-Control-Allow-Methods']).toBe('GET, POST, PUT, PATCH, DELETE, OPTIONS');
       expect(headers['Access-Control-Allow-Headers']).toBe('Content-Type, Authorization, X-API-Key');
       expect(headers['Access-Control-Allow-Credentials']).toBe('true');
       expect(headers['Access-Control-Max-Age']).toBe('86400');
