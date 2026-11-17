@@ -2236,6 +2236,42 @@ export type Database = {
           },
         ]
       }
+      order_bundle_components: {
+        Row: {
+          bundle_product_id: string
+          component_product_id: string
+          created_at: string
+          transaction_id: string
+        }
+        Insert: {
+          bundle_product_id: string
+          component_product_id: string
+          created_at?: string
+          transaction_id: string
+        }
+        Update: {
+          bundle_product_id?: string
+          component_product_id?: string
+          created_at?: string
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_bundle_components_component_product_id_fkey"
+            columns: ["component_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_bundle_components_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "payment_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_payment_attempts: {
         Row: {
           amount: number
@@ -6913,6 +6949,10 @@ export type Database = {
         Args: { p_order_details: Json; p_profile: Json; p_status: string }
         Returns: boolean
       }
+      order_granted_components: {
+        Args: { p_transaction_id: string }
+        Returns: string[]
+      }
       owns_product_access: { Args: { p_product_id: string }; Returns: boolean }
       pending_free_grant_products: {
         Args: never
@@ -7071,6 +7111,10 @@ export type Database = {
           changed: boolean
           id: string
         }[]
+      }
+      revoke_order_bundle_components: {
+        Args: { p_transaction_id: string; p_user_id: string }
+        Returns: number
       }
       revoke_order_licenses: {
         Args: { p_order_ids: string[]; p_product_id: string; p_reason: string }

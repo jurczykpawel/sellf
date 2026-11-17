@@ -8,10 +8,13 @@
  * Revokes:
  * 1. Main product — user_product_access
  * 2. Bump products — user_product_access (via payment_line_items)
- * 3. Main product — guest_purchases
- * 4. Bump products — guest_purchases (via payment_line_items)
+ * 3. Bundle components the order granted — user_product_access (via revoke_order_bundle_components;
+ *    components the buyer holds through another live order or an independent grant stay)
+ * 4. Main product — guest_purchases
+ * 5. Bump products — guest_purchases (via payment_line_items)
  *
  * @see supabase/migrations/20260310175058_multi_order_bumps.sql — payment_line_items table
+ * @see supabase/migrations/20261117140000_order_entitlement_fixes.sql — order_bundle_components
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -38,6 +41,8 @@ export interface RevocationResult {
   bumpProductsRevoked: number;
   /** Number of bump products whose guest_purchases were revoked */
   bumpGuestPurchasesRevoked: number;
+  /** Number of bundle-component access rows the order granted that were revoked */
+  bundleComponentsRevoked: number;
   /** Non-fatal warnings (e.g. individual bump revocation failures) */
   warnings: string[];
 }
@@ -59,6 +64,7 @@ export async function revokeTransactionAccess(
   let mainProductRevoked = false;
   let mainGuestRevoked = false;
   let bumpProductsRevoked = 0;
+  let bundleComponentsRevoked = 0;
   const bumpGuestPurchasesRevoked = 0;
 
   // --- 0. Defense-in-depth input validation ---
@@ -69,6 +75,7 @@ export async function revokeTransactionAccess(
       mainGuestRevoked: false,
       bumpProductsRevoked: 0,
       bumpGuestPurchasesRevoked: 0,
+      bundleComponentsRevoked: 0,
       warnings: [`Invalid transactionId: ${target.transactionId ?? 'empty'}`],
     };
   }
@@ -80,6 +87,7 @@ export async function revokeTransactionAccess(
       mainGuestRevoked: false,
       bumpProductsRevoked: 0,
       bumpGuestPurchasesRevoked: 0,
+      bundleComponentsRevoked: 0,
       warnings: [`Invalid productId: ${target.productId ?? 'empty'}`],
     };
   }
@@ -91,6 +99,7 @@ export async function revokeTransactionAccess(
       mainGuestRevoked: false,
       bumpProductsRevoked: 0,
       bumpGuestPurchasesRevoked: 0,
+      bundleComponentsRevoked: 0,
       warnings: [`Invalid userId: ${target.userId}`],
     };
   }
@@ -140,6 +149,15 @@ export async function revokeTransactionAccess(
         bumpProductsRevoked = bumpProductIds.length;
       }
     }
+
+    // Bundle components granted by this order (runs before the guest claim rows go away).
+    const { data: componentsRevoked, error: componentRevokeError } = await supabase
+      .rpc('revoke_order_bundle_components', { p_transaction_id: target.transactionId, p_user_id: target.userId });
+    if (componentRevokeError) {
+      warnings.push(`Failed to revoke bundle component access: ${componentRevokeError.message}`);
+    } else {
+      bundleComponentsRevoked = typeof componentsRevoked === 'number' ? componentsRevoked : 0;
+    }
   }
 
   // --- 3. Revoke guest_purchases (main product only — bumps don't have separate guest_purchases rows) ---
@@ -172,9 +190,9 @@ export async function revokeTransactionAccess(
     }
   }
 
-  if (bumpProductsRevoked > 0 || mainProductRevoked || mainGuestRevoked) {
+  if (bumpProductsRevoked > 0 || bundleComponentsRevoked > 0 || mainProductRevoked || mainGuestRevoked) {
     console.log(
-      `[access-revocation] transaction=${target.transactionId}: mainProduct=${mainProductRevoked}, mainGuest=${mainGuestRevoked}, bumps=${bumpProductsRevoked}`
+      `[access-revocation] transaction=${target.transactionId}: mainProduct=${mainProductRevoked}, mainGuest=${mainGuestRevoked}, bumps=${bumpProductsRevoked}, components=${bundleComponentsRevoked}`
     );
   }
 
@@ -184,6 +202,7 @@ export async function revokeTransactionAccess(
     mainGuestRevoked,
     bumpProductsRevoked,
     bumpGuestPurchasesRevoked,
+    bundleComponentsRevoked,
     warnings,
   };
 }
