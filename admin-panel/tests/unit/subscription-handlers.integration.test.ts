@@ -170,6 +170,40 @@ async function createConfirmedCustomer(email: string): Promise<Stripe.Customer> 
   return stripe!.customers.create({ email });
 }
 
+/**
+ * A service client whose first subscriptions upsert is held right before or right after it is
+ * written (network latency), so another handler can run to the end in between.
+ */
+function holdSubscriptionWrite(phase: 'before' | 'after') {
+  let reached!: () => void; let release!: () => void;
+  const atWrite = new Promise<void>(resolve => { reached = resolve; });
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const held = new Proxy(supabaseSeller!, {
+    get(target, prop, receiver) {
+      if (prop !== 'from') return Reflect.get(target, prop, receiver);
+      return (table: string) => {
+        const query = target.from(table);
+        if (table !== 'subscriptions') return query;
+        return new Proxy(query, {
+          get(q, qp, qr) {
+            if (qp !== 'upsert') return Reflect.get(q, qp, qr);
+            return (...args: Parameters<typeof q.upsert>) => ({
+              select: (columns: string) => ({
+                single: async () => {
+                  if (phase === 'before') { reached(); await gate; return q.upsert(...args).select(columns).single(); }
+                  const written = await q.upsert(...args).select(columns).single();
+                  reached(); await gate; return written;
+                },
+              }),
+            });
+          },
+        });
+      };
+    },
+  });
+  return { held, atWrite, release };
+}
+
 describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
   it.each([true, false])('records invoice intent buyer details when available=%s without blocking fulfillment', async available => {
     const email = `invoice-buyer-${crypto.randomUUID()}@sellf-test.local`;
@@ -1651,6 +1685,68 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
       .eq('user_id', userId as string)
       .eq('product_id', product.id);
     expect(accessAfter ?? []).toHaveLength(0);
+  });
+
+  it.each(['before', 'after'] as const)('a subscription update held %s its write while the cancellation lands does not bring the subscription or its access back @J285', async (phase) => {
+    const email = `race-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
+    const product = await createSubscriptionProduct();
+    const customer = await createConfirmedCustomer(email);
+    createdStripeCustomerIds.push(customer.id);
+    const subStripe = makeFakeSubscription(customer.id, product.id);
+    const stripeShim = {
+      ...stripe!,
+      subscriptions: { ...stripe!.subscriptions, retrieve: async () => subStripe },
+      customers: stripe!.customers,
+    } as unknown as Stripe;
+    await handleSubscriptionCreated(subStripe, supabaseSeller as never, platformClient as never, stripeShim);
+    await handleInvoicePaid(makeFakeInvoice(subStripe.id, customer.id, email), supabaseSeller as never, platformClient as never, stripeShim);
+
+    const { held, atWrite, release } = holdSubscriptionWrite(phase);
+    const trigger = vi.spyOn(WebhookService, 'trigger');
+    const toggled = { ...subStripe, cancel_at_period_end: true };
+    const updated = handleSubscriptionUpdated(toggled, held as never, platformClient as never, stripeShim);
+    await atWrite;
+    const subCanceled = { ...subStripe, status: 'canceled' as const, canceled_at: Math.floor(Date.now() / 1000), ended_at: Math.floor(Date.now() / 1000) };
+    expect((await handleSubscriptionDeleted(subCanceled, supabaseSeller as never, platformClient as never, stripeShim)).processed).toBe(true);
+    release();
+    expect((await updated).processed).toBe(true);
+    expect(trigger.mock.calls.filter(([event]) => event === 'subscription.updated')).toEqual([]);
+
+    const { data: row } = await supabaseSeller!.from('subscriptions').select('status').eq('stripe_subscription_id', subStripe.id).single();
+    expect(row?.status).toBe('canceled');
+    const { data: access } = await supabaseSeller!.from('user_product_access').select('id, access_expires_at').eq('product_id', product.id);
+    expect((access ?? []).filter(a => a.access_expires_at === null || new Date(a.access_expires_at) > new Date())).toEqual([]);
+  });
+
+  it.each(['before', 'after'] as const)('a renewal payment held %s its write while the cancellation lands books the payment but grants no access @J285', async (phase) => {
+    const email = `race-inv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@sellf-test.local`;
+    const product = await createSubscriptionProduct();
+    const customer = await createConfirmedCustomer(email);
+    createdStripeCustomerIds.push(customer.id);
+    const subStripe = makeFakeSubscription(customer.id, product.id);
+    const stripeShim = {
+      ...stripe!,
+      subscriptions: { ...stripe!.subscriptions, retrieve: async () => subStripe },
+      customers: stripe!.customers,
+    } as unknown as Stripe;
+    await handleSubscriptionCreated(subStripe, supabaseSeller as never, platformClient as never, stripeShim);
+    await handleInvoicePaid(makeFakeInvoice(subStripe.id, customer.id, email), supabaseSeller as never, platformClient as never, stripeShim);
+
+    const { held, atWrite, release } = holdSubscriptionWrite(phase);
+    const renewal = makeFakeInvoice(subStripe.id, customer.id, email, { billing_reason: 'subscription_cycle' });
+    const paid = handleInvoicePaid(renewal, held as never, platformClient as never, stripeShim);
+    await atWrite;
+    const subCanceled = { ...subStripe, status: 'canceled' as const, canceled_at: Math.floor(Date.now() / 1000), ended_at: Math.floor(Date.now() / 1000) };
+    expect((await handleSubscriptionDeleted(subCanceled, supabaseSeller as never, platformClient as never, stripeShim)).processed).toBe(true);
+    release();
+    expect((await paid).processed).toBe(true);
+
+    const { data: row } = await supabaseSeller!.from('subscriptions').select('status').eq('stripe_subscription_id', subStripe.id).single();
+    expect(row?.status).toBe('canceled');
+    const { data: tx } = await supabaseSeller!.from('payment_transactions').select('id').eq('stripe_invoice_id', renewal.id!);
+    expect(tx).toHaveLength(1);
+    const { data: access } = await supabaseSeller!.from('user_product_access').select('id, access_expires_at').eq('product_id', product.id);
+    expect((access ?? []).filter(a => a.access_expires_at === null || new Date(a.access_expires_at) > new Date())).toEqual([]);
   });
 
   it('handleSubscriptionDeleted revokes product access', async () => {

@@ -471,6 +471,17 @@ const TERMINAL_STATUSES: ReadonlySet<Stripe.Subscription.Status> = new Set([
   'unpaid',
 ]);
 
+/** Stripe never reopens these; the database keeps a stored row in them (keep_ended_subscription_ended). */
+const ENDED_STATUSES: ReadonlySet<string> = new Set(['canceled', 'incomplete_expired']);
+
+/** The stored row ended while this event's snapshot was being handled (concurrent cancellation). */
+async function endedMeanwhile(supabase: AdminClient, subscriptionRowId: string, snapshot: Stripe.Subscription): Promise<boolean> {
+  if (ENDED_STATUSES.has(snapshot.status)) return false;
+  const { data, error } = await supabase.from('subscriptions').select('status').eq('id', subscriptionRowId).maybeSingle();
+  if (error) throw new Error('Subscription status unavailable');
+  return ENDED_STATUSES.has(data?.status ?? '');
+}
+
 /**
  * Subscription events can be delivered out of order. Once the stored row is in
  * a terminal state, an event snapshot claiming otherwise may be older than the
@@ -724,6 +735,10 @@ export async function handleSubscriptionUpdated(
 
   const current = await currentSubscriptionState(sub, ctx.priorStatus, stripe);
   const subscriptionRowId = await upsertSubscriptionRow(supabase, ctx, current);
+  // A cancellation handled meanwhile has the last word: this older snapshot changes nothing.
+  if (subscriptionRowId && await endedMeanwhile(supabase, subscriptionRowId, current)) {
+    return { processed: true, message: `Subscription already ended, older update ignored: ${sub.id}` };
+  }
 
   // Mirror the create-event grant for transitions like incomplete -> active,
   // past_due -> active, or trialing -> active. Without this, the customer
@@ -1112,7 +1127,8 @@ export async function handleInvoicePaid(
   // still blocks the grant.
   // invoice.paid is in RETRIABLE_EVENTS; surface helper failures so a
   // transient DB error forces a Stripe redelivery instead of silent loss.
-  if (!stripeSideTerminal && !dbSideTerminal) {
+  // A cancellation handled meanwhile ends the entitlement; the revenue row is still booked below.
+  if (!stripeSideTerminal && !dbSideTerminal && !await endedMeanwhile(supabase, subscriptionRowId, sub)) {
     const r = await upsertUserProductAccess(supabase, ctx.userId, ctx.productId, subscriptionRowId);
     if (!r.ok) {
       console.error('[handleInvoicePaid] access grant failed:', r.reason);

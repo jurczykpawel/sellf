@@ -436,3 +436,35 @@ RETURNS void LANGUAGE sql SECURITY DEFINER SET search_path = '' AS $$
 $$;
 REVOKE EXECUTE ON FUNCTION public.queue_auth_mail_retry(text, text, jsonb, text, text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.queue_auth_mail_retry(text, text, jsonb, text, text) TO service_role;
+
+-- ===== An ended subscription stays ended =====
+-- Stripe never reopens a canceled or expired subscription. A subscription event handled
+-- concurrently with the cancellation may still carry an older, active snapshot: it must not
+-- reopen the stored row, and it must not grant access through the ended subscription.
+CREATE FUNCTION public.keep_ended_subscription_ended() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  IF OLD.status IN ('canceled', 'incomplete_expired') AND NEW.status IS DISTINCT FROM OLD.status THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
+END $$;
+REVOKE EXECUTE ON FUNCTION public.keep_ended_subscription_ended() FROM PUBLIC, anon, authenticated;
+CREATE TRIGGER keep_ended_subscription_ended BEFORE UPDATE ON public.subscriptions
+  FOR EACH ROW EXECUTE FUNCTION public.keep_ended_subscription_ended();
+
+CREATE FUNCTION public.refuse_access_from_ended_subscription() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  IF NEW.subscription_id IS NOT NULL AND NEW.access_expires_at IS NULL
+    AND (TG_OP = 'INSERT' OR OLD.subscription_id IS DISTINCT FROM NEW.subscription_id)
+    AND EXISTS (SELECT 1 FROM public.subscriptions s
+      WHERE s.id = NEW.subscription_id AND s.status IN ('canceled', 'incomplete_expired')) THEN
+    IF TG_OP = 'INSERT' THEN RETURN NULL; END IF;
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
+END $$;
+REVOKE EXECUTE ON FUNCTION public.refuse_access_from_ended_subscription() FROM PUBLIC, anon, authenticated;
+CREATE TRIGGER refuse_access_from_ended_subscription BEFORE INSERT OR UPDATE OF subscription_id, access_expires_at
+  ON public.user_product_access FOR EACH ROW EXECUTE FUNCTION public.refuse_access_from_ended_subscription();
