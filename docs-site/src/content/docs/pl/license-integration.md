@@ -35,6 +35,8 @@ Każdy klucz pod adresem JWKS to zwykły klucz publiczny w formacie JWK (`kty: "
 :::note[Zmiana klucza]
 Klucz podpisujący możesz zmienić w każdej chwili: kliknij jeszcze raz **Wygeneruj klucz** albo **Wgraj klucz**. Od tej chwili nowe licencje są podpisywane nowym kluczem. Stary klucz jest **wycofany**, nie unieważniony: zostaje pod adresem JWKS ze statusem `"status": "retired"`, więc licencje nim podpisane dalej działają. Aplikacji nie trzeba zmieniać, bo wybiera klucz po `kid` z tej samej listy.
 
+Zmiana klucza i wycofanie poprzedniego są zapisywane w jednej transakcji. Weryfikator powinien zachować obsługę kluczy `retired` i odświeżyć listę JWKS, gdy pojawi się nieznany `kid`. To planowa wymiana klucza.
+
 Zmiana klucza nie pomoże, jeśli ktoś ukradł Twój klucz prywatny: stary klucz dalej potwierdza licencje. Unieważnienia wykradzionego klucza Sellf jeszcze nie ma.
 :::
 

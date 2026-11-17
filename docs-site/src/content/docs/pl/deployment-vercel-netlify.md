@@ -119,7 +119,7 @@ Użyjesz go w Krokach 6 i 7.
 
 ## Krok 6 — Zaaplikuj migracje bazy (3 min)
 
-Sellf ma 46 migracji tworzących 36 tabel, 73 funkcje RPC i 92 polityki RLS. Button deploya ich nie uruchamia — Ty to robisz, raz, z lokalnego komputera.
+Sellf dostarcza migracje tworzące tabele, funkcje RPC i polityki RLS. Użyj kompletu plików z docelowego wydania. Button deploya ich nie uruchamia — Ty to robisz, raz, z lokalnego komputera.
 
 ```bash
 # W świeżym terminalu, gdziekolwiek:
@@ -137,7 +137,7 @@ npx supabase link --project-ref <TWOJ_PROJECT_REF>
 npx supabase db push
 ```
 
-Oczekiwany wynik: `Applying migration ... done` dla każdej z 46 migracji. Łączny czas ~1 minuta.
+Oczekiwany wynik: `Applying migration ... done` dla każdej brakującej migracji. Łączny czas ~1 minuta.
 
 > **Jeśli nie chcesz instalować Supabase CLI:** otwórz https://supabase.com/dashboard/project/<ref>/sql/new, potem wklej każdy plik `.sql` z `supabase/migrations/` chronologicznie i kliknij **Run**. Dużo wolniejsze; CLI rekomendowane.
 
@@ -309,7 +309,7 @@ Pełna sekwencja komend bash w wersji angielskiej tego dokumentu ([DEPLOYMENT-VE
 
 ## A co z plikiem `.env.example`?
 
-[`.env.example`](../../admin-panel/.env.example) wymienia każdą opcjonalną zmienną którą Sellf wspiera (~30 ich). Te 11 powyżej to minimum wymagane do działającego deploya produkcyjnego. Opcjonalne rzeczy które możesz chcieć później:
+[`.env.example`](https://github.com/jurczykpawel/sellf/blob/main/admin-panel/.env.example) wymienia każdą opcjonalną zmienną którą Sellf wspiera (~30 ich). Te 11 powyżej to minimum wymagane do działającego deploya produkcyjnego. Opcjonalne rzeczy które możesz chcieć później:
 
 | Zmienna | Co dodaje |
 |----------|--------------|

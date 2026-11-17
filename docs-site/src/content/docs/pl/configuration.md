@@ -192,3 +192,7 @@ elementu embeda. Kupujący nadal może go zmienić:
 `POST /api/embed/checkout-session` przyjmuje opcjonalne `couponCode` (litery, cyfry, `_`, `.`, `-`;
 do 64 znaków). Nieprawidłowy lub niemożliwy do użycia kod zwraca `400` z polem `error`, bez
 tworzenia sesji.
+
+## Przerwa techniczna
+
+Przed aktualizacją lub pracami w sklepie możesz włączyć przerwę z panelu albo pliku serwera. Zobacz [źródła, zatrzymywane operacje i zakończenie przerwy](/pl/maintenance/).

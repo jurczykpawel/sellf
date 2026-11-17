@@ -4,6 +4,22 @@ A high-level overview of planned features, current progress, and completed work.
 
 ---
 
+## Next
+
+Planned sequence, without delivery-date commitments:
+
+- **2026.11.2:** database backup and one-click restore, emergency license signing-key replacement, a consistent Bun version and lockfile v3, production fixes and dependency maintenance. Admin shop preview during maintenance is optional.
+- **2026.11.3:** multiple co-creators, invitations and separate statuses; more store templates, industry templates and content editing per language.
+- **2026.11.4:** multi-product cart and checkout UX, related products, invoice details in embedded checkout and event cart reservations.
+- **2026.11.5:** buyer-facing currency choice and EU B2B reverse charge, subject to research and a scope decision.
+- **Without a release number:** payment-function decomposition and passkey sign-in.
+
+## Available in 2026.11.1
+
+Product archiving, the six-section product editor, unified company details, co-creator shares, versioned Stripe carts, maintenance mode, durable mail/event retries, updater 2 and explicit RC releases. Manual webhook retries require an administrator session; endpoint URL changes close older scheduled deliveries. See [the documentation overview](https://docs.sellf.app/#changes-in-2026111).
+
+---
+
 ## 🔴 High Priority
 
 ### Zero-Config Setup Wizard
@@ -15,40 +31,32 @@ Complete guided setup experience for ALL integrations via OAuth or step-by-step 
 One-click deployment without server management. "Deploy in 5 minutes" with Vercel, Cloudflare Pages, or Netlify. Supabase Cloud as managed database.
 
 ### Transactional Emails & Logs
-**Status**: 📋 Planned
-Advanced email delivery with multiple providers (EmailLabs, AWS SES), email history tracking (sent, delivered, bounced, opened), and dynamic templates.
+**Status**: Partial
+Signed business webhooks and optional Supabase buyer emails are available, with durable retry queues and mail limits. Delivery automation can use Mailstack or another receiver. Native provider integrations (EmailLabs, AWS SES), full sent/delivered/bounced/opened history and dynamic-template management remain planned. See [buyer emails](https://docs.sellf.app/buyer-emails/).
 
 ### Follow-up Email Sequences per Product
-**Status**: 📋 Planned
-Automated email campaigns triggered after purchase or free download. Per-product configuration with delay settings, dynamic variables, and analytics (open/click rates).
+**Status**: Idea
+Purchase and free-access webhooks already support follow-up automation in the seller's mail system. A native per-product campaign engine, delay editor and open/click analytics are not implemented or assigned to the next releases.
 
 ### Custom Checkouts (checkout profiles + built-in modules)
-**Status**: 🏗️ In design (2026-10)
-Sellers adapt the checkout to their buyers without code: a per-product checkout profile enables built-in, versioned modules
-with their own settings (buyer type person/organization with tax ID lookup, invoice recipient different from the buyer,
-phone, quantity, participant list matching the quantity). Delivered in stages, each released on its own:
-1. Provider-independent order core: server-side line-item snapshot, buyer details stored before payment, repeat purchases.
-2. Checkout profiles and the first modules (API/MCP + simple admin settings).
-3. Event products: sessions, price tiers with seat limits and sale end, packages as surcharges, seat reservations, public availability read.
-4. Offline bank transfer with a payment due date, admin mark-as-paid/cancel and an `order.placed` webhook.
-5. Invoicing (see below).
+**Status**: Done
+Order snapshots, checkout profiles, buyer/recipient details with tax ID lookup, phone, quantity and participants are available. Event products include dates, price tiers, seat reservations and public availability. Traditional bank transfer supports due dates, cancellation and admin acceptance of late transfers. See [custom checkout](https://docs.sellf.app/custom-checkout/) and [bank transfers](https://docs.sellf.app/bank-transfers/).
 
 ### Invoicing Integration (Fakturownia, iFirma, KSeF)
-**Status**: 📋 Planned (stage 5 of Custom Checkouts, Fakturownia first)
-Automatic invoice generation and delivery for successful purchases. Integration with Fakturownia, iFirma, and Polish KSeF e-invoice system.
-Includes buyer and recipient with tax IDs, VAT-exempt sellers, and one invoice per order.
+**Status**: Partial — Fakturownia done
+Automatic/manual Fakturownia invoices, separate recipients, unpaid transfer invoices, retries and correction tracking are available. KSeF submission is configured in Fakturownia. Native iFirma and direct KSeF integrations remain planned; they are not part of the shipped Fakturownia integration.
 
 ---
 
 ## 🟡 Medium Priority
 
 ### UTM & Affiliate Parameter Tracking
-**Status**: 📋 Planned
-Track UTM parameters and affiliate links throughout the entire purchase funnel. Preserve marketing attribution from landing to conversion, with admin analytics reports.
+**Status**: Done
+Purchase attribution records first and last touch, source, medium, campaign and content, with admin reports and API access. See [purchase sources](https://docs.sellf.app/purchase-attribution/).
 
 ### Two-Sided Affiliate Program
-**Status**: 💭 Idea
-Full affiliate/referral program where both parties benefit — the referrer earns commission and the buyer gets a discount. Self-service signup, affiliate dashboard, configurable commission structure, and payout management.
+**Status**: Done for the base program; extensions planned
+Partner sign-up, approval, coupon-based commissions, buyer discounts, earnings and payout management are available. One co-creator can receive a percentage or fixed amount per one-time product purchase without a coupon; creator terms and payout eligibility apply. Multiple co-creators, invitations and separate statuses are planned for 2026.11.3.
 
 ### Real-time Social Proof Notifications
 **Status**: 📋 Planned
@@ -61,11 +69,11 @@ Full affiliate/referral program where both parties benefit — the referrer earn
 
 ### Per-Product Payment Method Override
 **Status**: 📋 Planned (Phase 2 of Payment Config)
-Override global payment method settings for specific products. Use cases: cards-only for high-value products, local methods for regional products, bank transfers for B2B. Offline bank transfer for organizations is planned as stage 4 of Custom Checkouts.
+Override global payment method settings for specific products. Use cases: cards-only for high-value products, local methods for regional products, bank transfers for B2B. Offline bank transfer is available for eligible checkout profiles; this does not implement per-product Stripe payment-method overrides.
 
 ### One-Click Auto-Update System
-**Status**: ✅ Done (2026-02)
-Version management with one-click updates from admin panel. Automatic backup before update, health check verification, and rollback capability. See `system/upgrade.sh` + `/api/v1/system/*` endpoints + `SystemUpdateSettings`. Future phases (auto-scheduling, email notifications, Docker/Vercel strategies) tracked separately.
+**Status**: Done
+The admin panel offers in-place updates for supported standalone PM2 installations, with signed releases, health checks and code rollback. The saved backup covers application code/configuration, **not the database**. Database backup and one-click restore are planned for 2026.11.2. Other runtimes show deployment-specific instructions. See [update guide](https://docs.sellf.app/ui-upgrades/).
 
 ### Automated Review Collection
 **Status**: 📋 Planned
@@ -80,34 +88,12 @@ Generate conversion-focused landing pages using AI. One-click generation from pr
 Auto-retry with exponential backoff (1m/5m/30m/2h/12h), dead-letter queue with admin Replay UI, atomic concurrent-worker safety, and pluggable queue driver (`WEBHOOK_QUEUE_DRIVER=supabase|sqs`) are now in `/dashboard/webhooks/deliveries`. See [webhooks docs](https://docs.sellf.app/webhooks/). Core refund, waitlist, purchase, subscription, and invoice events were already shipped. Per-product scoping is tracked separately below (`Per-Product Webhook Scoping`).
 
 ### Per-Product Webhook Scoping
-**Status**: 📋 Planned · 🔒 **PRO-gated** (`pro+` license tier)
-When adding/editing a webhook endpoint, let the user choose whether it fires for **all products** (current behaviour) or only for **selected products**. Today every active endpoint subscribed to an event fires for every product; this adds a product filter so a seller can route, e.g., `purchase.completed` for Product A to one endpoint and Product B to another. Backward-compatible: existing endpoints default to "all products" → no behaviour change. The per-product selection is a **PRO feature** — sub-PRO sellers can still create webhooks (all-products), but the "Selected products" mode is locked behind an upsell.
-
-**Implementation research (codebase, 2026-05-29):**
-
-- **Single dispatch chokepoint.** `WebhookService.trigger(event, data, client)` in `admin-panel/src/lib/services/webhook-service.ts:30` is the only place endpoints are selected (query at lines 35–39: `is_active = true` + `.contains('events', [event])`). Filtering is added here — accept an optional `productId` and select endpoints where `product_filter_mode = 'all' OR endpoint is linked to productId`. `testEndpoint()` (one specific endpoint) is unaffected.
-- **DB.** `webhook_endpoints` (`supabase/migrations/20250103000000_features.sql:168`) has no product relationship. Add (a) column `product_filter_mode TEXT DEFAULT 'all' CHECK (product_filter_mode IN ('all','selected'))`, and (b) a junction table `webhook_endpoint_products (webhook_endpoint_id UUID, product_id UUID, PRIMARY KEY(...), ON DELETE CASCADE)`. Mirror the existing junction pattern + RLS/grants from `product_tags`/`product_categories` (`supabase/migrations/20250101000000_core_schema.sql:130,146`). New migration → regenerate `admin-panel/src/types/database.ts`.
-- **Call sites that must pass `productId`.** Each event emission that is product-scoped (`purchase.completed`, `lead.captured`, `waitlist.signup`, `refund.issued`, `subscription.*`, `invoice.*`, `product.*`) — sourced from the Stripe handler (`app/api/webhooks/stripe/route.ts`, `subscription-handlers.ts`), waitlist signup route, and refund/subscription payload builders (`lib/services/*-webhook-payload.ts`). Product info is already in the payload data, so threading the id is low-risk. ~15 emission sites, but they funnel through 3 payload builders (`webhook-payload.ts`, `subscription-webhook-payload.ts`, `refund-webhook-payload.ts`) that already carry `productId`, so the actual edits are concentrated.
-- **API + validation.** `POST /api/v1/webhooks` (`app/api/v1/webhooks/route.ts:118`) and `PATCH /api/v1/webhooks/[id]/route.ts` accept `product_filter_mode` + `product_ids[]` (UUIDs, replace semantics like tags PATCH); `GET` embeds them. Add validators in `lib/validations/webhook.ts` (mode enum + UUID/ownership check). Update `WebhookEndpoint` type in `types/webhooks.ts`/`types/index.ts`. MCP needs no separate change: the `create_webhook` / `update_webhook` tools are generated from the operation registry (`admin-panel/src/lib/api/openapi/operations.ts`), so new body fields reach them with the validator.
-- **Admin UI.** `components/webhooks/WebhookFormModal.tsx` — add an "All products / Selected products" toggle + conditional product multi-select (a product list/hook already exists for other forms); thread fields through `hooks/useWebhooks.ts`; show a scope badge ("All" / "N products") in `components/webhooks/WebhookListTable.tsx`. In "selected products" mode show an inline note that non-product-scoped events still fire for all products (per decision #4). New i18n keys in `messages/en.json` + `messages/pl.json` (`admin.webhooks` namespace).
-- **License gating (PRO).** Reuse the existing registry: add `'webhook-product-scoping': 'pro'` to `FEATURE_TIERS` in `lib/license/features.ts:17` (there's already a planned `webhook-retry` pro entry in the comment block to follow). **Enforce server-side** in `POST` + `PATCH /api/v1/webhooks` — `if (product_filter_mode === 'selected' && !(await checkFeature('webhook-product-scoping', { dataClient }))) return 403` (mirror `api-keys` `enforceApiKeyScopeGate` / `payments/export` `hasFeature(tier, 'csv-export')`). **UI lock** in `dashboard/webhooks/page.tsx` (server component): resolve `tier` and pass `scopingLocked = !hasFeature(tier, 'webhook-product-scoping')` into `WebhookFormModal` — render the "Selected products" option with a PRO badge + upsell, exactly like `dashboard/api-keys/page.tsx:11` → `ApiKeyFormModal` does for scopes. UI hiding is cosmetic; the API check is the real gate.
-- **Tests.** Unit (dispatch all-vs-selected filtering, validators, license gate allows/denies), API integration (create/update with scoping + 403 below PRO), E2E (form flow + locked state).
-
-**Size estimate:** ~20–24 files, ~750–1100 LOC.
-- Backend ~280–400 LOC: migration (~60), `webhook-service.ts` filter (~60), API routes incl. PRO enforcement (~100), validation + OpenAPI schema (~50), `productId` threading across call sites (~50), `features.ts` (+1 line), `database.ts` regen.
-- Frontend ~230–340 LOC: form modal incl. PRO lock/upsell (~150), webhooks page tier resolve (~10), hook (~30), list badge (~20), i18n incl. upsell copy (~50).
-- Tests ~220–320 LOC.
-- Effort: **Medium (~1.5–2 dev-days).**
-
-**Decisions (2026-05-29):**
-1. **License downgrade/expiry → grandfather.** Dispatch keeps honouring the stored `product_filter_mode` on existing endpoints; only *creating/editing* a "selected" scope is PRO-gated at write time. PRO is lifetime for now so downgrade is rare — but **keep the data model license-agnostic**: persist `product_filter_mode` + the junction regardless of tier, and never bake license state into the data. Changing the downgrade policy later (revert-to-all / stop-firing) must be a dispatch-query change only, **no migration**.
-2. **Multi-product events → fire if ANY matched product.** For an event touching several products (e.g. `purchase.completed` with an order bump from another product), the scoped endpoint fires when *any* product in the event (main or bump) is on its selection list.
-3. **Filtering in SQL.** Single query in `WebhookService.trigger`: `is_active AND contains(events,[event]) AND (product_filter_mode='all' OR endpoint linked to productId)` via `.or()`/join — not in-app after fetch (efficient + scales as endpoint/product counts grow; in-app would load every endpoint into memory per dispatch).
-4. **Events with no product context → always fire** regardless of selection (don't drop). Applies to any future account-level event; all current events are product-scoped. **UI requirement:** when an endpoint is in "selected products" mode, surface an inline note that any non-product-scoped events on it will fire for all products regardless of the selection.
+**Status**: Done — selected-product configuration requires Pro or higher
+Endpoints can receive all products or selected products. A multi-product event matches if any included product is selected. Events without a product context remain eligible. Existing stored filters continue to apply; creating or editing a selected-product filter requires Pro. See [webhooks](https://docs.sellf.app/webhooks/).
 
 ### API Extensions & SDKs
-**Status**: 📋 Planned
-Typed SDKs, hosted OpenAPI docs endpoint, example apps, and deeper webhook/API recipes. REST API v1 with scoped API keys, rate limiting, and OpenAPI generator is already shipped.
+**Status**: Partial
+REST API v1, a hosted OpenAPI 3.1 description at `/api/v1/openapi.json`, registry-generated `/llms.txt`, and built-in MCP at `/api/mcp` are available. MCP runs inside the application; no separate server package is needed. Typed client SDKs and additional example applications remain planned.
 
 ### GTM Phase 2 (Automated OAuth)
 **Status**: 📋 Planned
@@ -138,15 +124,15 @@ Automatic failover between payment providers, one-click admin toggle, and curren
 Upload videos directly from admin panel to Bunny.net with progress bar, automatic embed code generation, and video library management.
 
 ### Advanced Video Player Styling
-**Status**: 📋 Planned
-Custom player UI (colors, logo overlay), overlays & CTAs at timestamps, playback memory, chapters, download protection, and watch analytics.
+**Status**: Partial
+Playerstack integration and saved playback position are available. Further player branding, timestamp overlays/CTAs, chapters and watch analytics remain planned.
 
 ### Self-Service Account Deletion (GDPR)
 **Status**: 📋 Planned
 Allow users to permanently delete their account with Stripe subscription cancellation, data cleanup, and double confirmation.
 
 ### Product Bundles
-**Status**: ✅ Done — merged to `main` (not yet released / deployed)
+**Status**: Done — available since 2026.11.0
 A bundle is a product (`is_bundle`) that grants access to several component products via the
 `bundle_items` join table — no product/file duplication. Fixed price with adaptive savings/included
 display, optional bonus content, its own order bumps + OTO, mode-1a single-line VAT, per-component
@@ -154,7 +140,7 @@ access + licenses; components are one-time/free/PWYW (no subscriptions, no nesti
 `grant_product_and_bundle_components` primitive backs completion RPC + guest-claim (and is cart-ready).
 **⚠️ BREAKING (webhook):** the `purchase.completed` payload's singular `license` field is REMOVED and
 replaced by `licenses[]` (one entry per licensable product, incl. bundle components); adds
-`bundleComponents[]`; widens product-scoping to include component ids. **Flag this in the next release notes.**
+`bundleComponents[]`; widens product-scoping to include component ids. Use the current [webhook contract](https://docs.sellf.app/webhooks/) when migrating integrations.
 
 ### Multi-Product Cart
 **Status**: 💭 Idea
@@ -162,7 +148,7 @@ True shopping cart — add more than one different product and pay for all in a 
 
 ### Buyer-Facing Multi-Currency (Presentment + Currency Choice)
 **Status**: 💭 Idea
-Buyer always sees the price in their own (geo/locale) currency, with the option to pay either in their currency or in the product's original currency. Needs research on what Stripe provides out-of-the-box (Adaptive Pricing vs multi-currency `currency_options`) before building custom FX. Note: the shipped "Multi-Currency Conversion (2025-12-30)" is display/analytics only, not buyer-facing payment currency.
+Buyer always sees the price in their own (geo/locale) currency, with the option to pay either in their currency or in the product's original currency. Requires a fresh Stripe capability check and a design that keeps the displayed total, confirmed session amount and payment currency consistent, including pay-what-you-want fallback. A single Elements flag is insufficient. Note: the shipped "Multi-Currency Conversion (2025-12-30)" is display/analytics only, not buyer-facing payment currency.
 
 ### Cart / Checkout UX Redesign
 **Status**: 💭 Idea
@@ -279,9 +265,9 @@ Admin panel setting to enable/disable strict URL validation for content links (`
 - ✅ GTM DataLayer events, Facebook Pixel + CAPI with deduplication
 - ✅ Google Consent Mode V2, unified useTracking hook
 
-#### MCP Server (2026-02)
-- ✅ 7 tool modules (products, analytics, coupons, payments, users, webhooks, system)
-- ✅ API key auth, Claude Desktop integration, Vitest tests
+#### Built-in MCP (2026.11.1)
+- API-key authenticated Streamable HTTP endpoint at `/api/mcp`
+- Tools generated from OpenAPI, scope-filtered full or compact mode
 
 #### REST API v1 & API Keys (2026-02 — 2026-05)
 - ✅ Scoped API keys with rotation, hashing, per-key rate limits, and audit trail
@@ -391,9 +377,9 @@ Admin panel setting to enable/disable strict URL validation for content links (`
 - ✅ Database schema, admin CRUD, product form integration
 - 📋 Missing: storefront filtering, category pages, navigation
 
-#### Product Tags (Dec 2024, partial)
-- ✅ Database schema
-- 📋 Missing: admin UI, product form, filtering
+#### Product Tags
+- Database schema, admin CRUD and product-form integration are available.
+- API supports tag filtering; public storefront tag navigation remains a separate enhancement.
 
 #### E2E Testing Infrastructure (2025-12-30)
 - ✅ 176+ tests, stable selectors, serial admin tests, cleanup hooks
@@ -408,4 +394,4 @@ Admin panel setting to enable/disable strict URL validation for content links (`
 
 ---
 
-**Last Updated**: 2026-05-19
+**Last Updated**: 2026-11-17

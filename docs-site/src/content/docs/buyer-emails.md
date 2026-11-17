@@ -32,3 +32,11 @@ Configure the same signing secret at both ends. Subscribe to `purchase.completed
 The receiver must deduplicate by delivery id, validate the signature and send to `customer.email`. Participant links and license keys are confidential delivery data: exclude them from application logs. Transactional messages must not be repurposed as marketing subscriptions.
 
 Mailstack mappings/templates are managed separately in the Mailstack project. Confirm support for the selected events there before turning off Supabase delivery. Avoid enabling equivalent email automation in both channels unless duplicate emails are intentional.
+
+## Delivery limits and pending mail
+
+Sign-in mail requests and the retry worker share a limit of **5 attempts per inbox in 24 hours**. Address variants delivered to the same inbox, including plus tags and Gmail dots, share that limit. This is separate from Supabase Auth and SMTP-provider limits. A queued message that hits the daily limit waits another 24 hours without consuming a retry attempt.
+
+The authentication-mail queue makes up to six retry attempts. A successful access or license grant stays successful while its email waits. For API grants, inspect `license.email_pending`; `POST /api/v1/licenses` uses `emailPending`. Repeating **Grant access** can resume an abandoned license email. See [SMTP and the retry schedule](/email-setup/).
+
+On a long-running production server, the app checks the queue every minute. For deployments without a persistent process, schedule `/api/cron?job=auth-mail-retry` every minute with `Authorization: Bearer <CRON_SECRET>`. Keep that credential in the scheduler's secret store. This job is separate from webhook delivery retries.

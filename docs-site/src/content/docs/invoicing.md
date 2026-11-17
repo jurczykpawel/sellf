@@ -50,3 +50,7 @@ connection test requires `FAKTUROWNIA_TEST_DOMAIN` and `FAKTUROWNIA_TEST_TOKEN`.
 Exemption text referring to articles 113, 43 or 82 maps to Fakturownia's documented
 KSeF exemption choice; the original text is retained in invoice notes. Configure
 KSeF authorization and automatic submission in Fakturownia itself.
+
+## Tax ID and company details
+
+The standard checkout and product checkout profiles share one invoice section. A NIP or EU VAT number sets the company country; a Polish NIP can fetch details from GUS when the shop integration is configured. A company without a tax ID or outside the EU selects its country and enters its name and address manually. Street, postal code and city are separate fields. A separate recipient requires a Polish NIP. Online payment and traditional bank transfer use the same details. See [checkout data](/custom-checkout/).

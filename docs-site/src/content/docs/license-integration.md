@@ -35,6 +35,8 @@ Each key at the JWKS URL is a standard public key in JWK format (`kty: "EC"`, `c
 :::note[Changing the key]
 You can change the signing key at any time: click **Generate key** or **Upload key** again. From then on new licenses are signed with the new key. The old key is **retired**, not cancelled: it stays at the JWKS URL with `"status": "retired"`, so licenses signed with it keep working. Your application needs no change, because it picks the key by `kid` from the same list.
 
+Saving the new key and retiring the previous one happen in one transaction. A verifier should keep accepting `retired` keys and refresh JWKS when it encounters an unknown `kid`. This is a planned signing-key change.
+
 A changed key does not help if someone has stolen your private key: the old key keeps verifying licenses. Sellf does not yet offer cancelling a leaked key.
 :::
 

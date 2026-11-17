@@ -169,3 +169,7 @@ shares keep accruing meanwhile, and payouts resume once you approve.
 For StackPilot installations and upgrades, add this schedule explicitly to your
 host or external scheduler and verify a successful call after restarting Sellf.
 Deploying the app alone does not install the affiliate scheduler.
+
+## Maintenance mode
+
+Before an update or shop maintenance, enable a break from the panel or a server file. See [sources, paused operations and ending the break](/maintenance/).

@@ -89,7 +89,9 @@ Sellf gives you **complete control** over your digital product business. No mont
 - Sale pricing with quantity and time limits
 - Timed access (30-day, lifetime, custom)
 - Waitlist for upcoming products
-- Categories and featured products
+- Categories, tags and featured products
+- Product archive with retained purchase history and buyer access
+- Six-section product editor with starting scenarios and guided tutorials
 - Rich descriptions with Markdown support
 
 </details>
@@ -113,6 +115,7 @@ Sellf gives you **complete control** over your digital product business. No mont
 - Google Tag Manager integration
 - Facebook Pixel with Conversions API (CAPI)
 - Webhooks (HMAC-secured) for Zapier, Make, n8n: purchases, refunds, waitlists, subscriptions, invoices
+- Partner commissions and co-creator shares with terms acceptance and payout eligibility
 - Revenue dashboard with goals
 - Real-time sales notifications
 
@@ -122,6 +125,7 @@ Sellf gives you **complete control** over your digital product business. No mont
 <summary><strong>REST API v1 & Integrations</strong></summary>
 
 - 60+ endpoints covering products, users, payments, refunds, coupons, webhooks, analytics, and more
+- Registry-generated `/llms.txt` for agent discovery
 - Fine-grained API keys with 13 permission scopes (`products:read`, `users:write`, `*`, ...)
 - Zero-downtime key rotation with configurable grace period
 - Per-key rate limiting (1–1000 req/min)
@@ -365,8 +369,10 @@ See **[FEATURES.md](./FEATURES.md)** for details on all integrations.
 - [x] Simple Funnel System (OTO chaining)
 - [x] Stripe Subscriptions (recurring billing, trials, coupon duration, customer portal)
 - [ ] Zero-Config Setup Wizard (no .env needed)
-- [ ] Transactional Emails & Logs
-- [ ] Invoicing Integration (Fakturownia, KSeF)
+- [x] Signed buyer-notification webhooks and optional Supabase email retries
+- [ ] Native email-provider integrations and delivery analytics
+- [x] Fakturownia invoicing with retries and correction tracking
+- [ ] Additional invoice providers and direct KSeF integration
 - [ ] Subscription upgrades/downgrades and MRR/churn dashboard
 
 Full roadmap: [BACKLOG.md](./BACKLOG.md)
@@ -376,7 +382,7 @@ Full roadmap: [BACKLOG.md](./BACKLOG.md)
 ## Project Stats
 
 ```
-├── 3,519 unit tests + broad Playwright E2E coverage
+├── Vitest unit/integration tests and Playwright E2E coverage
 ├── 90+ API routes (v1 REST API + admin + public)
 ├── 36 database tables
 ├── 73 RPC functions
@@ -404,7 +410,7 @@ Sellf is free and source-available. If it saves you money on platform fees, cons
 
 ## Contributing
 
-Contributions are welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup and guidelines.
+Contributions are welcome! See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup and guidelines. Dependency PRs are reviewed before merging: libraries and Docker updates are grouped monthly, GitHub Actions quarterly, with no automatic merge. See the [maintenance policy](https://docs.sellf.app/ui-upgrades/#for-contributors).
 
 Ways to contribute:
 - Report bugs via [Issues](https://github.com/jurczykpawel/sellf/issues)
