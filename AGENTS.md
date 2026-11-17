@@ -289,6 +289,8 @@ existing analytics-consent gate; its payload includes quantity and selected bump
 5. Guest payments land in `guest_purchases`; authenticated buyers get a row in `user_product_access`
 6. Buyer redirected with `session_id` → `/api/verify-payment` confirms access
 
+**On-site checkout cart changes (W219):** `/api/create-payment-intent` (Checkout Session, `ui_mode: 'elements'`) updates the buyer's open session on a quantity / add-on / coupon / amount change instead of creating another one. Invariant: a paid payment always settles, whatever the order of cart change, Stripe update and payment (W219b). `begin_pending_order_update` stores the new cart as the next row of `checkout_cart_versions` (version 1 = the placed cart) and locks the session (a second update within 60 s → HTTP 409 `CHECKOUT_UPDATE_IN_PROGRESS`, the browser retries); `checkout.sessions.update` replaces `line_items` + metadata (also `payment_intent_data.metadata`) incl. `sellf_cart_version`; `finish_pending_order_update` makes the version the saved order only when Stripe's answer carries that version and the cart's subtotal (then the reservation of a dropped coupon is released). Failure, timeout or unclear answer: every version stays, the old session is expired and a new one created as before. The webhook / verify-payment pass `cart_version_param` (from session metadata) to `process_stripe_payment_completion_with_bump`, which applies that version before the amount checks. A new session (old one expired, row `abandoned`) also when Stripe cannot change it: other email/language/return URL, event seats, subscription, payment in progress. Sessions with another installation's marker are never updated nor expired. Coupons are priced into line amounts, never Stripe discounts. @see `admin-panel/src/lib/stripe/checkout-session-update.ts`.
+
 **Embedded Checkout (on a seller's external page):**
 1. Seller pastes the `<script src=".../embed/v1/checkout.js" data-...>` snippet
 2. Loader fetches `/api/embed/checkout-session` for paid products (anonymous, captcha-gated)
@@ -530,6 +532,8 @@ The existing `InvoiceProvider`/Fakturownia stays for sellers who want it, but no
 
 `shop_config.supabase_buyer_emails` is false on new shops, true for existing installations on upgrade. Settings → Shop exposes the validated admin-only toggle. `deliverMagicLink` strips transactional context when off and skips notification-only messages; authentication and guest access links remain. Retry workers apply the current policy. `order.participants_needed` carries the personal link for each reminder stage, `license.issued` adds `licenseKey` at signed delivery time, and `purchase.completed` includes entitled event details under `buyerMail`. See docs-site buyer-emails pages for Mailstack setup.
 
+E2E: the setting is one row shared by every Playwright worker. Specs never save/restore it themselves; they take the cross-worker lease in `tests/helpers/buyer-email-setting-playwright.ts` (`useSupabaseBuyerEmails()` = needs it on, `holdBuyerEmailSettingExclusively()` = flips it). The first holder saves the value, the last restores it.
+
 ### Committed business events
 
 `public.business_events` records access, seat and abandoned-order transitions in the same transaction as the change.
@@ -595,6 +599,8 @@ the migration history must stay reviewable. Rules:
 1. **During a cycle** you may add migrations freely on feature/dev branches, one per change.
    Each new migration is appended at the END of `supabase/migration-order.txt` and ships with the
    refreshed `supabase/schema.snapshot.sql` in the same commit (`cd admin-panel && bun run schema:snapshot`).
+   The snapshot needs the pinned Supabase CLI (`PINNED_SUPABASE_CLI` in `scripts/schema-snapshot.ts`); point
+   `SUPABASE_BIN` at that binary when the one on PATH differs.
 2. **Before the release gate** the release branch is tidied: all migrations added since the last
    release tag are consolidated into **a few logical files grouped by area** (orders, events,
    licenses, templates, misc …; target 4–8 files, hard limit **8**). Fix-ups of a migration from

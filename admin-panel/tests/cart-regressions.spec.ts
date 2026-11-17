@@ -268,9 +268,11 @@ test('person autostarts online and keeps one priced session while choosing buyer
   await expect.poll(() => created.length).toBe(2);
   expect(creationRequests).toHaveLength(2);
   expect(creationRequests[1]).toMatchObject({ quantity: 2, couponCode: coupon.code });
-  expect((await stripe.checkout.sessions.retrieve(created[1].id)).amount_total).toBe(8820);
-  await expect.poll(async () => (await stripe.checkout.sessions.retrieve(first)).status).toBe('expired');
-  await expect.poll(async () => (await db.from('payment_transactions').select('status').eq('session_id', first).single()).data?.status).toBe('abandoned');
+  // The quantity change updates the same open session and its order (W219).
+  expect(created[1].id).toBe(first);
+  const updated = await stripe.checkout.sessions.retrieve(first);
+  expect({ status: updated.status, amount: updated.amount_total }).toEqual({ status: 'open', amount: 8820 });
+  expect((await db.from('payment_transactions').select('status,amount').eq('session_id', first).single()).data).toEqual({ status: 'pending', amount: 8820 });
   await expect(legal).toBeChecked();
   await expect(page.getByRole('textbox', { name: 'Discount code', exact: true })).toHaveValue(coupon.code);
   await expect(page.getByLabel('Quantity', { exact: true })).toHaveValue('2');

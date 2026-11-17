@@ -34,6 +34,28 @@ and checks Mailpit login/free-access emails, Stripe embed return URLs, sitemap a
 metadata. It requires running local Supabase with the 3777 Auth redirect allowlist and
 a test-mode Stripe key; it never resets the database.
 
+## Installation identity
+
+Sellf marks every Stripe object it creates with `metadata.sellf_instance`, so several
+installations can share one Stripe account. Normally leave both variables unset: the
+identifier comes from the database and survives restarts and upgrades.
+
+| Variable | When to set it |
+|----------|----------------|
+| `SELLF_INSTANCE_ID` | A copy restored from a database dump (release rehearsal, local copy of production) that can reach the same Stripe account. Set a unique value (8 to 64 characters: letters, digits, `_`, `-`, e.g. `rehearsal-2026-11-15`) **before the first start**. Never set it on the original. |
+| `SELLF_INSTANCE_ALIASES` | A moved installation whose identifier changed. Comma-separated previous markers (`sellf_instance` seen in Stripe), previous `SELLF_INSTANCE_ID` values or database ids it still owns. Never set it on a rehearsal copy. |
+
+A malformed value stops payments with an error. Details and both migration cases:
+[One Stripe account for several installations](/webhooks/#one-stripe-account-for-several-installations).
+
+## Internal address for the MCP endpoint
+
+`/api/mcp` forwards each tool call to the same server at `/api/v1`, by default
+`http://127.0.0.1:$PORT` (`PORT` defaults to `3000`). Set `SELLF_INTERNAL_URL` only
+when the app does not listen on IPv4 loopback (for example `HOSTNAME=::1` or a sidecar
+setup), e.g. `SELLF_INTERNAL_URL=http://[::1]:3000`. Never point it at another host:
+requests carry the caller's API key.
+
 ## Price display
 
 Prices follow the selected page language in the storefront, checkout and admin panel.

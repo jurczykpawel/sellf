@@ -10,6 +10,7 @@ import { getStripeServer } from '@/lib/stripe/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { fulfillStripeOrder } from '@/lib/services/fulfill-paid-order';
 import { backfillBuyerDetails } from '@/lib/payment/buyer-details';
+import { readCartVersion } from '@/lib/stripe/checkout-session-update';
 import { redactEmail } from '@/lib/logger';
 import type Stripe from 'stripe';
 import type { User } from '@supabase/supabase-js';
@@ -588,7 +589,8 @@ export async function verifyPaymentSession(
             bump_product_ids_param: bumpProductIds.length > 0 ? bumpProductIds : undefined,
             coupon_id_param: hasCoupon && couponId ? couponId : undefined,
             // Net subtotal: net-priced products validate the NET amount, not the gross.
-            amount_subtotal_param: session.amount_subtotal ?? undefined
+            amount_subtotal_param: session.amount_subtotal ?? undefined,
+            cart_version_param: readCartVersion(session.metadata),
           };
           
           const { data: paymentResultRaw, error: paymentError } = await serviceClient
@@ -854,7 +856,8 @@ export async function verifyPaymentIntent(
             user_id_param: user?.id || undefined,
             bump_product_ids_param: bumpProductIds.length > 0 ? bumpProductIds : undefined,
             coupon_id_param: couponId || undefined,
-            amount_subtotal_param: piAmountSubtotal
+            amount_subtotal_param: piAmountSubtotal,
+            cart_version_param: readCartVersion(ownerSession?.metadata ?? paymentIntent.metadata),
           };
 
           const { data: paymentResultRaw2, error: paymentError } = await serviceClient

@@ -180,6 +180,13 @@ describe('subscription buyer details', () => {
 });
 
 
+/** Every personal key the profile path removes from Stripe metadata (an empty value deletes it). */
+const CLEARED_PERSONAL_METADATA = Object.fromEntries([
+  'first_name', 'last_name', 'full_name', 'email', 'nip', 'tax_id', 'company_name',
+  'address', 'city', 'postal_code', 'country', 'phone', 'buyer', 'recipient',
+  'participants', 'participant_emails',
+].map(key => [key, '']));
+
 describe('profile order details', () => {
   const profile = { v: 1, modules: [{ id: 'buyer', types: ['person'] }, { id: 'quantity', min: 1, max: 5, mode: 'checkout' }] };
   const moduleValues = { buyer: { type: 'person', first_name: 'Jan', last_name: 'Nowak', email: 'jan@example.com' }, quantity: 2 };
@@ -190,15 +197,16 @@ describe('profile order details', () => {
     expect(mocks.adminRpc).toHaveBeenCalledTimes(1);
     expect(mocks.adminRpc).toHaveBeenCalledWith('set_payment_order_details', expect.objectContaining({ p_product_id: PRODUCT_ID, p_quantity: 2, p_details: expect.objectContaining({ buyer: expect.objectContaining({ type: 'person', v: 1 }), quantity: { v: 1, value: 2 } }) }));
     const update = id === SESSION_ID ? mocks.sessionsUpdate : mocks.piUpdate;
-    expect(update).toHaveBeenCalledWith(id, { metadata: { product_id: PRODUCT_ID } });
+    expect(update).toHaveBeenCalledWith(id, { metadata: CLEARED_PERSONAL_METADATA });
     expect(mocks.adminRpc.mock.invocationCallOrder[0]).toBeLessThan(update.mock.invocationCallOrder[0]);
   });
-  it('clears personal metadata and preserves all technical fields', async () => {
+  it('clears personal metadata and never resends the technical (cart) fields it read (W219c)', async () => {
     mocks.adminRpc.mockResolvedValueOnce({ data: { valid: true, id: 'coupon1' }, error: null });
     mocks.sessionsRetrieve.mockResolvedValue({ status: 'open', metadata: { product_id: PRODUCT_ID, bump_product_ids: 'bump1,bump2', has_coupon: 'true', coupon_id: 'coupon1', coupon_code: 'SAVED', product_type: 'one_time', checkout_binding: 'binding', has_bump: 'true', bump_count: '2', tax_id: '5252248481', nip: '5252248481', email: 'person@example.com', first_name: 'Jan' } });
     const res = await POST(makeRequest(SESSION_ID, { moduleValues }));
     expect(res.status).toBe(200);
-    expect(mocks.sessionsUpdate).toHaveBeenCalledWith(SESSION_ID, { metadata: { product_id: PRODUCT_ID, bump_product_ids: 'bump1,bump2', has_coupon: 'true', coupon_id: 'coupon1', coupon_code: 'SAVED', product_type: 'one_time', checkout_binding: 'binding', has_bump: 'true', bump_count: '2', tax_id: '', nip: '', email: '', first_name: '' } });
+    // Stripe merges metadata, so the technical fields stay; resending a copy could roll back a newer cart.
+    expect(mocks.sessionsUpdate).toHaveBeenCalledWith(SESSION_ID, { metadata: CLEARED_PERSONAL_METADATA });
   });
   it('requires all module values even when moduleValues was omitted', async () => {
     const res = await POST(makeRequest(SESSION_ID));

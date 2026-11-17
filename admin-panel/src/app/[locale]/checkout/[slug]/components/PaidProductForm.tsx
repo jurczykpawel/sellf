@@ -40,7 +40,7 @@ import PaymentFormSkeleton from '@/components/checkout/PaymentFormSkeleton';
 import OrderSummary from '@/components/checkout/OrderSummary';
 import CustomCheckoutFieldsForm from '@/components/checkout/CustomCheckoutFieldsForm';
 import OtoCountdownBanner from '@/components/storefront/OtoCountdownBanner';
-import { getCheckoutRequestError } from '@/lib/checkout/request-error';
+import { CHECKOUT_UPDATE_IN_PROGRESS, getCheckoutRequestError } from '@/lib/checkout/request-error';
 import { getEventSeatsLeft } from '@/lib/checkout/event-seats';
 import { readBrowserAttribution } from '@/lib/attribution/browser';
 import type { StripeCheckoutElementsSdkOptions } from '@stripe/stripe-js';
@@ -464,7 +464,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     sessionQueue.update({
       key: checkoutSessionSignature,
       run: async previous => {
-        const response = await fetch('/api/create-payment-intent', {
+        const send = () => fetch('/api/create-payment-intent', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -484,12 +484,20 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
             attribution: readBrowserAttribution(),
           }),
         });
+        let response = await send();
+        // Another update of the same session is still running (e.g. a second tab): retry shortly.
+        for (let attempt = 1; response.status === 409 && !product.event_mode && attempt <= 5; attempt++) {
+          const busy = await response.clone().json().catch(() => ({})) as { code?: string };
+          if (busy.code !== CHECKOUT_UPDATE_IN_PROGRESS) break;
+          await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+          response = await send();
+        }
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
           if (product.event_mode && (response.status === 409 || response.status === 429)) {
             throw Object.assign(new Error(eventText(response.status === 429 ? 'holdLimit' : data.error === 'sold_out' ? 'soldOut' : 'priceChanged')), { eventAvailability: true });
           }
-          throw Object.assign(new Error(getCheckoutRequestError(response.status, data.error, t('createSessionError'), t('requestRateLimit'), { code: data.code, messages: { AMOUNT_BELOW_MINIMUM: t('amountBelowMinimum'), MAINTENANCE: t('shopMaintenance') } })), { details: data.details });
+          throw Object.assign(new Error(getCheckoutRequestError(response.status, data.error, t('createSessionError'), t('requestRateLimit'), { code: data.code, messages: { AMOUNT_BELOW_MINIMUM: t('amountBelowMinimum'), MAINTENANCE: t('shopMaintenance'), [CHECKOUT_UPDATE_IN_PROGRESS]: t('createSessionError') } })), { details: data.details });
         }
         return await response.json() as CheckoutSessionResponse;
       },

@@ -33,6 +33,28 @@ Buduje z placeholderami, uruchamia na 3777 z prawdziwym runtime, sprawdza Mailpi
 logowanie, darmowy dostęp, embed Stripe, sitemap i metadane. Wymaga działającego
 lokalnego Supabase z allowlistą dla 3777 i testowego klucza Stripe; nie resetuje bazy.
 
+## Tożsamość instalacji
+
+Sellf oznacza każdy obiekt, który tworzy w Stripe, polem `metadata.sellf_instance`,
+dzięki czemu kilka instalacji może korzystać z jednego konta Stripe. Zwykle nie ustawiasz
+żadnej z tych zmiennych: identyfikator pochodzi z bazy i przetrwa restarty i aktualizacje.
+
+| Zmienna | Kiedy ją ustawić |
+|---------|------------------|
+| `SELLF_INSTANCE_ID` | Kopia odtworzona z kopii zapasowej bazy (próba wydania, lokalna kopia produkcji), która ma dostęp do tego samego konta Stripe. Ustaw unikalną wartość (od 8 do 64 znaków: litery, cyfry, `_`, `-`, np. `proba-2026-11-15`) **przed pierwszym uruchomieniem**. Nigdy na oryginale. |
+| `SELLF_INSTANCE_ALIASES` | Przeniesiona instalacja, której identyfikator się zmienił. Poprzednie znaczniki (`sellf_instance` widoczne w Stripe), poprzednie wartości `SELLF_INSTANCE_ID` albo identyfikatory bazy, oddzielone przecinkami. Nigdy na kopii do prób. |
+
+Wartość w złym formacie zatrzymuje płatności z błędem. Szczegóły i oba przypadki
+przenosin: [Jedno konto Stripe dla kilku instalacji](/pl/webhooks/#jedno-konto-stripe-dla-kilku-instalacji).
+
+## Adres wewnętrzny endpointu MCP
+
+`/api/mcp` przekazuje każde wywołanie narzędzia do tego samego serwera pod `/api/v1`,
+domyślnie `http://127.0.0.1:$PORT` (`PORT` domyślnie `3000`). Ustaw `SELLF_INTERNAL_URL`
+tylko wtedy, gdy aplikacja nie nasłuchuje na pętli zwrotnej IPv4 (np. `HOSTNAME=::1`
+albo układ z sidecarem), np. `SELLF_INTERNAL_URL=http://[::1]:3000`. Nigdy nie wskazuj
+innego hosta: żądania niosą klucz API wywołującego.
+
 ## Wyświetlanie cen
 
 Ceny w sklepie, checkout i panelu administracyjnym używają wybranego języka strony.

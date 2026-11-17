@@ -13,6 +13,7 @@ import { fulfillStripeOrder } from '@/lib/services/fulfill-paid-order';
 import { backfillBuyerDetails } from '@/lib/payment/buyer-details';
 import { reconcilePaymentForMissingProduct } from '@/lib/stripe/payment-reconciliation';
 import { isOwnStripeMarker, readStripeInstanceMarker } from '@/lib/stripe/instance-marker';
+import { readCartVersion } from '@/lib/stripe/checkout-session-update';
 import type { createAdminClient } from '@/lib/supabase/admin';
 import { redactEmail } from '@/lib/logger';
 import type Stripe from 'stripe';
@@ -136,6 +137,8 @@ export async function handleCheckoutSessionCompleted(
     // Net subtotal: net-priced products validate the NET amount, not the gross.
     amount_subtotal_param: session.amount_subtotal ?? undefined,
     allow_inactive_product_param: await createdByThisInstallation(session),
+    // The cart Stripe charged when the open session was updated (@see lib/stripe/checkout-session-update.ts).
+    cart_version_param: readCartVersion(session.metadata),
   });
   const result = rawResult as Record<string, unknown> | null;
 
@@ -265,6 +268,7 @@ export async function handlePaymentIntentSucceeded(
     coupon_id_param: couponId || undefined,
     amount_subtotal_param: piAmountSubtotal,
     allow_inactive_product_param: await createdByThisInstallation(paymentIntent),
+    cart_version_param: readCartVersion(ownerSession?.metadata ?? paymentIntent.metadata),
   });
   const result = rawResult2 as Record<string, unknown> | null;
 
