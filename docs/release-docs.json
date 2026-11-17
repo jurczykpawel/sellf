@@ -1,0 +1,399 @@
+{
+  "04377cb935a59ac4f469d27e7835259c16f8476a": [
+    "bank-transfers.md"
+  ],
+  "e8f8ff20532ff108d27e84a62c9b6d57a3cb217f": [
+    "configuration.md"
+  ],
+  "79df56c74e282ae80abc440189b2612da0e1f36e": [
+    "events.md"
+  ],
+  "c4a6557f3dbea0e2e571bccb07412504e604fd86": [
+    "purchase-attribution.md"
+  ],
+  "a0b691081c0337c71a75c06aa0c8e516452c7b8a": [
+    "license-integration.md"
+  ],
+  "9731de1861d3b235cedcb57544e469fff784a16f": [
+    "invoicing.md"
+  ],
+  "4b139b49725b779d3c9e07a1301c86dec8b2e015": [
+    "license-integration.md"
+  ],
+  "c74be972a7199f53ee5344947defec2adae5d27e": [
+    "purchase-attribution.md"
+  ],
+  "0e240b48a8c0caebf912da973ec741a63b95edef": [
+    "guided-tutorials.md"
+  ],
+  "4f64aaca04559eee55ad2673d6469726c48ee0da": [
+    "guided-tutorials.md"
+  ],
+  "d9fe1afd0fe9807ea04a68dfe149c616a1ea82c3": [
+    "events.md"
+  ],
+  "616c576834563a4c0e257578761de147e712a7d6": [
+    "events.md"
+  ],
+  "e179f2159086c3765d807e6c452a44d509679786": [
+    "bank-transfers.md"
+  ],
+  "e992b49f7ea273d6879c7281028f00263b52a565": [
+    "guided-tutorials.md"
+  ],
+  "88f53f5de54644876ec8f43998a231744513b94d": [
+    "buyer-emails.md"
+  ],
+  "20433728bf18e8cf76fcb249f402d41df201d319": [
+    "guided-tutorials.md"
+  ],
+  "a2c2530cb9985fc755414194628cb3a2ae43d097": [
+    "guided-tutorials.md",
+    "api.md"
+  ],
+  "43406f092de1c644465e3bf9e63cbc12c99915bd": [
+    "configuration.md"
+  ],
+  "0e3c8c69c2980caf11652e5c105ac3829bc63e0d": [
+    "configuration.md"
+  ],
+  "7bff51ae0e5837d1f8af2b7bdb2fd6c0b76bb4e9": [
+    "purchase-attribution.md"
+  ],
+  "9d64ee4f897260957379ea4389a0a400027aeb6c": [
+    "guided-tutorials.md",
+    "api.md"
+  ],
+  "4e01ca4cae70f1420198db68b9141fffd73aa867": [
+    "webhooks.md"
+  ],
+  "5993b682948c614980669d887d16004dad6a424b": [
+    "invoicing.md"
+  ],
+  "3430f20b5fe9368d78dc2cea8354c84e0076a16e": [
+    "license-integration.md"
+  ],
+  "b312f312258d644bae81d1a5472ef43156884ce4": [
+    "ui-upgrades.md",
+    "deployment.md"
+  ],
+  "f6ebd412d8e9bb88d9b2407c6730fbd0bdebccfd": [
+    "ui-upgrades.md",
+    "deployment.md"
+  ],
+  "110d82663c81fa6c8da974e6c57e558e1ffd6064": [
+    "api.md"
+  ],
+  "2ff6f06033d22b3cb316e03f6ea349b142428320": [
+    "ui-upgrades.md",
+    "deployment.md"
+  ],
+  "2422f5f76fe4d5c4aefb58d16c43b3a5676ccc61": [
+    "api.md"
+  ],
+  "963dd38a7a396e722882f7c67d1455575d467131": [
+    "ui-upgrades.md",
+    "deployment.md"
+  ],
+  "f84b078bf20b7c341fd411d6c1fbaa28695e09f7": [
+    "guided-tutorials.md",
+    "api.md"
+  ],
+  "1da8d11ae74bb4b19d26ca69bef6237395c21dfb": [
+    "guided-tutorials.md"
+  ],
+  "00b780d52d7b18dbee43df988eed04086ced06ce": [
+    "guided-tutorials.md"
+  ],
+  "a8fb2d6371f3161e63e45ebd813c55de836f31c6": [
+    "guided-tutorials.md",
+    "api.md"
+  ],
+  "5a7389af8c4faec7e3ea193b8f7b2523fbaae0a3": [
+    "ui-upgrades.md",
+    "deployment.md"
+  ],
+  "59d189bc8ac1e90a95a038b1e6d8f84cc02c7a72": [
+    "ui-upgrades.md",
+    "deployment.md"
+  ],
+  "fb6e3cf542c091bdcf22abf4c391cebc8b10da83": [
+    "ui-upgrades.md",
+    "deployment.md"
+  ],
+  "31da825d03ec73a89e185da2f1bc60eaa3653a59": [
+    "guided-tutorials.md"
+  ],
+  "01ebac14a4a9ceddbfe42b0fa4708297350431ae": [
+    "guided-tutorials.md"
+  ],
+  "bb517ba15233ac6b3e55a693a7f1b6c1c6205c69": [
+    "license-integration.md"
+  ],
+  "a6fc71bef2ca381c68225c352f6c991f2e83ea95": [
+    "buyer-emails.md"
+  ],
+  "df12ad0beea1da85ac3aef3d5431cf5af2424a60": [
+    "ui-upgrades.md",
+    "deployment.md"
+  ],
+  "f6e7de5fe8b9454d9920d60dcbc7c4410a72608e": [
+    "ui-upgrades.md",
+    "deployment.md"
+  ],
+  "98d9a6ab25236cfcdf95cf55e13f48c77fa34eb5": [
+    "ui-upgrades.md",
+    "deployment.md"
+  ],
+  "82e103a283cba2bacf849aeb40061ecd0c72f7b4": [
+    "license-integration.md"
+  ],
+  "3cdffd83b2a44631f149dcea75a85f0156a8404d": [
+    "license-integration.md"
+  ],
+  "72e6cd405619074d6c322dffe688db72c7d53b70": [
+    "webhooks.md"
+  ],
+  "0336c658fc86a03efe3816ca8f16f8b36eac9a11": [
+    "ui-upgrades.md",
+    "deployment.md"
+  ],
+  "f5898acca7123065a3bf6cec8f62f05423ddcb21": [
+    "ui-upgrades.md",
+    "deployment.md"
+  ],
+  "a968b8324943efa78b2fa0f8135af4f3623ca2b3": [
+    "bank-transfers.md"
+  ],
+  "08305374f870232d91a14575882500e926403f30": [
+    "webhooks.md"
+  ],
+  "d2efd9be36c0b23c7870d221c6749501b9851cd4": [
+    "events.md"
+  ],
+  "3dc0c4bca2f7b17d29732906cb59a559f2b6d813": [
+    "bank-transfers.md"
+  ],
+  "6d746f771b61c494c9a8c023bf8f18710aec6a33": [
+    "webhooks.md"
+  ],
+  "54e2182ba0afc7fbb2b19de71804388c9d2b41db": [
+    "bank-transfers.md"
+  ],
+  "1c0d771f6837b9bc30f3890ee14264f7a4ebc5cf": [
+    "webhooks.md"
+  ],
+  "80546817e8547cf7516dfbba88f7a9cb86571127": [
+    "bank-transfers.md"
+  ],
+  "a1b2edb82968c702b2ef74d224fea682bc73fa92": [
+    "bank-transfers.md"
+  ],
+  "5e96d6f9b45f0ea63351298297d45cb23535e864": [
+    "ui-upgrades.md",
+    "deployment.md"
+  ],
+  "fbf29bf3daf81d646a8e4dd25880ab18393ddee2": [
+    "ui-upgrades.md",
+    "deployment.md"
+  ],
+  "2fbc248284b93115c6d5d1c1ad40780a90e5515f": [
+    "invoicing.md"
+  ],
+  "31090ce1b9e20f3e766c6d7c04f2712090b5fafc": [
+    "ui-upgrades.md",
+    "deployment.md"
+  ],
+  "6f8e2c59baab9ab7dd845560eec381fbd795c278": [
+    "ui-upgrades.md",
+    "deployment.md"
+  ],
+  "5eb3e0f9b09f300a44d1513dd9cdea8b57a39fba": [
+    "none \u2014 Internal build or development fixture correction; no documented seller workflow changes."
+  ],
+  "64bdf900861430d5b9cb3c4237a656c67dbf3812": [
+    "invoicing.md"
+  ],
+  "36622dc31c74c250ae6b7eaeb1a3e51fe536e97d": [
+    "invoicing.md"
+  ],
+  "0e1a0041a3c648bba9b12f1519b220f08549d1b6": [
+    "none \u2014 Internal build or development fixture correction; no documented seller workflow changes."
+  ],
+  "57efa3ef05099544fbd6cd45c68abef0311a0119": [
+    "ui-upgrades.md",
+    "deployment.md"
+  ],
+  "0db1de4f0419af470dd14a554ec4a8bfe8851f88": [
+    "none \u2014 Internal build or development fixture correction; no documented seller workflow changes."
+  ],
+  "b9d7b218ad7777b6077acd88f47213ba8c67f595": [
+    "invoicing.md"
+  ],
+  "ba212e3fbe07439b88642248372ee443d1c830d9": [
+    "custom-checkout.md"
+  ],
+  "6a0bff3790776d71f889e601892e2a708ce7ac8f": [
+    "bank-transfers.md"
+  ],
+  "28626711a759a2d88b5ea860ab94c8eb97ae0a26": [
+    "license-integration.md"
+  ],
+  "4ea44dbd4e9f633373061937cda798904d92e437": [
+    "ui-upgrades.md",
+    "deployment.md"
+  ],
+  "6a0951a12275a06755ac77b8a6150f211243585b": [
+    "custom-checkout.md"
+  ],
+  "0e0c58afd772aae482d044c8511b3ba481f9b702": [
+    "bank-transfers.md"
+  ],
+  "8dc1be4675498236f1ca9b96db0c1d3ab23173cc": [
+    "none \u2014 Internal build or development fixture correction; no documented seller workflow changes."
+  ],
+  "e169224b14b98f8a3125effa2f8e8ac5a6545b00": [
+    "custom-checkout.md"
+  ],
+  "76ce2d2b0c4d7289c6c10e969535c6f1fc232a80": [
+    "guided-tutorials.md"
+  ],
+  "2c6bd2cfb2b248652c123c9d02094b9dff2e22f6": [
+    "license-integration.md"
+  ],
+  "160ef7786e3435020af7a7773aee2781f8f58a3b": [
+    "guided-tutorials.md"
+  ],
+  "ac40eb6bcd732f4fb10529ad5f12e54597b0af78": [
+    "license-integration.md"
+  ],
+  "f8b2d85550a82a7dcd739b18489882b94de3bc9c": [
+    "guided-tutorials.md"
+  ],
+  "8bcd10981142b968ed7a92c0a250d193d5119568": [
+    "api.md",
+    "connect-ai-agent.md"
+  ],
+  "5c3fa7e1a2b8dc8402701d1cee59837dad4e9119": [
+    "api.md",
+    "connect-ai-agent.md"
+  ],
+  "3d121ec2b349712c7bfea142c08dcef77f27f181": [
+    "api.md",
+    "connect-ai-agent.md"
+  ],
+  "b5011226bd888cef4ea8d44844c5945bd4ae325a": [
+    "guided-tutorials.md"
+  ],
+  "d6170b893bcc5f1845292d290b5ff760013567d2": [
+    "api.md",
+    "connect-ai-agent.md"
+  ],
+  "707fc49f67bab2c9ccfc4fd842abb5bb542281f1": [
+    "api.md",
+    "connect-ai-agent.md"
+  ],
+  "b5df95e4a4c10c785b30cc71d6acda23a78ef06e": [
+    "events.md"
+  ],
+  "d6b4faf0417761fb6033bbe75148877e9058b808": [
+    "configuration.md"
+  ],
+  "8883ecf8b210abc24eaf3cba26b19cefe8f12892": [
+    "custom-checkout.md"
+  ],
+  "d93a37296564a08804c29b33d6fc5d960e9e23b4": [
+    "configuration.md"
+  ],
+  "263ca8e372ebbb9e7a418240e7fee9626608efe6": [
+    "custom-checkout.md"
+  ],
+  "163b207f82cf8ae47e7101fcf3d4b1a9b070d7d5": [
+    "maintenance.md"
+  ],
+  "50d016b1e9835f6272c79041c1cd504cf7b8dd53": [
+    "custom-checkout.md"
+  ],
+  "862bc71104711747025da12ab7bd8f434aa32e44": [
+    "maintenance.md"
+  ],
+  "f0ec40bad95123e58ef9fedc6e44dcd594f42bd9": [
+    "maintenance.md"
+  ],
+  "f000194e7cfd993d8e506ddac6d5f831e84f99a1": [
+    "webhooks.md"
+  ],
+  "27dc123fbe29d0b3fae8855864e25fd3de352009": [
+    "webhooks.md"
+  ],
+  "c7d03d67a1d853ea90d79e63cedd8cf4740ee868": [
+    "webhooks.md"
+  ],
+  "5904f57430d0d7998d3cbaff4d1303878c536a19": [
+    "buyer-emails.md"
+  ],
+  "ed74b482ca8c3f6d72312c0c3c393ccf90b858f8": [
+    "guided-tutorials.md"
+  ],
+  "e21b74a3fcca8c57f25ade9b08c88839c9a2c250": [
+    "buyer-emails.md"
+  ],
+  "c8e7f20a7a29d016948d51beae169a686f3cbc18": [
+    "api.md"
+  ],
+  "ac9985d8fd6221a8a0d691661fd1936663430452": [
+    "custom-checkout.md"
+  ],
+  "ea6c3713499e25961974fb01a0bcab23fbef540c": [
+    "ui-upgrades.md",
+    "deployment.md"
+  ],
+  "8f318441115750c5660a5a28e9fff8a4e8cc30a5": [
+    "configuration.md",
+    "webhooks.md"
+  ],
+  "c31a79e8bebb2d09a8db5bd09a5477f303fa2ba0": [
+    "buyer-emails.md"
+  ],
+  "bcdbf0e86bc6ae1299e402bbac97efb74707cdd7": [
+    "license-integration.md"
+  ],
+  "07ee58865765e7bb35debc0d73c9721a7d31d661": [
+    "webhooks.md"
+  ],
+  "f8fe12f5b794dac3cbb6e6045c630b7b43519be5": [
+    "webhooks.md"
+  ],
+  "77839d1ea621415423457e99b912115274589c85": [
+    "webhooks.md"
+  ],
+  "3d302b3281e7a000da68a925d646e9ba051257ac": [
+    "buyer-emails.md"
+  ],
+  "00612d4c816d0d6aa1880843b80ab0c2882a27cc": [
+    "buyer-emails.md"
+  ],
+  "2dd67717e4701244d9e4c3d346b576561ffb232b": [
+    "none \u2014 Development demo reset transport only; no supported installation or seller workflow changes."
+  ],
+  "af63c5ab0bfbdce3708da7f41a1613769c59ffdf": [
+    "webhooks.md"
+  ],
+  "f9ecf3b310f1d13f25d92526d6966557f1584ffa": [
+    "webhooks.md"
+  ],
+  "a1514a7c59ceabdfbac0c5f074d115d1657ea785": [
+    "ui-upgrades.md",
+    "deployment.md"
+  ],
+  "82be0974dbca8da8f7ae8527c7a2141a4073b187": [
+    "ui-upgrades.md",
+    "deployment.md"
+  ],
+  "47506d7d0103fce581a1dce5b89b556804cc9c2a": [
+    "webhooks.md"
+  ],
+  "e7664ce19100a090568fc45a94d64df9fe392c65": [
+    "webhooks.md"
+  ]
+}

@@ -106,6 +106,10 @@ describe('applyBump on a copy of the real files', () => {
       mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
       copyFileSync(path.join(REPO, file), path.join(dir, file));
     }
+    for (const args of [['init'], ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '--allow-empty', '-m', 'chore: baseline'], ['tag', 'v2000.1.0']]) {
+      const result = spawnSync('git', args, { cwd: dir, encoding: 'utf8' });
+      expect(result.status, result.stderr).toBe(0);
+    }
   });
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
 

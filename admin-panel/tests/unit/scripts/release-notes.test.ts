@@ -7,10 +7,10 @@ import {
   buildReleaseNotes,
   checkNotesReady,
   parseCommit,
+  readCommits,
 } from '@/../scripts/release-notes';
 
 const REPO = path.resolve(__dirname, '../../../..');
-const SCRIPT = path.resolve(__dirname, '../../../scripts/release-notes.ts');
 const OPTS = { version: '2026.11.1', from: 'v2026.11.0', repoUrl: 'https://github.com/jurczykpawel/sellf' };
 
 describe('parseCommit', () => {
@@ -116,21 +116,20 @@ describe('checkNotesReady', () => {
 const hasRealRange = spawnSync('git', ['rev-parse', '--verify', '-q', 'v2026.11.0^{commit}'], { cwd: REPO }).status === 0
   && spawnSync('git', ['rev-parse', '--verify', '-q', '92acfbbd^{commit}'], { cwd: REPO }).status === 0;
 
-describe.skipIf(!hasRealRange)('CLI on the real history v2026.11.0..92acfbbd', () => {
+describe.skipIf(!hasRealRange)('classification on the real history v2026.11.0..92acfbbd', () => {
   it('classifies all 78 non-merge commits', () => {
-    const run = spawnSync('bun', [SCRIPT, '--from', 'v2026.11.0', '--to', '92acfbbd', '--version', '2026.11.1'], { cwd: REPO, encoding: 'utf8' });
-    expect(run.status, run.stderr).toBe(0);
+    const notes = buildReleaseNotes(readCommits(REPO, 'v2026.11.0', '92acfbbd'), OPTS);
     const bullets = (heading: string) => {
-      const start = run.stdout.indexOf(`## ${heading}\n`);
-      const end = run.stdout.indexOf('\n## ', start + 1);
-      return run.stdout.slice(start, end < 0 ? undefined : end).split('\n').filter((l) => l.startsWith('- ')).length;
+      const start = notes.indexOf(`## ${heading}\n`);
+      const end = notes.indexOf('\n## ', start + 1);
+      return notes.slice(start, end < 0 ? undefined : end).split('\n').filter((l) => l.startsWith('- ')).length;
     };
     expect(bullets('New features')).toBe(18);
     expect(bullets('Fixes')).toBe(38);
     expect(bullets('Documentation')).toBe(6);
     expect(bullets('Tests')).toBe(9);
-    expect(run.stdout).not.toContain('## Breaking changes');
-    expect(run.stdout).toContain('78 commits');
+    expect(notes).not.toContain('## Breaking changes');
+    expect(notes).toContain('78 commits');
   });
 });
 

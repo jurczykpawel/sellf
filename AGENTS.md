@@ -506,6 +506,38 @@ Use `createClient()` from appropriate Supabase client:
 - Section separators in large files: `// ===== SECTION NAME =====`
 - Security annotations in component headers when relevant
 
+## Documentation release gate
+
+[docs/release-docs.json](docs/release-docs.json) is the persistent documentation ledger.
+Every non-merge `feat`, `fix`, or `perf` commit, and every commit with `!` or a
+`BREAKING CHANGE:` footer, requires an entry keyed by its **full 40-character SHA**.
+Ordinary `chore`, `test`, `docs`, `ci`, `refactor`, and untyped commits are technical;
+use `feat`/`fix`/`perf` for behaviour changes, never relabel them to avoid this gate.
+Merge commits are excluded; all their constituent commits are checked, including side branches.
+
+After committing a behaviour change, add its entry in a follow-up `docs:` commit in
+the same package (no rewriting history). Values are nonempty arrays of English paths
+relative to `docs-site/src/content/docs/`, e.g. `["custom-checkout.md", "webhooks.md"]`.
+Each path requires an existing EN **and** `pl/` file. A technical `fix` that changes
+no documented behaviour may instead use `["none — specific reason"]`; `none` alone
+is invalid. Do not delete old entries: stable tags scope validation to each release.
+
+`release:bump` (including `--check`, used by release CI) refuses missing records,
+invalid records, or missing pages **before writing versions**. It checks the range
+from the latest reachable stable CalVer tag older than the target version to HEAD;
+RC tags never replace that baseline. A clone without stable tags must fetch them.
+`release:notes` validates the same range and appends links/reasons from the same
+ledger to the corresponding change bullets. `--from` changes the notes range only;
+it cannot shorten the documentation gate. No docs-skip flag exists.
+
+Definition of done: update the relevant EN+PL documentation together with the
+behaviour, add the ledger entry, and have the reviewer check both like tests.
+Before **every** stable/RC tag, the release agent must read the full changes and
+ledger, open every referenced page, compare its claims with current code
+(`file:line` evidence in the private release tracker), fix discrepancies, review
+all `none` reasons, and successfully build `docs-site`. A passing ledger proves
+coverage and file existence; this mandatory review proves content accuracy.
+
 ## Development Guidelines
 
 ### When Making Changes

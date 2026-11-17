@@ -6,7 +6,7 @@
  *                                          current one, new month starts at .0, no existing tag,
  *                                          all files agree today) and write it to every location.
  *   bun run release:bump --check [ver]  — exit 1 unless every location holds the same valid CalVer
- *                                          version (and equals `ver` when given). The release build runs it.
+ *                                          version (and equals `ver` when given), with complete docs records. The release build runs it.
  *
  * Runs from the repository root or admin-panel (`--root <dir>` overrides; used by tests).
  * Does not commit: the release skill commits `chore: bump version to <ver>`.
@@ -19,6 +19,9 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { checkDocs, stableBase } from './release-docs';
+import { readCommits } from './release-notes';
 
 const VERSION = String.raw`\d{4}\.\d{1,2}\.\d+(?:-rc\.[1-9]\d*)?`;
 
@@ -130,6 +133,7 @@ function main(): void {
 
   if (args.includes('--check')) {
     const errors = checkConsistent(versions, positional[0]);
+    if (!errors.length) errors.push(...checkDocs(root, readCommits(root, stableBase(root, positional[0] ?? versions['admin-panel/package.json']!), 'HEAD')));
     if (errors.length) {
       for (const error of errors) console.error(`✖ ${error}`);
       process.exit(1);
@@ -148,6 +152,8 @@ function main(): void {
     for (const error of errors) console.error(`✖ ${error}`);
     process.exit(1);
   }
+  const docsErrors = checkDocs(root, readCommits(root, stableBase(root, next), 'HEAD'));
+  if (docsErrors.length) throw new Error(docsErrors.join('\n'));
   applyBump(root, next);
   const after = checkConsistent(readVersions(root), next);
   if (after.length) {
@@ -158,4 +164,9 @@ function main(): void {
   console.log(`  Next: git commit -am "chore: bump version to ${next}"`);
 }
 
-if (import.meta.main) main();
+if (import.meta.main) {
+  try { main(); } catch (error) {
+    console.error(`✖ ${error instanceof Error ? error.message : 'Unknown error'}`);
+    process.exit(1);
+  }
+}
