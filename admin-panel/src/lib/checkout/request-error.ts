@@ -1,3 +1,6 @@
+/** Code of a cart change refused while another one updates the same session (HTTP 409); retry. */
+export const CHECKOUT_UPDATE_IN_PROGRESS = 'CHECKOUT_UPDATE_IN_PROGRESS';
+
 /**
  * Buyer-facing message for a failed checkout request. Server texts are English, so a
  * 5xx always falls back to the localized message and known error codes use their

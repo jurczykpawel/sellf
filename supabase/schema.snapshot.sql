@@ -76,6 +76,34 @@ $$;
 ALTER FUNCTION postgrest.pre_config() OWNER TO postgres;
 
 --
+-- Name: _apply_cart_version(uuid, integer); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public._apply_cart_version(p_transaction_id uuid, p_version integer) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+DECLARE
+  ver public.checkout_cart_versions%ROWTYPE;
+BEGIN
+  SELECT * INTO STRICT ver FROM public.checkout_cart_versions
+    WHERE transaction_id = p_transaction_id AND version = p_version;
+  DELETE FROM public.payment_line_items WHERE transaction_id = p_transaction_id;
+  PERFORM public._insert_order_lines(p_transaction_id,
+    (SELECT upper(currency) FROM public.payment_transactions WHERE id = p_transaction_id), ver.lines, false);
+  UPDATE public.payment_transactions SET
+    amount = ver.amount,
+    coupon_id = ver.coupon_id,
+    metadata = coalesce(metadata, '{}'::jsonb) || ver.metadata,
+    updated_at = now()
+  WHERE id = p_transaction_id;
+END;
+$$;
+
+
+ALTER FUNCTION public._apply_cart_version(p_transaction_id uuid, p_version integer) OWNER TO postgres;
+
+--
 -- Name: _claim_guest_purchases_before_disputes(uuid); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -152,6 +180,36 @@ $$;
 ALTER FUNCTION public._event_line_seats(p_transaction_id uuid, p_session_id uuid, p_tier_id uuid, p_at timestamp with time zone) OWNER TO postgres;
 
 --
+-- Name: _insert_order_lines(uuid, text, jsonb, boolean); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public._insert_order_lines(p_transaction_id uuid, p_currency text, p_lines jsonb, p_offline boolean) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+DECLARE
+  li public.payment_line_items%ROWTYPE;
+  entry jsonb;
+BEGIN
+  FOR entry IN SELECT value FROM jsonb_array_elements(p_lines) LOOP
+    li := jsonb_populate_record(NULL::public.payment_line_items, entry);
+    INSERT INTO public.payment_line_items (
+      transaction_id, product_id, item_type, quantity, unit_price, total_price, discounted_total,
+      currency, product_name, order_bump_id, access_duration_override, vat_rate, tax_behavior, vat_exempt, net_amount, tax_amount
+    ) VALUES (
+      p_transaction_id, li.product_id, li.item_type, li.quantity, li.unit_price, li.total_price, li.discounted_total,
+      p_currency, li.product_name, li.order_bump_id, li.access_duration_override, li.vat_rate,
+      li.tax_behavior, coalesce(li.vat_exempt, false),
+      CASE WHEN p_offline THEN li.net_amount END, CASE WHEN p_offline THEN li.tax_amount END
+    );
+  END LOOP;
+END;
+$$;
+
+
+ALTER FUNCTION public._insert_order_lines(p_transaction_id uuid, p_currency text, p_lines jsonb, p_offline boolean) OWNER TO postgres;
+
+--
 -- Name: _order_grant_and_record(uuid, uuid, uuid, uuid, uuid, text); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -219,6 +277,48 @@ CREATE FUNCTION public._place_order_without_event(p_order jsonb, p_lines jsonb) 
     AS $$
 DECLARE
   tx public.payment_transactions%ROWTYPE;
+  priced jsonb;
+  provider text := coalesce(p_order->>'payment_provider', 'stripe');
+  main_id uuid := (p_order->>'product_id')::uuid;
+  currency_code text := upper(p_order->>'currency');
+  offline boolean := provider = 'bank_transfer';
+  existing_user uuid;
+BEGIN
+  priced := public._price_order_lines(p_order, p_lines);
+  INSERT INTO public.payment_transactions (
+    payment_provider, pricing_snapshot_version, product_id, customer_email, user_id,
+    session_id, stripe_payment_intent_id, coupon_id, livemode, status, amount, currency,
+    order_details, metadata, custom_field_values, expires_at, tax_snapshot_status, net_total, tax_total
+  ) VALUES (
+    provider, 1, main_id, p_order->>'customer_email', (p_order->>'user_id')::uuid,
+    p_order->>'session_id', p_order->>'stripe_payment_intent_id', (p_order->>'coupon_id')::uuid,
+    coalesce((p_order->>'livemode')::boolean, false), CASE WHEN offline THEN 'awaiting_payment' ELSE 'pending' END,
+    (priced->>'charge')::numeric, currency_code, p_order->'order_details', coalesce(p_order->'metadata','{}'::jsonb),
+    coalesce(p_order->'custom_field_values','{}'::jsonb), (p_order->>'expires_at')::timestamptz,
+    CASE WHEN offline THEN 'local' ELSE 'none' END,
+    CASE WHEN offline THEN (priced->>'net_sum')::numeric END, CASE WHEN offline THEN (priced->>'tax_sum')::numeric END
+  ) RETURNING * INTO tx;
+  PERFORM public._insert_order_lines(tx.id, currency_code, priced->'lines', offline);
+  IF offline AND tx.coupon_id IS NOT NULL THEN
+    SELECT id INTO existing_user FROM auth.users WHERE lower(email) = lower(tx.customer_email) AND email_confirmed_at IS NOT NULL;
+    PERFORM public._redeem_coupon_for_order(tx.coupon_id, tx.user_id, existing_user, tx.customer_email, tx.id);
+  END IF;
+  RETURN jsonb_build_object('success', true, 'transaction_id', tx.id, 'order_number', tx.order_number, 'amount', tx.amount);
+END;
+$$;
+
+
+ALTER FUNCTION public._place_order_without_event(p_order jsonb, p_lines jsonb) OWNER TO postgres;
+
+--
+-- Name: _price_order_lines(jsonb, jsonb); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public._price_order_lines(p_order jsonb, p_lines jsonb) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+DECLARE
   li public.payment_line_items%ROWTYPE;
   product public.products%ROWTYPE;
   entry jsonb;
@@ -227,14 +327,12 @@ DECLARE
   main_id uuid := (p_order->>'product_id')::uuid;
   currency_code text := upper(p_order->>'currency');
   factor numeric := public.currency_minor_factor(currency_code);
-  offline boolean := provider = 'bank_transfer';
   main_count integer := 0;
   charge numeric := 0;
   net_sum numeric := 0;
   tax_sum numeric := 0;
   basis numeric;
   tax numeric;
-  existing_user uuid;
 BEGIN
   IF jsonb_typeof(p_order) IS DISTINCT FROM 'object' OR jsonb_typeof(p_lines) IS DISTINCT FROM 'array'
     OR octet_length(p_order::text) > 65536 OR octet_length(p_lines::text) > 131072 THEN
@@ -279,41 +377,12 @@ BEGIN
     saved_lines := saved_lines || jsonb_build_array(to_jsonb(li));
   END LOOP;
   IF main_count <> 1 THEN RAISE EXCEPTION 'Exactly one main product is required'; END IF;
-  INSERT INTO public.payment_transactions (
-    payment_provider, pricing_snapshot_version, product_id, customer_email, user_id,
-    session_id, stripe_payment_intent_id, coupon_id, livemode, status, amount, currency,
-    order_details, metadata, custom_field_values, expires_at, tax_snapshot_status, net_total, tax_total
-  ) VALUES (
-    provider, 1, main_id, p_order->>'customer_email', (p_order->>'user_id')::uuid,
-    p_order->>'session_id', p_order->>'stripe_payment_intent_id', (p_order->>'coupon_id')::uuid,
-    coalesce((p_order->>'livemode')::boolean, false), CASE WHEN offline THEN 'awaiting_payment' ELSE 'pending' END,
-    charge, currency_code, p_order->'order_details', coalesce(p_order->'metadata','{}'::jsonb),
-    coalesce(p_order->'custom_field_values','{}'::jsonb), (p_order->>'expires_at')::timestamptz,
-    CASE WHEN offline THEN 'local' ELSE 'none' END,
-    CASE WHEN offline THEN net_sum END, CASE WHEN offline THEN tax_sum END
-  ) RETURNING * INTO tx;
-  FOR entry IN SELECT value FROM jsonb_array_elements(saved_lines) LOOP
-    li := jsonb_populate_record(NULL::public.payment_line_items, entry);
-    INSERT INTO public.payment_line_items (
-      transaction_id, product_id, item_type, quantity, unit_price, total_price, discounted_total,
-      currency, product_name, order_bump_id, access_duration_override, vat_rate, tax_behavior, vat_exempt, net_amount, tax_amount
-    ) VALUES (
-      tx.id, li.product_id, li.item_type, li.quantity, li.unit_price, li.total_price, li.discounted_total,
-      currency_code, li.product_name, li.order_bump_id, li.access_duration_override, li.vat_rate,
-      li.tax_behavior, coalesce(li.vat_exempt, false),
-      CASE WHEN offline THEN li.net_amount END, CASE WHEN offline THEN li.tax_amount END
-    );
-  END LOOP;
-  IF offline AND tx.coupon_id IS NOT NULL THEN
-    SELECT id INTO existing_user FROM auth.users WHERE lower(email) = lower(tx.customer_email) AND email_confirmed_at IS NOT NULL;
-    PERFORM public._redeem_coupon_for_order(tx.coupon_id, tx.user_id, existing_user, tx.customer_email, tx.id);
-  END IF;
-  RETURN jsonb_build_object('success', true, 'transaction_id', tx.id, 'order_number', tx.order_number, 'amount', tx.amount);
+  RETURN jsonb_build_object('lines', saved_lines, 'charge', charge, 'net_sum', net_sum, 'tax_sum', tax_sum);
 END;
 $$;
 
 
-ALTER FUNCTION public._place_order_without_event(p_order jsonb, p_lines jsonb) OWNER TO postgres;
+ALTER FUNCTION public._price_order_lines(p_order jsonb, p_lines jsonb) OWNER TO postgres;
 
 --
 -- Name: _process_stripe_payment_completion_with_bump_impl(text, uuid, text, numeric, text, text, uuid, uuid[], uuid, numeric, boolean); Type: FUNCTION; Schema: public; Owner: postgres
@@ -3215,6 +3284,64 @@ COMMENT ON FUNCTION public.batch_check_user_product_access(product_slugs_param t
 
 
 --
+-- Name: begin_pending_order_update(jsonb, jsonb); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.begin_pending_order_update(p_order jsonb, p_lines jsonb) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+DECLARE
+  tx public.payment_transactions%ROWTYPE;
+  priced jsonb;
+  next_version integer;
+  base_metadata jsonb;
+BEGIN
+  IF jsonb_typeof(p_order) IS DISTINCT FROM 'object' OR coalesce(p_order->>'payment_provider', 'stripe') <> 'stripe'
+    OR coalesce(p_order->>'session_id', '') = '' THEN
+    RAISE EXCEPTION 'Invalid order payload' USING ERRCODE = '22023';
+  END IF;
+  SELECT * INTO tx FROM public.payment_transactions WHERE session_id = p_order->>'session_id' FOR UPDATE;
+  -- Only an unpaid online order of the same product, buyer and currency; event orders hold seats
+  -- for the ordered quantity and get a new session instead.
+  IF NOT FOUND OR tx.status <> 'pending' OR tx.payment_provider <> 'stripe'
+    OR tx.product_id IS DISTINCT FROM (p_order->>'product_id')::uuid
+    OR tx.user_id IS DISTINCT FROM (p_order->>'user_id')::uuid
+    OR lower(tx.customer_email) IS DISTINCT FROM lower(trim(p_order->>'customer_email'))
+    OR upper(tx.currency) IS DISTINCT FROM upper(p_order->>'currency')
+    OR EXISTS (SELECT 1 FROM public.products WHERE id = tx.product_id AND event_mode)
+    OR EXISTS (SELECT 1 FROM public.seat_reservations WHERE transaction_id = tx.id) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'order_not_replaceable');
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.checkout_cart_versions WHERE transaction_id = tx.id
+    AND state = 'updating' AND created_at > now() - interval '60 seconds') THEN
+    RETURN jsonb_build_object('success', false, 'error', 'update_in_progress');
+  END IF;
+  -- An update that never finished: Stripe may or may not carry it, so it stays payable.
+  UPDATE public.checkout_cart_versions SET state = 'unconfirmed' WHERE transaction_id = tx.id AND state = 'updating';
+  priced := public._price_order_lines(p_order, p_lines);
+  IF NOT EXISTS (SELECT 1 FROM public.checkout_cart_versions WHERE transaction_id = tx.id) THEN
+    INSERT INTO public.checkout_cart_versions (transaction_id, version, lines, amount, coupon_id, metadata, state)
+    SELECT tx.id, 1, coalesce(jsonb_agg(to_jsonb(li)), '[]'::jsonb), tx.amount, tx.coupon_id,
+      coalesce(tx.metadata, '{}'::jsonb), 'placed'
+    FROM public.payment_line_items li WHERE li.transaction_id = tx.id;
+  END IF;
+  SELECT max(version) + 1, (array_agg(metadata ORDER BY version))[1] INTO next_version, base_metadata
+    FROM public.checkout_cart_versions WHERE transaction_id = tx.id;
+  IF next_version > 100 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'order_not_replaceable');
+  END IF;
+  INSERT INTO public.checkout_cart_versions (transaction_id, version, lines, amount, coupon_id, metadata, state)
+  VALUES (tx.id, next_version, priced->'lines', (priced->>'charge')::numeric, (p_order->>'coupon_id')::uuid,
+    base_metadata || coalesce(p_order->'metadata', '{}'::jsonb), 'updating');
+  RETURN jsonb_build_object('success', true, 'transaction_id', tx.id, 'version', next_version, 'amount', (priced->>'charge')::numeric);
+END;
+$$;
+
+
+ALTER FUNCTION public.begin_pending_order_update(p_order jsonb, p_lines jsonb) OWNER TO postgres;
+
+--
 -- Name: bind_access_license(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -5729,6 +5856,42 @@ END $$;
 
 
 ALTER FUNCTION public.finish_license_mail(p_retry_id uuid, p_completed boolean, p_error text) OWNER TO postgres;
+
+--
+-- Name: finish_pending_order_update(text, integer, boolean); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.finish_pending_order_update(p_session_id text, p_version integer, p_confirmed boolean) RETURNS jsonb
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+DECLARE
+  tx public.payment_transactions%ROWTYPE;
+  ver public.checkout_cart_versions%ROWTYPE;
+BEGIN
+  SELECT * INTO tx FROM public.payment_transactions WHERE session_id = p_session_id FOR UPDATE;
+  IF FOUND THEN
+    SELECT * INTO ver FROM public.checkout_cart_versions WHERE transaction_id = tx.id AND version = p_version;
+  END IF;
+  IF ver.transaction_id IS NULL OR ver.state <> 'updating' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'update_not_in_progress');
+  END IF;
+  IF NOT coalesce(p_confirmed, false) OR tx.status <> 'pending' THEN
+    UPDATE public.checkout_cart_versions SET state = 'unconfirmed' WHERE transaction_id = tx.id AND version = p_version;
+    RETURN jsonb_build_object('success', false, 'error', 'update_not_confirmed');
+  END IF;
+  PERFORM public._apply_cart_version(tx.id, p_version);
+  UPDATE public.checkout_cart_versions SET state = 'applied' WHERE transaction_id = tx.id AND version = p_version;
+  IF tx.coupon_id IS NOT NULL AND tx.coupon_id IS DISTINCT FROM ver.coupon_id THEN
+    DELETE FROM public.coupon_reservations
+      WHERE coupon_id = tx.coupon_id AND customer_email = lower(trim(tx.customer_email));
+  END IF;
+  RETURN jsonb_build_object('success', true, 'transaction_id', tx.id, 'version', p_version);
+END;
+$$;
+
+
+ALTER FUNCTION public.finish_pending_order_update(p_session_id text, p_version integer, p_confirmed boolean) OWNER TO postgres;
 
 --
 -- Name: free_grant_context(uuid, uuid); Type: FUNCTION; Schema: public; Owner: postgres
@@ -10863,10 +11026,10 @@ COMMENT ON FUNCTION public.process_refund_request(request_id_param uuid, action_
 
 
 --
--- Name: process_stripe_payment_completion_with_bump(text, uuid, text, numeric, text, text, uuid, uuid[], uuid, numeric, boolean); Type: FUNCTION; Schema: public; Owner: postgres
+-- Name: process_stripe_payment_completion_with_bump(text, uuid, text, numeric, text, text, uuid, uuid[], uuid, numeric, boolean, integer); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
-CREATE FUNCTION public.process_stripe_payment_completion_with_bump(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text DEFAULT NULL::text, user_id_param uuid DEFAULT NULL::uuid, bump_product_ids_param uuid[] DEFAULT NULL::uuid[], coupon_id_param uuid DEFAULT NULL::uuid, amount_subtotal_param numeric DEFAULT NULL::numeric, allow_inactive_product_param boolean DEFAULT false) RETURNS jsonb
+CREATE FUNCTION public.process_stripe_payment_completion_with_bump(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text DEFAULT NULL::text, user_id_param uuid DEFAULT NULL::uuid, bump_product_ids_param uuid[] DEFAULT NULL::uuid[], coupon_id_param uuid DEFAULT NULL::uuid, amount_subtotal_param numeric DEFAULT NULL::numeric, allow_inactive_product_param boolean DEFAULT false, cart_version_param integer DEFAULT NULL::integer) RETURNS jsonb
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO ''
     AS $$
@@ -10895,6 +11058,12 @@ BEGIN
     IF EXISTS (SELECT 1 FROM public.payment_transactions pt
       WHERE pt.id <> tx.id AND (pt.session_id = session_id_param OR pt.stripe_payment_intent_id = pi_param)) THEN
       RETURN jsonb_build_object('success', false, 'error', 'Order records need review', 'error_kind', 'data');
+    END IF;
+    -- The cart Stripe charged (no version in the session metadata = the cart the order was placed with).
+    IF tx.status IN ('pending', 'abandoned') AND EXISTS (SELECT 1 FROM public.checkout_cart_versions v
+      WHERE v.transaction_id = tx.id AND v.version = coalesce(cart_version_param, 1)) THEN
+      PERFORM public._apply_cart_version(tx.id, coalesce(cart_version_param, 1));
+      SELECT pt.* INTO tx FROM public.payment_transactions pt WHERE pt.id = tx.id;
     END IF;
     IF tx.session_id LIKE 'cs_%' THEN session_id_param := tx.session_id; END IF;
     IF jsonb_typeof(tx.metadata->'bump_product_ids_full') = 'array' THEN
@@ -10949,7 +11118,7 @@ END;
 $$;
 
 
-ALTER FUNCTION public.process_stripe_payment_completion_with_bump(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean) OWNER TO postgres;
+ALTER FUNCTION public.process_stripe_payment_completion_with_bump(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean, cart_version_param integer) OWNER TO postgres;
 
 --
 -- Name: product_catalogue_snapshot(public.products); Type: FUNCTION; Schema: public; Owner: postgres
@@ -13721,6 +13890,28 @@ CREATE TABLE public.checkout_attribution (
 ALTER TABLE public.checkout_attribution OWNER TO postgres;
 
 --
+-- Name: checkout_cart_versions; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.checkout_cart_versions (
+    transaction_id uuid NOT NULL,
+    version integer NOT NULL,
+    lines jsonb NOT NULL,
+    amount numeric NOT NULL,
+    coupon_id uuid,
+    metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
+    state text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT checkout_cart_versions_amount_check CHECK ((amount >= (0)::numeric)),
+    CONSTRAINT checkout_cart_versions_lines_check CHECK ((jsonb_typeof(lines) = 'array'::text)),
+    CONSTRAINT checkout_cart_versions_state_check CHECK ((state = ANY (ARRAY['placed'::text, 'updating'::text, 'unconfirmed'::text, 'applied'::text]))),
+    CONSTRAINT checkout_cart_versions_version_check CHECK (((version >= 1) AND (version <= 100)))
+);
+
+
+ALTER TABLE public.checkout_cart_versions OWNER TO postgres;
+
+--
 -- Name: consent_logs; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -16005,6 +16196,14 @@ ALTER TABLE ONLY public.checkout_attribution
 
 
 --
+-- Name: checkout_cart_versions checkout_cart_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.checkout_cart_versions
+    ADD CONSTRAINT checkout_cart_versions_pkey PRIMARY KEY (transaction_id, version);
+
+
+--
 -- Name: consent_logs consent_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -17080,6 +17279,13 @@ CREATE INDEX idx_categories_parent_id ON public.categories USING btree (parent_i
 --
 
 CREATE INDEX idx_categories_slug ON public.categories USING btree (slug);
+
+
+--
+-- Name: idx_checkout_cart_versions_coupon; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_checkout_cart_versions_coupon ON public.checkout_cart_versions USING btree (coupon_id) WHERE (coupon_id IS NOT NULL);
 
 
 --
@@ -19322,6 +19528,22 @@ ALTER TABLE ONLY public.categories
 
 
 --
+-- Name: checkout_cart_versions checkout_cart_versions_coupon_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.checkout_cart_versions
+    ADD CONSTRAINT checkout_cart_versions_coupon_id_fkey FOREIGN KEY (coupon_id) REFERENCES public.coupons(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: checkout_cart_versions checkout_cart_versions_transaction_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.checkout_cart_versions
+    ADD CONSTRAINT checkout_cart_versions_transaction_id_fkey FOREIGN KEY (transaction_id) REFERENCES public.payment_transactions(id) ON DELETE CASCADE;
+
+
+--
 -- Name: coupon_redemptions coupon_redemptions_coupon_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -20029,6 +20251,13 @@ CREATE POLICY "Admin read" ON public.attribution_settings FOR SELECT TO authenti
 
 
 --
+-- Name: checkout_cart_versions Admin read; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY "Admin read" ON public.checkout_cart_versions FOR SELECT TO authenticated USING (( SELECT public.is_admin() AS is_admin));
+
+
+--
 -- Name: order_payment_attempts Admin read; Type: POLICY; Schema: public; Owner: postgres
 --
 
@@ -20651,6 +20880,13 @@ CREATE POLICY "Service role full access" ON public.checkout_attribution TO servi
 
 
 --
+-- Name: checkout_cart_versions Service role full access; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY "Service role full access" ON public.checkout_cart_versions TO service_role USING (true) WITH CHECK (true);
+
+
+--
 -- Name: issued_licenses Service role full access; Type: POLICY; Schema: public; Owner: postgres
 --
 
@@ -21175,6 +21411,12 @@ ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.checkout_attribution ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: checkout_cart_versions; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.checkout_cart_versions ENABLE ROW LEVEL SECURITY;
 
 --
 -- Name: storefront_config config_admin_read; Type: POLICY; Schema: public; Owner: postgres
@@ -22226,12 +22468,15 @@ default privileges | for supabase_auth_admin in auth on tables | postgres | TRUN
 default privileges | for supabase_auth_admin in auth on tables | postgres | UPDATE | supabase_auth_admin | -
 function | postgrest.pre_config() | authenticator | EXECUTE | postgres | -
 function | postgrest.pre_config() | postgres | EXECUTE | postgres | -
+function | public._apply_cart_version(p_transaction_id uuid, p_version integer) | postgres | EXECUTE | postgres | -
 function | public._claim_guest_purchases_before_disputes(p_user_id uuid) | postgres | EXECUTE | postgres | -
 function | public._event_line_seats(p_transaction_id uuid, p_session_id uuid, p_tier_id uuid, p_at timestamp with time zone) | postgres | EXECUTE | postgres | -
 function | public._event_line_seats(p_transaction_id uuid, p_session_id uuid, p_tier_id uuid, p_at timestamp with time zone) | service_role | EXECUTE | postgres | -
+function | public._insert_order_lines(p_transaction_id uuid, p_currency text, p_lines jsonb, p_offline boolean) | postgres | EXECUTE | postgres | -
 function | public._order_grant_and_record(p_transaction_id uuid, p_user_id uuid, p_existing_user_id uuid, p_requested_user_id uuid, p_coupon_id uuid, p_coupon_mode text) | postgres | EXECUTE | postgres | -
 function | public._order_grant_and_record(p_transaction_id uuid, p_user_id uuid, p_existing_user_id uuid, p_requested_user_id uuid, p_coupon_id uuid, p_coupon_mode text) | service_role | EXECUTE | postgres | -
 function | public._place_order_without_event(p_order jsonb, p_lines jsonb) | postgres | EXECUTE | postgres | -
+function | public._price_order_lines(p_order jsonb, p_lines jsonb) | postgres | EXECUTE | postgres | -
 function | public._process_stripe_payment_completion_with_bump_impl(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean) | postgres | EXECUTE | postgres | -
 function | public._process_stripe_payment_completion_with_bump_impl(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean) | service_role | EXECUTE | postgres | -
 function | public._redeem_coupon_for_order(coupon_id_param uuid, current_user_id uuid, existing_user_id uuid, customer_email_param text, transaction_id_var uuid) | postgres | EXECUTE | postgres | -
@@ -22338,6 +22583,8 @@ function | public.batch_check_user_product_access(product_slugs_param text[]) | 
 function | public.batch_check_user_product_access(product_slugs_param text[]) | authenticated | EXECUTE | postgres | -
 function | public.batch_check_user_product_access(product_slugs_param text[]) | postgres | EXECUTE | postgres | -
 function | public.batch_check_user_product_access(product_slugs_param text[]) | service_role | EXECUTE | postgres | -
+function | public.begin_pending_order_update(p_order jsonb, p_lines jsonb) | postgres | EXECUTE | postgres | -
+function | public.begin_pending_order_update(p_order jsonb, p_lines jsonb) | service_role | EXECUTE | postgres | -
 function | public.bind_access_license() | postgres | EXECUTE | postgres | -
 function | public.bind_access_license() | service_role | EXECUTE | postgres | -
 function | public.business_event_actor() | postgres | EXECUTE | postgres | -
@@ -22488,6 +22735,8 @@ function | public.find_user_id_by_email(p_email text) | postgres | EXECUTE | pos
 function | public.find_user_id_by_email(p_email text) | service_role | EXECUTE | postgres | -
 function | public.finish_license_mail(p_retry_id uuid, p_completed boolean, p_error text) | postgres | EXECUTE | postgres | -
 function | public.finish_license_mail(p_retry_id uuid, p_completed boolean, p_error text) | service_role | EXECUTE | postgres | -
+function | public.finish_pending_order_update(p_session_id text, p_version integer, p_confirmed boolean) | postgres | EXECUTE | postgres | -
+function | public.finish_pending_order_update(p_session_id text, p_version integer, p_confirmed boolean) | service_role | EXECUTE | postgres | -
 function | public.free_grant_context(p_product_id uuid, p_request_id uuid) | authenticated | EXECUTE | postgres | -
 function | public.free_grant_context(p_product_id uuid, p_request_id uuid) | postgres | EXECUTE | postgres | -
 function | public.free_grant_context(p_product_id uuid, p_request_id uuid) | service_role | EXECUTE | postgres | -
@@ -22699,8 +22948,8 @@ function | public.prevent_delete_user_with_active_subscription() | service_role 
 function | public.process_refund_request(request_id_param uuid, action_param text, admin_response_param text) | authenticated | EXECUTE | postgres | -
 function | public.process_refund_request(request_id_param uuid, action_param text, admin_response_param text) | postgres | EXECUTE | postgres | -
 function | public.process_refund_request(request_id_param uuid, action_param text, admin_response_param text) | service_role | EXECUTE | postgres | -
-function | public.process_stripe_payment_completion_with_bump(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean) | postgres | EXECUTE | postgres | -
-function | public.process_stripe_payment_completion_with_bump(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean) | service_role | EXECUTE | postgres | -
+function | public.process_stripe_payment_completion_with_bump(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean, cart_version_param integer) | postgres | EXECUTE | postgres | -
+function | public.process_stripe_payment_completion_with_bump(session_id_param text, product_id_param uuid, customer_email_param text, amount_total numeric, currency_param text, stripe_payment_intent_id text, user_id_param uuid, bump_product_ids_param uuid[], coupon_id_param uuid, amount_subtotal_param numeric, allow_inactive_product_param boolean, cart_version_param integer) | service_role | EXECUTE | postgres | -
 function | public.product_catalogue_snapshot(p products) | postgres | EXECUTE | postgres | -
 function | public.product_deletion_impact(p_product_id uuid) | postgres | EXECUTE | postgres | -
 function | public.product_deletion_impact(p_product_id uuid) | service_role | EXECUTE | postgres | -
@@ -23776,6 +24025,21 @@ table | public.checkout_attribution | service_role | SELECT | postgres | -
 table | public.checkout_attribution | service_role | TRIGGER | postgres | -
 table | public.checkout_attribution | service_role | TRUNCATE | postgres | -
 table | public.checkout_attribution | service_role | UPDATE | postgres | -
+table | public.checkout_cart_versions | authenticated | SELECT | postgres | -
+table | public.checkout_cart_versions | postgres | DELETE | postgres | -
+table | public.checkout_cart_versions | postgres | INSERT | postgres | -
+table | public.checkout_cart_versions | postgres | REFERENCES | postgres | -
+table | public.checkout_cart_versions | postgres | SELECT | postgres | -
+table | public.checkout_cart_versions | postgres | TRIGGER | postgres | -
+table | public.checkout_cart_versions | postgres | TRUNCATE | postgres | -
+table | public.checkout_cart_versions | postgres | UPDATE | postgres | -
+table | public.checkout_cart_versions | service_role | DELETE | postgres | -
+table | public.checkout_cart_versions | service_role | INSERT | postgres | -
+table | public.checkout_cart_versions | service_role | REFERENCES | postgres | -
+table | public.checkout_cart_versions | service_role | SELECT | postgres | -
+table | public.checkout_cart_versions | service_role | TRIGGER | postgres | -
+table | public.checkout_cart_versions | service_role | TRUNCATE | postgres | -
+table | public.checkout_cart_versions | service_role | UPDATE | postgres | -
 table | public.consent_logs | postgres | DELETE | postgres | -
 table | public.consent_logs | postgres | INSERT | postgres | -
 table | public.consent_logs | postgres | REFERENCES | postgres | -
@@ -25019,6 +25283,7 @@ business_events | 0
 captcha_nonces | 0
 categories | 0
 checkout_attribution | 0
+checkout_cart_versions | 0
 consent_logs | 0
 coupon_redemptions | 0
 coupon_reservations | 0

@@ -4,6 +4,7 @@
  * @see src/app/api/webhooks/stripe/route.ts
  */
 import { verifyCheckoutBinding } from '@/lib/security/checkout-binding';
+import { isForeignStripeMarker, readStripeInstanceMarker } from '@/lib/stripe/instance-marker';
 import type Stripe from 'stripe';
 import type { createAdminClient } from '@/lib/supabase/admin';
 
@@ -50,6 +51,8 @@ export async function expireBoundCheckoutSession(
     })) {
       return { success: false, error: 'Invalid checkout binding', status: 403 };
     }
+    // Another installation's session (shared Stripe account, restored copy): never touched here.
+    if (await isForeignStripeMarker(readStripeInstanceMarker(session))) return { success: true };
     if (session.status === 'complete') return { success: true };
     if (session.payment_intent) {
       const paymentIntentId = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent.id;

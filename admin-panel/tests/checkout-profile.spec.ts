@@ -359,16 +359,16 @@ test('hidden quantity has no control and uses the configured minimum', async ({ 
   const { data: tx } = await db.from('payment_transactions').select('amount').eq('session_id', session).single();
   expect(tx!.amount).toBe(20000);
 });
-test('product-page quantity immediately updates totals and replaces the initialized session', async ({ page }) => {
+test('product-page quantity immediately updates totals and the initialized session (W219)', async ({ page }) => {
   expect((await db.from('products').update({ checkout_profile: { v: 1, modules: [{ id: 'quantity', min: 1, max: 5, mode: 'product_page' }] } }).eq('id', product.id)).error).toBeNull();
   const oldSession = await open(page);
   const response = page.waitForResponse(response => new URL(response.url()).pathname === '/api/create-payment-intent' && response.request().postDataJSON()?.quantity === 3);
   await page.getByLabel('Ilość', { exact: true }).fill('3');
   expect((await response).status()).toBe(200);
-  const newSession = (await (await response).json()).checkoutSessionId;
-  expect(newSession).not.toBe(oldSession);
-  const { data: tx } = await db.from('payment_transactions').select('amount').eq('session_id', newSession).single();
-  expect(tx!.amount).toBe(30000);
+  const updatedSession = (await (await response).json()).checkoutSessionId;
+  expect(updatedSession).toBe(oldSession);
+  const { data: tx } = await db.from('payment_transactions').select('amount,status').eq('session_id', updatedSession).single();
+  expect(tx).toEqual({ amount: 30000, status: 'pending' });
   await expect(page.getByRole('button', { name: /^Zapłać/ })).toContainText('300');
 });
 test('product without profile retains the original form', async ({ page }) => {

@@ -14,6 +14,8 @@ import { getEffectiveUnitPrice } from '@/lib/services/omnibus';
 import { validateCustomAmount } from '@/lib/payment/custom-amount';
 import { getStripeServer } from '@/lib/stripe/server';
 import { expireBoundCheckoutSession } from '@/lib/stripe/checkout-expiration';
+import { findReusableCheckoutSession, updateCheckoutSessionCart } from '@/lib/stripe/checkout-session-update';
+import { CHECKOUT_UPDATE_IN_PROGRESS } from '@/lib/checkout/request-error';
 import { isStripeTaxNotConfiguredError } from '@/lib/stripe/tax-errors';
 import { getEnabledPaymentMethodsForCurrency } from '@/lib/utils/payment-method-helpers';
 import { isSafeRedirectUrl } from '@/lib/validations/redirect';
@@ -42,7 +44,7 @@ import { signCheckoutBinding } from '@/lib/security/checkout-binding';
 import { canRenewExpiredLicenseWithActiveAccess } from '@/lib/license-keys/renewal';
 import { findIssuedLicense } from '@/lib/license-keys/lookup';
 import { grantFreeProductAccess } from '@/lib/services/free-product-access';
-import { placeOrder } from '@/lib/orders/place-order';
+import { beginPendingOrderUpdate, finishPendingOrderUpdate, placeOrder } from '@/lib/orders/place-order';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 import { ATTRIBUTION_REF_KEY, attributionRequestContext, recordFreeAttribution, storeCheckoutAttribution } from '@/lib/attribution/store';
 import { isBelowMinimumCharge } from '@/lib/currency/minor-units';
@@ -179,7 +181,12 @@ export async function POST(request: NextRequest) {
 
     const dataClient = createAdminClient();
 
-    if ((typeof clientSecret === 'string' && clientSecret.startsWith('cs_')) || expireOnly === true) {
+    // The buyer's previous session is closed only when it cannot be updated for the new cart
+    // (W219): released once, right before another session is created or access is granted.
+    const hasPreviousSession = (typeof clientSecret === 'string' && clientSecret.startsWith('cs_')) || expireOnly === true;
+    let previousReleased = !hasPreviousSession;
+    const releasePreviousSession = async (): Promise<NextResponse | null> => {
+      if (previousReleased) return null;
       const stripe = await getStripeServer();
       if (!stripe) {
         return NextResponse.json({ error: 'Payment system not configured' }, { status: 503 });
@@ -191,8 +198,10 @@ export async function POST(request: NextRequest) {
       if (!expiration.success) {
         return NextResponse.json({ error: expiration.error }, { status: expiration.status ?? 503 });
       }
-      if (expireOnly === true) return NextResponse.json({ success: true });
-    }
+      previousReleased = true;
+      return null;
+    };
+    if (expireOnly === true) return (await releasePreviousSession()) ?? NextResponse.json({ success: true });
 
     // 1. Fetch product
     const { data: product, error: productError } = await dataClient
@@ -307,6 +316,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (product.product_type === 'subscription') {
+      const released = await releasePreviousSession();
+      if (released) return released;
       const subscriptionProduct: ValidatedProduct = {
         id: product.id,
         slug: product.slug,
@@ -605,6 +616,8 @@ export async function POST(request: NextRequest) {
     // records the redemption atomically with the access row, so a refused grant
     // leaves the coupon untouched.
     if (!product.event_mode && pricing.isFreeWithCoupon && user && appliedCoupon) {
+      const released = await releasePreviousSession();
+      if (released) return released;
       const grant = await grantFreeProductAccess(supabase, dataClient, {
         product: { id: product.id, slug: product.slug },
         user: { id: user.id, email: user.email ?? '' },
@@ -837,6 +850,73 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const orderLines = buildOrderSnapshotLines(specs, { orderBumpIds, accessOverrides }).map(line =>
+      eventCheckout?.success && line.item_type === 'main_product'
+        ? { ...line, session_id: eventCheckout.sessionId } : line);
+    const pendingOrder = (session: Pick<Stripe.Checkout.Session, 'id' | 'livemode' | 'expires_at'>) => ({
+      payment_provider: 'stripe',
+      livemode: session.livemode,
+      coupon_id: appliedCoupon?.id ?? null,
+      session_id: session.id,
+      user_id: user?.id || null,
+      product_id: productId,
+      customer_email: finalEmail || 'pending@sellf.app', // Fallback for guests without email
+      amount: totalAmount,
+      currency: product.currency,
+      stripe_payment_intent_id: null,
+      status: 'pending',
+      expires_at: product.event_mode
+        ? new Date(session.expires_at * 1000).toISOString()
+        : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      metadata: {
+        ...checkoutMetadata,
+        ...(product.event_mode ? { event_ip: eventIp } : {}),
+        // Full bump list (not subject to Stripe's 500-char metadata limit)
+        bump_product_ids_full: bumpIds,
+      },
+      custom_field_values: validatedCustomFieldValues,
+    });
+
+    // Cart change (quantity, add-on, coupon, amount) on the buyer's open session: update that
+    // session instead of opening a new one. The new cart is stored as the next version and the
+    // session locked before Stripe is called; it becomes the saved order only once Stripe
+    // confirms it. Any failure or unclear outcome keeps every version payable (the webhook
+    // settles the one Stripe charged), closes the old session below and opens a new one, as
+    // before. A second update of the same session meanwhile gets 409 and the browser retries.
+    // Event orders hold seats for the ordered quantity and always get a new session.
+    const reusable = !previousReleased && !product.event_mode
+      ? await findReusableCheckoutSession(stripe, {
+          clientSecret, bindingToken: previousBindingToken, productId, userId: user?.id ?? null,
+          email: finalEmail, locale: checkoutLocale, successUrl: successUrl || '',
+        })
+      : null;
+    if (reusable) {
+      // The first visit keeps its purchase source (@see lib/attribution/store.ts).
+      checkoutMetadata[ATTRIBUTION_REF_KEY] = reusable.metadata?.[ATTRIBUTION_REF_KEY] || attributionRef;
+      const start = await beginPendingOrderUpdate(dataClient, pendingOrder(reusable), orderLines);
+      if (start.status === 'busy') {
+        return NextResponse.json({ error: 'Checkout is being updated, please retry', code: CHECKOUT_UPDATE_IN_PROGRESS }, { status: 409 });
+      }
+      const confirmed = start.status === 'started' && await updateCheckoutSessionCart(stripe, reusable.id, {
+        lineItems: lineItems as Stripe.Checkout.SessionUpdateParams.LineItem[],
+        metadata: checkoutMetadata,
+        expectedSubtotal: lineItemsTotalMinor,
+        version: start.version,
+      });
+      const saved = start.status === 'started' && await finishPendingOrderUpdate(dataClient, reusable.id, start.version, confirmed);
+      if (confirmed && saved) {
+        return NextResponse.json({
+          clientSecret,
+          checkoutSessionId: reusable.id,
+          paymentIntentId: null,
+          bindingToken: previousBindingToken,
+        });
+      }
+      checkoutMetadata[ATTRIBUTION_REF_KEY] = attributionRef;
+    }
+    const released = await releasePreviousSession();
+    if (released) return released;
+
     // stripe_tax + on-site (Elements): the session is otherwise a guest-by-email checkout with
     // no Customer. Attach a Customer NOW so that update-payment-metadata can later set the
     // buyer's country + EU VAT-ID on it (the buyer hasn't typed them yet at this point — they
@@ -870,31 +950,7 @@ export async function POST(request: NextRequest) {
     });
     let placementFailure: { error?: string; status?: number } | null = null;
     try {
-      const placed = await placeOrder(dataClient, {
-          payment_provider: 'stripe',
-          livemode: checkoutSession.livemode,
-          coupon_id: appliedCoupon?.id ?? null,
-          session_id: checkoutSession.id,
-          user_id: user?.id || null,
-          product_id: productId,
-          customer_email: finalEmail || 'pending@sellf.app', // Fallback for guests without email
-          amount: totalAmount,
-          currency: product.currency,
-          stripe_payment_intent_id: null,
-          status: 'pending',
-          expires_at: product.event_mode
-            ? new Date(checkoutSession.expires_at * 1000).toISOString()
-            : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          metadata: {
-            ...checkoutMetadata,
-            ...(product.event_mode ? { event_ip: eventIp } : {}),
-            // Full bump list (not subject to Stripe's 500-char metadata limit)
-            bump_product_ids_full: bumpIds,
-          },
-          custom_field_values: validatedCustomFieldValues,
-        }, buildOrderSnapshotLines(specs, { orderBumpIds, accessOverrides }).map(line =>
-          eventCheckout?.success && line.item_type === 'main_product'
-            ? { ...line, session_id: eventCheckout.sessionId } : line));
+      const placed = await placeOrder(dataClient, pendingOrder(checkoutSession), orderLines);
       if (!placed.success) { placementFailure = placed; throw new Error(placed.error); }
     } catch (insertError) {
       console.error('[create-payment-intent] Failed to save pending transaction:', insertError);

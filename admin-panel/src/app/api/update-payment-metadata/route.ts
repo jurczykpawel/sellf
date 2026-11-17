@@ -404,10 +404,13 @@ export async function POST(request: NextRequest) {
         'address', 'city', 'postal_code', 'country', 'phone', 'buyer', 'recipient',
         'participants', 'participant_emails',
       ]);
-      const profileMetadata = Object.fromEntries(
-        Object.entries(stripeMetadata).map(([key, value]) => [key, personalFields.has(key) ? '' : value]),
-      );
-      Object.assign(profileMetadata, localeMetadata);
+      // Only the fields this route owns: personal data is cleared (an empty value removes the key in
+      // Stripe) and the locale set. Stripe merges metadata, so the cart keys stay untouched; a copy of
+      // them read earlier could roll back a cart version written meanwhile (W219c).
+      const profileMetadata: Record<string, string> = {
+        ...Object.fromEntries([...personalFields].map(key => [key, ''])),
+        ...localeMetadata,
+      };
       if (isCheckoutSession) await stripe.checkout.sessions.update(stripeObjectId, { metadata: profileMetadata });
       else await stripe.paymentIntents.update(stripeObjectId, { metadata: profileMetadata });
       const party = result.details.buyer;
