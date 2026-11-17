@@ -35,14 +35,18 @@ fi
 
 echo "[$(date -u '+%Y-%m-%d %H:%M:%S UTC')] Starting demo database reset..."
 
-# Content-Profile=public — demo_reset_data lives in public, not public (the PostgREST default).
+# The service-role key is never a process argument: curl reads the request headers from a file
+# only this user can read (printf is a shell builtin), removed on exit.
+HEADERS_FILE=$(umask 077; mktemp)
+trap 'rm -f "$HEADERS_FILE"' EXIT
+(umask 077; printf 'apikey: %s\nAuthorization: Bearer %s\nContent-Type: application/json\nContent-Profile: public\n' \
+  "$SUPABASE_SERVICE_ROLE_KEY" "$SUPABASE_SERVICE_ROLE_KEY" > "$HEADERS_FILE")
+
+# Content-Profile=public — demo_reset_data lives in the public schema.
 # `|| echo …000` keeps curl failures in the error branch under `set -e`.
 RESPONSE=$(curl -s -w "\n%{http_code}" \
   -X POST "${SUPABASE_URL}/rest/v1/rpc/demo_reset_data" \
-  -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-  -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-  -H "Content-Type: application/json" \
-  -H "Content-Profile: public" \
+  -H "@$HEADERS_FILE" \
   -d '{}' || echo $'\n000')
 
 HTTP_STATUS=$(echo "$RESPONSE" | tail -1)
