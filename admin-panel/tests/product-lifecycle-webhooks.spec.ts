@@ -57,6 +57,9 @@ test('product CRUD delivers signed snapshots and retains selected-product routin
       expect(response.status()).toBe(200);
     };
     await drain();
+    const firstDelivery = await supabaseAdmin.from('webhook_logs').select('status,error_message,http_status').eq('endpoint_id', endpointId!);
+    expect(firstDelivery.error).toBeNull();
+    expect(firstDelivery.data).toEqual([{ status: 'success', error_message: null, http_status: 200 }]);
     await expect.poll(() => receiver.received.filter(event => event.data.product?.id === productId).length).toBe(1);
     expect(receiver.received[0]).toMatchObject({ event: 'product.created', data: { revision: 1, amountUnit: 'minor',
       actor: { type: 'api_key', id: keyId },

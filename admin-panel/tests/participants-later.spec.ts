@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 import { loginAsAdmin, createTestAdmin, supabaseAdmin as db } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
+import { deferPendingBusinessEvents } from './helpers/db-cleanup';
 import { MAILPIT_URL } from './helpers/mailpit';
 import type { APIRequestContext } from '@playwright/test';
 
@@ -14,6 +15,7 @@ test.describe.configure({ mode: 'serial' });
 const profile = { v: 1, modules: [{ id: 'quantity', min: 1, max: 5, mode: 'checkout' }, { id: 'participants', required: true, prefill_from_buyer: false, allow_later: true }] };
 const buyer = `later-${randomUUID()}@example.com`;
 const headers = { Authorization: `Bearer ${process.env.CRON_SECRET}` };
+let restoreBusinessEvents = () => {};
 let product: { id: string }, orderId: string, endpointId: string, link: string;
 async function checked<T>({ data, error }: { data: T; error: unknown }): Promise<NonNullable<T>> { if (error) throw error; return data!; }
 const cron = (request: APIRequestContext, job: string) => request.get(`/api/cron?job=${job}`, { headers });
@@ -23,6 +25,7 @@ async function mails(request: APIRequestContext, to: string): Promise<Array<{ Su
 }
 
 test.beforeAll(async () => {
+  restoreBusinessEvents = deferPendingBusinessEvents();
   product = await checked(await db.from('products').insert({ name: 'Warsztat na cztery osoby', slug: `later-${randomUUID()}`, price: 100, currency: 'PLN', is_active: true, vat_exempt: true, checkout_profile: profile }).select('id').single());
   orderId = (await checked(await db.from('payment_transactions').insert({
     session_id: `cs_later_${randomUUID().replace(/-/g, '')}`, product_id: product.id, customer_email: buyer, amount: 40000, currency: 'PLN', status: 'completed', paid_at: new Date(Date.now() - 25 * 3600_000).toISOString(),
@@ -34,6 +37,7 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   if (endpointId) { await db.from('webhook_logs').delete().eq('endpoint_id', endpointId); await db.from('webhook_endpoints').delete().eq('id', endpointId); }
   if (product) { await db.from('business_events').delete().eq('product_id', product.id); await db.from('payment_transactions').delete().eq('product_id', product.id); await db.from('products').delete().eq('id', product.id); }
+  restoreBusinessEvents();
 });
 
 test('the buyer gets the first reminder mail after 24 hours, with a personal link @J204', async ({ request }) => {

@@ -10,7 +10,9 @@
  * `deleteChecked` for that.
  */
 
+import { execFileSync } from 'node:child_process';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { getTestDatabaseContainer } from './database-container';
 
 /** A minimal shape covering the builders returned by `supabase.from(...).delete()...`. */
 type Deletable = PromiseLike<{ error: { message: string } | null }>;
@@ -96,4 +98,22 @@ export async function deleteCouponsForEmail(db: SupabaseClient, email: string): 
     'coupons',
     db.from('coupons').delete().contains('allowed_emails', JSON.stringify([email])),
   );
+}
+
+export function deferPendingBusinessEvents(): () => void {
+  const container = getTestDatabaseContainer();
+  const sql = (input: string) => execFileSync('docker', ['exec', '-i', container, 'psql', '-U', 'postgres', '-At', '-v', 'ON_ERROR_STOP=1'], {
+    input, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024,
+  });
+  const pending = sql(`WITH previous AS MATERIALIZED (
+    SELECT id, next_attempt_at FROM public.business_events WHERE dispatched_at IS NULL AND abandoned_at IS NULL
+  ), deferred AS (
+    UPDATE public.business_events b SET next_attempt_at = clock_timestamp() + interval '1 day'
+      FROM previous p WHERE b.id = p.id RETURNING b.id
+  ) SELECT coalesce(jsonb_agg(p), '[]') FROM previous p JOIN deferred USING (id);`).trim();
+  return () => {
+    sql(`UPDATE public.business_events b SET next_attempt_at = p.next_attempt_at
+      FROM jsonb_to_recordset($pending$${pending}$pending$::jsonb) AS p(id uuid, next_attempt_at timestamptz)
+      WHERE b.id = p.id AND b.dispatched_at IS NULL;`);
+  };
 }

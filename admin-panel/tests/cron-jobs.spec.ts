@@ -11,6 +11,7 @@
 
 import { test, expect } from '@playwright/test';
 import { supabaseAdmin } from './helpers/admin-auth';
+import { deferPendingBusinessEvents } from './helpers/db-cleanup';
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3777';
 const CRON_SECRET = process.env.CRON_SECRET || 'dev-cron-secret-change-in-production';
@@ -68,8 +69,10 @@ test.describe('Cron job: access-expired', () => {
   let testProductId: string;
   let testAccessId: string;
   let testEndpointId: string;
+  let restoreBusinessEvents = () => {};
 
   test.beforeAll(async () => {
+    restoreBusinessEvents = deferPendingBusinessEvents();
     // Create a test user
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
       email: `cron-test-${Date.now()}@example.com`,
@@ -108,6 +111,7 @@ test.describe('Cron job: access-expired', () => {
     if (testEndpointId) await supabaseAdmin.from('webhook_endpoints').delete().eq('id', testEndpointId);
     if (testUserId) await supabaseAdmin.auth.admin.deleteUser(testUserId);
     if (testProductId) await supabaseAdmin.from('products').delete().eq('id', testProductId);
+    restoreBusinessEvents();
   });
 
   test('processes 0 rows when nothing is expired', async ({ request }) => {
