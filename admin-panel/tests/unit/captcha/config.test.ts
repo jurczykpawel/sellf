@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { getCaptchaConfig } from '@/lib/captcha/config';
@@ -91,6 +93,10 @@ describe('getCaptchaConfig', () => {
     // different file for that at any time, which would invalidate the hash.
     expect(config.scriptUrl).toMatch(/altcha@\d+\.\d+\.\d+\//);
     expect(config.scriptIntegrity).toMatch(/^sha384-[A-Za-z0-9+/]+=*$/);
+    const installed = JSON.parse(readFileSync('node_modules/altcha/package.json', 'utf8'));
+    expect(config.scriptUrl).toContain(`altcha@${installed.version}/`);
+    const asset = readFileSync('node_modules/altcha/dist/main/altcha.js');
+    expect(config.scriptIntegrity).toBe(`sha384-${createHash('sha384').update(asset).digest('base64')}`);
   });
 
   it('does not provide an SRI hash for the Turnstile script (Cloudflare does not publish a stable one)', () => {
