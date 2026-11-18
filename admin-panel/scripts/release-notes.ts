@@ -7,7 +7,7 @@
  *   bun run release:notes [--from <tag>] [--to <ref>] [--version <YYYY.M.patch[-rc.N]>] [--out <file>]
  *   bun run release:notes --check <file>   — exit 1 while the Highlights were not written
  *
- * Defaults: --from = last v* tag reachable from --to, --to = HEAD, --version = admin-panel/package.json.
+ * Defaults: --from = last stable tag before the target version reachable from --to, --to = HEAD, --version = admin-panel/package.json.
  * The release skill writes only the Highlights (replacing the marker) and runs --check before
  * `gh release create --notes-file`.
  *
@@ -18,6 +18,9 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { checkDocs, docsNote, readDocsRecords, stableBase } from './release-docs';
+import type { DocsRecords } from './release-docs';
 
 export const HIGHLIGHTS_MARKER = '<!-- HIGHLIGHTS: 3-4 bullets for sellers, written by the release skill; release:notes --check fails while this line is here -->';
 const REPO_URL = 'https://github.com/jurczykpawel/sellf';
@@ -86,9 +89,10 @@ export interface NotesOptions {
   version: string;
   from: string;
   repoUrl?: string;
+  docs?: DocsRecords;
 }
 
-export function buildReleaseNotes(commits: RawCommit[], { version, from, repoUrl = REPO_URL }: NotesOptions): string {
+export function buildReleaseNotes(commits: RawCommit[], { version, from, repoUrl = REPO_URL, docs = {} }: NotesOptions): string {
   const parsed = commits.filter((c) => !VERSION_BUMP_RE.test(c.subject)).map(parseCommit);
   // Unscoped first, then scopes alphabetically; chronological inside a scope (stable sort).
   const byScope = (a: ParsedCommit, b: ParsedCommit) => {
@@ -104,7 +108,7 @@ export function buildReleaseNotes(commits: RawCommit[], { version, from, repoUrl
   for (const { heading, match } of SECTIONS) {
     const inSection = remaining.filter(match);
     for (const c of inSection) remaining.splice(remaining.indexOf(c), 1);
-    if (inSection.length) out.push(`## ${heading}`, '', ...inSection.sort(byScope).map((c) => bullet(c.scope, c.subject, c.hash)), '');
+    if (inSection.length) out.push(`## ${heading}`, '', ...inSection.sort(byScope).map((c) => bullet(c.scope, c.subject, c.hash) + docsNote(docs[c.hash])), '');
   }
 
   out.push('---', '', `${parsed.length} commits since ${from}.`, '', `**Full Changelog**: ${repoUrl}/compare/${from}...v${version}`, '');
@@ -155,12 +159,16 @@ function main(): void {
     return;
   }
 
-  const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+  const root = option(args, '--root') ?? resolve(dirname(fileURLToPath(import.meta.url)), '../..');
   try {
     const to = option(args, '--to') ?? 'HEAD';
-    const from = option(args, '--from') ?? git(root, ['describe', '--tags', '--abbrev=0', '--match', 'v[0-9]*', to]).trim();
     const version = option(args, '--version') ?? JSON.parse(readFileSync(join(root, 'admin-panel/package.json'), 'utf8')).version;
-    const notes = buildReleaseNotes(readCommits(root, from, to), { version, from });
+    const base = stableBase(root, version, to);
+    const from = option(args, '--from') ?? base;
+    const docs = readDocsRecords(root);
+    const errors = checkDocs(root, readCommits(root, base, to), docs);
+    if (errors.length) throw new Error(errors.join('\n'));
+    const notes = buildReleaseNotes(readCommits(root, from, to), { version, from, docs });
     const out = option(args, '--out');
     if (out) {
       writeFileSync(out, notes);
