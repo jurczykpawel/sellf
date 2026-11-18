@@ -1,10 +1,10 @@
 \set ON_ERROR_STOP on
 BEGIN;
 DO $$ BEGIN
-  ASSERT NOT has_function_privilege('anon', 'public.set_payment_order_details(jsonb,uuid,integer,text,text)', 'EXECUTE');
-  ASSERT NOT has_function_privilege('authenticated', 'public.set_payment_order_details(jsonb,uuid,integer,text,text)', 'EXECUTE');
-  ASSERT has_function_privilege('service_role', 'public.set_payment_order_details(jsonb,uuid,integer,text,text)', 'EXECUTE');
-  ASSERT (SELECT prosecdef AND proconfig = ARRAY['search_path=""'] FROM pg_proc WHERE oid = 'public.set_payment_order_details(jsonb,uuid,integer,text,text)'::regprocedure);
+  ASSERT NOT has_function_privilege('anon', 'public.set_payment_order_details(jsonb,uuid,integer,text,text,jsonb)', 'EXECUTE');
+  ASSERT NOT has_function_privilege('authenticated', 'public.set_payment_order_details(jsonb,uuid,integer,text,text,jsonb)', 'EXECUTE');
+  ASSERT has_function_privilege('service_role', 'public.set_payment_order_details(jsonb,uuid,integer,text,text,jsonb)', 'EXECUTE');
+  ASSERT (SELECT prosecdef AND proconfig = ARRAY['search_path=""'] FROM pg_proc WHERE oid = 'public.set_payment_order_details(jsonb,uuid,integer,text,text,jsonb)'::regprocedure);
 END $$;
 INSERT INTO public.products(id,name,slug,price,currency,checkout_profile) VALUES
   ('eeeeeeee-1111-4111-8111-111111111111','Profile SQL','profile-sql-check',50,'PLN','{"v":1,"modules":[]}');
@@ -25,7 +25,7 @@ DO $$ BEGIN
   BEGIN
     PERFORM public.set_payment_order_details(jsonb_build_object('large',repeat('a',65537)), 'eeeeeeee-1111-4111-8111-111111111111',2,'cs_test_profileSql');
     RAISE EXCEPTION 'Expected order size refusal';
-  EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+  EXCEPTION WHEN SQLSTATE '54000' THEN NULL; END;
   BEGIN
     UPDATE public.payment_transactions SET order_details=jsonb_build_object('large',repeat('a',65537)) WHERE id='eeeeeeee-2222-4222-8222-222222222222';
     RAISE EXCEPTION 'Expected order size constraint';
