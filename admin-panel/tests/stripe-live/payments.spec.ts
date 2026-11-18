@@ -1,5 +1,5 @@
-import { useSupabaseBuyerEmails } from '../helpers/buyer-email-setting-playwright';
-useSupabaseBuyerEmails();
+import { useSupabaseBuyerEmails as registerSupabaseBuyerEmails } from '../helpers/buyer-email-setting-playwright';
+registerSupabaseBuyerEmails();
 import { test, startNativeCheckout } from '../helpers/checkout-intent';
 /** Real Stripe test-mode checkout, fulfillment, and delivery checks. @see README.md */
 import { readFileSync, appendFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -301,8 +301,9 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
     }
     if (!s.profile && !options.event && !s.netCouponQuantity) await page.locator('#fullName').fill('Stripe Test Buyer');
     if (!s.subscription && !options.event) await page.getByLabel(/License domain/).fill(s.domain);
-    const terms = page.locator('input[type="checkbox"]');
-    for (const checkbox of await terms.all()) if (await checkbox.isVisible()) await checkbox.check();
+    const consents = page.getByRole('checkbox', { name: /^(I agree to the|I confirm the product will be linked to my account)/ });
+    for (const consent of await consents.all()) if (await consent.isVisible()) await consent.check();
+    if (!hasProfile) await expect(page.getByRole('checkbox', { name: 'I want a company invoice', exact: true })).not.toBeChecked();
     await fillCard(page, card);
     if (!s.profile && !options.event && !s.netCouponQuantity) await expect(page.locator('#fullName')).toHaveValue('Stripe Test Buyer');
     if (options.expireCouponAfterReservation) {
