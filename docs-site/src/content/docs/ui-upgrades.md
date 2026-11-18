@@ -161,3 +161,19 @@ Do not configure a mirror advertising a release absent from GitHub.
 Run `cd admin-panel && bun run test:upgrade-matrix`. See
 [the suite README](https://github.com/jurczykpawel/sellf/blob/main/admin-panel/tests/upgrade-matrix/README.md)
 for prerequisites, disposable ports, evidence and remaining platform limits.
+
+## Backup scope
+
+The in-place updater keeps a copy of application code and configuration for code rollback. It does **not** make a database backup or restore the database after a successful migration. Make and verify a separate database backup before updating. Database backup and one-click restore are planned for 2026.11.2.
+
+2026.11.1 ships one consolidated migration after the 2026.11.0 migrations. Use the files from the target release; do not copy historical development migrations into an installation.
+
+## Release candidates
+
+Release candidates use `2026.11.1-rc.1` (Git tag `v2026.11.1-rc.1`) and are published as prereleases. The normal panel updater follows the stable channel and refuses an RC target. For a test installation, select the exact RC package through Stackpilot's `--build-file`, or the exact RC container tag. RC images do not move `latest` or the monthly image alias. After testing, update to the corresponding stable release through your normal deployment procedure.
+
+## For contributors
+
+Dependency maintenance groups library and Docker updates monthly, and GitHub Actions updates quarterly, with a 14-day cooldown and one open update PR per ecosystem entry. Product-library minor and patch updates are grouped; major changes need a separate release decision. PR classification and labels do not merge anything automatically. Review changes and run the relevant checks before merging.
+
+Release archives and image manifests are signed in separate jobs using the protected `release` environment. Signing jobs validate the manifest and release tag without checking out or running repository code. For self-hosters, the signing key, asset names and signature-verification procedure stay the same; see [release verification](/deployment/#verifying-a-release-build).

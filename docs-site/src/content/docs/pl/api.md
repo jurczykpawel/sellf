@@ -100,6 +100,8 @@ To nie są aliasy: v1 nie mapuje ich na alternatywne pola, nie zapisuje ich ani 
 
 ## Usuwanie produktów i archiwum
 
+W panelu otwórz **Produkty**, a potem wybierz filtr **Archiwum**, aby zobaczyć zakończone oferty. Usunięcie produktu z historią przenosi go do archiwum. Przywrócenie pozostawia go nieaktywnym; sprawdź ustawienia i włącz sprzedaż osobno. Kupujący zachowują nadany dostęp.
+
 Zamówienia, faktury i licencje nigdy nie są usuwane razem z produktem.
 
 - `DELETE /products/{id}` produktu **bez** zamówień, licencji, dostępów kupujących i subskrypcji usuwa go: **204**.

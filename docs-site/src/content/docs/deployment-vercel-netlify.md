@@ -114,7 +114,7 @@ You'll use it in Steps 6 and 7.
 
 ## Step 6 — Apply database migrations (3 min)
 
-Sellf ships 46 migrations that create 36 tables, 73 RPC functions, and 92 RLS policies. The deploy button doesn't run them — you do, once, from your local machine.
+Sellf ships migrations for its tables, RPC functions and RLS policies. Use the complete set from the target release. The deploy button does not run them; apply them from your local machine before starting the new app.
 
 ```bash
 # In a fresh terminal, anywhere:
@@ -132,7 +132,7 @@ npx supabase link --project-ref <YOUR_PROJECT_REF>
 npx supabase db push
 ```
 
-Expected output: `Applying migration ... done` for each of the 46 migrations. Total time ~1 minute.
+Expected output: `Applying migration ... done` for each pending migration. Total time ~1 minute.
 
 > **If you don't want Supabase CLI on your machine:** open https://supabase.com/dashboard/project/<ref>/sql/new, then paste each `.sql` file from `supabase/migrations/` in chronological order and click **Run**. Much slower; CLI is recommended.
 
@@ -413,7 +413,7 @@ The first time I tried this end-to-end the deploy died at the homepage with `Mis
 
 ## What about the `.env.example` file?
 
-[`.env.example`](../admin-panel/.env.example) lists every optional env var Sellf supports (~30 of them). The 11 above are the minimum required for a working production deploy. Optional things you might want later:
+[`.env.example`](https://github.com/jurczykpawel/sellf/blob/main/admin-panel/.env.example) lists every optional env var Sellf supports (~30 of them). The 11 above are the minimum required for a working production deploy. Optional things you might want later:
 
 | Variable | What it adds |
 |----------|--------------|

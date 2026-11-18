@@ -67,3 +67,7 @@ bez prośby o fakturę pomija `invoice`. Produkty bez profilu nie otrzymują `or
 i zachowują istniejący format faktury, z `invoice.recipient`, gdy sklep zbiera odbiorcę ([Webhooki](/pl/webhooks/)). Dotychczasowe `customFields` nadal zawierają odpowiedzi.
 
 Konfigurację adresów i dostarczania opisuje strona [Webhooki](/pl/webhooks/).
+
+## Zmiany podczas płatności Stripe
+
+Zmiana koszyka aktualizuje pozycje w tej samej otwartej sesji Stripe Checkout na stronie sklepu, jeśli sesja spełnia warunki ponownego użycia. Zmiana języka, adresu powrotu lub maila kupującego wymaga nowej sesji. Rozpoczęta płatność może się zakończyć. Sellf zapisuje wersje koszyka i realizuje tę, którą Stripe faktycznie obciążył, z zapisanymi cenami i uprawnieniami. Ta funkcja nie wprowadza koszyka wielu produktów.

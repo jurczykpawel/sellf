@@ -163,3 +163,19 @@ wyłącznie wydania istniejące na GitHub.
 Uruchom `cd admin-panel && bun run test:upgrade-matrix`. Wymagania, osobne porty,
 sprzątanie i ograniczenia opisuje
 [README testów](https://github.com/jurczykpawel/sellf/blob/main/admin-panel/tests/upgrade-matrix/README.md).
+
+## Zakres kopii przed aktualizacją
+
+Aktualizator zachowuje kopię kodu aplikacji i konfiguracji, aby móc przywrócić poprzedni kod. **Nie tworzy kopii bazy i nie odtwarza bazy po udanej migracji.** Przed aktualizacją wykonaj osobną kopię bazy i sprawdź możliwość jej odtworzenia. Kopia bazy i powrót jednym przyciskiem są planowane na 2026.11.2.
+
+2026.11.1 zawiera jedną scaloną migrację po migracjach 2026.11.0. Używaj plików z docelowego wydania. Nie kopiuj historycznych migracji rozwojowych do instalacji.
+
+## Kandydaci do wydania
+
+Kandydat ma wersję `2026.11.1-rc.1` (tag Git `v2026.11.1-rc.1`) i jest publikowany jako prerelease. Zwykły aktualizator w panelu śledzi stabilne wydania i odmawia instalacji RC. Na instalacji testowej wybierz konkretny pakiet RC przez `--build-file` Stackpilota albo dokładny tag obrazu kontenera. Obrazy RC nie zmieniają `latest` ani miesięcznego aliasu. Po testach zainstaluj odpowiadające wydanie stabilne zwykłą procedurą wdrożenia.
+
+## Dla kontrybutorów
+
+Aktualizacje bibliotek i obrazów Docker są grupowane co miesiąc, a GitHub Actions co kwartał. Obowiązuje 14 dni oczekiwania i limit jednego otwartego PR na wpis ekosystemu. Aktualizacje minor i patch bibliotek produktu trafiają do grupy; major wymaga osobnej decyzji o wydaniu. Klasyfikacja i etykiety PR nie uruchamiają automatycznego scalania. Przed scaleniem przejrzyj zmiany i uruchom odpowiednie kontrole.
+
+Archiwa wydania i manifesty obrazów są podpisywane w osobnych zadaniach chronionego środowiska `release`. Zadania podpisujące sprawdzają manifest i tag wydania bez pobierania ani uruchamiania kodu repozytorium. Dla osób hostujących Sellf klucz, nazwy plików i sposób sprawdzania podpisu pozostają takie same. Zobacz [weryfikację wydania](/pl/deployment/).

@@ -16,3 +16,9 @@ Poruszasz się przyciskami albo strzałkami, a zamykasz klawiszem **Esc**. Krok,
 ## Dla samodzielnie hostujących
 
 Samouczki zapisują tylko informację, które samouczki widziało dane konto administratora (`tutorial_progress`), i nie tworzą żadnych danych przykładowych. Są częścią panelu i nie wymagają konfiguracji.
+
+## Edytor produktu
+
+Formularz produktu ma sześć sekcji: podstawy, dostawa, dane w koszyku, terminy i miejsca, strona oferty oraz sprzedaż i rozliczenia. **Co sprzedajesz?** pomaga zacząć od pliku, darmowego materiału, abonamentu, wsparcia, zestawu albo wydarzenia. Zmiana scenariusza pokazuje podgląd zmienianych ustawień i wymaga potwierdzenia. Ustawia istniejące pola, bez tworzenia nowego typu produktu.
+
+Podsumowanie **Kupujący otrzyma** uwzględnia ustawienia produktu i sklepu, w tym przelew tradycyjny i abonament. Na telefonie można je zwinąć. Błąd przy zapisie otwiera właściwą sekcję i przenosi fokus na pole do poprawienia. Lista błędów prowadzi do tych pól. Liczniki sekcji pokazują liczbę ustawionych pól koszyka i terminów.

@@ -50,3 +50,7 @@ Nie ma osobnego publicznego hosta API sandbox. Opcjonalny test połączenia wyma
 Tekst podstawy odwołujący się do art. 113, 43 lub 82 jest mapowany na udokumentowany
 wybór zwolnienia KSeF Fakturowni; oryginalny tekst zostaje w uwagach faktury.
 Autoryzację KSeF i automatyczną wysyłkę skonfiguruj w samej Fakturowni.
+
+## NIP i dane firmy
+
+Zwykły koszyk i profil produktu korzystają z jednej sekcji faktury. Numer NIP lub VAT UE ustala kraj firmy; polski NIP może pobrać dane z GUS po skonfigurowaniu integracji sklepu. Firma bez NIP lub spoza UE wybiera kraj i wpisuje nazwę oraz adres ręcznie. Adres ma osobne pola ulicy, kodu pocztowego i miasta. Osobny odbiorca wymaga polskiego NIP. Te same dane są używane przy płatności online i przelewie tradycyjnym. Zobacz [dane w koszyku](/pl/custom-checkout/).

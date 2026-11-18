@@ -405,6 +405,8 @@ All endpoints are prefixed with `/api/v1`. Every endpoint also supports `OPTIONS
 
 ### Deleting products and the archive
 
+In the panel, open **Products** and select the **Archive** filter to see retired offers. Removing a product with history archives it. Restoring leaves it inactive; review its settings and enable sales separately. Buyers keep their granted access.
+
 Orders, invoices and licenses are never deleted together with a product.
 
 - `DELETE /products/{id}` on a product **without** orders, licenses, buyer access or subscriptions deletes it: **204**.

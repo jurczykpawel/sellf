@@ -66,3 +66,7 @@ invoice request omit `invoice`. Products without a profile do not receive `order
 and retain their existing invoice format, plus `invoice.recipient` when the shop collects a recipient ([Webhooks](/webhooks/)). Existing `customFields` continue to carry resolved answers.
 
 See [Webhooks](/webhooks/) for endpoint configuration and delivery settings.
+
+## Changes during Stripe payment
+
+For an eligible open on-site Stripe Checkout Session, changing the cart updates its items in the same session. Changes to language, return URL or buyer email require a replacement session; payments already in progress are left to complete. Sellf records cart versions and fulfills the version Stripe actually charged, including its saved prices and entitlements. This does not add a multi-product shopping cart.

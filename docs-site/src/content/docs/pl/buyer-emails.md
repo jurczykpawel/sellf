@@ -32,3 +32,11 @@ Ustaw ten sam sekret podpisu po obu stronach. Wybierz potrzebne zdarzenia: `purc
 Odbiorca sprawdza podpis, zapobiega ponownej wysyłce na podstawie identyfikatora dostawy i wysyła mail na `customer.email`. Linki uczestników i klucze licencji są poufne — nie zapisuj ich w logach aplikacji. Mail transakcyjny nie jest zapisem do marketingowej bazy adresów.
 
 Mapowania i szablony Mailstacka są rozwijane osobno w jego repozytorium. Sprawdź tam obsługę wybranych zdarzeń przed wyłączeniem wysyłki Supabase. Włączenie tej samej automatyzacji w obu kanałach może spowodować podwójne maile.
+
+## Limity wysyłki i oczekujące maile
+
+Żądania wysłania linku logowania i worker ponowień mają wspólny limit **5 prób na skrzynkę w ciągu 24 godzin**. Warianty adresu trafiające do tej samej skrzynki, w tym dopiski po plusie i kropki w Gmailu, korzystają z jednego limitu. Obowiązuje on niezależnie od limitów Supabase Auth i dostawcy SMTP. Po jego osiągnięciu wiadomość w kolejce czeka kolejne 24 godziny bez zużycia próby ponowienia.
+
+Kolejka poczty uwierzytelniającej podejmuje do sześciu prób ponowienia. Nadany dostęp i wystawiona licencja pozostają ważne, gdy mail czeka. API nadania dostępu zwraca `license.email_pending`, a `POST /api/v1/licenses` zwraca `emailPending`. Ponowne **Przyznaj dostęp** może wznowić porzucony mail z licencją. Zobacz [SMTP i odstępy między próbami](/pl/email-setup/).
+
+Na serwerze z ciągłym procesem produkcyjnym aplikacja sprawdza kolejkę co minutę. W pozostałych środowiskach zaplanuj `/api/cron?job=auth-mail-retry` co minutę z nagłówkiem `Authorization: Bearer <CRON_SECRET>`. Sekret przechowuj w konfiguracji harmonogramu. To osobne zadanie niż ponawianie dostaw webhooków.
