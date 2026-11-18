@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import React from 'react';
+import { renderToString } from 'react-dom/server';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import SettingsTabs from '@/components/settings/SettingsTabs';
@@ -48,4 +49,20 @@ it('follows tutorial navigation between settings tabs without remounting and pre
   state.params = new URLSearchParams('tab=payments');
   view.rerender(React.createElement(SettingsTabs, { siteUrl: 'https://example.com' }));
   expect(screen.queryByText('ShopSettings')).not.toBeNull();
+});
+
+it('keeps settings tabs disabled until their click handlers are hydrated', () => {
+  const serverMarkup = document.createElement('div');
+  serverMarkup.innerHTML = renderToString(React.createElement(SettingsTabs, { siteUrl: 'https://example.com' }));
+  const tabs = [...serverMarkup.querySelectorAll('nav button')];
+  expect(tabs).toHaveLength(5);
+  for (const tab of tabs) expect(tab.hasAttribute('disabled')).toBe(true);
+  render(React.createElement(SettingsTabs, { siteUrl: 'https://example.com' }));
+  const payments = screen.getByRole('button', { name: 'tabs.payments' });
+  expect(payments.hasAttribute('disabled')).toBe(false);
+  fireEvent.click(screen.getByRole('button', { name: 'tabs.shop' }));
+  fireEvent.click(payments);
+  fireEvent.click(payments);
+  expect(screen.queryByText('StripeSettings')).not.toBeNull();
+  expect(payments.getAttribute('aria-pressed')).toBe('true');
 });

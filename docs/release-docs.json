@@ -395,5 +395,8 @@
   ],
   "e7664ce19100a090568fc45a94d64df9fe392c65": [
     "webhooks.md"
+  ],
+  "c555588da838ff9e5db4ce57a11e40df4f66cd43": [
+    "none \u2014 Technical settings tab hydration readiness, first-attempt test evidence and an existing PL/EN Stripe permission label; documented configuration steps and API contracts are unchanged."
   ]
 }
