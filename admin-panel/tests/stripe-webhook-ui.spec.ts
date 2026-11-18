@@ -1,21 +1,12 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
+import { STRIPE_API_VERSION, STRIPE_WEBHOOK_EVENTS } from '@/lib/constants';
+import { encryptSecret } from '@/lib/services/secret-encryption';
+import type { Page } from '@playwright/test';
 import { acceptAllCookies } from './helpers/consent';
 import { setAuthSession } from './helpers/admin-auth';
 import { openSettingsTab, PAYMENTS_TAB } from './helpers/settings-tabs';
 import { deleteChecked } from './helpers/db-cleanup';
-import { STRIPE_API_VERSION, STRIPE_WEBHOOK_EVENTS } from '@/lib/constants';
-import { encryptSecret } from '@/lib/services/secret-encryption';
-
-/**
- * Stripe Webhook UI Tests
- *
- * Tests visual rendering and state management of the webhook section
- * in StripeSettings WITHOUT calling the real Stripe API.
- * DB state is set directly via supabaseAdmin to simulate registered/not-registered.
- *
- * For integration tests (actual Stripe API calls), see stripe-webhook-registration.spec.ts
- */
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -53,10 +44,7 @@ test.describe('Stripe Webhook Section UI', () => {
       };
       addStyle();
     });
-    await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
     await setAuthSession(page, adminEmail, adminPassword);
-    await page.waitForTimeout(1000);
     await openSettingsTab(page, PAYMENTS_TAB, page.locator('h4:has-text("Webhook Endpoint")'), '/pl/dashboard/settings');
   };
 
@@ -225,7 +213,6 @@ test.describe('Stripe Webhook Section UI', () => {
     await expect(page.locator('button', { hasText: /skopiowano|copied/i })).toBeVisible();
 
     // Reverts back after ~2s
-    await page.waitForTimeout(2500);
     await expect(copyBtn).toBeVisible();
   });
 
@@ -290,5 +277,29 @@ test.describe('Stripe Webhook Section UI', () => {
     await expect(
       page.locator('code', { hasText: 'stripe listen --forward-to' })
     ).toBeVisible({ timeout: 10000 });
+  });
+
+  test('settings tabs become clickable after hydration and open payments with one click', async ({ page }) => {
+    await acceptAllCookies(page);
+    await setAuthSession(page, adminEmail, adminPassword);
+    let release!: () => void;
+    const scripts = new Promise<void>(resolve => { release = resolve; });
+    await page.route(/\/_next\/static\/chunks\/.*\.js(?:\?|$)/, async route => {
+      await scripts;
+      await route.continue();
+    });
+    try {
+      await page.goto('/pl/dashboard/settings', { waitUntil: 'commit' });
+      const tab = page.getByRole('button', { name: PAYMENTS_TAB });
+      await expect(tab).toBeVisible();
+      await expect(tab).toBeDisabled();
+      release();
+      await tab.click();
+      await expect(tab).toHaveAttribute('aria-pressed', 'true');
+      await expect(page.locator('h4', { hasText: 'Webhook Endpoint' })).toBeVisible({ timeout: 20000 });
+    } finally {
+      release();
+      await page.unrouteAll({ behavior: 'wait' });
+    }
   });
 });

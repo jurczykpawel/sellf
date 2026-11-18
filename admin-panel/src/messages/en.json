@@ -4338,7 +4338,8 @@
           "title": "Set Required Permissions",
           "description": "Configure the following permissions for Sellf to work properly:",
           "important": "Important",
-          "importantText": "Required permissions are marked with ⚠️. Without these, Sellf will not function properly."
+          "importantText": "Required permissions are marked with ⚠️. Without these, Sellf will not function properly.",
+          "webhookRecommendedNote": "Enables automatic webhook configuration"
         },
         "step5": {
           "title": "Create & Copy the Key",

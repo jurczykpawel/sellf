@@ -114,8 +114,9 @@ export default defineConfig({
     // Playwright starts its own server on 3777 to avoid conflicts with other dev servers on 3000
     baseURL: process.env.PLAYWRIGHT_BASE_URL || `http://localhost:${APP_PORT}`,
 
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
+    /* Failed first attempts need evidence because retries are disabled. */
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
   },
 
   /* Configure projects for major browsers */

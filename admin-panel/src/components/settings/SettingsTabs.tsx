@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Store, CreditCard, FileText, Wrench, KeyRound } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -35,6 +35,8 @@ const TABS = [
   { id: 'system' as TabId,      icon: Wrench,      labelKey: 'tabs.system' },
 ]
 
+const noopSubscribe = () => () => {}
+
 interface SettingsTabsProps {
   siteUrl: string
   initialCheckoutTheme?: string | null
@@ -42,6 +44,7 @@ interface SettingsTabsProps {
 }
 
 export default function SettingsTabs({ siteUrl, initialCheckoutTheme, hasLicenseIssuance }: SettingsTabsProps) {
+  const interactive = useSyncExternalStore(noopSubscribe, () => true, () => false)
   const t = useTranslations('settings')
   const searchParams = useSearchParams()
   // useSearchParams resolves identically on server and client, so the initial tab matches SSR (no hydration mismatch).
@@ -65,6 +68,8 @@ export default function SettingsTabs({ siteUrl, initialCheckoutTheme, hasLicense
           {TABS.map(({ id, icon: Icon, labelKey }) => (
             <button
               key={id}
+              disabled={!interactive}
+              aria-pressed={active === id}
               onClick={() => setActive(id)}
               className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
                 active === id

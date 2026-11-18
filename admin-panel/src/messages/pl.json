@@ -4338,7 +4338,8 @@
           "title": "Ustaw wymagane uprawnienia",
           "description": "Skonfiguruj poniższe uprawnienia aby Sellf działał prawidłowo:",
           "important": "Ważne",
-          "importantText": "Wymagane uprawnienia są oznaczone ⚠️. Bez nich Sellf nie będzie działał prawidłowo."
+          "importantText": "Wymagane uprawnienia są oznaczone ⚠️. Bez nich Sellf nie będzie działał prawidłowo.",
+          "webhookRecommendedNote": "Umożliwia automatyczną konfigurację webhooków"
         },
         "step5": {
           "title": "Utwórz i skopiuj klucz",
