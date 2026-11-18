@@ -7,12 +7,14 @@ import { encryptHeaderMap } from '@/lib/webhooks/custom-headers';
 // weaken that production guard, intercept the dispatcher's HTTP layer the same way
 // the dispatcher-custom-headers unit test does, and assert on what trigger() built:
 // custom header, extra placeholder-rendered fields, and the field-selected `data`.
-const captured: { headers?: Record<string, string>; body?: any; deliveries: Map<string, any> } = { deliveries: new Map() };
+let customizedSent: () => void;
+const customizedRequest = new Promise<void>(resolve => { customizedSent = resolve; });
+const deliveries = new Map<string, { headers: Record<string, string>; body: any }>();
 vi.mock('undici', () => ({
   fetch: vi.fn(async (_url: string, init: any) => {
-    captured.headers = init.headers;
-    captured.body = JSON.parse(init.body);
-    if (init.headers['X-Sellf-Delivery-Id']) captured.deliveries.set(init.headers['X-Sellf-Delivery-Id'], captured.body);
+    if (init.headers.Authorization !== 'Bearer T') await customizedRequest;
+    deliveries.set(init.headers['X-Sellf-Delivery-Id'], { headers: init.headers, body: JSON.parse(init.body) });
+    if (init.headers.Authorization === 'Bearer T') customizedSent();
     return new Response(init.body, { status: 200 });
   }),
 }));
@@ -31,6 +33,15 @@ const { WebhookService } = await import('@/lib/services/webhook-service');
 const admin = createClient(process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321', process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
 let endpointId: string;
+let otherEndpointId: string;
+
+async function capturedDelivery(event: string) {
+  const stored = await admin.from('webhook_logs').select('id').eq('endpoint_id', endpointId).eq('event_type', event).single();
+  expect(stored.error).toBeNull();
+  const captured = deliveries.get(stored.data!.id);
+  expect(captured).toBeDefined();
+  return captured!;
+}
 
 beforeAll(async () => {
   process.env.APP_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString('base64');
@@ -44,9 +55,15 @@ beforeAll(async () => {
     payload_field_selection: ['order'],
   }).select('id').single();
   endpointId = data!.id;
+  const other = await admin.from('webhook_endpoints').insert({
+    url: 'https://example.com/hook', events: ['purchase.completed'], is_active: true,
+    secret: 'whsec_other_test', product_filter_mode: 'all',
+  }).select('id').single();
+  expect(other.error).toBeNull();
+  otherEndpointId = other.data!.id;
 });
 
-afterAll(async () => { await admin.from('webhook_endpoints').delete().eq('id', endpointId); delete process.env.DEMO_MODE; });
+afterAll(async () => { await admin.from('webhook_endpoints').delete().in('id', [endpointId, otherEndpointId]); delete process.env.DEMO_MODE; });
 
 describe('trigger applies endpoint customization', () => {
   it('sends selected data + extra fields + custom header (real nested purchase payload) @J72', async () => {
@@ -58,7 +75,8 @@ describe('trigger applies endpoint customization', () => {
       order: { amount: 14900, currency: 'usd', paymentIntentId: 'pi_X' },
       product: { name: 'Webinar', slug: 'webinar' },
     }, admin);
-    expect(captured.headers!['Authorization']).toBe('Bearer T');
+    const captured = await capturedDelivery('purchase.completed');
+    expect(captured.headers['Authorization']).toBe('Bearer T');
     expect(captured.body.brand).toBe('tsa');
     expect(captured.body.to).toBe('a@b.com');
     expect(captured.body.amount).toBe('149.00'); // {{amount_major}} from order.amount (cents)
@@ -72,6 +90,7 @@ it('keeps order links in delivery and returns the stored payload from the logs A
   expect(error).toBeNull();
   const payUrl = 'https://example.com/en/order/test/transfer?token=order-link-fixture';
   await WebhookService.trigger('order.placed', { customer: { email: 'a@b.com' }, order: { payUrl } }, admin);
+  const captured = await capturedDelivery('order.placed');
   expect(captured.body.data.order.payUrl).toBe(payUrl);
   const stored = await admin.from('webhook_logs').select('payload, response_body, status, http_status').eq('endpoint_id', endpointId).eq('event_type', 'order.placed').single();
   expect(stored.error).toBeNull();
@@ -98,7 +117,7 @@ it.each(['manual', 'cron'])('retains order delivery metadata after %s retry @J72
       const { handleWebhookDeliveriesRetry } = await import('@/app/api/cron/route');
       expect((await handleWebhookDeliveriesRetry()).processed).toBeGreaterThan(0);
     }
-    expect(captured.deliveries.get(row!.id)?.data.order.payUrl).toBe(outgoing.data.order.payUrl);
+    expect(deliveries.get(row!.id)?.body.data.order.payUrl).toBe(outgoing.data.order.payUrl);
     const stored = await admin.from('webhook_logs').select('*').eq('id', row!.id).single();
     expect(stored.error).toBeNull();
     expect(stored.data).toMatchObject({ status: 'success', http_status: 200, response_body: null, attempt_count: 2 });
