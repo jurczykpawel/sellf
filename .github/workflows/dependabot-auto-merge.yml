@@ -48,6 +48,6 @@ jobs:
         env:
           LABEL: ${{ steps.kind.outputs.kind }}
         run: |
-          gh label create "$LABEL" --force --color "$([ "$LABEL" = security ] && echo d73a4a || echo fbca04)" \
+          gh label create "$LABEL" --repo "$GITHUB_REPOSITORY" --force --color "$([ "$LABEL" = security ] && echo d73a4a || echo fbca04)" \
             --description "Dependabot update classification" >/dev/null
           gh pr edit "$PR_URL" --add-label "$LABEL"
