@@ -19,7 +19,7 @@ RUN bun install --frozen-lockfile --ignore-scripts
 # Next.js builds and runs on Node, as in CI (build job) and on production (PM2 --interpreter
 # node). In oven/bun images `node` is a Bun shim, and Bun 1.3.14 segfaults at the end of
 # `next build` with Next 16.3.
-FROM node:22.23.4-trixie-slim@sha256:be1e2a3dc2c4fd68cdfadad2a696a280e0d2749098bee509230174d72fb768c6 AS node-base
+FROM node:22.23.5-trixie-slim@sha256:68c76cfad89921b927eae28ba21407475e29d0ce450afcdbe70c1532db042b64 AS node-base
 
 # --- Build ---
 FROM node-base AS builder
