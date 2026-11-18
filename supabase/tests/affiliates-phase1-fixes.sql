@@ -63,7 +63,9 @@ DO $$ DECLARE product uuid; coupon uuid; payment uuid; BEGIN
   FROM public.affiliate_claim_work(100) WHERE payment_id=payment),'unbound work completes without session facts');
  UPDATE public.affiliate_work SET status='pending',requested_generation=requested_generation+1 WHERE payment_id=payment;
  DELETE FROM public.products WHERE id=product;
- PERFORM pg_temp.check_that(NOT EXISTS(SELECT 1 FROM public.payment_transactions WHERE id=payment),'ordinary coupon product deletes with pending work');
+ PERFORM pg_temp.check_that(NOT EXISTS(SELECT 1 FROM public.products WHERE id=product),'ordinary coupon product deletes with pending work');
+ PERFORM pg_temp.check_that((SELECT product_id IS NULL AND product_name='Ordinary coupon product' FROM public.payment_transactions WHERE id=payment),'deleted product retains its payment snapshot');
+ PERFORM pg_temp.check_that((SELECT status='pending' FROM public.affiliate_work WHERE payment_id=payment),'retained payment keeps pending work');
 END $$;
 ROLLBACK TO deletion;
 SAVEPOINT readiness;

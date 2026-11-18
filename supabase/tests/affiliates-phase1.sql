@@ -56,7 +56,7 @@ SELECT public.affiliate_apply_sync(payment_id,lease_token,requested_generation,'
 FROM claimed;
 SELECT pg_temp.check_that((SELECT accrued_minor=2000 AND base_minor=10000 AND eligible_at IS NOT NULL FROM public.affiliate_commissions WHERE payment_id='af000000-0000-4000-a000-000000000010'),'canonical gross/net accrual');
 SELECT pg_temp.check_that((SELECT eligible_at IS NULL FROM public.affiliate_commissions WHERE payment_id='af000000-0000-4000-a000-000000000012'),'unlimited refunds never mature');
-SELECT pg_temp.check_that((SELECT count(*)=1 FROM public.affiliate_ledger l JOIN public.affiliate_commissions c ON c.id=l.commission_id WHERE c.payment_id='af000000-0000-4000-a000-000000000010' AND kind='accrual'),'one accrual per line');
+SELECT pg_temp.check_that((SELECT count(*)=1 FROM public.affiliate_ledger l JOIN public.affiliate_commissions c ON c.id=l.commission_id WHERE c.payment_id='af000000-0000-4000-a000-000000000010' AND l.kind='accrual'),'one accrual per line');
 CREATE TEMP TABLE reserved AS SELECT * FROM public.affiliate_reserve('dddddddd-0000-4000-a000-000000000000','af000000-0000-4000-a000-000000000001','PLN',now(),1,1,'demo-payee');
 SELECT pg_temp.check_that((SELECT earnings_minor=2000 AND status='reserved' FROM reserved),'reserve full earnings');
 SELECT pg_temp.check_that(NOT EXISTS(SELECT 1 FROM public.affiliate_ledger l JOIN reserved r ON r.id=l.payout_id WHERE l.kind='settlement'),'reservation does not settle');
@@ -123,8 +123,8 @@ SELECT pg_temp.check_that(pg_temp.rejects($q$DELETE FROM public.affiliate_work W
 INSERT INTO public.affiliate_rules(product_id,revision,enabled,percentage_bps,created_at)
 VALUES('af000000-0000-4000-a000-000000000002',2,false,1000,'2026-01-03 00:00:00+00');
 INSERT INTO public.affiliate_memberships(id,user_id,code,status,display_name,accepted_terms_version,accepted_at)
-VALUES('af000000-0000-4000-a000-000000000020','dddddddd-0000-4000-a000-000000000000','second-partner','approved','Second Partner','demo-v1',now());
-SELECT public.affiliate_coupon_bind('dddddddd-0000-4000-a000-000000000000','af000000-0000-4000-a000-000000000005','af000000-0000-4000-a000-000000000020',1);
+VALUES('af000000-0000-4000-a000-000000000120','dddddddd-0000-4000-a000-000000000000','second-partner','approved','Second Partner','demo-v1',now());
+SELECT public.affiliate_coupon_bind('dddddddd-0000-4000-a000-000000000000','af000000-0000-4000-a000-000000000005','af000000-0000-4000-a000-000000000120',1);
 INSERT INTO public.payment_transactions(id,product_id,customer_email,amount,currency,status,session_id,fulfillment_pending)
 VALUES('af000000-0000-4000-a000-000000000030','af000000-0000-4000-a000-000000000002','buyer@demo.sellf.app',12300,'PLN','completed','cs_affiliate_self_test',true),
  ('af000000-0000-4000-a000-000000000031','af000000-0000-4000-a000-000000000002','other@example.com',12300,'PLN','completed','cs_affiliate_disabled_test',false);

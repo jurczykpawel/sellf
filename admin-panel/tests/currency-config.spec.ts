@@ -2,6 +2,7 @@ import { test, expect, Page } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { acceptAllCookies } from './helpers/consent';
 import { setAuthSession } from './helpers/admin-auth';
+import pl from '@/messages/pl.json';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -225,7 +226,7 @@ test.describe('Currency API Configuration', () => {
 
   test('should show config status (database vs env)', async ({ page }) => {
     // First save config via DB with a non-default provider
-    await supabaseAdmin
+    const { error } = await supabaseAdmin
       .from('integrations_config')
       .update({
         currency_api_provider: 'exchangerate-api',
@@ -236,18 +237,23 @@ test.describe('Currency API Configuration', () => {
       })
       .eq('id', 1);
 
+    expect(error).toBeNull();
+
     await loginAsAdmin(page);
-    await page.goto('/dashboard/integrations');
+    await page.goto('/pl/dashboard/integrations');
     await page.waitForLoadState('domcontentloaded');
 
     // Click on Currency tab
-    const currencyTab = page.locator('button', { hasText: /Currency|Waluta/i });
+    const currencyTab = page.getByRole('button', { name: pl.integrations.tabs.currency, exact: true });
     await currencyTab.click();
-    await page.waitForTimeout(500);
 
-    // Should show "Currency API is configured in the database" status description
-    const statusInfo = page.locator('text=/Currency API is configured in the database|bezpiecznie zaszyfrowany/i');
-    await expect(statusInfo).toBeVisible({ timeout: 10000 });
+    const envProvider = process.env.NEXT_PUBLIC_CURRENCY_PROVIDER || 'ecb';
+    const status = pl.settings.currency.status;
+    const description = envProvider === 'ecb'
+      ? status.configuredDatabaseDescription
+      : status.configuredBothDescription;
+    await expect(page.getByText(description, { exact: true })).toBeVisible();
+    await expect(page.locator('select#provider')).toHaveValue('exchangerate-api');
   });
 
   test('should delete currency config from database', async ({ page }) => {
