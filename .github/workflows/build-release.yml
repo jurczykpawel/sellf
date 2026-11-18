@@ -91,7 +91,14 @@ jobs:
         # fixed release yet) reaches only build/dev tooling (next-intl message
         # extractor watcher, @next/eslint-plugin-next); absent from the standalone
         # build and the Docker image. Remove once a fixed braces/micromatch ships.
-        run: bun audit --audit-level=high --ignore=GHSA-vfj7-8cjw-p6xm
+        # Reviewed exception (2026-11-18): GHSA-fc5q-39xc-vjpf (picomatch <=4.0.7,
+        # no fixed release yet) needs an attacker-supplied glob pattern. The
+        # standalone build ships only Next.js's vendored copy, used by
+        # match-remote-pattern/match-local-pattern with patterns from next.config.ts;
+        # the app never builds globs from user input. Dev/test tooling (vitest,
+        # eslint, next-intl watcher) reads patterns from repository config only.
+        # Remove once a fixed picomatch ships.
+        run: bun audit --audit-level=high --ignore=GHSA-vfj7-8cjw-p6xm --ignore=GHSA-fc5q-39xc-vjpf
 
       - name: Scan for leaked secrets
         uses: trufflesecurity/trufflehog@3bd2b5887eb0efb8fa18bfd1d296032924e4ffdc # v3.99.9
