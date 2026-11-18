@@ -1,5 +1,6 @@
 /** Real product writes, outbox, signed queue and owned HTTP receiver. */
 import { createHash, randomBytes } from 'node:crypto';
+import { lookup } from 'node:dns/promises';
 import { test, expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { createTestAdmin, setAuthSession, supabaseAdmin } from './helpers/admin-auth';
@@ -24,8 +25,11 @@ test('product CRUD delivers signed snapshots and retains selected-product routin
       .is('dispatched_at', null)).error).toBeNull();
     tunnel = await webhookTunnel(receiver.url);
     await expect.poll(async () => {
-      try { return (await fetch(tunnel!.url)).status; } catch { return 0; }
-    }, { timeout: 30_000 }).toBe(401);
+      try {
+        await lookup(new URL(tunnel!.url).hostname, { all: true });
+        return (await fetch(tunnel!.url, { signal: AbortSignal.timeout(5000) })).status;
+      } catch { return 0; }
+    }, { timeout: 90_000, message: 'Public receiver must resolve through the application system resolver and accept HTTP' }).toBe(401);
     const key = `sf_test_${randomBytes(32).toString('hex')}`;
     const auth = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
     const signedIn = await auth.auth.signInWithPassword({ email: admin.email, password: admin.password });
