@@ -27,6 +27,15 @@ other PM2 processes. It removes its process and `/tmp/sellf-ui-upgrade-matrix`.
 This checks native launcher acknowledgement and restart; a full signed upgrade
 under the owner's PM2 service cgroup is still a separate deployment check.
 
+The PM2 curl transport reads the target tag from `release.json`. It answers
+`github.com/jurczykpawel/sellf/releases/latest` with a 302 tag redirect and serves
+only that tag's local release files. Both response headers (`-D`) and HTTP status
+and redirect output (`-w`) follow the installed updater's contract. Missing files
+return HTTP 404; unconfigured GitHub requests fail locally rather than reaching
+GitHub. Local health checks and database RPCs still use real curl. Run
+`bun run test:unit tests/unit/scripts/upgrade-matrix-transport.test.ts` to check
+this contract without Docker or release downloads.
+
 For repeat development runs against the suite's own already-running stack only,
 use `--stack=/path/to/matrix-stack`. The runner verifies its project ID and API
 ports, and leaves that explicitly supplied stack running for further checks.

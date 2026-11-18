@@ -12,21 +12,58 @@ JS
 cat > /transport/curl <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
-for arg in "$@"; do
-  case "$arg" in
-    https://api.github.com/repos/*/releases/latest) cat /fixtures/release.json; exit 0 ;;
-    https://github.com/*/releases/download/*)
-      name="${arg##*/}"
-      destination=''
-      while [ "$#" -gt 0 ]; do
-        if [ "$1" = '-o' ]; then destination="$2"; break; fi
-        shift
-      done
-      [ -n "$destination" ] && cp "/fixtures/$name" "$destination"
-      exit 0 ;;
+args=("$@")
+url='' destination='' headers='' write_out=''
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -o|-D|-w)
+      case "$1" in
+        -o) destination="$2" ;;
+        -D) headers="$2" ;;
+        -w) write_out="$2" ;;
+      esac
+      shift ;;
+    https://*|http://*) url="$1" ;;
   esac
+  shift
 done
-exec /usr/bin/curl "$@"
+base=https://github.com/jurczykpawel/sellf/releases
+case "$url" in
+  "$base/latest"|"$base/download/"*) ;;
+  https://github.com/*|https://api.github.com/*)
+    printf 'Unconfigured matrix GitHub request: %s\n' "$url" >&2; exit 22 ;;
+  *) set -- "${args[@]}"; exec /usr/bin/curl "$@" ;;
+esac
+tag=$(jq -er '.tag_name' /fixtures/release.json)
+status=200 location='' asset=''
+case "$url" in
+  "$base/latest") status=302; location="$base/tag/$tag" ;;
+  "$base/download/$tag/"*)
+    asset="${url##*/}"
+    case "$asset" in
+      sellf-build.tar.gz|sellf-build.manifest|sellf-build.manifest.sig|sellf-build.v2.manifest|sellf-build.v2.manifest.sig) ;;
+      *) exit 22 ;;
+    esac
+    [ "$url" = "$base/download/$tag/$asset" ] || exit 22
+    [ -f "/fixtures/$asset" ] || status=404 ;;
+  *) printf 'Unconfigured matrix release: %s\n' "$url" >&2; exit 22 ;;
+esac
+if [ -n "$headers" ]; then
+  {
+    printf 'HTTP/2 %s\r\n' "$status"
+    [ -z "$location" ] || printf 'Location: %s\r\n' "$location"
+    printf '\r\n'
+  } > "$headers"
+fi
+if [ -n "$destination" ]; then
+  if [ "$status" = 200 ]; then cp "/fixtures/$asset" "$destination"; else : > "$destination"; fi
+elif [ "$status" = 200 ]; then
+  cat "/fixtures/$asset"
+fi
+if [ -n "$write_out" ]; then
+  write_out="${write_out//\%\{http_code\}/$status}"
+  printf '%s' "${write_out//\%\{redirect_url\}/$location}"
+fi
 SH
 chmod +x /transport/curl
 cd "$INSTALL/.next/standalone/admin-panel"
