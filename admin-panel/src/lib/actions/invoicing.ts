@@ -15,12 +15,12 @@ export async function getInvoiceSettings() {
 }
 export async function saveInvoiceSettings(input: unknown) {
   const parsed = settingsSchema.safeParse(input);
-  if (!parsed.success) return { success: false, error: 'Invalid invoice settings' };
+  if (!parsed.success) return { success: false, error: 'Invalid invoice settings', fieldErrors: Object.fromEntries(parsed.error.issues.map(issue => [String(issue.path[0]), 'invalidField'])) }; 
   return withAdminClient(async ({ dataClient, user }) => {
     const { token, ...settings } = parsed.data;
     const previous = await readInvoiceConfig(dataClient);
-    if (settings.provider !== 'none' && !token && !previous?.token) return { success: false, error: 'API token required' };
-    if (previous?.domain && previous.domain !== settings.domain && !token) return { success: false, error: 'API token required for new account' };
+    if (settings.provider !== 'none' && !token && !previous?.token) return { success: false, error: 'API token required', fieldErrors: { token: 'tokenRequired' } };
+    if (previous?.domain && previous.domain !== settings.domain && !token) return { success: false, error: 'API token required for new account', fieldErrors: { token: 'tokenRequired' } };
     // Settings and their audit entry commit together (save_invoicing_config): a refused entry saves
     // nothing, and no entry exists for settings that were not saved.
     const { error } = await dataClient.rpc('save_invoicing_config', {

@@ -11,7 +11,7 @@ export const settingsSchema = z.object({
   mode: z.enum(['auto', 'manual']), exemption: z.string().max(1000),
   template: z.string().min(1).max(300).refine(v => v.includes('{product}')),
   token: z.string().trim().max(1000).optional(),
-}).strict().refine(v => v.provider === 'none' || Boolean(v.domain));
+}).strict().refine(v => v.provider === 'none' || Boolean(v.domain), { path: ['domain'] });
 export interface InvoiceConfig {
   id: boolean; instance_id: string; provider: 'none' | 'fakturownia'; domain: string;
   token: EncryptedConfig | null; mode: 'auto' | 'manual'; auto_since: string | null; exemption: string; template: string;

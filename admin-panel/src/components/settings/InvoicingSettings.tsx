@@ -1,12 +1,14 @@
 'use client';
 /** Invoice provider settings. @see lib/actions/invoicing.ts */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { checkInvoiceConnection, getInvoiceSettings, saveInvoiceSettings } from '@/lib/actions/invoicing';
 
 export default function InvoicingSettings() {
   const t = useTranslations('invoicing');
   const [form, setForm] = useState({ provider: 'none', domain: '', mode: 'manual', exemption: '', template: '{product} {date} {session} {tier}', token: '' });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const section = useRef<HTMLElement>(null);
   const [ready, setReady] = useState(false), [busy, setBusy] = useState(false), [message, setMessage] = useState('');
   useEffect(() => { let active = true; getInvoiceSettings().then(r => {
     if (!active) return;
@@ -15,17 +17,23 @@ export default function InvoicingSettings() {
   }).catch(() => { if (active) setMessage(t('error')); }); return () => { active = false; }; }, [t]);
   async function run(check: boolean) {
     setBusy(true);
+    setFieldErrors({});
     try {
       const saved = await saveInvoiceSettings(form);
+      if (!saved.success && 'fieldErrors' in saved && saved.fieldErrors) {
+        setFieldErrors(saved.fieldErrors);
+        const first = Object.keys(saved.fieldErrors)[0];
+        section.current?.querySelector<HTMLInputElement>(`[name="${first}"]`)?.focus();
+      }
       const result = saved.success && check ? await checkInvoiceConnection() : saved;
       setMessage(t(result.success ? check ? 'connected' : 'saved' : 'error'));
       if (saved.success) setForm(f => ({ ...f, token: '' }));
     } catch { setMessage(t('error')); }
     finally { setBusy(false); }
   }
-  const field = (key: 'domain' | 'token' | 'exemption' | 'template') => <label className="block" key={key}>{t(key)}<input className="block w-full border border-sf-border p-2 bg-sf-base" type={key === 'token' ? 'password' : 'text'} autoComplete="off" value={form[key]} maxLength={key === 'template' ? 300 : 1000} onChange={e => setForm({ ...form, [key]: e.target.value })} /></label>;
+  const field = (key: 'domain' | 'token' | 'exemption' | 'template') => <label className="block" key={key}>{t(key)}<input className="block w-full border border-sf-border p-2 bg-sf-base" aria-label={t(key)} name={key} id={`invoice-${key}`} aria-invalid={Boolean(fieldErrors[key])} aria-describedby={fieldErrors[key] ? `invoice-${key}-error` : undefined} type={key === 'token' ? 'password' : 'text'} autoComplete="off" value={form[key]} maxLength={key === 'template' ? 300 : 1000} onChange={e => { setForm({ ...form, [key]: e.target.value }); setFieldErrors(errors => { const next = { ...errors }; delete next[key]; return next; }); }} />{fieldErrors[key] && <span id={`invoice-${key}-error`} role="alert" className="text-sf-danger">{t(`validation.${key}`)}</span>}</label>;
   const disabled = form.provider === 'none';
-  return <section aria-label={t('title')} className="space-y-4 border border-sf-border p-6">
+  return <section ref={section} aria-label={t('title')} className="space-y-4 border border-sf-border p-6">
     <h2 className="text-xl font-semibold">{t('title')}</h2>
     <label className="block">{t('provider')}<select aria-label={t('provider')} className="block" value={form.provider} onChange={e => setForm({ ...form, provider: e.target.value })}><option value="none">{t('none')}</option><option value="fakturownia">Fakturownia</option></select></label>
     {/* Disabled: the provider fields are hidden but kept in the form, so switching back shows the saved values. */}
