@@ -423,7 +423,7 @@ it('returns an actionable expired session code before saving buyer data', async 
   mocks.sessionsRetrieve.mockResolvedValue({ id: SESSION_ID, status: 'expired', metadata: { product_id: PRODUCT_ID } });
   const response = await POST(makeRequest(SESSION_ID));
   expect(response.status).toBe(409);
-  expect(await response.json()).toMatchObject({ success: false, code: 'checkout_session_expired' });
+  expect(await response.json()).toMatchObject({ success: false, code: 'checkout_session_expired', error: expect.any(String) });
   expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
   expect(mocks.adminRpc).not.toHaveBeenCalled();
 });

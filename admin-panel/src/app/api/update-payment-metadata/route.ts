@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
     if (isCheckoutSession) {
       const session = await stripe.checkout.sessions.retrieve(stripeObjectId);
       if (session?.status === 'expired') {
-        return NextResponse.json({ success: false, code: 'checkout_session_expired' }, { status: 409 });
+        return NextResponse.json({ success: false, error: 'Checkout session has expired', code: 'checkout_session_expired' }, { status: 409 });
       }
       if (!session || session.status !== 'open') {
         return NextResponse.json(
@@ -401,7 +401,7 @@ export async function POST(request: NextRequest) {
       });
       if (saveError?.code === ORDER_DETAILS_TOO_LARGE_SQLSTATE) return detailsTooLarge();
       if (saveError) return NextResponse.json({ success: false, error: 'Failed to save order details' }, { status: 500 });
-      if (saved !== 1) return NextResponse.json({ success: false, code: 'quantity_snapshot_mismatch' }, { status: 409 });
+      if (saved !== 1) return NextResponse.json({ success: false, error: 'Checkout quantity has changed', code: 'quantity_snapshot_mismatch' }, { status: 409 });
       const personalFields = new Set([
         'first_name', 'last_name', 'full_name', 'email', 'nip', 'tax_id', 'company_name',
         'address', 'city', 'postal_code', 'country', 'phone', 'buyer', 'recipient',
