@@ -4,8 +4,10 @@ import { test, expect } from '@playwright/test';
 import { createTestUser, setAuthSession, supabaseAdmin as db } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
 import { extractMagicLink, waitForEmail } from './helpers/mailpit';
+import { useSupabaseBuyerEmails } from './helpers/buyer-email-setting-playwright';
 import { signTransferToken } from '@/lib/orders/transfer-token';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
+useSupabaseBuyerEmails();
 const products: string[] = [];
 async function checked<T>({ data, error }: { data: T; error: unknown }): Promise<T> { if (error) throw error; return data; }
 async function product(extra: Record<string, unknown> = {}) {
@@ -13,17 +15,13 @@ async function product(extra: Record<string, unknown> = {}) {
   const p = (await checked(await db.from('products').insert({ name: `Buyer course ${id}`, slug: `buyer-${id}`, price: 20, currency: 'PLN', is_active: true, ...extra }).select('id,slug,name').single()))!;
   products.push(p.id); return p;
 }
-let shop: { id: string; supabase_buyer_emails: boolean };
 let tracking: { id: string; cookie_consent_enabled: boolean | null };
 test.beforeAll(async () => {
   tracking = (await checked(await db.from('integrations_config').select('id,cookie_consent_enabled').single()))!;
   await checked(await db.from('integrations_config').update({ cookie_consent_enabled: true }).eq('id', tracking.id));
-  shop = (await checked(await db.from('shop_config').select('id,supabase_buyer_emails').single()))!;
-  await checked(await db.from('shop_config').update({ supabase_buyer_emails: true }).eq('id', shop.id));
 });
 test.afterAll(async () => {
   await db.from('integrations_config').update({ cookie_consent_enabled: tracking.cookie_consent_enabled }).eq('id', tracking.id);
-  await db.from('shop_config').update({ supabase_buyer_emails: shop.supabase_buyer_emails }).eq('id', shop.id);
   await db.from('guest_purchases').delete().in('product_id', products);
   await db.from('payment_transactions').delete().in('product_id', products);
   await db.from('subscriptions').delete().in('product_id', products);
@@ -86,6 +84,10 @@ for (const mode of ['inactive', 'archived'] as const) {
       }).toBeTruthy();
       expect(await checked(await db.from('user_product_access').select('product_id').eq('user_id', userId!))).toEqual([{ product_id: p.id }]);
       await page.goto('/pl/my-products'); await expect(page.getByText(p.name, { exact: true })).toBeVisible();
+      if (mode === 'inactive') {
+        await expect(page.getByText('Sprzedawca wstrzymał dostęp do tego produktu. Twój zakup pozostaje zapisany.')).toBeVisible();
+        await expect(page.getByRole('link', { name: 'Otwórz produkt', exact: true })).toHaveCount(0);
+      }
     } finally { if (userId) await db.auth.admin.deleteUser(userId); }
   });
 }
