@@ -3334,7 +3334,7 @@ GRANT EXECUTE ON FUNCTION public.order_access_expiry(uuid, uuid, uuid) TO servic
 UPDATE public.user_product_access SET independent_access = jsonb_build_object('expiresAt', access_expires_at)
 WHERE grant_source IN ('manual', 'free', 'unknown');
 WITH eligible AS MATERIALIZED (
-  SELECT id, user_id, product_id, session_id, status, access_terms, bundle_components_recorded_at
+  SELECT id, user_id, product_id, session_id, bundle_components_recorded_at
   FROM public.payment_transactions
   WHERE subscription_id IS NULL AND (status IN ('completed', 'partially_refunded')
     OR (status = 'awaiting_payment' AND coalesce((metadata->>'access_on_placement')::boolean, false)))
@@ -3363,8 +3363,6 @@ WITH eligible AS MATERIALIZED (
   FROM eligible t JOIN buyers u ON u.id = t.id JOIN products p ON p.id = t.id
   JOIN public.user_product_access a ON a.user_id = u.user_id AND a.product_id = p.product_id
   WHERE a.subscription_id IS NULL AND (a.transfer_transaction_id IS NULL OR a.transfer_transaction_id = t.id)
-    AND (t.status <> 'awaiting_payment' OR a.transfer_transaction_id = t.id
-      OR t.access_terms ? (a.user_id::text || ':' || a.product_id::text))
   GROUP BY t.id
 )
 UPDATE public.payment_transactions t SET access_terms = known.terms || t.access_terms

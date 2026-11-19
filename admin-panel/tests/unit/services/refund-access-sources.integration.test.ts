@@ -324,3 +324,19 @@ it('adds no free period to an already permanent paid entitlement @J34', () => {
     expect(f.access()).toBeNull();
   } finally { f.cleanup(); }
 });
+
+it('preserves an effective legacy placement transfer after a later purchase cleared its link @J34', () => {
+  const f = fixture();
+  try {
+    sql(`UPDATE public.products SET auto_grant_duration_days=365 WHERE id='${f.product}';`);
+    const transfer = f.buy(f.product,'bank_transfer','awaiting_payment');
+    const paid = f.buy();
+    sql(`UPDATE public.payment_transactions SET created_at=now()-interval '100 days',access_terms='{}' WHERE id='${transfer}';
+      UPDATE public.payment_transactions SET created_at=now()-interval '90 days',paid_at=now()-interval '90 days',access_terms='{}' WHERE id='${paid}';`);
+    expect(f.access().transfer_transaction_id).toBeNull();
+    const original = f.access().access_expires_at;
+    backfill(f.user);
+    f.refund(paid);
+    expect(f.access()?.access_expires_at).toBe(original);
+  } finally { f.cleanup(); }
+});
