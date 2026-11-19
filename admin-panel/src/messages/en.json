@@ -2949,6 +2949,8 @@
       "deleteExpiredPartial": "Deleted {deleted} expired coupons, {failed} failed",
       "form": {
         "limitInvalid": "Enter a whole number from 1 to {max}, or leave empty for no limit.",
+        "nameInvalid": "Name must be 200 characters or less.",
+        "emailInvalid": "Enter a valid email address.",
         "codeInvalid": "Use letters, numbers, hyphens or underscores, without spaces.",
         "percentageInvalid": "Enter a discount greater than 0 and no more than 100%.",
         "valueInvalid": "Enter a valid discount value.",

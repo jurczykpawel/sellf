@@ -11,6 +11,7 @@
 
 'use client';
 
+import { isValidEmailFormat } from '@/lib/validations/email-format';
 import { currencyExponent } from '@/lib/currency/minor-units';
 import React, { useState, useEffect, useRef } from 'react';
 import { AffiliateCouponEditor } from '@/components/affiliates/products/Settings';
@@ -90,6 +91,10 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
     field?.scrollIntoView?.({ block: 'center' });
     field?.focus();
   }, [rejections]);
+  const [emailAttempted, setEmailAttempted] = useState(false);
+  const nameInvalid = (formData.name?.length ?? 0) > 200;
+  const emailInvalid = (emailInput.trim() !== '' && !isValidEmailFormat(emailInput.trim())) || !!formData.allowed_emails?.some(email => !isValidEmailFormat(email));
+  const emailError = (emailAttempted || rejections > 0) && emailInvalid;
   const [submitted, setSubmitted] = useState(false);
   const codeInvalid = !/^[A-Za-z0-9_-]{1,50}$/.test(formData.code || '');
   const valueInvalid = couponValueError(formData.discount_type || '', formData.discount_value ?? NaN, formData.currency || defaultCurrency) !== null;
@@ -121,7 +126,7 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
     e.preventDefault();
     setSubmitted(true);
     if (!currencyLoaded) return;
-    if (codeInvalid || valueInvalid || globalLimitInvalid || userLimitInvalid) { setRejections(count => count + 1); return; }
+    if (codeInvalid || valueInvalid || globalLimitInvalid || userLimitInvalid || nameInvalid || emailInvalid) { setRejections(count => count + 1); return; }
     if (!e.currentTarget.reportValidity()) return;
     
     // Ensure currency is null for percentage discounts to satisfy DB constraint
@@ -134,10 +139,12 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
   };
 
   const addEmail = () => {
-    if (emailInput && !formData.allowed_emails?.includes(emailInput)) {
+    setEmailAttempted(true);
+    if (!isValidEmailFormat(emailInput.trim())) return;
+    if (emailInput.trim() && !formData.allowed_emails?.includes(emailInput.trim())) {
       setFormData(prev => ({
         ...prev,
-        allowed_emails: [...(prev.allowed_emails || []), emailInput]
+        allowed_emails: [...(prev.allowed_emails || []), emailInput.trim()]
       }));
       setEmailInput('');
     }
@@ -202,14 +209,19 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
                 {codeError && <p id="coupon-code-error" role="alert" className="mt-1 text-xs text-sf-danger">{t('form.codeInvalid')}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium text-sf-body mb-1">{t('form.nameLabel')}</label>
+                <label htmlFor="coupon-name" className="block text-sm font-medium text-sf-body mb-1">{t('form.nameLabel')}</label>
                 <input
                   type="text"
+                  id="coupon-name"
+                  maxLength={200}
+                  aria-invalid={nameInvalid}
+                  aria-describedby={nameInvalid ? 'coupon-name-error' : undefined}
                   value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-4 py-2 border-2 border-sf-border-medium focus:ring-2 focus:ring-sf-accent bg-sf-input text-sf-heading"
                   placeholder={t('form.namePlaceholder')}
                 />
+                {nameInvalid && <p id="coupon-name-error" role="alert" className="mt-1 text-xs text-sf-danger">{t('form.nameInvalid')}</p>}
               </div>
             </div>
           </div>
@@ -406,10 +418,13 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
 
             {/* Emails */}
             <div>
-              <label className="block text-sm font-medium text-sf-body mb-2">{t('form.emailRestriction')}</label>
+              <label htmlFor="coupon-email" className="block text-sm font-medium text-sf-body mb-2">{t('form.emailRestriction')}</label>
               <div className="flex space-x-2 mb-3">
                 <input
                   type="email"
+                  id="coupon-email"
+                  aria-invalid={emailError}
+                  aria-describedby={emailError ? 'coupon-email-error' : undefined}
                   value={emailInput}
                   onChange={e => setEmailInput(e.target.value)}
                   className="flex-1 px-4 py-2 border-2 border-sf-border-medium focus:ring-2 focus:ring-sf-accent bg-sf-input text-sf-heading"
@@ -424,6 +439,7 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
                   {t('form.add')}
                 </button>
               </div>
+              {emailError && <p id="coupon-email-error" role="alert" className="mb-2 text-xs text-sf-danger">{t('form.emailInvalid')}</p>}
               <div className="flex flex-wrap gap-2 min-h-[32px]">
                 {formData.allowed_emails && formData.allowed_emails.length > 0 ? (
                   formData.allowed_emails.map(email => (
