@@ -56,7 +56,7 @@ export function createCheckoutSessionQueue<T extends CheckoutSessionIdentity>(
         try {
           const received = await task.run(identity);
           result = received;
-          identity = received.clientSecret ? received : null;
+          identity = received.clientSecret ? { clientSecret: received.clientSecret, bindingToken: received.bindingToken, checkoutSessionId: received.checkoutSessionId } : null;
           signature = task.key;
           const latest = desired as CheckoutSessionTask<T> | null;
           if (latest?.key === task.key) { applyOnReturn = false; latest.apply(received); }
