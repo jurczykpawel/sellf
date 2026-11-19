@@ -340,3 +340,20 @@ it('preserves an effective legacy placement transfer after a later purchase clea
     expect(f.access()?.access_expires_at).toBe(original);
   } finally { f.cleanup(); }
 });
+
+it.each(['subscription', 'transfer'])('does not turn a legacy unknown row owned by a %s into an independent grant @J34', owner => {
+  const f = fixture(), sub = randomUUID();
+  try {
+    sql(`INSERT INTO public.user_product_access(user_id,product_id,grant_source,access_granted_at,access_expires_at)
+      VALUES('${f.user}','${f.product}','unknown',now()-interval '200 days',now()-interval '100 days');`);
+    if (owner === 'subscription') sql(`INSERT INTO public.subscriptions(id,user_id,product_id,stripe_customer_id,stripe_subscription_id,status,current_period_end)
+      VALUES('${sub}','${f.user}','${f.product}','cus_${sub}','sub_${sub}','active',now()+interval '30 days');`);
+    const order = f.buy(f.product, owner === 'subscription' ? 'stripe' : 'bank_transfer',owner === 'subscription' ? 'completed' : 'awaiting_payment',owner === 'subscription' ? sub : undefined);
+    if (owner === 'subscription') sql(`UPDATE public.user_product_access SET subscription_id='${sub}',access_expires_at=NULL WHERE user_id='${f.user}' AND product_id='${f.product}';`);
+    expect(f.access().grant_source).toBe('unknown');
+    backfill(f.user);
+    if (owner === 'subscription') f.refund(order);
+    else sql(`UPDATE public.payment_transactions SET status='cancelled' WHERE id='${order}';`);
+    expect(f.access()).toBeNull();
+  } finally { f.cleanup(); }
+});

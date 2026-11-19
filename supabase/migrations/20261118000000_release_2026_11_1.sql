@@ -3332,7 +3332,8 @@ GRANT EXECUTE ON FUNCTION public.order_access_expiry(uuid, uuid, uuid) TO servic
 
 -- Preserve known legacy periods.
 UPDATE public.user_product_access SET independent_access = jsonb_build_object('expiresAt', access_expires_at)
-WHERE grant_source IN ('manual', 'free', 'unknown');
+WHERE grant_source IN ('manual', 'free')
+  OR (grant_source = 'unknown' AND subscription_id IS NULL AND transfer_transaction_id IS NULL);
 WITH eligible AS MATERIALIZED (
   SELECT id, user_id, product_id, session_id, bundle_components_recorded_at
   FROM public.payment_transactions
