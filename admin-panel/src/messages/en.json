@@ -258,6 +258,7 @@
       "publishVersion": "Publish this version"
   },
   "checkout": {
+    "cartChanged": "Your cart has changed. Review it before paying again.",
     "invoiceSection": {
       "wantInvoice": "I want a company invoice",
       "taxIdLabel": "NIP or EU VAT number",

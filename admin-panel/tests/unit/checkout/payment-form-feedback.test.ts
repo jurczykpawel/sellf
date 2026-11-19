@@ -88,6 +88,7 @@ it.each(['signature', 'invalid'])('stops confirmation if cart %s changes during 
   await act(async () => { release(Response.json({ success: true, data: { isValid: true } })); });
   expect(stripe.updateBillingAddress).toHaveBeenCalled();
   expect(stripe.confirm).not.toHaveBeenCalled();
+  expect(screen.getByRole('alert').textContent).toContain('Your cart has changed. Review it before paying again.');
   expect(view.container.querySelector('button[type=submit]')?.hasAttribute('disabled')).toBe(change === 'invalid');
 });
 

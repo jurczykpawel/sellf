@@ -258,6 +258,7 @@
       "publishVersion": "Opublikuj tę wersję"
   },
   "checkout": {
+    "cartChanged": "Koszyk się zmienił. Sprawdź go przed ponowną próbą płatności.",
     "invoiceSection": {
       "wantInvoice": "Chcę fakturę na firmę",
       "taxIdLabel": "NIP lub numer VAT UE",
