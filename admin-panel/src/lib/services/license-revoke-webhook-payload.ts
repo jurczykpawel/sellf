@@ -1,4 +1,3 @@
-import { parseLicenseClaims } from '@/lib/license-keys/format';
 import type { BuyerWebhookCustomer } from '@/lib/webhooks/customer-locale';
 /**
  * Safe metadata for committed license status notifications.
@@ -21,7 +20,6 @@ export interface RevokedLicenseRow {
   expires_at: string | null;
   revoked_at: string | null;
   tier?: string | null;
-  license_key?: string;
   products: { name: string | null; slug: string | null; license_tier: string | null } | null;
   /** Sellf order behind `order_id` (absent on rows recorded before licenses stored their order). */
   sellf_order_id?: string | null;
@@ -65,8 +63,7 @@ export function buildLicenseRevokeWebhookData(
       id: row.id,
       order: row.order_id,
       email: row.email,
-      tier: row.license_key !== undefined ? parseLicenseClaims(row.license_key)?.tier ?? null
-        : row.tier !== undefined ? row.tier : row.products?.license_tier ?? null,
+      tier: row.tier !== undefined ? row.tier : row.products?.license_tier ?? null,
       domain: row.license_domain,
       issuanceSource: row.issuance_source,
       issuedAt: row.issued_at,
