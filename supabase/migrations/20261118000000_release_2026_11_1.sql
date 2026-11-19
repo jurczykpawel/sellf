@@ -3471,6 +3471,37 @@ END $$;
 REVOKE EXECUTE ON FUNCTION public.revoke_order_bundle_components(uuid, uuid) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.revoke_order_bundle_components(uuid, uuid) TO service_role;
 
+CREATE FUNCTION public.reconcile_refunded_subscription_access(p_transaction_id uuid) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE a public.user_product_access;
+BEGIN
+  IF (select auth.role()) IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'Service role required' USING ERRCODE = '42501';
+  END IF;
+  FOR a IN SELECT access.* FROM public.user_product_access access
+    JOIN public.payment_transactions t ON t.subscription_id = access.subscription_id
+    WHERE t.id = p_transaction_id ORDER BY access.id FOR UPDATE OF access
+  LOOP
+    UPDATE public.user_product_access SET subscription_id = NULL WHERE id = a.id;
+    PERFORM public.revoke_order_product_access(p_transaction_id, a.user_id, a.product_id);
+  END LOOP;
+END $$;
+REVOKE EXECUTE ON FUNCTION public.reconcile_refunded_subscription_access(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.reconcile_refunded_subscription_access(uuid) TO service_role;
+
+DO $$
+DECLARE fn text; definition text;
+BEGIN
+  FOREACH fn IN ARRAY ARRAY['public.end_refunded_subscription()', 'public.end_refunded_subscription_access()'] LOOP
+    definition := pg_get_functiondef(fn::regprocedure);
+    IF definition !~ 'DELETE FROM public.user_product_access WHERE subscription_id=' THEN
+      RAISE EXCEPTION 'Unexpected subscription access definition';
+    END IF;
+    EXECUTE regexp_replace(definition, 'DELETE FROM public.user_product_access WHERE subscription_id=[^;]+;',
+      'PERFORM public.reconcile_refunded_subscription_access(NEW.id);');
+  END LOOP;
+END $$;
+
 CREATE OR REPLACE FUNCTION public.release_transfer_access() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE buyer uuid; product uuid;

@@ -5471,7 +5471,7 @@ CREATE FUNCTION public.end_refunded_subscription() RETURNS trigger
 BEGIN
   IF NEW.subscription_id IS NOT NULL AND NEW.status='refunded' THEN
     UPDATE public.subscriptions SET status='canceled',updated_at=now() WHERE id=NEW.subscription_id;
-    DELETE FROM public.user_product_access WHERE subscription_id=NEW.subscription_id;
+    PERFORM public.reconcile_refunded_subscription_access(NEW.id);
   END IF;
   RETURN NEW;
 END $$;
@@ -5493,7 +5493,7 @@ BEGIN
   SELECT * INTO sub FROM public.subscriptions WHERE id=NEW.subscription_id;
   IF sub.status<>'canceled' OR EXISTS(SELECT 1 FROM public.payment_transactions t
     WHERE t.subscription_id=sub.id AND t.created_at>NEW.created_at AND t.status='completed') THEN RETURN NEW; END IF;
-  DELETE FROM public.user_product_access WHERE subscription_id=sub.id;
+  PERFORM public.reconcile_refunded_subscription_access(NEW.id);
   SELECT array_agg(l.id) INTO ids FROM public.issued_licenses l
     JOIN public.payment_transactions t ON t.stripe_invoice_id=l.order_id AND t.product_id=l.product_id
     WHERE t.subscription_id=sub.id;
@@ -11614,6 +11614,31 @@ $$;
 
 
 ALTER FUNCTION public.queue_pending_free_grant(p_email text, p_product_slug text) OWNER TO postgres;
+
+--
+-- Name: reconcile_refunded_subscription_access(uuid); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.reconcile_refunded_subscription_access(p_transaction_id uuid) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+DECLARE a public.user_product_access;
+BEGIN
+  IF (select auth.role()) IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'Service role required' USING ERRCODE = '42501';
+  END IF;
+  FOR a IN SELECT access.* FROM public.user_product_access access
+    JOIN public.payment_transactions t ON t.subscription_id = access.subscription_id
+    WHERE t.id = p_transaction_id ORDER BY access.id FOR UPDATE OF access
+  LOOP
+    UPDATE public.user_product_access SET subscription_id = NULL WHERE id = a.id;
+    PERFORM public.revoke_order_product_access(p_transaction_id, a.user_id, a.product_id);
+  END LOOP;
+END $$;
+
+
+ALTER FUNCTION public.reconcile_refunded_subscription_access(p_transaction_id uuid) OWNER TO postgres;
 
 --
 -- Name: record_business_event(text, uuid, jsonb, text); Type: FUNCTION; Schema: public; Owner: postgres
@@ -23823,6 +23848,8 @@ function | public.queue_auth_mail_retry(p_email text, p_redirect_to text, p_data
 function | public.queue_auth_mail_retry(p_email text, p_redirect_to text, p_data jsonb, p_kind text, p_error text) | service_role | EXECUTE | postgres | -
 function | public.queue_pending_free_grant(p_email text, p_product_slug text) | postgres | EXECUTE | postgres | -
 function | public.queue_pending_free_grant(p_email text, p_product_slug text) | service_role | EXECUTE | postgres | -
+function | public.reconcile_refunded_subscription_access(p_transaction_id uuid) | postgres | EXECUTE | postgres | -
+function | public.reconcile_refunded_subscription_access(p_transaction_id uuid) | service_role | EXECUTE | postgres | -
 function | public.record_business_event(p_event text, p_product uuid, p_payload jsonb, p_key text) | postgres | EXECUTE | postgres | -
 function | public.record_business_event(p_event text, p_product uuid, p_payload jsonb, p_key text) | service_role | EXECUTE | postgres | -
 function | public.record_free_attribution(p_product uuid, p_user uuid, p_payload jsonb) | postgres | EXECUTE | postgres | -

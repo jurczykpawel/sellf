@@ -103,3 +103,23 @@ it.each([false,true])('releases the unpaid placement period after a later purcha
     expect(new Date(f.access().access_expires_at).getTime()).toBe(new Date(terms.expiresAt).getTime());
   } finally { f.cleanup(); }
 });
+
+it.each(['before','after','manual','none'])('keeps the independent %s source when a subscription invoice is refunded @J34', source => {
+  const f = fixture(), sub = randomUUID();
+  try {
+    if (source === 'before') f.buy();
+    sql(`INSERT INTO public.subscriptions(id,user_id,product_id,stripe_customer_id,stripe_subscription_id,status,current_period_end)
+      VALUES('${sub}','${f.user}','${f.product}','cus_${sub}','sub_${sub}','active',now()+interval '30 days');`);
+    const invoice = f.buy(f.product,'stripe','completed',sub);
+    sql(`UPDATE public.user_product_access SET subscription_id='${sub}',access_expires_at=NULL WHERE user_id='${f.user}' AND product_id='${f.product}';`);
+    if (source === 'after') f.buy();
+    if (source === 'manual') manual(f,'2027-06-01T12:00:00Z');
+    const expected = source === 'manual' ? f.access().access_expires_at : sql(`SELECT term->>'expiresAt' FROM public.payment_transactions t, jsonb_each(t.access_terms) e(key,term) WHERE user_id='${f.user}' AND subscription_id IS NULL LIMIT 1;`);
+    sql(`UPDATE public.payment_transactions SET status='refunded',refunded_amount=amount WHERE id='${invoice}';`);
+    if (source === 'none') expect(f.access()).toBeNull();
+    else {
+      expect(new Date(f.access()?.access_expires_at).getTime()).toBe(new Date(expected).getTime());
+      expect(f.access()?.subscription_id).toBeNull();
+    }
+  } finally { f.cleanup(); }
+});

@@ -7064,6 +7064,10 @@ export type Database = {
         Args: { p_email: string; p_product_slug: string }
         Returns: boolean
       }
+      reconcile_refunded_subscription_access: {
+        Args: { p_transaction_id: string }
+        Returns: undefined
+      }
       record_business_event: {
         Args: {
           p_event: string
