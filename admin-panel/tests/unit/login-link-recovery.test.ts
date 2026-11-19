@@ -5,7 +5,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, expect, it, vi } from 'vitest';
 import pl from '@/messages/pl.json';
 const submit = vi.hoisted(() => vi.fn());
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }), useSearchParams: () => new URLSearchParams('error=magic_link_expired&redirect_to=%2Fpl%2Fmy-products') }));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }), useSearchParams: () => new URLSearchParams('error=magic_link_expired&redirect_to=%2Fpl%2Fauth%2Fproduct-access%3Fproduct%3Dcourse') }));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: null, loading: false }) }));
 vi.mock('@/components/providers/config-provider', () => ({ useConfig: () => ({ demoMode: false, passwordLoginEnabled: false, oauthProviders: [] }) }));
 vi.mock('@/components/SiteMenu', () => ({ default: () => null }));
@@ -27,5 +27,5 @@ it('clears the previous link error only after sending a new link', async () => {
   fireEvent.submit(document.querySelector('form')!);
   await waitFor(() => expect(screen.getByText(pl.productView.checkEmailForMagicLink)).toBeTruthy());
   expect(screen.queryByText(pl.auth.magicLinkExpired)).toBeNull();
-  expect(submit).toHaveBeenLastCalledWith(expect.objectContaining({ redirectTo: '/pl/my-products' }));
+  expect(submit).toHaveBeenLastCalledWith(expect.objectContaining({ redirectTo: '/pl/auth/product-access?product=course' }));
 });
