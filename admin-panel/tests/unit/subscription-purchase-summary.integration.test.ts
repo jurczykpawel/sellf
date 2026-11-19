@@ -30,7 +30,7 @@ it('keeps the purchased name and price after archive, catalogue edits, and deact
   }
 });
 
-it('recovers a historical subscription summary from its recorded purchase line @J37', async () => {
+it('recovers a historical subscription summary from its recorded paid invoice @J37', async () => {
   const { execFileSync } = await import('node:child_process');
   const { getTestDatabaseContainer } = await import('../helpers/database-container');
   const result = execFileSync('docker', ['exec', '-i', getTestDatabaseContainer(), 'psql', '-X', '-qAt', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1'], { encoding: 'utf8', input: `BEGIN;
@@ -43,8 +43,6 @@ it('recovers a historical subscription summary from its recorded purchase line @
         VALUES(s,u,p,'active','sub_'||s::text,'cus_'||s::text);
       INSERT INTO public.payment_transactions(id,product_id,user_id,customer_email,subscription_id,amount,currency,status,session_id)
         VALUES(t,p,u,u::text||'@example.com',s,4900,'PLN','completed','in_'||replace(t::text,'-',''));
-      INSERT INTO public.payment_line_items(transaction_id,product_id,item_type,product_name,quantity,unit_price,total_price,currency)
-        VALUES(t,p,'main_product','Original plan',1,49,49,'PLN');
       SET CONSTRAINTS ALL IMMEDIATE;
       ALTER TABLE public.subscriptions DISABLE TRIGGER snapshot_subscription_product;
       UPDATE public.subscriptions SET product_summary=NULL WHERE id=s;
