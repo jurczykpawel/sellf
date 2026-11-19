@@ -15,10 +15,7 @@ import { toast } from 'sonner';
 import { getMaintenanceStatus, setMaintenanceMode } from '@/lib/actions/maintenance';
 import type { MaintenanceStatus } from '@/lib/maintenance/setting';
 
-/** <input type="datetime-local"
-            ref={expectedEndRef}
-            aria-invalid={expectedEndError || undefined}
-            aria-describedby={expectedEndError ? 'maintenance-end-error' : undefined}> value (local time) for an ISO instant, and back. */
+/** Local datetime input value for an ISO instant, and back. */
 function toLocalInput(iso: string | null): string {
   if (!iso) return '';
   const date = new Date(iso);

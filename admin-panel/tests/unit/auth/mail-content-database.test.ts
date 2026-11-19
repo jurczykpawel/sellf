@@ -222,7 +222,7 @@ it.each(['pl', 'en'])('renders the license deadline in both Auth mail templates 
 });
 
 
-it.each(['pl', 'en'])('first transfer mail follows the order access policy in %s', async locale => {
+it.each(['pl', 'en'])('first transfer mail follows the order access policy in %s @J147', async locale => {
   const { sendOrderNotice } = await import('@/lib/orders/transfer-mail');
   const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   const config = await db.from('bank_transfer_config').select('*').single();

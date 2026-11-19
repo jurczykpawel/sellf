@@ -59,6 +59,16 @@ test.describe('Maintenance mode', () => {
     await page.goto('/pl/dashboard/settings?tab=system');
     const section = page.getByTestId('maintenance-settings');
     await expect(section.getByTestId('maintenance-status')).toHaveText('Wyłączona: sklep działa.');
+    const beforeInvalid = await supabaseAdmin.from('maintenance_mode').select('*').single();
+    expect(beforeInvalid.error).toBeNull();
+    const end = section.getByLabel(/^Przewidywany koniec/);
+    await end.fill('2020-01-01T10:00');
+    await section.getByRole('button', { name: 'Włącz przerwę w działaniu' }).click();
+    await expect(end).toHaveAttribute('aria-invalid', 'true');
+    await expect(end).toBeFocused();
+    await expect(section.getByRole('alert')).toHaveText('Przewidywany koniec musi być w przyszłości.');
+    expect((await supabaseAdmin.from('maintenance_mode').select('*').single()).data).toEqual(beforeInvalid.data);
+    await end.fill('');
     await section.getByLabel('Komunikat dla odwiedzających').fill('Inwentaryzacja, wracamy o 14:00');
     await section.getByRole('button', { name: 'Włącz przerwę w działaniu' }).click();
     await expect(section.getByTestId('maintenance-status')).toHaveText(/^Włączona: tutaj w panelu/);
