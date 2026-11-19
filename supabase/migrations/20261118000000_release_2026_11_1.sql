@@ -3254,7 +3254,7 @@ BEGIN
     AND NOT EXISTS (
       SELECT 1 FROM public.payment_transactions o
       WHERE o.id <> t.id
-        AND (o.status IN ('completed', 'partially_refunded', 'disputed')
+        AND (o.status IN ('completed', 'partially_refunded')
           OR (o.status = 'awaiting_payment' AND coalesce((o.metadata->>'access_on_placement')::boolean, false)))
         AND (o.amount = 0 OR coalesce(o.refunded_amount, 0) < o.amount)
         AND (o.user_id = p_user_id OR EXISTS (
@@ -3272,7 +3272,7 @@ BEGIN
         AND NOT EXISTS (
           SELECT 1 FROM public.payment_transactions o
           WHERE o.product_id = other.product_id
-            AND (o.status IN ('completed', 'partially_refunded', 'disputed')
+            AND (o.status IN ('completed', 'partially_refunded')
               OR (o.status = 'awaiting_payment' AND coalesce((o.metadata->>'access_on_placement')::boolean, false)))
             AND (o.amount = 0 OR coalesce(o.refunded_amount, 0) < o.amount)
             AND (o.user_id = p_user_id OR EXISTS (

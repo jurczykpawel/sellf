@@ -91,4 +91,6 @@ If the cart changes during payment preparation, Sellf stops before confirmation 
 
 A full refund removes only the entitlement from that order. The buyer keeps the product while another qualifying purchase, paid bank transfer, bundle, order bump or active subscription still grants it. Refunding the last qualifying order removes the corresponding access.
 
+Orders in `disputed` status, including a lost dispute, do not retain access after another order is refunded.
+
 Video loading and unavailable messages follow the buyer view language (English or Polish).

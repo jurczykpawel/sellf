@@ -92,4 +92,6 @@ Jeśli koszyk zmieni się podczas przygotowywania płatności, Sellf zatrzymuje 
 
 Pełny zwrot kończy uprawnienie z danego zamówienia. Kupujący zachowuje produkt, jeśli nadal uprawnia do niego inny zakup, opłacony przelew, pakiet, dodatek do zamówienia lub aktywna subskrypcja. Zwrot ostatniego uprawniającego zamówienia odbiera odpowiadający mu dostęp.
 
+Zamówienia w stanie `disputed`, także po przegranym sporze, nie podtrzymują dostępu po zwrocie innego zamówienia.
+
 Komunikaty ładowania i niedostępności filmu są wyświetlane w języku widoku kupującego: polskim lub angielskim.
