@@ -1,5 +1,9 @@
 {
   "affiliateCocreator": {
+    "emailInvalid": "Wpisz poprawny adres e-mail.",
+    "percentageInvalid": "Wpisz 0,01–100%, z najwyżej dwoma miejscami po przecinku.",
+    "fixedInvalid": "Wpisz kwotę większą od 0 i nie większą niż",
+    "precisionHint": "Użyj liczby miejsc po przecinku dozwolonej dla wybranej waluty.",
     "title": "Udział współtwórcy",
     "policy": "Jedna osoba dostaje udział w każdej sprzedaży tego produktu, z kuponem lub bez. Udział dolicza się do prowizji partnera, także gdy to ta sama osoba. Naliczamy go tylko od zakupów po zapisaniu.",
     "email": "E-mail współtwórcy",

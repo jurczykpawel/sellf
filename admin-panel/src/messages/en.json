@@ -1,5 +1,9 @@
 {
   "affiliateCocreator": {
+    "emailInvalid": "Enter a valid email address.",
+    "percentageInvalid": "Enter 0.01–100%, with at most two decimal places.",
+    "fixedInvalid": "Enter an amount greater than 0 and no greater than",
+    "precisionHint": "Use the decimal places allowed by the selected currency.",
     "title": "Co-creator share",
     "policy": "One person earns a share of every purchase of this product, with or without a coupon. The share is added to the partner commission, also when it is the same person. Only purchases made after saving earn it.",
     "email": "Co-creator's e-mail",
