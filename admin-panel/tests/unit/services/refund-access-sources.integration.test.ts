@@ -254,7 +254,7 @@ it('does not reconcile a placement transfer that left the access row untouched @
   } finally { f.cleanup(); }
 });
 
-it.each(['terms', 'payment'])('records only effective placement grants before later transfer %s @J182', check => {
+it.each(['terms', 'payment', 'bundle-payment'])('records only effective placement grants before later transfer %s @J182', check => {
   const f = fixture();
   try {
     sql(`UPDATE public.products SET auto_grant_duration_days=365 WHERE id='${f.product}';`);
@@ -262,13 +262,12 @@ it.each(['terms', 'payment'])('records only effective placement grants before la
     sql(`UPDATE public.payment_transactions SET created_at=now()-interval '105 days',paid_at=now()-interval '105 days',
       access_terms=jsonb_build_object('${f.user}:${f.product}',jsonb_build_object('grantedAt',now()-interval '105 days','expiresAt',now()+interval '260 days')) WHERE id='${paid}';
       UPDATE public.user_product_access SET access_granted_at=now()-interval '105 days',access_expires_at=now()+interval '260 days' WHERE user_id='${f.user}' AND product_id='${f.product}';`);
-    const transfer = f.buy(f.product,'bank_transfer','awaiting_payment');
+    const transfer = f.buy(check === 'bundle-payment' ? f.bundle : f.product,'bank_transfer','awaiting_payment');
     sql(`UPDATE public.payment_transactions SET created_at=now()-interval '5 days' WHERE id='${transfer}';`);
     if (check === 'terms') expect(sql(`SELECT access_terms::text FROM public.payment_transactions WHERE id='${transfer}';`)).toBe('{}');
     else {
       f.refund(paid);
-      sql(`UPDATE public.payment_transactions SET status='completed',paid_at=now() WHERE id='${transfer}';
-        SELECT public.grant_product_and_bundle_components('${f.user}','${f.product}',NULL,'${transfer}');`);
+      expect(JSON.parse(sql(`SELECT public.complete_offline_order('${transfer}',4000);`)).success).toBe(true);
       const remaining = Number(sql(`SELECT extract(epoch FROM (access_expires_at-now()))/86400 FROM public.user_product_access WHERE user_id='${f.user}' AND product_id='${f.product}';`));
       expect(remaining).toBeCloseTo(365, 3);
     }

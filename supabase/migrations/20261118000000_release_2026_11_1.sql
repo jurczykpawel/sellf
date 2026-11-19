@@ -3381,6 +3381,12 @@ BEGIN
   LOOP
     definition := pg_get_functiondef(fn::regprocedure);
     IF strpos(definition, 'RETURN result;') = 0 THEN RAISE EXCEPTION 'Unexpected access wrapper'; END IF;
+    definition := regexp_replace(definition, E'BEGIN\n', E'BEGIN\n' || $guard$  IF EXISTS (SELECT 1 FROM public.payment_transactions t
+    WHERE t.id::text = nullif(current_setting('sellf.transfer_payment', true), '')
+      AND t.access_terms ? (user_id_param::text || ':' || product_id_param::text)) THEN
+    RETURN jsonb_build_object('success', true, 'operation', 'existing_transfer');
+  END IF;
+$guard$);
     EXECUTE replace(definition, 'RETURN result;', 'IF (result->>''success'')::boolean THEN ' || record_call || ' END IF; RETURN result;');
   END LOOP;
 END $$;
@@ -3705,6 +3711,48 @@ BEGIN
   END IF;
   EXECUTE replace(definition, old_call,
     E'OR EXISTS(SELECT 1 FROM public.payment_transactions o WHERE (o.id=g.transaction_id OR (g.transaction_id IS NULL AND o.session_id=g.session_id))\n      AND o.product_id=g.product_id AND p.id IN (SELECT public.order_granted_components(o.id)))\n    OR (NOT EXISTS(SELECT 1 FROM public.payment_transactions o WHERE o.id=g.transaction_id OR (g.transaction_id IS NULL AND o.session_id=g.session_id))\n      AND EXISTS(SELECT 1 FROM public.bundle_items b WHERE b.bundle_product_id=g.product_id AND b.component_product_id=p.id))');
+END $$;
+
+CREATE FUNCTION public.settle_transfer_product_access(p_transaction_id uuid) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE tx public.payment_transactions; recipient record;
+  previous_payment text := current_setting('sellf.transfer_payment', true);
+  previous_order text := current_setting('sellf.paid_order', true);
+BEGIN
+  IF (select auth.role()) IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'Service role required' USING ERRCODE = '42501';
+  END IF;
+  SELECT * INTO STRICT tx FROM public.payment_transactions WHERE id = p_transaction_id FOR UPDATE;
+  IF tx.status <> 'completed' OR tx.payment_provider <> 'bank_transfer' THEN RETURN; END IF;
+  PERFORM set_config('sellf.transfer_payment', tx.id::text, true);
+  PERFORM set_config('sellf.paid_order', tx.id::text, true);
+  FOR recipient IN
+    SELECT tx.user_id AS buyer, tx.product_id AS product, NULL::integer AS duration
+    UNION
+    SELECT tx.user_id, l.product_id, l.access_duration_override FROM public.payment_line_items l
+      WHERE l.transaction_id = tx.id AND l.item_type = 'order_bump'
+    UNION
+    SELECT g.claimed_by_user_id, g.product_id, l.access_duration_override FROM public.guest_purchases g
+      LEFT JOIN public.payment_line_items l ON l.transaction_id = tx.id AND l.product_id = g.product_id AND l.item_type = 'order_bump'
+      WHERE g.transaction_id = tx.id AND g.claimed_by_user_id IS NOT NULL
+    ORDER BY 1, 2, 3
+  LOOP
+    IF recipient.buyer IS NOT NULL THEN
+      PERFORM public.grant_product_and_bundle_components(recipient.buyer, recipient.product, recipient.duration, tx.id);
+    END IF;
+  END LOOP;
+  PERFORM set_config('sellf.transfer_payment', coalesce(previous_payment, ''), true);
+  PERFORM set_config('sellf.paid_order', coalesce(previous_order, ''), true);
+END $$;
+REVOKE EXECUTE ON FUNCTION public.settle_transfer_product_access(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.settle_transfer_product_access(uuid) TO service_role;
+
+DO $$
+DECLARE definition text; previous text := 'RETURN jsonb_build_object(''success'',true,''access_granted'',true); END IF;';
+BEGIN
+  definition := pg_get_functiondef('public._order_grant_and_record(uuid,uuid,uuid,uuid,uuid,text)'::regprocedure);
+  IF strpos(definition, previous) = 0 THEN RAISE EXCEPTION 'Unexpected placement payment definition'; END IF;
+  EXECUTE replace(definition, previous, 'PERFORM public.settle_transfer_product_access(tx.id); ' || previous);
 END $$;
 
 -- Sale counters acquire product rows in the same order for every cart.
