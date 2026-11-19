@@ -42,10 +42,17 @@ for (const locale of ['en', 'pl']) {
     for (const checkbox of await page.locator('input[type=checkbox][required]').all()) if (await checkbox.isVisible() && !await checkbox.isChecked()) await checkbox.check();
     const stripe = testStripe();
     await stripe.checkout.sessions.expire(opened.checkoutSessionId);
-    const card = page.frameLocator('iframe[title="Secure payment input frame"][src*="elements-inner-payment"]');
-    await card.locator('input[name=number]').fill('4242424242424242');
-    await card.locator('input[name=expiry]').fill('1234');
-    await card.locator('input[name=cvc]').fill('123');
+    const numberLabel = locale === 'pl' ? 'Numer karty' : 'Card number';
+    let card: ReturnType<typeof page.frames>[number] | undefined;
+    await expect.poll(async () => {
+      for (const frame of page.frames()) {
+        if (await frame.getByRole('textbox', { name: numberLabel, exact: true }).isVisible().catch(() => false)) { card = frame; return true; }
+      }
+      return false;
+    }, { timeout: 60000 }).toBe(true);
+    await card!.getByRole('textbox', { name: numberLabel, exact: true }).fill('4242424242424242');
+    await card!.getByRole('textbox', { name: locale === 'pl' ? 'Data ważności' : 'Expiration date', exact: true }).fill('1234');
+    await card!.getByRole('textbox', { name: locale === 'pl' ? 'Kod bezpieczeństwa' : 'Security code', exact: true }).fill('123');
     await expect(page.locator('button[type=submit]')).toBeEnabled();
     await page.locator('button[type=submit]').click();
     await expect(page.getByText(locale === 'pl' ? 'Sesja płatności wygasła.' : 'Your payment session has expired.')).toBeVisible();
