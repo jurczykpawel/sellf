@@ -110,3 +110,12 @@ describe('buildBuyerDetails — tax id length', () => {
     expect(buildBuyerDetails({ nip: taxId }, 'checkout').nip).toBe(taxId);
   });
 });
+
+it('records an organization invoice requested through Stripe tax collection', async () => {
+  const client = makeClient({ data: 1 });
+  await backfillBuyerDetails(client, { sessionId: 'cs_embed_company', metadata: {}, customerDetails: {
+    name: 'Embedded Company', business_name: 'Embedded Company', tax_ids: [{ type: 'pl_nip', value: '5252248481' }],
+    address: { line1: 'Krótka 2', city: 'Kraków', country: 'PL', postal_code: '30-001' },
+  } as never });
+  expect((client.rpc as ReturnType<typeof vi.fn>).mock.calls[0][1].p_buyer).toMatchObject({ type: 'organization', needs_invoice: true, nip: '5252248481', company_name: 'Embedded Company' });
+});

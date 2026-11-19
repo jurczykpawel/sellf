@@ -12,7 +12,8 @@ interface OrderDetailsSectionProps {
 export default function OrderDetailsSection({ details, customFields }: OrderDetailsSectionProps) {
   const t = useTranslations('admin.payments.orderDetails');
   const d = readOrderDetails(details);
-  const hasModules = d.buyer?.type || d.recipient || d.phone || d.quantity || d.participants || d.details_missing;
+  const hasBuyer = d.buyer && ['type', 'first_name', 'last_name', 'email', 'company_name', 'nip', 'address', 'city', 'postal_code', 'country'].some(key => Boolean(d.buyer?.[key]));
+  const hasModules = hasBuyer || d.recipient || d.phone || d.quantity || d.participants || d.details_missing;
   if (!hasModules && customFields.length === 0) return null;
   const party = (value: NonNullable<typeof d.buyer>, isBuyer = false) => (
     <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
