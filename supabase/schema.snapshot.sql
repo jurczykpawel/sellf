@@ -11035,6 +11035,7 @@ BEGIN
     OR (p_data->>'pay_url') !~ '^https?://[^/[:space:]]+/(pl|en)/order/[0-9a-f-]{36}/transfer\?token=[0-9]{1,12}\.[A-Za-z0-9_-]{43}$'
     OR length(p_data->>'participants_url')>2048
     OR (p_data->>'participants_url') !~ '^https?://[^/[:space:]]+/(pl|en)/order/[0-9a-f-]{36}/participants\?token=[0-9]{1,12}\.[A-Za-z0-9_-]{43}$'
+    OR (p_data ? 'access_on_placement' AND p_data->>'access_on_placement' NOT IN ('true','false'))
     OR length(p_data->>'release_text')>500
     OR length(p_data->>'cancel_reason_text')>2000 OR length(p_data->>'license_expires_text')>100
     OR length(p_data->>'license_expires_at')>50
@@ -11052,10 +11053,11 @@ BEGIN
   UPDATE auth.users SET raw_user_meta_data=(coalesce(raw_user_meta_data,'{}')
     -'event_date'-'event_online_url'-'transfer_text'-'transfer'-'purchase_product'-'purchase_amount'-'locale'
     -'cancel_reason_text'-'license_expires_at'-'license_expires_text'
-    -'mail_kind'-'pay_url'-'release_text'-'participants_url'-'license_keys'-'license_key'-'payment_received')
+    -'access_on_placement'-'mail_kind'-'pay_url'-'release_text'-'participants_url'-'license_keys'-'license_key'-'payment_received')
     ||jsonb_strip_nulls(jsonb_build_object('event_date',p_data->>'event_date',
       'event_online_url',p_data->>'event_online_url','transfer_text',p_data->>'transfer_text','transfer',p_data->'transfer',
       'purchase_product',p_data->>'purchase_product','purchase_amount',p_data->>'purchase_amount',
+      'access_on_placement',p_data->>'access_on_placement',
       'mail_kind',p_data->>'mail_kind','pay_url',p_data->>'pay_url','release_text',p_data->>'release_text',
       'license_keys',p_data->'license_keys','participants_url',p_data->>'participants_url','license_key',p_data->>'license_key',
       'payment_received',p_data->>'payment_received',

@@ -479,5 +479,8 @@
   ],
   "c23f9e321419b486d79f23364ca6927ba482c3bf": [
     "custom-checkout.md"
+  ],
+  "f3641dca135fff0f48451be09629a4ef4b2d9f6d": [
+    "none \u2014 Migration placement change was reverted by dfe7e61ab5582b98fe374c52771b3e0b5097819e; the transfer mail policy remains in the single 11.1 migration and is documented by 2be973a49b3b5833c38ba398984526f2dd4fc833."
   ]
 }
