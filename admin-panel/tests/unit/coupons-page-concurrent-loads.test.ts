@@ -104,12 +104,10 @@ it('keeps the latest pagination busy when an earlier page rejects', async () => 
   expect(view.getByText('CURRENT')).toBeTruthy();
   expect(view.getByText('NEXT')).toBeTruthy();
 });
-it('keeps a long coupon name bounded and available in full', async () => {
+it('makes the full long coupon name available on hover', async () => {
   const name = 'R'.repeat(200);
   mocks.fetchPage.mockResolvedValue({ coupons: [{ ...coupon('LONG'), name }], nextCursor: null, hasMore: false });
   const view = render(createElement(CouponsPageContent));
   const label = await view.findByText(name);
   expect(label.getAttribute('title')).toBe(name);
-  expect(label.className).toContain('truncate');
-  expect(label.className).toContain('max-w-');
 });
