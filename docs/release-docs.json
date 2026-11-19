@@ -612,5 +612,8 @@
   ],
   "459ef6c802573a0874c5ea7e9ce7cc1d082dd049": [
     "none \u2014 Test-only local database availability guard; application behavior is unchanged."
+  ],
+  "b77bae2b87895615466f61c0727c45a3641655f7": [
+    "custom-checkout.md"
   ]
 }
