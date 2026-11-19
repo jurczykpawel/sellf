@@ -312,3 +312,15 @@ it('backfills legacy periods through equality joins @J34', () => {
   expect(block).toMatch(/a\.user_id = .*\.user_id/);
   expect(block).toMatch(/a\.product_id = .*\.product_id/);
 });
+
+it('adds no free period to an already permanent paid entitlement @J34', () => {
+  const f = fixture();
+  try {
+    sql(`UPDATE public.products SET auto_grant_duration_days=NULL WHERE id='${f.product}';`);
+    const order = f.buy();
+    sql(`UPDATE public.products SET auto_grant_duration_days=30 WHERE id='${f.product}'; SELECT public.grant_product_and_bundle_components('${f.user}','${f.product}');`);
+    expect(f.access().independent_access).toBeNull();
+    f.refund(order);
+    expect(f.access()).toBeNull();
+  } finally { f.cleanup(); }
+});
