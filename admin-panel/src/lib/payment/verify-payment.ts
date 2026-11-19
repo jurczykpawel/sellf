@@ -390,7 +390,7 @@ async function getProcessedPaymentFromDatabase(
 
   // Generate OTO info if applicable
   let otoInfo: OtoInfo = { has_oto: false };
-  try {
+  if (transaction.status === 'completed') try {
     const { data: otoResultRaw } = await serviceClient
       .rpc('generate_oto_coupon', {
         source_product_id_param: transaction.product_id,
