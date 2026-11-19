@@ -317,7 +317,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
           </form>
         </ModalBody>
 
-        <BuyerSummary formData={formData} t={t} />
+        <BuyerSummary priceDisplayValue={priceDisplayValue} formData={formData} t={t} />
 
         <WizardFooter
           isFirstSection={sectionIndex === 0}

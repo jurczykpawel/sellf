@@ -2192,6 +2192,7 @@
             "bundle": "access to {count, plural, one {# product} other {# products}} in the bundle"
           },
           "payment": {
+            "invalid": "after you enter a valid price",
             "oneTime": "after a one-time payment",
             "subscription": "for as long as the subscription is paid",
             "customPrice": "after paying an amount of their choice",

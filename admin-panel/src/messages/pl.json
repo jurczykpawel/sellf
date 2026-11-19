@@ -2192,6 +2192,7 @@
             "bundle": "dostęp do {count, plural, one {# produktu} other {# produktów}} z pakietu"
           },
           "payment": {
+            "invalid": "po wpisaniu poprawnej ceny",
             "oneTime": "po jednorazowej płatności",
             "subscription": "na czas opłacania abonamentu",
             "customPrice": "po wpłacie wybranej przez siebie kwoty",

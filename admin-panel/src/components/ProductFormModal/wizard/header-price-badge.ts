@@ -1,3 +1,4 @@
+import { parseMoneyInput } from '@/lib/currency/parse-money-input';
 import { formatPrice } from '@/lib/constants';
 import { formatRecurringProductPrice } from '@/lib/product-pricing-display';
 import type { ProductFormData } from '../types';
@@ -20,6 +21,7 @@ export function headerPriceBadge(
     const label = formatRecurringProductPrice(formData, locale);
     return label ? { label, free: false } : null;
   }
+  if (parseMoneyInput(priceDisplayValue, formData.currency, locale).error) return null;
   if (priceDisplayValue === '' && formData.price === 0) return null;
   if (formData.price === 0) return formData.allow_custom_price ? null : { label: freeLabel, free: true };
   return { label: formatPrice(formData.price, formData.currency, locale), free: false };
