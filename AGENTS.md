@@ -1286,7 +1286,7 @@ captures successful grants, including add-on overrides and bundle components. Re
 keep their subscription-managed open access. Order and dispute snapshots also retain the grant
 version and dates needed to reconcile a later dispute outcome after a refund while preserving
 subsequent manual changes. `user_product_access.independent_access` retains the deadline of
-free, manual and order-independent grants. The access trigger captures manual changes through
+manual and order-independent grants. New free extensions retain only their added duration, anchored at the free grant date, without inheriting a paid period. No-op placement transfers record no term and are not remaining access sources. Legacy manual/free/unknown rows conservatively retain the entire existing deadline as independent access. The access trigger captures manual changes through
 `mutate_access` for panel/API operations, including unlimited access. Refund reconciliation uses
 those independent periods alongside remaining order periods; repeating a refund cannot shorten
 a later manual grant. Cancelling placement-access transfers and refunding subscription invoices
