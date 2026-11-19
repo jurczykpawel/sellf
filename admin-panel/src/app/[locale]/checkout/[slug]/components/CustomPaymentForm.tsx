@@ -41,7 +41,7 @@ interface CustomPaymentFormProps {
   quantityInvalid?: boolean;
   clientSecret?: string;
   bindingToken?: string;
-  expiresAt?: number;
+  sessionDeadline?: number;
   onConfirmationChange?: (pending: boolean) => void;
   onProcessingChange?: (processing: boolean) => void;
   pricing: PricingResult;
@@ -86,7 +86,7 @@ export default function CustomPaymentForm({
   onChangeAccount,
   customAmountError, quantityInvalid = false,
   clientSecret,
-  bindingToken, expiresAt,
+  bindingToken, sessionDeadline,
   onConfirmationChange, onProcessingChange,
   pricing,
   paymentMethodOrder,
@@ -141,11 +141,11 @@ export default function CustomPaymentForm({
   const [emailError, setEmailError] = useState('');
   const [sessionExpired, setSessionExpired] = useState(false);
   useEffect(() => {
-    if (!expiresAt) return;
-    const remaining = expiresAt * 1000 - Date.now();
+    if (sessionDeadline === undefined) return;
+    const remaining = sessionDeadline - performance.now();
     const timer = setTimeout(() => setSessionExpired(true), Math.max(0, remaining));
     return () => clearTimeout(timer);
-  }, [expiresAt]);
+  }, [sessionDeadline]);
 
   // Invoice / NIP logic
   const parsedProfile = storedCheckoutProfileSchema.safeParse(product.checkout_profile);
@@ -258,7 +258,7 @@ export default function CustomPaymentForm({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             clientSecret,
-            bindingToken, expiresAt,
+            bindingToken,
             productId: product.id,
             email: finalEmail,
             locale,

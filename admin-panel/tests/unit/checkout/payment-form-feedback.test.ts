@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import React from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, expect, it, vi } from 'vitest';
 import CustomPaymentForm from '@/app/[locale]/checkout/[slug]/components/CustomPaymentForm';
@@ -15,7 +15,7 @@ vi.mock('@stripe/react-stripe-js/checkout', () => ({
 vi.mock('@/hooks/useTracking', () => ({ useTracking: () => ({ track: vi.fn() }) }));
 vi.mock('@/components/checkout/InvoiceSection', () => ({ default: () => null }));
 vi.mock('@/components/DemoCheckoutNotice', () => ({ default: () => null }));
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks(); vi.useRealTimers(); });
 
 function form(locale: 'en' | 'pl', extra = {}) {
   return render(React.createElement(NextIntlClientProvider, { locale, messages: locale === 'pl' ? pl : en }, React.createElement(CustomPaymentForm, {
@@ -45,7 +45,7 @@ it.each(['en', 'pl'] as const)('offers a fresh checkout after expiry in %s witho
 
 it('retires the pay button when the session deadline passes without a submit', async () => {
   const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
-  const view = form('pl', { expiresAt: Math.floor(Date.now() / 1000) - 1, onSessionExpired: vi.fn() });
+  const view = form('pl', { sessionDeadline: performance.now() - 1, onSessionExpired: vi.fn() });
   await screen.findByText('Sesja płatności wygasła.');
   expect(view.container.querySelector('button[type=submit]')).toBeNull();
   expect(fetch).not.toHaveBeenCalled();
@@ -65,4 +65,13 @@ it.each(['en', 'pl'] as const)('localizes an overlong email beside the email fie
   fireEvent.change(email, { target: { value: 'new@example.com' } });
   expect(error.isConnected).toBe(false);
   expect(stripe.confirm).not.toHaveBeenCalled();
+});
+
+it.each([false, true])('keeps a fresh %s event checkout usable with client clock two hours ahead', async eventMode => {
+  vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 2 * 60 * 60 * 1000);
+  const view = form('en', { product: { id: 'product', price: 100, currency: 'PLN', event_mode: eventMode }, expiresAt: Math.floor(Date.now() / 1000) - 3600, sessionDeadline: performance.now() + 1800_000 });
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
+  expect(view.container.querySelector('button[type=submit]')).not.toBeNull();
+  expect(view.container.textContent).not.toContain('Your payment session has expired.');
+  vi.restoreAllMocks();
 });

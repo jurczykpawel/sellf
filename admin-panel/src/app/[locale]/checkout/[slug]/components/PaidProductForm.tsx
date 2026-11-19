@@ -61,7 +61,7 @@ import PwywSection from './PwywSection';
 
 interface CheckoutSessionResponse extends CheckoutSessionIdentity {
   freeAccess?: boolean;
-  expiresAt?: number;
+  expiresInSeconds?: number;
 }
 
 interface PaidProductFormProps {
@@ -148,7 +148,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const [error, setError] = useState<string | null>(null);
   const [eventNotice, setEventNotice] = useState<{ key: string; message: string } | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [expiresAt, setExpiresAt] = useState<number | undefined>(undefined);
+  const [sessionDeadline, setSessionDeadline] = useState<number | undefined>(undefined);
   const [bindingToken, setBindingToken] = useState<string | null>(null);
   const [checkoutSessionId, setCheckoutSessionId] = useState<string | null>(null);
   const [lastCheckoutSessionSignature, setLastCheckoutSessionSignature] = useState<string | null>(null);
@@ -529,7 +529,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
         setClientSecret(data.clientSecret ?? null);
         setCheckoutSessionId(data.checkoutSessionId ?? null);
         setBindingToken(data.bindingToken ?? null);
-        setExpiresAt(data.expiresAt);
+        setSessionDeadline(data.expiresInSeconds === undefined ? undefined : performance.now() + data.expiresInSeconds * 1000);
       },
       fail: err => {
         if (err instanceof Error && 'eventAvailability' in err) {
@@ -818,7 +818,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 customAmountError={product.allow_custom_price ? customAmountError : null}
                 clientSecret={clientSecret || undefined}
                 bindingToken={bindingToken || undefined}
-                expiresAt={expiresAt}
+                sessionDeadline={sessionDeadline}
                 onConfirmationChange={handleConfirmationChange}
                 pricing={pricing}
                 paymentMethodOrder={paymentMethodOrder}
