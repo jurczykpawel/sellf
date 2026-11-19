@@ -44,3 +44,5 @@ An open unpaid receipt refreshes at the reservation deadline, every 15 seconds a
 **Print / save PDF** omits cookie-preference controls and their footer, so a short receipt fits on one A4 page without an extra interface-only page.
 
 Each validated order link has its own refresh allowance, so buyers of different orders do not share one refresh budget.
+
+Cancellation removes the access period granted by that transfer, including when another purchase later extended the same product. Other paid periods, free grants and administrator access remain. Refunding a paid transfer follows the same rule; repeated notifications preserve later manual changes.

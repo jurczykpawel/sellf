@@ -1285,8 +1285,17 @@ captures successful grants, including add-on overrides and bundle components. Re
 `revoke_order_product_access` to retain the latest valid remaining period; active subscriptions
 keep their subscription-managed open access. Order and dispute snapshots also retain the grant
 version and dates needed to reconcile a later dispute outcome after a refund while preserving
-subsequent manual changes. Older orders use the date/duration fallback described in the EN/PL
-`custom-checkout.md` documentation.
+subsequent manual changes. `user_product_access.independent_access` retains the deadline of
+free, manual and order-independent grants. The access trigger captures manual changes through
+`mutate_access` for panel/API operations, including unlimited access. Refund reconciliation uses
+those independent periods alongside remaining order periods; repeating a refund cannot shorten
+a later manual grant. Cancelling placement-access transfers and refunding subscription invoices
+use the same reconciliation instead of deleting a shared access row. Retained subscription access
+is detached from the refunded subscription. Dispute rows are locked before access rows.
+The 11.1 migration backfills missing legacy order terms from known access deadlines, including
+claimed guest purchases and bundle components. Historical contributions to a combined deadline
+cannot be split, so a matching legacy order conservatively retains the whole known deadline.
+Orders without a matching row use the date/duration fallback in EN/PL `custom-checkout.md`.
 
 ### Login Wall (content gating snippet)
 

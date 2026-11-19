@@ -44,3 +44,5 @@ Otwarty paragon nieopłaconego zamówienia odświeża się w chwili końca rezer
 **Drukuj / zapisz PDF** pomija przyciski preferencji ciasteczek i ich stopkę, dzięki czemu krótki paragon mieści się na jednej stronie A4 bez dodatkowej strony z samym interfejsem.
 
 Każdy prawidłowy link zamówienia ma osobny limit odświeżeń, więc kupujący różnych zamówień nie zużywają jednego wspólnego budżetu.
+
+Anulowanie usuwa okres dostępu nadany przez ten przelew, także gdy inny zakup później przedłużył ten sam produkt. Pozostałe opłacone okresy, darmowe nadania i dostęp administratora zostają. Zwrot opłaconego przelewu działa tak samo; powtórzone powiadomienia zachowują późniejsze ręczne zmiany.
