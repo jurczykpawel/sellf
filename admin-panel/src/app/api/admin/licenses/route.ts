@@ -6,6 +6,7 @@ import { issueRequestedLicense, licenseRequestSchema } from '@/lib/license-keys/
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
+import { parseLicenseClaims } from '@/lib/license-keys/format';
 import { getCanonicalOrigin } from '@/lib/utils/canonical-url';
 
 
@@ -87,7 +88,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const now = new Date().toISOString();
   let query = admin
     .from('issued_licenses')
-    .select('id, product_id, email, order_id, kid, issued_at, expires_at, revoked_at, revoked_by_dispute_id, issuance_source, license_domain, product_name, products(name, slug, license_tier)', { count: 'exact' })
+    .select('id, product_id, email, order_id, kid, issued_at, expires_at, revoked_at, revoked_by_dispute_id, issuance_source, license_domain, product_name, license_key, products(name, slug, license_tier)', { count: 'exact' })
     .order('issued_at', { ascending: false })
     .range(from, from + limit - 1);
   if (licenseId) query = query.eq('id', licenseId);
@@ -109,5 +110,5 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (error || productsResult.error) {
     return NextResponse.json({ error: 'Failed to load licenses' }, { status: 500, headers: noStore });
   }
-  return NextResponse.json({ licenses: data ?? [], products: productsResult.data ?? [], page, limit, total: count ?? 0 }, { headers: noStore });
+  return NextResponse.json({ licenses: (data ?? []).map(({ license_key, ...row }) => ({ ...row, tier: parseLicenseClaims(license_key)?.tier ?? null })), products: productsResult.data ?? [], page, limit, total: count ?? 0 }, { headers: noStore });
 }
