@@ -81,7 +81,7 @@ for (const locale of ['pl', 'en'] as const) {
   test(`${locale}: coupon errors are reachable and long names retain visible actions`, async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     const admin = await tutorialAdmin(page, 'coupon-form', false);
-    const code = `FORM_${randomUUID().slice(0, 8)}`, t = messages.admin.coupons;
+    const code = `FORM_${randomUUID().slice(0, 8)}`.toUpperCase(), t = messages.admin.coupons;
     try {
       await page.goto(`/${locale}/dashboard/coupons`);
       await page.getByRole('button', { name: t.create, exact: true }).click();
@@ -120,7 +120,9 @@ for (const locale of ['pl', 'en'] as const) {
       await expect(label).toHaveAttribute('title', 'R'.repeat(200));
       const bounds = await row.evaluate(el => el.getBoundingClientRect().right);
       expect(bounds).toBeLessThanOrEqual(page.viewportSize()!.width);
-      expect((await db.from('coupons').update({ allowed_emails: ['invalid-address', 'buyer@example.test'] }).eq('code', code)).error).toBeNull();
+      const saved = await db.from('coupons').update({ allowed_emails: ['invalid-address', 'buyer@example.test'] }).eq('code', code).select('allowed_emails').single();
+      expect(saved.error).toBeNull();
+      expect(saved.data?.allowed_emails).toEqual(['invalid-address', 'buyer@example.test']);
       await page.reload();
       await page.getByPlaceholder(t.searchPlaceholder).fill(code);
       await row.getByRole('button', { name: t.edit, exact: true }).click();
