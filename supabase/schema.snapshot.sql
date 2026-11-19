@@ -11630,9 +11630,8 @@ BEGIN
   END IF;
   FOR a IN SELECT access.* FROM public.user_product_access access
     JOIN public.payment_transactions t ON t.subscription_id = access.subscription_id
-    WHERE t.id = p_transaction_id ORDER BY access.id FOR UPDATE OF access
+    WHERE t.id = p_transaction_id ORDER BY access.id
   LOOP
-    UPDATE public.user_product_access SET subscription_id = NULL WHERE id = a.id;
     PERFORM public.revoke_order_product_access(p_transaction_id, a.user_id, a.product_id);
   END LOOP;
 END $$;
@@ -12352,6 +12351,9 @@ BEGIN
   ORDER BY d.stripe_dispute_id FOR UPDATE;
   SELECT * INTO current_access FROM public.user_product_access WHERE user_id = p_user_id AND product_id = p_product_id FOR UPDATE;
   IF NOT FOUND THEN RETURN false; END IF;
+  IF current_access.subscription_id = t.subscription_id THEN
+    UPDATE public.user_product_access SET subscription_id = NULL WHERE id = current_access.id;
+  END IF;
   SELECT array_agg(d.stripe_dispute_id) INTO pending_disputes FROM public.payment_disputes d
   WHERE NOT d.closed AND d.status <> 'won' AND EXISTS (
     SELECT 1 FROM jsonb_array_elements(d.account_access) item WHERE item->>'id' = current_access.id::text
