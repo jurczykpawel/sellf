@@ -62,6 +62,7 @@ import PwywSection from './PwywSection';
 interface CheckoutSessionResponse extends CheckoutSessionIdentity {
   freeAccess?: boolean;
   expiresInSeconds?: number;
+  receivedAt?: number;
 }
 
 interface PaidProductFormProps {
@@ -504,7 +505,8 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
             }
             throw Object.assign(new Error(getCheckoutRequestError(response.status, data.error, t('createSessionError'), t('requestRateLimit'), { code: data.code, messages: { AMOUNT_BELOW_MINIMUM: t('amountBelowMinimum'), COUPON_OWNED_PRODUCT: t('couponOwnedProduct'), MAINTENANCE: t('shopMaintenance'), [CHECKOUT_UPDATE_IN_PROGRESS]: t('createSessionError') } })), { details: data.details });
           }
-          return await response.json() as CheckoutSessionResponse;
+          const data = await response.json() as CheckoutSessionResponse;
+          return { ...data, receivedAt: performance.now() };
         };
         const runner = previous?.clientSecret === clientSecret ? serverUpdate.current : null;
         if (!runner) return update();
@@ -529,7 +531,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
         setClientSecret(data.clientSecret ?? null);
         setCheckoutSessionId(data.checkoutSessionId ?? null);
         setBindingToken(data.bindingToken ?? null);
-        setSessionDeadline(data.expiresInSeconds === undefined ? undefined : performance.now() + data.expiresInSeconds * 1000);
+        setSessionDeadline(data.expiresInSeconds === undefined ? undefined : (data.receivedAt ?? performance.now()) + data.expiresInSeconds * 1000);
       },
       fail: err => {
         if (err instanceof Error && 'eventAvailability' in err) {

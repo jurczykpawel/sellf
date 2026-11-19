@@ -6,7 +6,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import PaidProductForm from '@/app/[locale]/checkout/[slug]/components/PaidProductForm';
 import en from '@/messages/en.json';
 
-const state = vi.hoisted(() => ({ verifying: false, coupon: null as null | { code: string; discount_type: string; discount_value: number }, mounts: 0, updates: 0, process: null as null | ((value: boolean) => void) }));
+const state = vi.hoisted(() => ({ verifying: false, coupon: null as null | { code: string; discount_type: string; discount_value: number }, mounts: 0, updates: 0, process: null as null | ((value: boolean) => void), deadline: undefined as number | undefined, delayRefresh: false, finishRefresh: null as null | (() => void), confirm: null as null | ((value: boolean) => void), restart: null as null | (() => Promise<void>) }));
 const params = new URLSearchParams('email=buyer@example.com');
 vi.mock('next/navigation', () => ({ useSearchParams: () => params, useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: null, isAdmin: false, loading: false }) }));
@@ -25,12 +25,15 @@ vi.mock('@/app/[locale]/checkout/[slug]/components/ProductShowcase', () => ({ de
 vi.mock('@stripe/react-stripe-js/checkout', () => ({ CheckoutElementsProvider: ({ children }: { children: React.ReactNode }) => {
   React.useEffect(() => { state.mounts++; }, []); return children;
 } }));
-vi.mock('@/app/[locale]/checkout/[slug]/components/CustomPaymentForm', () => ({ default: ({ quantityInvalid, onRegisterServerUpdate, onProcessingChange }: { quantityInvalid: boolean; onProcessingChange(value: boolean): void; onRegisterServerUpdate(runner: (update: () => Promise<unknown>) => Promise<void>): void }) => {
-  React.useEffect(() => { onRegisterServerUpdate(async update => { state.updates++; await update(); }); }, [onRegisterServerUpdate]);
+vi.mock('@/app/[locale]/checkout/[slug]/components/CustomPaymentForm', () => ({ default: ({ quantityInvalid, onRegisterServerUpdate, onProcessingChange, sessionDeadline, onConfirmationChange, onSessionExpired }: { quantityInvalid: boolean; onConfirmationChange(value: boolean): void; onSessionExpired(): Promise<void>; sessionDeadline?: number; onProcessingChange(value: boolean): void; onRegisterServerUpdate(runner: (update: () => Promise<unknown>) => Promise<void>): void }) => {
+  React.useEffect(() => { onRegisterServerUpdate(async update => { state.updates++; await update(); if (state.delayRefresh) await new Promise<void>(resolve => { state.finishRefresh = resolve; }); }); }, [onRegisterServerUpdate]);
   state.process = onProcessingChange;
+  state.deadline = sessionDeadline;
+  state.confirm = onConfirmationChange;
+  state.restart = onSessionExpired;
   return React.createElement('input', { 'aria-label': 'Card', disabled: quantityInvalid });
 } }));
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); state.verifying = false; state.coupon = null; state.mounts = 0; state.updates = 0; });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); state.verifying = false; state.coupon = null; state.mounts = 0; state.updates = 0; state.delayRefresh = false; state.finishRefresh = null; });
 
 it('preserves the active session and entered card while checking and applying a coupon', async () => {
   const calls: Array<Record<string, unknown>> = [];
@@ -69,3 +72,21 @@ it('locks cart controls and pauses updates throughout payment processing', async
   await act(async () => { await Promise.resolve(); });
   expect(fetch).toHaveBeenCalledTimes(1);
 });
+
+it('counts remaining lifetime from response receipt while Stripe refresh is pending', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => Response.json({ clientSecret: 'cs_test_open_secret_value', checkoutSessionId: 'cs_test_open', expiresInSeconds: 1800 })));
+  const product = { id: 'product', slug: 'product', name: 'Product', price: 100, currency: 'PLN', is_active: true };
+  const tree = () => React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(PaidProductForm, { product, collectTermsOfService: false } as unknown as React.ComponentProps<typeof PaidProductForm>));
+  const clock = vi.spyOn(performance, 'now').mockReturnValue(1000);
+  try {
+    const view = render(tree());
+    await screen.findByLabelText('Card');
+    state.delayRefresh = true;
+    state.coupon = { code: 'QUARTER', discount_type: 'percentage', discount_value: 25 }; view.rerender(tree());
+    await waitFor(() => expect(state.finishRefresh).not.toBeNull());
+    clock.mockReturnValue(11000);
+    await act(async () => { state.finishRefresh!(); });
+    expect(state.deadline).toBe(1801000);
+  } finally { clock.mockRestore(); }
+});
+
