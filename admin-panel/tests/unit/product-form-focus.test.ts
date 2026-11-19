@@ -3,12 +3,13 @@
 import { createElement, StrictMode } from 'react';
 import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Product } from '@/types';
+import BaseModal from '@/components/ui/BaseModal';
 import { initialFormData } from '@/components/ProductFormModal/types';
 import { getMyShopConfig } from '@/lib/actions/shop-config';
 import { useProductForm } from '@/components/ProductFormModal/hooks/useProductForm';
+import type { Product } from '@/types';
 
-vi.mock('next-intl', () => ({ useLocale: () => 'en' }));
+vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key: string) => key }));
 vi.mock('@/components/providers/config-provider', () => {
   const config = { trustedDownloadDomains: [] };
   return { useConfig: () => config };
@@ -28,7 +29,7 @@ const onSubmit = vi.fn().mockResolvedValue(undefined);
 
 function Form({ isOpen }: { isOpen: boolean }) {
   const { nameInputRef, formData, handleInputChange, priceDisplayValue, setPriceDisplayValue } = useProductForm({ isOpen, onSubmit });
-  return createElement('div', { role: 'dialog', tabIndex: -1 },
+  return createElement(BaseModal, { isOpen, onClose: vi.fn(), initialFocusSelector: 'input#name' },
     createElement('input', { id: 'name', name: 'name', 'aria-label': 'Name', ref: nameInputRef, value: formData.name, onChange: handleInputChange }),
     createElement('input', { id: 'price', 'aria-label': 'Price', value: priceDisplayValue, onChange: (event: React.ChangeEvent<HTMLInputElement>) => setPriceDisplayValue(event.target.value) }),
     createElement('textarea', { 'aria-label': 'Description' }),
@@ -80,27 +81,32 @@ describe('Product form opening focus', () => {
     expect(document.activeElement).toBe(control);
   });
 
-  it('focuses name when the dialog container is focused', async () => {
+  it('preserves focus moved to the dialog container', async () => {
     await openForm();
-    screen.getByRole('dialog').focus();
+    const container = screen.getByLabelText('Name').parentElement!;
+    container.focus();
     act(() => vi.advanceTimersByTime(101));
-    expect(document.activeElement).toBe(screen.getByLabelText('Name'));
+    expect(document.activeElement).toBe(container);
   });
 
-  it('cancels pending focus on close and focuses name on reopen', async () => {
+  it('focuses name on reopen without a delayed focus', async () => {
     const view = await openForm();
     const focus = vi.spyOn(screen.getByLabelText('Name'), 'focus');
     await act(async () => view.rerender(createElement(Form, { isOpen: false })));
     act(() => vi.advanceTimersByTime(101));
     expect(focus).not.toHaveBeenCalled();
     await act(async () => view.rerender(createElement(Form, { isOpen: true })));
+    const name = screen.getByLabelText('Name');
+    expect(document.activeElement).toBe(name);
+    const reopenedFocus = vi.spyOn(name, 'focus');
     act(() => vi.advanceTimersByTime(101));
-    expect(focus).toHaveBeenCalledOnce();
+    expect(reopenedFocus).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(name);
   });
 
-  it('cancels the pending timer on unmount', async () => {
+  it('does not schedule a delayed focus', async () => {
     const view = await openForm();
-    expect(vi.getTimerCount()).toBe(1);
+    expect(vi.getTimerCount()).toBe(0);
     view.unmount();
     expect(vi.getTimerCount()).toBe(0);
   });
