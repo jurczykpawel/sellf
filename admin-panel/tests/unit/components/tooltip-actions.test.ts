@@ -1,8 +1,19 @@
 // @vitest-environment happy-dom
-import { createElement } from 'react';
+import { createElement, createRef } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { Tooltip } from '@/components/ui/Tooltip';
+const referenceInputs = vi.hoisted(() => vi.fn());
+vi.mock('@floating-ui/react', async importOriginal => {
+  const original = await importOriginal<typeof import('@floating-ui/react')>();
+  return { ...original, useInteractions: (...args: Parameters<typeof original.useInteractions>) => {
+    const interactions = original.useInteractions(...args);
+    return { ...interactions, getReferenceProps: (props?: React.HTMLProps<Element>) => {
+      referenceInputs(props);
+      return interactions.getReferenceProps(props);
+    } };
+  } };
+});
 afterEach(cleanup);
 it('keeps the inactive product action on click and keyboard activation', () => {
   const activate = vi.fn();
@@ -22,4 +33,15 @@ it('keeps child focus and pointer handlers', () => {
   fireEvent.pointerDown(screen.getByRole('button'));
   expect(focus).toHaveBeenCalledTimes(1);
   expect(pointer).toHaveBeenCalledTimes(1);
+});
+
+it('keeps the child ref out of interaction props and attaches both references', () => {
+  referenceInputs.mockClear();
+  const ref = createRef<HTMLButtonElement>();
+  const view = render(createElement(Tooltip, { content: 'Help', children: createElement('button', { ref }, 'Referenced') }));
+  const button = screen.getByRole('button', { name: 'Referenced' });
+  expect(ref.current).toBe(button);
+  expect(referenceInputs.mock.calls.every(([props]) => !Object.hasOwn(props ?? {}, 'ref'))).toBe(true);
+  view.unmount();
+  expect(ref.current).toBeNull();
 });
