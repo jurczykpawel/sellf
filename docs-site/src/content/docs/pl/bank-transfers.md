@@ -42,3 +42,5 @@ Każda zmiana stanu wysyła podpisany webhook: `order.placed`, `order.payment_re
 Otwarty paragon nieopłaconego zamówienia odświeża się w chwili końca rezerwacji, co 15 sekund oraz po powrocie do okna. Po terminie lub anulowaniu przez sprzedawcę usuwa dane zachęcające do płatności. **Moje zakupy** oznaczają anulowany przelew jako **Anulowane — nie opłacaj tego zamówienia**, a nieopłacony jako **Oczekuje na przelew**.
 
 **Drukuj / zapisz PDF** pomija przyciski preferencji ciasteczek i ich stopkę, dzięki czemu krótki paragon mieści się na jednej stronie A4 bez dodatkowej strony z samym interfejsem.
+
+Każdy prawidłowy link zamówienia ma osobny limit odświeżeń, więc kupujący różnych zamówień nie zużywają jednego wspólnego budżetu.

@@ -42,3 +42,5 @@ Every state change sends a signed webhook: `order.placed`, `order.payment_remind
 An open unpaid receipt refreshes at the reservation deadline, every 15 seconds and when the window regains focus. It removes payment instructions when the deadline passes or the seller cancels the order. **My purchases** labels cancelled transfers **Cancelled — do not pay this order** and unpaid transfers **Awaiting bank transfer**.
 
 **Print / save PDF** omits cookie-preference controls and their footer, so a short receipt fits on one A4 page without an extra interface-only page.
+
+Each validated order link has its own refresh allowance, so buyers of different orders do not share one refresh budget.
