@@ -186,3 +186,23 @@ it('preserves a manually selected currency while shop defaults load', async () =
   await act(async () => { finish({ default_currency: 'PLN' } as Awaited<ReturnType<typeof getMyShopConfig>>); });
   expect(result.current.formData.currency).toBe('EUR');
 });
+
+it('keeps a loaded product clean, detects edits to any field and clears after reverting', async () => {
+  const product = { ...initialFormData, id: 'saved', name: 'Saved', slug: 'saved', price: 100 } as Product;
+  const { result } = renderHook(() => useProductForm({ isOpen: true, onSubmit, product }));
+  await act(async () => {});
+  expect(result.current.isDirty).toBe(false);
+  act(() => result.current.setFormData(prev => ({ ...prev, is_listed: false })));
+  expect(result.current.isDirty).toBe(true);
+  act(() => result.current.setFormData(prev => ({ ...prev, is_listed: true })));
+  expect(result.current.isDirty).toBe(false);
+  act(() => result.current.setOto(prev => ({ ...prev, enabled: true })));
+  expect(result.current.isDirty).toBe(true);
+});
+it('detects an invalid price edit even when its parsed value stays zero', async () => {
+  const product = { ...initialFormData, id: 'saved', name: 'Saved', slug: 'saved', currency: 'JPY' } as Product;
+  const { result } = renderHook(() => useProductForm({ isOpen: true, onSubmit, product }));
+  await act(async () => {});
+  act(() => result.current.setPriceDisplayValue('1000.5'));
+  expect(result.current.isDirty).toBe(true);
+});

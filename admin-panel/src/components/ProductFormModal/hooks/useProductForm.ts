@@ -107,6 +107,23 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
   // OTO (One-Time Offer) state
   const [oto, setOto] = useState<OtoState>(initialOtoState);
 
+  const [pristineForm, setPristineForm] = useState<ProductFormData>(initialFormData);
+  const [pristineOto, setPristineOto] = useState<OtoState>(initialOtoState);
+  const initializeForm = useCallback((value: React.SetStateAction<ProductFormData>) => {
+    setFormData(value);
+    setPristineForm(value);
+  }, []);
+  const initializeOto = useCallback((value: React.SetStateAction<OtoState>) => {
+    setOto(value);
+    setPristineOto(value);
+  }, []);
+  const isDirty = Object.keys(formData).some(key => {
+    const field = key as keyof ProductFormData;
+    return JSON.stringify(formData[field]) !== JSON.stringify(pristineForm[field]);
+  }) || JSON.stringify(oto) !== JSON.stringify(pristineOto)
+    || !!parseMoneyInput(priceDisplayValue, formData.currency, locale).error
+    || !!parseMoneyInput(salePriceDisplayValue, formData.currency, locale).error;
+
   // URL validation state - maps content item index to validation status
   const [urlValidationOverrides, setUrlValidation] = useState<Record<number, UrlValidation>>({});
 
@@ -160,7 +177,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
             const previousDefaultCurrency = defaultCurrencyRef.current;
             defaultCurrencyRef.current = config.default_currency || 'USD';
             setDefaultCurrency(defaultCurrencyRef.current);
-            setFormData(prev => ({
+            initializeForm(prev => ({
               ...prev,
               currency: prev.currency === previousDefaultCurrency ? config.default_currency || 'USD' : prev.currency,
               vat_rate: prev.vat_rate ?? (config.tax_rate != null ? Math.round(config.tax_rate * 100) : null),
@@ -168,7 +185,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
             // New products inherit the shop's VAT-exempt status (and its default
             // exemption note, if set) as the default.
             if (config.is_vat_exempt) {
-              setFormData(prev => ({
+              initializeForm(prev => ({
                 ...prev,
                 vat_exempt: true,
                 vat_exempt_note: config.vat_exempt_note ?? prev.vat_exempt_note,
@@ -200,12 +217,13 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
       })();
     }
     return () => { active = false; };
-  }, [isOpen, product]);
+  }, [isOpen, product, initializeForm]);
 
   const [formSession, setFormSession] = useState<{ isOpen: boolean; productId?: string } | null>(null);
   if (!formSession || formSession.isOpen !== isOpen || formSession.productId !== product?.id) {
     setFormSession({ isOpen, productId: product?.id });
     if (isOpen) {
+      initializeOto(initialOtoState);
       setShopConfigLoaded(false);
       setLoadingCategories(true);
       setLoadingTags(true);
@@ -220,7 +238,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
           allow_custom_price: product.allow_custom_price ?? false,
           price: product.price,
         });
-        setFormData({
+        initializeForm({
           name: product.name,
           slug: product.slug,
           description: product.description ?? '',
@@ -300,7 +318,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
         setSlugModified(true);
       } else {
         // For new products — copy shop default VAT rate so it's explicit per product
-        setFormData({
+        initializeForm({
           ...initialFormData,
           currency: defaultCurrency,
           icon: getIconEmoji('rocket'),
@@ -311,7 +329,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
         setPriceDisplayValue('');
         setSalePriceDisplayValue('');
         setSlugModified(false);
-        setOto(initialOtoState);
+        initializeOto(initialOtoState);
       }
     }
   }
@@ -322,7 +340,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
     // Fetch assigned categories
     getProductCategories(product.id).then(result => {
       if (result.success && result.data) {
-        setFormData(prev => ({ ...prev, categories: result.data! }));
+        initializeForm(prev => ({ ...prev, categories: result.data! }));
       }
     }).catch(err => console.error(err));
 
@@ -331,7 +349,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
     // existing tags instead of wiping them via PATCH replace-semantics.
     getProductTags(product.id).then(result => {
       if (result.success && result.data) {
-        setFormData(prev => ({ ...prev, tags: result.data! }));
+        initializeForm(prev => ({ ...prev, tags: result.data! }));
       }
     }).catch(err => console.error(err));
 
@@ -346,7 +364,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
             .eq('bundle_product_id', product.id)
             .order('display_order');
           if (!error && data) {
-            setFormData(prev => ({
+            initializeForm(prev => ({
               ...prev,
               bundleItemIds: data.map((r: { component_product_id: string }) => r.component_product_id),
             }));
@@ -372,7 +390,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
       .then(data => {
         if (data.has_oto) {
           const hasDownsell = !!data.downsell_product_id;
-          setOto({
+          initializeOto({
             enabled: true,
             productId: data.oto_product_id || '',
             discountType: data.discount_type || 'percentage',
@@ -385,14 +403,14 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
             downsellDurationMinutes: data.downsell_duration_minutes ?? 15,
           });
         } else {
-          setOto(initialOtoState);
+          initializeOto(initialOtoState);
         }
       })
       .catch(err => {
         console.error('Failed to fetch OTO config:', err);
       });
 
-  }, [product, isOpen]);
+  }, [product, isOpen, initializeForm, initializeOto]);
 
   // Fetch products for OTO dropdown using v1 API
   useEffect(() => {
@@ -740,6 +758,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
 
   return {
     // Form data
+    isDirty,
     formData,
     setFormData,
     priceDisplayValue,

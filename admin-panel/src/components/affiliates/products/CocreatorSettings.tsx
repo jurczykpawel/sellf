@@ -5,7 +5,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useLocale } from 'next-intl';
 import { SUPPORTED_CURRENCY_CODES } from '@/lib/constants';
-import { cocreatorRateSchema } from '@/lib/affiliates/cocreator/model';
+import { cocreatorRateSchema, cocreatorPutSchema } from '@/lib/affiliates/cocreator/model';
 import { getProductCocreator, removeProductCocreator, setProductCocreator } from '@/lib/affiliates/cocreator/actions';
 import { formatMinorDisplay } from '@/lib/affiliates/csv/formatter';
 import { currencyExponent, decimalMinor } from '@/lib/currency/minor-units';
@@ -31,6 +31,16 @@ function Editor({ productId, productType, locale }: { productId: string; product
   const [amount, setAmount] = useState('10');
   const [currency, setCurrency] = useState('PLN');
   const [busy, setBusy] = useState(true);
+  const [submitted, setSubmitted] = useState(false);
+  const emailRef = React.useRef<HTMLInputElement>(null);
+  const amountRef = React.useRef<HTMLInputElement>(null);
+  const minor = decimalMinor(amount, kind === 'fixed' ? currencyExponent(currency) : 2);
+  const rule = cocreatorRateSchema.safeParse(kind === 'fixed' ? { fixed_minor: minor, currency } : { percentage_bps: minor === null ? -1 : Number(minor) });
+  const emailInvalid = !cocreatorPutSchema.shape.email.safeParse(email.trim()).success;
+  const emailError = submitted && emailInvalid;
+  const rateError = submitted && !rule.success;
+  const maxAmount = formatMinorDisplay('9223372036854775807', currency);
+  const rateMessage = kind === 'percentage' ? t.percentageInvalid : `${t.fixedInvalid} ${maxAmount.success ? maxAmount.data : ''} ${currency}. ${t.precisionHint}`;
   const [message, setMessage] = useState('');
   const [programRequired, setProgramRequired] = useState(false);
   const load = useCallback(() => getProductCocreator(productId).then(result => {
@@ -47,14 +57,17 @@ function Editor({ productId, productType, locale }: { productId: string; product
     return code === 'ACCOUNT_NOT_FOUND' ? t.accountNotFound : code === 'CONFLICT' ? t.conflict : code === 'INVALID_INPUT' ? t.invalid : t.error;
   }
   async function save() {
-    const minor = decimalMinor(amount, kind === 'fixed' ? currencyExponent(currency) : 2);
-    const rule = cocreatorRateSchema.safeParse(kind === 'fixed' ? { fixed_minor: minor, currency } : { percentage_bps: minor === null ? -1 : Number(minor) });
-    if (!rule.success || !email.trim()) { setMessage(t.invalid); return; }
+    setSubmitted(true);
+    if (!rule.success || emailInvalid) {
+      setMessage('');
+      (emailInvalid ? emailRef : amountRef).current?.focus();
+      return;
+    }
     setBusy(true);
     try {
       const result = await setProductCocreator({ product_id: productId, expected_revision: info?.revision ?? 0, email: email.trim(),
         ...(name.trim() ? { display_name: name.trim() } : {}), rule: rule.data });
-      if (result.success) { setEmail(''); setName(''); if (await reload()) setMessage(t.saved); }
+      if (result.success) { setSubmitted(false); setEmail(''); setName(''); if (await reload()) setMessage(t.saved); }
       else setMessage(failure(result.errorCode));
     } catch { setMessage(t.error); } finally { setBusy(false); }
   }
@@ -90,16 +103,18 @@ function Editor({ productId, productType, locale }: { productId: string; product
       </div>
       <fieldset disabled={busy || !info} className="min-w-0 space-y-3">
         <div className="grid min-w-0 gap-3 sm:grid-cols-2">
-          <label className="block text-sm">{t.email}<input className={inputClass} type="email" autoComplete="off" maxLength={254} value={email} aria-describedby={`${id}-email-hint`} onChange={e => setEmail(e.target.value)} /></label>
+          <label className="block text-sm">{t.email}<input className={inputClass} ref={emailRef} aria-invalid={emailError} type="email" autoComplete="off" maxLength={254} value={email} aria-describedby={emailError ? `${id}-email-error` : `${id}-email-hint`} onChange={e => setEmail(e.target.value)} /></label>
           <label className="block text-sm">{t.displayName}<input className={inputClass} maxLength={120} value={name} onChange={e => setName(e.target.value)} /></label>
         </div>
+        {emailError && <p id={`${id}-email-error`} role="alert" className="text-sm text-sf-danger">{t.emailInvalid}</p>}
         <p id={`${id}-email-hint`} className="text-sm text-sf-muted">{t.emailHint}</p>
         <div className={`grid min-w-0 gap-3 ${kind === 'fixed' ? 'sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_5.5rem]' : 'sm:grid-cols-2'}`}>
           <label className="block text-sm">{t.type}<select className={inputClass} value={kind} onChange={e => setKind(e.target.value === 'fixed' ? 'fixed' : 'percentage')}><option value="percentage">{t.percentage}</option><option value="fixed">{t.fixed}</option></select></label>
-          <label className="block text-sm">{kind === 'fixed' ? t.minor : t.bps}<input className={inputClass} inputMode="decimal" maxLength={24} value={amount} onChange={e => setAmount(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void save(); } }} /></label>
+          <label className="block text-sm">{kind === 'fixed' ? t.minor : t.bps}<input className={inputClass} ref={amountRef} aria-invalid={rateError} aria-describedby={rateError ? `${id}-rate-error` : undefined} inputMode="decimal" maxLength={24} value={amount} onChange={e => setAmount(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void save(); } }} /></label>
           {kind === 'fixed' && <label className="block text-sm">{t.currency}<select className={inputClass} value={currency} onChange={e => setCurrency(e.target.value)}>
             {SUPPORTED_CURRENCY_CODES.map(code => <option key={code}>{code}</option>)}</select></label>}
         </div>
+        {rateError && <p id={`${id}-rate-error`} role="alert" className="text-sm text-sf-danger">{rateMessage}</p>}
         <div className="space-y-2 border-t border-sf-border pt-3">
           <p id={`${id}-save-hint`} className="text-sm text-sf-muted">{t.saveHint}</p>
           <div className="flex flex-wrap gap-2">

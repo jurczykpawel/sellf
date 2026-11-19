@@ -125,3 +125,23 @@ it('shows the accepted version, a missing terms notice and the admin view withou
 it('keeps EN and PL co-creator copy aligned', () => {
   expect(Object.keys(cocreatorMessages.en)).toEqual(Object.keys(cocreatorMessages.pl));
 });
+it.each(['en', 'pl'] as const)('identifies co-creator email and share errors at their fields %s', async lang => {
+  locale.value = lang; const t = cocreatorMessages[lang];
+  actions.getProductCocreator.mockResolvedValue({ success: true, data: base });
+  render(<CocreatorEditor productId={product} />);
+  await screen.findByText(t.none);
+  const email = screen.getByLabelText(t.email), rate = screen.getByLabelText(t.bps);
+  fireEvent.change(email, { target: { value: 'anna@example.test' } });
+  for (const value of ['0', '100.01', '999999999999999999999999']) {
+    fireEvent.change(rate, { target: { value } });
+    fireEvent.click(screen.getByRole('button', { name: t.save }));
+    expect(rate.getAttribute('aria-invalid')).toBe('true');
+    expect(document.getElementById(rate.getAttribute('aria-describedby')!)?.textContent).toContain(lang === 'pl' ? '0,01–100%' : '0.01–100%');
+  }
+  fireEvent.change(rate, { target: { value: '10' } });
+  fireEvent.change(email, { target: { value: 'bad@@example.test' } });
+  fireEvent.click(screen.getByRole('button', { name: t.save }));
+  expect(email.getAttribute('aria-invalid')).toBe('true');
+  expect(rate.getAttribute('aria-invalid')).toBe('false');
+  expect(actions.setProductCocreator).not.toHaveBeenCalled();
+});

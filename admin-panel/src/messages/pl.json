@@ -1,5 +1,9 @@
 {
   "affiliateCocreator": {
+    "emailInvalid": "Wpisz poprawny adres e-mail.",
+    "percentageInvalid": "Wpisz 0,01–100%, z najwyżej dwoma miejscami po przecinku.",
+    "fixedInvalid": "Wpisz kwotę większą od 0 i nie większą niż",
+    "precisionHint": "Użyj liczby miejsc po przecinku dozwolonej dla wybranej waluty.",
     "title": "Udział współtwórcy",
     "policy": "Jedna osoba dostaje udział w każdej sprzedaży tego produktu, z kuponem lub bez. Udział dolicza się do prowizji partnera, także gdy to ta sama osoba. Naliczamy go tylko od zakupów po zapisaniu.",
     "email": "E-mail współtwórcy",
@@ -2098,7 +2102,7 @@
           "cancel": "Anuluj",
           "earlyCreateHint": "Możesz utworzyć produkt teraz z samymi podstawami lub kontynuować konfigurację dostawy treści, promocji cenowych i więcej.",
           "exitTitle": "Odrzucić zmiany?",
-          "exitMessage": "Masz niezapisane dane produktu. Zamknąć bez tworzenia?",
+          "exitMessage": "Masz niezapisane dane produktu. Zamknąć bez zapisywania?",
           "exitDiscard": "Odrzuć",
           "exitKeepEditing": "Kontynuuj edycję"
         },
@@ -2202,6 +2206,7 @@
             "bundle": "dostęp do {count, plural, one {# produktu} other {# produktów}} z pakietu"
           },
           "payment": {
+            "invalid": "po wpisaniu poprawnej ceny",
             "oneTime": "po jednorazowej płatności",
             "subscription": "na czas opłacania abonamentu",
             "customPrice": "po wpłacie wybranej przez siebie kwoty",
@@ -2957,6 +2962,9 @@
       "deleteExpiredSuccess": "Pomyślnie usunięto {count} wygasłych kuponów",
       "deleteExpiredPartial": "Usunięto {deleted} wygasłych kuponów, {failed} nie powiodło się",
       "form": {
+        "limitInvalid": "Wpisz liczbę całkowitą od 1 do {max} lub zostaw puste pole dla braku limitu.",
+        "nameInvalid": "Nazwa może mieć najwyżej 200 znaków.",
+        "emailInvalid": "Wpisz poprawny adres e-mail.",
         "codeInvalid": "Użyj liter, cyfr, myślnika lub podkreślenia, bez spacji.",
         "percentageInvalid": "Podaj rabat większy od 0 i nie większy niż 100%.",
         "valueInvalid": "Podaj poprawną wartość zniżki.",

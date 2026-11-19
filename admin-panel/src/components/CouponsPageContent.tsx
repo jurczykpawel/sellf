@@ -496,7 +496,7 @@ const CouponsPageContent: React.FC = () => {
                             </span>
                           )}
                         </div>
-                        {coupon.name && <div className="text-xs text-sf-muted">{coupon.name}</div>}
+                        {coupon.name && <div title={coupon.name} className="max-w-48 truncate text-xs text-sf-muted">{coupon.name}</div>}
                         {restrictedProducts.length > 0 && (
                           <div className="text-xs text-sf-muted mt-1 flex items-center gap-1">
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
