@@ -387,3 +387,19 @@ it.each(['payment', 'cancel', 'refund'])('tracks the actual bundle-add-on compon
     f.cleanup();
   }
 });
+
+it('preserves the paid period after reopening a cancelled transfer and refunding a later purchase @J182', () => {
+  const f = fixture();
+  try {
+    sql(`UPDATE public.products SET auto_grant_duration_days=365 WHERE id='${f.product}';`);
+    const transfer = f.buy(f.product,'bank_transfer','awaiting_payment');
+    sql(`UPDATE public.payment_transactions SET created_at=now()-interval '100 days',access_terms=jsonb_build_object('${f.user}:${f.product}',jsonb_build_object('grantedAt',now()-interval '100 days','expiresAt',now()+interval '265 days')) WHERE id='${transfer}';
+      UPDATE public.user_product_access SET access_expires_at=now()+interval '265 days' WHERE user_id='${f.user}' AND product_id='${f.product}';
+      SELECT public.cancel_unpaid_order('${transfer}','Fixture cancellation');`);
+    const result = JSON.parse(sql(`SELECT public.admin_bank_transfer_order('${transfer}','mark-paid',4000,now(),'Late payment accepted',(SELECT user_id FROM public.admin_users LIMIT 1),true,false);`));
+    expect(result.success).toBe(true);
+    const paidDeadline = f.access().access_expires_at;
+    const later = f.buy(); f.refund(later);
+    expect(f.access()?.access_expires_at).toBe(paidDeadline);
+  } finally { f.cleanup(); }
+});

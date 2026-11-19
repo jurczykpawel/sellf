@@ -3771,6 +3771,14 @@ BEGIN
   EXECUTE replace(definition, previous, 'PERFORM public.settle_transfer_product_access(tx.id); ' || previous);
 END $$;
 
+DO $$
+DECLARE definition text; previous text := 'SET status=''awaiting_payment'',cancel_reason=NULL,';
+BEGIN
+  definition := pg_get_functiondef('public._reopen_cancelled_transfer(uuid)'::regprocedure);
+  IF strpos(definition, previous) = 0 THEN RAISE EXCEPTION 'Unexpected reopening definition'; END IF;
+  EXECUTE replace(definition, previous, previous || 'access_terms=''{}''::jsonb,');
+END $$;
+
 -- Sale counters acquire product rows in the same order for every cart.
 DO $$
 DECLARE definition text;
