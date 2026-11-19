@@ -41,6 +41,7 @@ interface CustomPaymentFormProps {
   quantityInvalid?: boolean;
   clientSecret?: string;
   bindingToken?: string;
+  expiresAt?: number;
   onConfirmationChange?: (pending: boolean) => void;
   onProcessingChange?: (processing: boolean) => void;
   pricing: PricingResult;
@@ -59,6 +60,7 @@ interface CustomPaymentFormProps {
   customFieldErrors?: Record<string, string>;
   /** The applied discount code was used up before payment; the parent drops it and re-prices. */
   onCouponUnavailable?: () => void;
+  onSessionExpired?: () => void;
 }
 
 type EmailValidationResponse = {
@@ -82,7 +84,7 @@ export default function CustomPaymentForm({
   onChangeAccount,
   customAmountError, quantityInvalid = false,
   clientSecret,
-  bindingToken,
+  bindingToken, expiresAt,
   onConfirmationChange, onProcessingChange,
   pricing,
   paymentMethodOrder,
@@ -97,7 +99,7 @@ export default function CustomPaymentForm({
   customFieldValues = {},
   onCustomFieldValuesChange,
   customFieldErrors,
-  onCouponUnavailable,
+  onCouponUnavailable, onSessionExpired,
 }: CustomPaymentFormProps) {
   const t = useTranslations('checkout');
   const locale = useLocale();
@@ -125,6 +127,13 @@ export default function CustomPaymentForm({
   useEffect(() => () => onProcessingChange?.(false), [onProcessingChange]);
   const [paymentElementReady, setPaymentElementReady] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [sessionExpired, setSessionExpired] = useState(false);
+  useEffect(() => {
+    if (!expiresAt) return;
+    const remaining = expiresAt * 1000 - Date.now();
+    const timer = setTimeout(() => setSessionExpired(true), Math.max(0, remaining));
+    return () => clearTimeout(timer);
+  }, [expiresAt]);
 
   // Invoice / NIP logic
   const parsedProfile = storedCheckoutProfileSchema.safeParse(product.checkout_profile);
@@ -171,7 +180,7 @@ export default function CustomPaymentForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (quantityInvalid || !profileForm.validate()) return;
+    if (sessionExpired || quantityInvalid || !profileForm.validate()) return;
 
     if (checkoutResult.type !== 'success' || !paymentElementReady) return;
     const checkout = checkoutResult.checkout;
@@ -229,7 +238,7 @@ export default function CustomPaymentForm({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             clientSecret,
-            bindingToken,
+            bindingToken, expiresAt,
             productId: product.id,
             email: finalEmail,
             locale,
@@ -259,6 +268,11 @@ export default function CustomPaymentForm({
                 defaultValue: 'Please fill the required information fields.',
               }),
             );
+            setIsProcessing(false);
+            return;
+          }
+          if (errorBody?.code === 'checkout_session_expired') {
+            setSessionExpired(true);
             setIsProcessing(false);
             return;
           }
@@ -347,6 +361,13 @@ export default function CustomPaymentForm({
       setIsProcessing(false);
     }
   };
+
+  if (sessionExpired) {
+    return <div role="alert" className="space-y-3">
+      <p>{t('sessionExpired')}</p>
+      <button type="button" className="rounded-full bg-sf-accent-bg px-6 py-3 text-white" onClick={onSessionExpired}>{t('restartCheckout')}</button>
+    </div>;
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">

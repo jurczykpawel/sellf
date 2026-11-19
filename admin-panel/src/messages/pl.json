@@ -466,6 +466,8 @@
     "invalidTaxIdFormat": "Nieprawidłowy format NIP/ID podatkowego",
     "failedToPreparePayment": "Nie udało się przygotować płatności",
     "paymentFailed": "Płatność nieudana",
+    "sessionExpired": "Sesja płatności wygasła.",
+    "restartCheckout": "Rozpocznij nowy koszyk",
     "detailsNotSaved": "Nie udało się zapisać danych. Spróbuj ponownie.",
     "additionalProduct": "Dodatkowy produkt",
     "gusDataFetched": "Dane pobrane z bazy GUS",

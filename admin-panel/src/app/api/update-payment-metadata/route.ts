@@ -193,6 +193,9 @@ export async function POST(request: NextRequest) {
 
     if (isCheckoutSession) {
       const session = await stripe.checkout.sessions.retrieve(stripeObjectId);
+      if (session?.status === 'expired') {
+        return NextResponse.json({ success: false, code: 'checkout_session_expired' }, { status: 409 });
+      }
       if (!session || session.status !== 'open') {
         return NextResponse.json(
           { success: false, error: 'Checkout session is not in a modifiable state' },
