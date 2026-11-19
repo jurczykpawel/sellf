@@ -61,6 +61,7 @@ interface CustomPaymentFormProps {
   /** The applied discount code was used up before payment; the parent drops it and re-prices. */
   onCouponUnavailable?: () => void;
   onSessionExpired?: () => void;
+  onRegisterServerUpdate?: (runner: ((update: () => Promise<unknown>) => Promise<void>) | null) => void;
 }
 
 type EmailValidationResponse = {
@@ -100,12 +101,21 @@ export default function CustomPaymentForm({
   customFieldValues = {},
   onCustomFieldValuesChange,
   customFieldErrors,
-  onCouponUnavailable, onSessionExpired,
+  onCouponUnavailable, onSessionExpired, onRegisterServerUpdate,
 }: CustomPaymentFormProps) {
   const t = useTranslations('checkout');
   const locale = useLocale();
   const checkoutResult = useCheckoutElements();
   const { track } = useTracking();
+  const checkout = checkoutResult.type === 'success' ? checkoutResult.checkout : null;
+  useEffect(() => {
+    if (!checkout || !onRegisterServerUpdate) return;
+    onRegisterServerUpdate(async update => {
+      const result = await checkout.runServerUpdate(update);
+      if (result.type === 'error') throw new Error(t('createSessionError'));
+    });
+    return () => onRegisterServerUpdate(null);
+  }, [checkout, onRegisterServerUpdate, t]);
 
   const isSubscription = product.product_type === 'subscription';
   const trialDays = getTrialDays(product);
