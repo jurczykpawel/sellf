@@ -296,3 +296,12 @@ it.each(['bump', 'bundle-component', 'twice'])('retains only days added by an or
     expect(f.access()?.access_expires_at).toBe(retained);
   } finally { f.cleanup(); }
 });
+
+it.each(['revoke_order_bundle_components', 'release_transfer_access'])('orders the product lock loop in %s @J34', fn => {
+  const definition = sql(`SELECT replace(pg_get_functiondef(('public.${fn}()')::regprocedure),E'\\n',' ');`.replace('revoke_order_bundle_components()', 'revoke_order_bundle_components(uuid,uuid)'));
+  if (fn === 'revoke_order_bundle_components') expect(definition).toMatch(/ORDER BY a\.product_id\s+LOOP/);
+  else {
+    expect(definition).toMatch(/ORDER BY 1\s+LOOP/g);
+    expect(definition.match(/ORDER BY 1\s+LOOP/g)).toHaveLength(2);
+  }
+});

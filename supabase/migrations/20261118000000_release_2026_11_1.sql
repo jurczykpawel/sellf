@@ -3486,6 +3486,7 @@ BEGIN
     AND a.product_id IN (SELECT public.order_granted_components(t.id))
     AND a.product_id IS DISTINCT FROM t.product_id
     AND a.subscription_id IS NULL
+  ORDER BY a.product_id
   LOOP
     IF public.revoke_order_product_access(t.id, p_user_id, candidate) THEN removed := removed + 1; END IF;
   END LOOP;
@@ -3536,11 +3537,13 @@ BEGIN
       SELECT NEW.user_id WHERE NEW.user_id IS NOT NULL
       UNION SELECT claimed_by_user_id FROM public.guest_purchases
         WHERE transaction_id = NEW.id AND claimed_by_user_id IS NOT NULL
+      ORDER BY 1
     LOOP
       FOR product IN
         SELECT NEW.product_id WHERE NEW.product_id IS NOT NULL
         UNION SELECT product_id FROM public.payment_line_items WHERE transaction_id = NEW.id
         UNION SELECT public.order_granted_components(NEW.id)
+        ORDER BY 1
       LOOP
         IF NEW.status = 'refunded' OR OLD.access_terms ? (buyer::text || ':' || product::text)
           OR EXISTS (SELECT 1 FROM public.user_product_access a WHERE a.user_id = buyer
