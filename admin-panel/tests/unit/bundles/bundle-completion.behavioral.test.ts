@@ -16,6 +16,7 @@
  * Run: bunx vitest run tests/unit/bundles/bundle-completion.behavioral.test.ts
  */
 
+import { archiveLegacyBundleComponent } from '../../helpers/legacy-bundle';
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 import { deleteChecked, deleteBundleItemsFor, deleteAuthUsers } from '../../helpers/db-cleanup';
@@ -60,17 +61,34 @@ afterAll(async () => {
 });
 
 describe.skipIf(!db)('bundle completion + guest claim', () => {
-  it('completing a bundle purchase grants bundle + components and writes ONE main line item', async () => {
+  it.each([false, true])('completing a bundle purchase grants all components (legacy archived: %s) and writes ONE main line item', async (archived) => {
     const bundle = await mkProduct({ is_bundle: true, price: 199 });
     const a = await mkProduct(); const b = await mkProduct();
     await db!.from('bundle_items').insert([
       { bundle_product_id: bundle, component_product_id: a },
       { bundle_product_id: bundle, component_product_id: b },
     ]);
+    if (archived) {
+      archiveLegacyBundleComponent(a);
+      const publicClient = createClient(URL, process.env.SUPABASE_ANON_KEY!);
+      const oldPreview = await publicClient.from('bundle_items')
+        .select('component:products!bundle_items_component_product_id_fkey(id)').eq('bundle_product_id', bundle).eq('component_product_id', a).single();
+      expect(oldPreview.error).toBeNull();
+      expect(oldPreview.data?.component).toBeNull();
+    }
     const { data: user } = await db!.auth.admin.createUser({ email: `bc-${crypto.randomUUID().slice(0,8)}@t.dev`, email_confirm: true });
     users.push(user!.user!.id);
     // Session id must match the RPC's format contract ^(cs_|pi_)[a-zA-Z0-9_]+$ — strip uuid hyphens.
     const session = `cs_${crypto.randomUUID().replace(/-/g, '')}`;
+    const placed = await db!.rpc('place_order', {
+      p_order: { payment_provider: 'stripe', product_id: bundle, customer_email: user!.user!.email,
+        session_id: session, currency: 'PLN', user_id: user!.user!.id },
+      p_lines: [{ product_id: bundle, item_type: 'main_product', product_name: 'Complete bundle',
+        quantity: 1, unit_price: 199, total_price: 199, discounted_total: 199, currency: 'PLN',
+        tax_behavior: 'inclusive', vat_rate: 0, vat_exempt: true }],
+    });
+    expect(placed.error).toBeNull();
+    expect(placed.data).toMatchObject({ success: true });
 
     const { data, error } = await db!.rpc('process_stripe_payment_completion_with_bump', {
       session_id_param: session, product_id_param: bundle, customer_email_param: user!.user!.email,

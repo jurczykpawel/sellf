@@ -124,7 +124,7 @@ it('an archived product is hidden from the public, waitlist included, and stays 
     SELECT 'contract passed';`)).toContain('contract passed');
 });
 
-it('permanent delete keeps ended subscriptions and past reservations, removes rules and bundle links, and is blocked only by active subscriptions or future reservations @J602', () => {
+it('permanent delete keeps ended subscriptions and past reservations, removes rules after bundle membership is removed, and keeps active subscriptions or future reservations @J602', () => {
   expect(sql(`
     CREATE TEMP TABLE p AS SELECT gen_random_uuid() AS id, gen_random_uuid() AS bundle, gen_random_uuid() AS past_tx, gen_random_uuid() AS future_tx,
       gen_random_uuid() AS past_session, gen_random_uuid() AS future_session, gen_random_uuid() AS sub,
@@ -144,8 +144,9 @@ it('permanent delete keeps ended subscriptions and past reservations, removes ru
     INSERT INTO public.seat_reservations(session_id,tier_id,transaction_id,quantity,status,confirmed_at) SELECT past_session,past_session,past_tx,1,'confirmed',now() FROM p;
     INSERT INTO public.seat_reservations(session_id,tier_id,transaction_id,quantity,status,confirmed_at) SELECT future_session,future_session,future_tx,1,'confirmed',now() FROM p;
     INSERT INTO public.subscriptions(id,product_id,stripe_customer_id,stripe_subscription_id,status) SELECT sub,id,'cus_archive','sub_archive_'||sub,'active' FROM p;
+    DELETE FROM public.bundle_items WHERE bundle_product_id=(SELECT bundle FROM p);
     SELECT public.remove_product_as('{"type":"api_key","id":"00000000-0000-4000-8000-000000000250"}', id, admin, false) FROM p;
-    ${assert(`(SELECT i->>'activeSubscriptions'='1' AND i->>'futureReservations'='1' AND i->>'affiliateRules'='1' AND i->>'bundles'='1'
+    ${assert(`(SELECT i->>'activeSubscriptions'='1' AND i->>'futureReservations'='1' AND i->>'affiliateRules'='1' AND i->>'bundles'='0'
       FROM (SELECT public.product_deletion_impact(id) AS i FROM p) x)`, 'impact lists blockers, rules and bundles')}
     SAVEPOINT blocked;
     DO $$ BEGIN
@@ -165,6 +166,42 @@ it('permanent delete keeps ended subscriptions and past reservations, removes ru
     ${assert(`(SELECT product_id IS NULL AND product_name='Event course' AND status='canceled' FROM public.subscriptions,p WHERE subscriptions.id=p.sub)`, 'ended subscription kept with name')}
     ${assert(`(SELECT count(*)=2 FROM public.seat_reservations,p WHERE transaction_id IN (p.past_tx,p.future_tx) AND session_id IS NULL)`, 'reservations kept as history')}
     ${assert(`(SELECT count(*)=0 FROM public.affiliate_rules,p WHERE product_id=p.id)`, 'affiliate rule removed')}
-    ${assert(`(SELECT count(*)=0 FROM public.bundle_items,p WHERE bundle_product_id=p.bundle)`, 'bundle link removed')}
+    ${assert(`(SELECT count(*)=0 FROM public.bundle_items,p WHERE bundle_product_id=p.bundle)`, 'explicitly removed bundle link stays removed')}
     SELECT 'contract passed';`)).toContain('contract passed');
 });
+
+for (const state of ['unsold', 'sold', 'archived']) {
+  it(`bundle membership blocks removing a ${state} component without changing its state or composition @J602`, () => {
+    expect(sql(`${soldProduct}
+      ${state === 'unsold' ? `
+        DELETE FROM public.issued_licenses WHERE product_id=(SELECT id FROM p);
+        DELETE FROM public.invoices WHERE transaction_id=(SELECT tx FROM p);
+        DELETE FROM public.refund_requests WHERE transaction_id=(SELECT tx FROM p);
+        DELETE FROM public.payment_line_items WHERE transaction_id=(SELECT tx FROM p);
+        DELETE FROM public.payment_transactions WHERE id=(SELECT tx FROM p);
+        DELETE FROM public.user_product_access WHERE product_id=(SELECT id FROM p);
+      ` : ''}
+      CREATE TEMP TABLE b AS SELECT gen_random_uuid() AS id;
+      INSERT INTO public.products(id,name,slug,price,is_bundle) SELECT id,'Complete bundle','bundle-'||id,99,true FROM b;
+      INSERT INTO public.bundle_items(bundle_product_id,component_product_id) SELECT b.id,p.id FROM b,p;
+      ${state === 'archived' ? 'ALTER TABLE public.products DISABLE TRIGGER keep_bundle_component_available; UPDATE public.products SET archived_at=now(),is_active=false WHERE id=(SELECT id FROM p); ALTER TABLE public.products ENABLE TRIGGER keep_bundle_component_available;' : ''}
+      ${state === 'sold' ? 'UPDATE public.products SET archived_at=now(),is_active=false WHERE id=(SELECT id FROM b);' : ''}
+      CREATE TEMP TABLE before_product AS SELECT products.* FROM public.products,p WHERE products.id=p.id;
+      CREATE TEMP TABLE before_events AS SELECT count(*) AS n FROM public.business_events;
+      DO $$ BEGIN
+        PERFORM public.remove_product_as('{"type":"api_key","id":"00000000-0000-4000-8000-000000000250"}', (SELECT id FROM p), (SELECT admin FROM p), ${state === 'archived'});
+        RAISE EXCEPTION 'bundle component removal must be refused';
+      EXCEPTION WHEN SQLSTATE '2BP01' THEN NULL; END $$;
+      ${assert(`(SELECT count(*)=1 FROM public.bundle_items,b,p WHERE bundle_product_id=b.id AND component_product_id=p.id)`, 'composition unchanged')}
+      ${assert(`(SELECT to_jsonb(products)=to_jsonb(before_product) FROM public.products JOIN before_product USING(id))`, 'product unchanged')}
+      ${assert(`(SELECT count(*) FROM public.business_events)=(SELECT n FROM before_events)`, 'no event for refused change')}
+      ${assert(`(SELECT i->'bundleReferences' @> jsonb_build_array(jsonb_build_object('id',b.id,'name','Complete bundle')) FROM (SELECT public.product_deletion_impact(id) AS i FROM p) x,b)`, 'impact identifies the containing bundle')}
+      DO $$ BEGIN
+        DELETE FROM public.products WHERE id=(SELECT id FROM p);
+        RAISE EXCEPTION 'direct delete of a bundle component must be refused';
+      EXCEPTION WHEN foreign_key_violation THEN NULL; END $$;
+      DELETE FROM public.bundle_items WHERE bundle_product_id=(SELECT id FROM b);
+      SELECT public.remove_product_as('{"type":"api_key","id":"00000000-0000-4000-8000-000000000250"}', id, admin, ${state === 'archived'}) FROM p;
+      SELECT 'contract passed';`)).toContain('contract passed');
+  });
+}

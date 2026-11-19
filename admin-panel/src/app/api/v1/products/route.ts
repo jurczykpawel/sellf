@@ -345,6 +345,7 @@ export async function POST(request: NextRequest) {
       try {
         await upsertBundleItems(supabase, product.id, bundleItemIds);
       } catch (bundleErr) {
+        if (bundleErr instanceof ApiValidationError) throw bundleErr;
         throw new ApiValidationError('Validation failed', {
           _errors: [bundleErr instanceof Error ? bundleErr.message : 'Failed to persist bundle components'],
         });

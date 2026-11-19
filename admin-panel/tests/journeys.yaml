@@ -5080,7 +5080,7 @@
       "end_state": {
         "buyer": "Order and license survive both archive and permanent delete",
         "seller": "DELETE returns status archived with the impact counts; permanent=true is refused until archived",
-        "integrator": "Archive emits one product.updated with archivedAt; permanent delete of an archived product emits exactly one product.deleted; active subscriptions or upcoming reservations refuse it with 409"
+        "integrator": "Archive emits one product.updated with archivedAt; permanent delete of an archived product emits exactly one product.deleted; active subscriptions or upcoming reservations refuse it with 409; bundle membership refuses archive and deletion with bundle names, preserving composition"
       },
       "layers": [
         "api",
