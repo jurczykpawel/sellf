@@ -305,3 +305,10 @@ it.each(['revoke_order_bundle_components', 'release_transfer_access'])('orders t
     expect(definition.match(/ORDER BY 1\s+LOOP/g)).toHaveLength(2);
   }
 });
+
+it('backfills legacy periods through equality joins @J34', () => {
+  const block = migration.match(/-- Preserve known legacy periods\.([\s\S]*?)-- End legacy period preservation\./)![1];
+  expect(block).not.toMatch(/EXISTS\s*\(|order_granted_components\(/);
+  expect(block).toMatch(/a\.user_id = .*\.user_id/);
+  expect(block).toMatch(/a\.product_id = .*\.product_id/);
+});

@@ -3332,22 +3332,38 @@ GRANT EXECUTE ON FUNCTION public.order_access_expiry(uuid, uuid, uuid) TO servic
 -- Preserve known legacy periods.
 UPDATE public.user_product_access SET independent_access = jsonb_build_object('expiresAt', access_expires_at)
 WHERE grant_source IN ('manual', 'free', 'unknown');
-WITH known AS (
+WITH eligible AS MATERIALIZED (
+  SELECT id, user_id, product_id, session_id, status, access_terms, bundle_components_recorded_at
+  FROM public.payment_transactions
+  WHERE subscription_id IS NULL AND (status IN ('completed', 'partially_refunded')
+    OR (status = 'awaiting_payment' AND coalesce((metadata->>'access_on_placement')::boolean, false)))
+), buyers AS (
+  SELECT id, user_id FROM eligible WHERE user_id IS NOT NULL
+  UNION
+  SELECT t.id, g.claimed_by_user_id FROM eligible t
+  JOIN public.guest_purchases g ON g.transaction_id = t.id WHERE g.claimed_by_user_id IS NOT NULL
+  UNION
+  SELECT t.id, g.claimed_by_user_id FROM eligible t
+  JOIN public.guest_purchases g ON g.session_id = t.session_id
+  WHERE g.transaction_id IS NULL AND g.claimed_by_user_id IS NOT NULL
+), products AS (
+  SELECT id, product_id FROM eligible WHERE product_id IS NOT NULL
+  UNION
+  SELECT t.id, l.product_id FROM eligible t JOIN public.payment_line_items l ON l.transaction_id = t.id
+  UNION
+  SELECT t.id, c.component_product_id FROM eligible t JOIN public.order_bundle_components c ON c.transaction_id = t.id
+  UNION
+  SELECT t.id, b.component_product_id FROM eligible t JOIN public.bundle_items b ON b.bundle_product_id = t.product_id
+  WHERE t.bundle_components_recorded_at IS NULL
+), known AS (
   SELECT t.id, jsonb_object_agg(a.user_id::text || ':' || a.product_id::text,
     jsonb_build_object('grantedAt', a.access_granted_at, 'expiresAt', a.access_expires_at,
       'grantVersion', a.version, 'grantExpiresAt', a.access_expires_at)) AS terms
-  FROM public.payment_transactions t
-  JOIN public.user_product_access a ON (a.user_id = t.user_id OR EXISTS (
-    SELECT 1 FROM public.guest_purchases g WHERE g.claimed_by_user_id = a.user_id
-      AND (g.transaction_id = t.id OR (g.transaction_id IS NULL AND g.session_id = t.session_id))))
-    AND (a.product_id = t.product_id
-      OR EXISTS (SELECT 1 FROM public.payment_line_items l WHERE l.transaction_id = t.id AND l.product_id = a.product_id)
-      OR a.product_id IN (SELECT public.order_granted_components(t.id)))
-  WHERE t.subscription_id IS NULL AND a.subscription_id IS NULL
-    AND (a.transfer_transaction_id IS NULL OR a.transfer_transaction_id = t.id)
-    AND (t.status IN ('completed', 'partially_refunded')
-    OR (t.status = 'awaiting_payment' AND coalesce((t.metadata->>'access_on_placement')::boolean, false)
-      AND (a.transfer_transaction_id = t.id OR t.access_terms ? (a.user_id::text || ':' || a.product_id::text))))
+  FROM eligible t JOIN buyers u ON u.id = t.id JOIN products p ON p.id = t.id
+  JOIN public.user_product_access a ON a.user_id = u.user_id AND a.product_id = p.product_id
+  WHERE a.subscription_id IS NULL AND (a.transfer_transaction_id IS NULL OR a.transfer_transaction_id = t.id)
+    AND (t.status <> 'awaiting_payment' OR a.transfer_transaction_id = t.id
+      OR t.access_terms ? (a.user_id::text || ':' || a.product_id::text))
   GROUP BY t.id
 )
 UPDATE public.payment_transactions t SET access_terms = known.terms || t.access_terms
