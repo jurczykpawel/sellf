@@ -33,7 +33,7 @@ export interface RevocationTarget {
 export interface RevocationResult {
   /** Whether the revocation completed without critical errors */
   success: boolean;
-  /** Whether main product user_product_access was revoked (or attempted) */
+  /** Whether the main product access row was removed */
   mainProductRevoked: boolean;
   /** Whether main product guest_purchase was revoked (or attempted) */
   mainGuestRevoked: boolean;
@@ -119,7 +119,7 @@ export async function revokeTransactionAccess(
     .map((item: { product_id: string | null }) => item.product_id)
     .filter((id): id is string => id !== null);
 
-  // --- 2. Revoke user_product_access (main + bumps) ---
+  // --- 2. End access not retained through another source (main + bumps) ---
   if (target.userId) {
     if (target.productId) {
       const { data: revoked, error: mainRevokeError } = await supabase

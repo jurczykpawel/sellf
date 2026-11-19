@@ -21,7 +21,6 @@ export default function LoginPage({ shopName = 'Sellf' }: { shopName?: string })
   const isPanelLogin = /^\/(?:en\/|pl\/)?(?:dashboard|admin)(?:\/|\?|$)/.test(searchParams.get('redirect_to') ?? '')
   const loginHint = demoMode ? 'auth.demoLoginHint' : passwordLoginEnabled ? (isPanelLogin || isPartnerApplication ? 'auth.passwordLoginHint' : 'auth.buyerPasswordLoginHint') : oauthProviders.length ? 'auth.oauthLoginHint' : 'auth.magicLinkLoginHint'
 
-  // Derived from URL params — no state, no effect, no cascading renders.
   const [dismissedError, setDismissedError] = useState<string | null>(null)
   const errorParam = searchParams.get('error') === dismissedError ? null : searchParams.get('error')
   const messageParam = searchParams.get('message')
