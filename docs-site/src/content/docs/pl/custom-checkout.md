@@ -85,3 +85,9 @@ Błędy formatu i długości adresu e-mail pojawiają się przy polu w języku s
 Po pełnym zwrocie otwarcie pierwotnego linku statusu płatności pokazuje **Płatność zwrócona**. Weryfikacja zwraca końcowy stan `payment_status: "refunded"`, bez ponownej realizacji zamówienia ani przyznania dostępu. Nie zgłasza awarii przetwarzania płatności ani potrzeby sprawdzania danych zamówienia.
 
 Częściowy zwrot zachowuje ścieżkę weryfikacji zakończonej płatności i pozostały dostęp. Otwarty spór płatniczy pokazuje **Płatność zakwestionowana**, zwraca `payment_status: "disputed"` i nie przyznaje dostępu ani nie realizuje zamówienia ponownie.
+
+## Dostęp z kilku zakupów
+
+Pełny zwrot kończy uprawnienie z danego zamówienia. Kupujący zachowuje produkt, jeśli nadal uprawnia do niego inny zakup, opłacony przelew, pakiet, dodatek do zamówienia lub aktywna subskrypcja. Zwrot ostatniego uprawniającego zamówienia odbiera odpowiadający mu dostęp.
+
+Komunikaty ładowania i niedostępności filmu są wyświetlane w języku widoku kupującego: polskim lub angielskim.

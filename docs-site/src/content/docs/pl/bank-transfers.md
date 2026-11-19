@@ -36,3 +36,9 @@ Zaplanuj uwierzytelnione zadania `/api/cron`: `bank-transfer-overdue` codziennie
 Każda zmiana stanu wysyła podpisany webhook: `order.placed`, `order.payment_reminder`, `order.transfer_declared`, `order.invoice_issued`, `order.cancelled`, `order.reopened`, `purchase.completed` (szczegóły w [Webhookach](/pl/webhooks/)).
 
 **Zapłać online z linku.** Strona zamówienia (link z maili i z `payUrl` w webhookach) ma przycisk **Zapłać online**. Nieopłacone zamówienie płaci się kwotą z zamówienia (cena i miejsce są nadal zarezerwowane), przez Stripe Checkout. Anulowanego zamówienia nie da się opłacić online. Po terminie rezerwacji nie da się rozpocząć nowej płatności online (serwer odpowiada `payment_window_closed`), a do czasu automatycznego zwolnienia strona zamówienia zamiast danych do przelewu pokazuje **Termin płatności minął — zamówienie zostanie wkrótce anulowane**. Płatność rozpoczęta przed terminem może się dokończyć: automatyczne zwolnienie czeka na nią najwyżej 30 minut po terminie, a potem anuluje zamówienie (płatność, która mimo to dojdzie, jest zwracana). Opłacone online zamówienie pozostaje zamówieniem na przelew, ale ma płatność Stripe, więc zwrot działa jak przy karcie. Jeśli administrator oznaczy przelew jako opłacony albo anuluje zamówienie w trakcie płatności online, Sellf wygasza stronę Stripe; płatność, która mimo to dojdzie, jest automatycznie zwracana.
+
+## Otwarty paragon i drukowanie
+
+Otwarty paragon nieopłaconego zamówienia odświeża się w chwili końca rezerwacji, co 15 sekund oraz po powrocie do okna. Po terminie lub anulowaniu przez sprzedawcę usuwa dane zachęcające do płatności. **Moje zakupy** oznaczają anulowany przelew jako **Anulowane — nie opłacaj tego zamówienia**, a nieopłacony jako **Oczekuje na przelew**.
+
+**Drukuj / zapisz PDF** pomija przyciski preferencji ciasteczek i ich stopkę, dzięki czemu krótki paragon mieści się na jednej stronie A4 bez dodatkowej strony z samym interfejsem.

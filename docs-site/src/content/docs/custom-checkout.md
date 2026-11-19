@@ -84,3 +84,9 @@ Email format and length errors appear beside the email field in the page languag
 After a full refund, reopening the original payment-status link shows **Payment refunded**. Verification returns the terminal `payment_status: "refunded"` state without another fulfillment or access grant. It does not report a payment-processing failure or ask the buyer to check order details.
 
 A partial refund preserves the completed-payment verification path and any remaining access. An open payment dispute shows **Payment disputed**, returns `payment_status: "disputed"`, and grants no access or new fulfillment.
+
+## Access from several purchases
+
+A full refund removes only the entitlement from that order. The buyer keeps the product while another qualifying purchase, paid bank transfer, bundle, order bump or active subscription still grants it. Refunding the last qualifying order removes the corresponding access.
+
+Video loading and unavailable messages follow the buyer view language (English or Polish).

@@ -482,5 +482,35 @@
   ],
   "f3641dca135fff0f48451be09629a4ef4b2d9f6d": [
     "none \u2014 Migration placement change was reverted by dfe7e61ab5582b98fe374c52771b3e0b5097819e; the transfer mail policy remains in the single 11.1 migration and is documented by 2be973a49b3b5833c38ba398984526f2dd4fc833."
+  ],
+  "c2f0c42c40d8d0cf09854c2dcc998e50e41ef899": [
+    "bank-transfers.md"
+  ],
+  "e408b6b0f2a182f883ed879ff07bb336f1a36c9a": [
+    "buyer-emails.md"
+  ],
+  "daa7942e0669a6748fb72ecd5331ad956ec3976c": [
+    "buyer-emails.md"
+  ],
+  "dc615003047929b6f0424bff037a3fec2da784f3": [
+    "bank-transfers.md"
+  ],
+  "52d991f16972c9c3c87ddd143f3df15371e4c82d": [
+    "bank-transfers.md"
+  ],
+  "d993388daac1be797c216bc9ab4726f7c3e7d216": [
+    "custom-checkout.md"
+  ],
+  "88804533ae102e9540260ff7de50a109716024f0": [
+    "custom-checkout.md"
+  ],
+  "7276a5d2afb4f45ed0c935f888a1ee51e697b545": [
+    "buyer-emails.md"
+  ],
+  "c22bb01201910edb25b8838351d3c3bfdf302fcd": [
+    "buyer-emails.md"
+  ],
+  "5d118e2f9ca70b32176919e7e664bacc0e3997fb": [
+    "buyer-emails.md"
   ]
 }
