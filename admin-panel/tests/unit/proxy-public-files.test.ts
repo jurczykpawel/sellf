@@ -57,7 +57,7 @@ describe('public files through proxy', () => {
     expect(getUser).toHaveBeenCalledTimes(path === '/pl/login' ? 1 : 0);
   });
 
-  it.each(['/pl/admin/export.txt', '/dashboard/report.html', '/my-products/course.js'])('keeps session checks for %s', async path => {
+  it.each(['/pl/admin/export.txt', '/dashboard/report.html', '/my-products/course.js', '/admin/..%2Fllms.txt', '/en/admin/payments/..%2F..%2F..%2Frobots.txt'])('keeps session checks for %s', async path => {
     const response = await proxy(request(path));
     expect(getUser).toHaveBeenCalledOnce();
     expect(response.status).toBe(307);

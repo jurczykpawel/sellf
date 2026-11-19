@@ -1,5 +1,5 @@
 import { stat } from 'node:fs/promises'
-import { resolve, sep } from 'node:path'
+import { posix, resolve, sep } from 'node:path'
 import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 import createMiddleware from 'next-intl/middleware'
@@ -199,7 +199,10 @@ function addSecurityHeaders(
 async function isPublicFile(pathname: string): Promise<boolean> {
   const publicRoot = resolve(process.cwd(), 'public')
   try {
-    const filePath = resolve(publicRoot, `.${decodeURIComponent(pathname)}`)
+    const decoded = decodeURIComponent(pathname)
+    // Only canonical paths count: an encoded `..%2F` or `\` must not turn a protected path into a public file.
+    if (decoded.includes('\\') || posix.normalize(decoded) !== decoded) return false
+    const filePath = resolve(publicRoot, `.${decoded}`)
     if (!filePath.startsWith(`${publicRoot}${sep}`)) return false
     return (await stat(filePath)).isFile()
   } catch {
