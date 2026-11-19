@@ -1483,6 +1483,8 @@
 
     "paymentReceived": "Payment received",
     "preparingAccess": "Your payment has been received. We are preparing your access. This page will refresh automatically.",
+    "paymentRefunded": "Payment refunded",
+    "paymentRefundedDetails": "This payment has been fully refunded. Access from this order is no longer active.",
     "orderNeedsReview": "Payment received — order needs review",
     "orderNeedsReviewDetails": "Your payment has been received, but some order details need review. Please contact support with your order reference.",
     "paymentSuccessful": "Payment Successful!",

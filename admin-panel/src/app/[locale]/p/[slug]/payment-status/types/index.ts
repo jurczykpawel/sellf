@@ -1,4 +1,5 @@
 export type PaymentStatus = 
+  | 'refunded'
   | 'received'
   | 'data_error'
   | 'processing' 

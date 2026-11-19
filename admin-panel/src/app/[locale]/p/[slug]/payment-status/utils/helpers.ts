@@ -9,6 +9,8 @@ export function getStatusInfo(paymentStatus: PaymentStatus, t: (key: string) => 
         color: 'text-sf-success',
         bgColor: 'from-green-900/20 to-green-800/20'
       };
+    case 'refunded':
+      return { emoji: '↩', title: t('paymentRefunded'), color: 'text-sf-body', bgColor: 'from-slate-900/20 to-slate-800/20' };
     case 'received':
       return { emoji: '⏳', title: t('paymentReceived'), color: 'text-sf-accent', bgColor: 'from-blue-900/20 to-blue-800/20' };
     case 'data_error':

@@ -619,16 +619,6 @@ describe.skipIf(!hasSupabase)('verifyPaymentIntent — success-redirect capture 
 // Additional branch coverage: ownership/mismatch guards, email validation, subscription-guest,
 // session-not-found, RPC thrown-error, bump-recovery catch, and the Stripe error tails.
 describe.skipIf(!hasSupabase)('verify-payment — additional branch coverage', () => {
-  function paidSession(cs: string, productId: string, email: string, over: Record<string, unknown> = {}) {
-    return {
-      id: cs, status: 'complete', payment_status: 'paid', mode: 'payment', currency: 'usd',
-      amount_total: 1000, amount_subtotal: 1000, total_details: { amount_tax: 0 },
-      automatic_tax: { enabled: false }, payment_intent: 'pi_x',
-      customer_details: { email }, customer_email: email,
-      metadata: { product_id: productId }, created: 1, expires_at: 2, ...over,
-    };
-  }
-
   it('session not found (Stripe returns null) → not_found', async () => {
     h.stripe = makeStripeShim({ session: null });
     const r = await verifyPaymentSession(uniq('cs'));
@@ -1070,5 +1060,38 @@ describe.skipIf(!hasSupabase)('paid reconciliation recovery against local DB', (
     } finally { clientSpy.mockRestore(); rpcSpy.mockRestore(); }
     const next = await verifyPaymentSession(cs, asUser(userId, email));
     expect(next.access_granted).toBe(true); expect(next.error).toBeUndefined();
+  });
+});
+
+
+  function paidSession(cs: string, productId: string, email: string, over: Record<string, unknown> = {}) {
+    return {
+      id: cs, status: 'complete', payment_status: 'paid', mode: 'payment', currency: 'usd',
+      amount_total: 1000, amount_subtotal: 1000, total_details: { amount_tax: 0 },
+      automatic_tax: { enabled: false }, payment_intent: 'pi_x',
+      customer_details: { email }, customer_email: email,
+      metadata: { product_id: productId }, created: 1, expires_at: 2, ...over,
+    };
+  }
+
+describe.skipIf(!hasSupabase)('refunded order verification', () => {
+  it('returns a terminal refund for a paid session without fulfilling it again', async () => {
+    const product = await createProduct();
+    const cs = uniq('cs'); const pi = uniq('pi');
+    const email = uniq('refund') + '@example.com'; createdEmails.push(email);
+    const userId = await createAuthUser(email);
+    await seedPendingTx({ sessionId: cs, productId: product.id, email, pi, userId, status: 'completed' });
+    const { error } = await db!.from('payment_transactions').update({ status: 'refunded', refunded_amount: 1000 }).eq('session_id', cs);
+    expect(error).toBeNull();
+    h.stripe = makeStripeShim({ session: paidSession(cs, product.id, email, { payment_intent: pi }) });
+    const result = await verifyPaymentSession(cs, asUser(userId, email));
+    expect(result.error).toBeUndefined();
+    expect(result.payment_status).toBe('refunded');
+    expect(result.access_granted).toBe(false);
+    expect(mapVerifiedPaymentToStatus(result).paymentStatus).toBe('refunded');
+    expect(await hasAccess(userId, product.id)).toBe(false);
+    expect((await fetchTx(cs))?.status).toBe('refunded');
+    expect(purchaseCalls()).toHaveLength(0);
+    expect((await verifyPaymentSession(cs, asUser('different-user', 'different@example.com'))).error).toBe('Session does not belong to current user');
   });
 });

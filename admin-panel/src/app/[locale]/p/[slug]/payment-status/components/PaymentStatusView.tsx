@@ -88,6 +88,10 @@ export default function PaymentStatusView({
     }, purchaseEventId);
   }, [paymentStatus, accessGranted, product, sessionId, paymentIntentId, customerEmail, track]);
 
+  if (paymentStatus === 'refunded') {
+    return <PaymentStatusLayout product={product} statusInfo={statusInfo}><p className="text-sf-body">{t('paymentRefundedDetails')}</p></PaymentStatusLayout>;
+  }
+
   if (paymentStatus === 'data_error') {
     return (
       <PaymentStatusLayout product={product} statusInfo={statusInfo}>

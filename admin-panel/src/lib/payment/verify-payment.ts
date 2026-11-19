@@ -196,6 +196,7 @@ export interface PaymentVerificationResult {
  * Returns null if payment not found in database (needs Stripe verification).
  */
 export type PaymentStatusKind =
+  | 'refunded'
   | 'received'
   | 'data_error'
   | 'processing'
@@ -230,6 +231,8 @@ interface MappedPaymentStatus {
  * in the contract are caught by unit tests.
  */
 export function mapVerifiedPaymentToStatus(result: VerifiedPaymentShape): MappedPaymentStatus {
+  if (result.payment_status === 'refunded') return { paymentStatus: 'refunded', accessGranted: false, errorMessage: '' };
+
   if (result.access_granted) {
     const requiresMagicLink = !!(result.requires_login && result.send_magic_link);
     return {
@@ -324,7 +327,7 @@ async function getProcessedPaymentFromDatabase(
       )
     `)
     .eq('session_id', sessionId)
-    .eq('status', 'completed')
+    .in('status', ['completed', 'refunded'])
     .maybeSingle();
 
   if (error || !transaction) {
@@ -347,6 +350,13 @@ async function getProcessedPaymentFromDatabase(
       status: 'complete',
       payment_status: 'paid',
       error: 'Session does not belong to current user'
+    };
+  }
+
+  if (transaction.status === 'refunded') {
+    return {
+      session_id: sessionId, status: 'complete', payment_status: 'refunded',
+      access_granted: false, requires_login: false, send_magic_link: false,
     };
   }
 
