@@ -236,7 +236,7 @@ BEGIN
     END LOOP;
   END IF;
   IF tx.payment_provider='bank_transfer' AND coalesce((tx.metadata->>'access_on_placement')::boolean,false) THEN
-    RETURN jsonb_build_object('success',true,'access_granted',true); END IF;
+    PERFORM public.settle_transfer_product_access(tx.id); RETURN jsonb_build_object('success',true,'access_granted',true); END IF;
   IF jsonb_typeof(tx.order_details->'participants'->'people')='array' THEN
     INSERT INTO public.guest_purchases(customer_email,product_id,transaction_amount,session_id,transaction_id)
     SELECT DISTINCT lower(btrim(person->>'email')),li.product_id,0,NULL,tx.id
@@ -854,7 +854,7 @@ BEGIN
       VALUES(tx.coupon_id,tx.user_id,tx.customer_email,tx.id,0);
     UPDATE public.coupons SET current_usage_count=coalesce(current_usage_count,0)+1 WHERE id=tx.coupon_id;
   END IF;
-  UPDATE public.payment_transactions SET status='awaiting_payment',cancel_reason=NULL,
+  UPDATE public.payment_transactions SET status='awaiting_payment',cancel_reason=NULL,access_terms='{}'::jsonb,
     metadata=coalesce(metadata,'{}')||'{"access_on_placement":false}'::jsonb WHERE id=tx.id;
 END $$;
 
@@ -7664,12 +7664,17 @@ CREATE FUNCTION public.grant_bundle_component_access(user_id_param uuid, product
     LANGUAGE plpgsql
     SET search_path TO ''
     AS $$
-DECLARE previous text := current_setting('sellf.grant_source', true); result jsonb;
+DECLARE previous text := current_setting('sellf.grant_source', true); result jsonb; previous_permanent text := current_setting('sellf.independent_permanent', true);
 BEGIN
+  IF EXISTS (SELECT 1 FROM public.payment_transactions t
+    WHERE t.id::text = nullif(current_setting('sellf.transfer_payment', true), '')
+      AND t.access_terms ? (user_id_param::text || ':' || product_id_param::text)) THEN
+    RETURN jsonb_build_object('success', true, 'operation', 'existing_transfer');
+  END IF;
   PERFORM set_config('sellf.grant_source', 'bundle', true);
-  result := public.grant_bundle_component_access_impl(user_id_param, product_id_param, max_retries);
+  PERFORM set_config('sellf.independent_permanent', ((SELECT auto_grant_duration_days FROM public.products WHERE id = product_id_param) IS NULL)::text, true); result := public.grant_bundle_component_access_impl(user_id_param, product_id_param, max_retries);
   PERFORM set_config('sellf.grant_source', coalesce(previous, ''), true);
-  IF (result->>'success')::boolean THEN PERFORM public.record_order_access_term(user_id_param, product_id_param, (SELECT auto_grant_duration_days FROM public.products WHERE id = product_id_param)); END IF; RETURN result;
+  PERFORM set_config('sellf.independent_permanent', coalesce(previous_permanent, ''), true); IF (result->>'success')::boolean THEN PERFORM public.record_order_access_term(user_id_param, product_id_param, (SELECT auto_grant_duration_days FROM public.products WHERE id = product_id_param)); END IF; RETURN result;
 END;
 $$;
 
@@ -8011,12 +8016,17 @@ CREATE FUNCTION public.grant_product_access_service_role(user_id_param uuid, pro
     LANGUAGE plpgsql
     SET search_path TO ''
     AS $$
-DECLARE previous text := current_setting('sellf.grant_source', true); result jsonb;
+DECLARE previous text := current_setting('sellf.grant_source', true); result jsonb; previous_permanent text := current_setting('sellf.independent_permanent', true);
 BEGIN
+  IF EXISTS (SELECT 1 FROM public.payment_transactions t
+    WHERE t.id::text = nullif(current_setting('sellf.transfer_payment', true), '')
+      AND t.access_terms ? (user_id_param::text || ':' || product_id_param::text)) THEN
+    RETURN jsonb_build_object('success', true, 'operation', 'existing_transfer');
+  END IF;
   PERFORM set_config('sellf.grant_source', 'purchase', true);
-  result := public.grant_product_access_service_role_impl(user_id_param, product_id_param, max_retries, override_duration_days_param);
+  PERFORM set_config('sellf.independent_permanent', ((SELECT CASE WHEN override_duration_days_param IS NULL THEN auto_grant_duration_days ELSE nullif(override_duration_days_param, 0) END FROM public.products WHERE id = product_id_param) IS NULL)::text, true); result := public.grant_product_access_service_role_impl(user_id_param, product_id_param, max_retries, override_duration_days_param);
   PERFORM set_config('sellf.grant_source', coalesce(previous, ''), true);
-  IF (result->>'success')::boolean THEN PERFORM public.record_order_access_term(user_id_param, product_id_param, (SELECT CASE WHEN override_duration_days_param IS NULL THEN auto_grant_duration_days ELSE nullif(override_duration_days_param, 0) END FROM public.products WHERE id = product_id_param)); END IF; RETURN result;
+  PERFORM set_config('sellf.independent_permanent', coalesce(previous_permanent, ''), true); IF (result->>'success')::boolean THEN PERFORM public.record_order_access_term(user_id_param, product_id_param, (SELECT CASE WHEN override_duration_days_param IS NULL THEN auto_grant_duration_days ELSE nullif(override_duration_days_param, 0) END FROM public.products WHERE id = product_id_param)); END IF; RETURN result;
 END;
 $$;
 
@@ -11750,8 +11760,11 @@ BEGIN
     AND (t.user_id = p_user_id OR EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p_user_id AND lower(u.email) = lower(t.customer_email))
       OR EXISTS (SELECT 1 FROM public.guest_purchases g WHERE g.transaction_id = t.id AND g.claimed_by_user_id = p_user_id))
     AND (t.product_id = p_product_id OR EXISTS (SELECT 1 FROM public.payment_line_items l WHERE l.transaction_id = t.id AND l.product_id = p_product_id)
-      OR p_product_id IN (SELECT public.order_granted_components(t.id)))
-    AND EXISTS (SELECT 1 FROM public.user_product_access a WHERE a.user_id = p_user_id AND a.product_id = p_product_id)
+      OR p_product_id IN (SELECT public.order_granted_components(t.id))
+      OR EXISTS (SELECT 1 FROM public.payment_line_items l JOIN public.bundle_items b ON b.bundle_product_id = l.product_id
+        WHERE l.transaction_id = t.id AND b.component_product_id = p_product_id))
+    AND EXISTS (SELECT 1 FROM public.user_product_access a WHERE a.user_id = p_user_id AND a.product_id = p_product_id
+      AND (t.status <> 'awaiting_payment' OR a.transfer_transaction_id = t.id))
   LIMIT 1;
   IF txid IS NULL THEN RETURN; END IF;
   SELECT CASE WHEN bool_or(duration IS NULL) THEN NULL ELSE max(duration) END INTO p_duration
@@ -11925,19 +11938,27 @@ DECLARE buyer uuid; product uuid;
 BEGIN
   IF (NEW.status = 'cancelled' AND OLD.status = 'awaiting_payment')
     OR (NEW.status = 'refunded' AND NEW.status IS DISTINCT FROM OLD.status) THEN
-    IF NEW.status = 'refunded' OR coalesce((OLD.metadata->>'access_on_placement')::boolean, false)
+    IF NEW.status = 'refunded' OR OLD.access_terms <> '{}'::jsonb
       OR EXISTS (SELECT 1 FROM public.user_product_access WHERE transfer_transaction_id = NEW.id) THEN
     FOR buyer IN
       SELECT NEW.user_id WHERE NEW.user_id IS NOT NULL
       UNION SELECT claimed_by_user_id FROM public.guest_purchases
         WHERE transaction_id = NEW.id AND claimed_by_user_id IS NOT NULL
+      ORDER BY 1
     LOOP
       FOR product IN
         SELECT NEW.product_id WHERE NEW.product_id IS NOT NULL
         UNION SELECT product_id FROM public.payment_line_items WHERE transaction_id = NEW.id
         UNION SELECT public.order_granted_components(NEW.id)
+        UNION SELECT a.product_id FROM public.user_product_access a WHERE a.user_id = buyer
+          AND (a.transfer_transaction_id = NEW.id OR OLD.access_terms ? (buyer::text || ':' || a.product_id::text))
+        ORDER BY 1
       LOOP
-        PERFORM public.revoke_order_product_access(NEW.id, buyer, product);
+        IF NEW.status = 'refunded' OR OLD.access_terms ? (buyer::text || ':' || product::text)
+          OR EXISTS (SELECT 1 FROM public.user_product_access a WHERE a.user_id = buyer
+            AND a.product_id = product AND a.transfer_transaction_id = NEW.id) THEN
+          PERFORM public.revoke_order_product_access(NEW.id, buyer, product);
+        END IF;
       END LOOP;
     END LOOP;
     END IF;
@@ -12173,7 +12194,16 @@ BEGIN
     AND nullif(current_setting('sellf.transfer_order', true), '') IS NULL
     AND (current_setting('sellf.grant_source', true) IN ('purchase', 'bundle', 'free')
       OR (TG_OP = 'INSERT' AND NEW.grant_source IN ('free', 'manual'))) THEN
-    NEW.independent_access := jsonb_build_object('expiresAt', NEW.access_expires_at);
+    IF TG_OP = 'INSERT' OR OLD.access_expires_at <= now()
+      OR (NEW.access_expires_at IS NULL AND (OLD.access_expires_at IS NOT NULL
+        OR current_setting('sellf.independent_permanent', true) = 'true')) THEN
+      NEW.independent_access := jsonb_build_object('expiresAt', NEW.access_expires_at);
+    ELSIF OLD.access_expires_at IS NOT NULL AND NEW.access_expires_at > OLD.access_expires_at THEN
+      NEW.independent_access := jsonb_build_object('expiresAt',
+        CASE WHEN OLD.independent_access IS NOT NULL AND OLD.independent_access->>'expiresAt' IS NULL THEN NULL
+          ELSE greatest(now(), (OLD.independent_access->>'expiresAt')::timestamptz)
+            + (NEW.access_expires_at - OLD.access_expires_at) END);
+    END IF;
   ELSIF TG_OP = 'UPDATE' AND OLD.grant_source IN ('free', 'manual') AND OLD.independent_access IS NULL THEN
     NEW.independent_access := jsonb_build_object('expiresAt', OLD.access_expires_at);
   END IF;
@@ -12290,9 +12320,11 @@ BEGIN
   FOR candidate IN
     SELECT a.product_id FROM public.user_product_access a
   WHERE a.user_id = p_user_id
-    AND a.product_id IN (SELECT public.order_granted_components(t.id))
+    AND (a.product_id IN (SELECT public.order_granted_components(t.id))
+      OR t.access_terms ? (p_user_id::text || ':' || a.product_id::text))
     AND a.product_id IS DISTINCT FROM t.product_id
     AND a.subscription_id IS NULL
+  ORDER BY a.product_id
   LOOP
     IF public.revoke_order_product_access(t.id, p_user_id, candidate) THEN removed := removed + 1; END IF;
   END LOOP;
@@ -12372,14 +12404,17 @@ BEGIN
     FROM public.payment_transactions o
     WHERE o.id <> t.id AND o.subscription_id IS NULL
       AND (o.status IN ('completed', 'partially_refunded')
-        OR (o.status = 'awaiting_payment' AND coalesce((o.metadata->>'access_on_placement')::boolean, false)))
+        OR (o.status = 'awaiting_payment' AND coalesce((o.metadata->>'access_on_placement')::boolean, false)
+          AND (o.access_terms ? (p_user_id::text || ':' || p_product_id::text) OR current_access.transfer_transaction_id = o.id)))
       AND (o.amount = 0 OR coalesce(o.refunded_amount, 0) < o.amount)
       AND (o.user_id = p_user_id OR EXISTS (
         SELECT 1 FROM public.guest_purchases g WHERE g.claimed_by_user_id = p_user_id
           AND (g.transaction_id = o.id OR (g.transaction_id IS NULL AND g.session_id = o.session_id))))
       AND (o.product_id = p_product_id
         OR EXISTS (SELECT 1 FROM public.payment_line_items l WHERE l.transaction_id = o.id AND l.product_id = p_product_id)
-        OR p_product_id IN (SELECT public.order_granted_components(o.id)))
+        OR p_product_id IN (SELECT public.order_granted_components(o.id))
+        OR o.access_terms ? (p_user_id::text || ':' || p_product_id::text)
+        OR current_access.transfer_transaction_id = o.id)
     UNION ALL
     SELECT CASE WHEN s.status = 'canceled' THEN s.paid_access_expires_at ELSE NULL END
     FROM public.subscriptions s WHERE s.user_id = p_user_id AND s.product_id = p_product_id
@@ -13124,6 +13159,51 @@ $$;
 
 
 ALTER FUNCTION public.set_webhook_endpoint_scoping(p_endpoint_id uuid, p_mode text, p_product_ids uuid[]) OWNER TO postgres;
+
+--
+-- Name: settle_transfer_product_access(uuid); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.settle_transfer_product_access(p_transaction_id uuid) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+DECLARE tx public.payment_transactions; recipient record;
+  previous_payment text := current_setting('sellf.transfer_payment', true);
+  previous_order text := current_setting('sellf.paid_order', true);
+BEGIN
+  IF (select auth.role()) IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'Service role required' USING ERRCODE = '42501';
+  END IF;
+  SELECT * INTO STRICT tx FROM public.payment_transactions WHERE id = p_transaction_id FOR UPDATE;
+  IF tx.status <> 'completed' OR tx.payment_provider <> 'bank_transfer' THEN RETURN; END IF;
+  PERFORM set_config('sellf.transfer_payment', tx.id::text, true);
+  PERFORM set_config('sellf.paid_order', tx.id::text, true);
+  FOR recipient IN
+    SELECT tx.user_id AS buyer, tx.product_id AS product, NULL::integer AS duration
+    UNION
+    SELECT tx.user_id, l.product_id, l.access_duration_override FROM public.payment_line_items l
+      WHERE l.transaction_id = tx.id AND l.item_type = 'order_bump'
+    UNION
+    SELECT g.claimed_by_user_id, g.product_id, l.access_duration_override FROM public.guest_purchases g
+      LEFT JOIN public.payment_line_items l ON l.transaction_id = tx.id AND l.product_id = g.product_id AND l.item_type = 'order_bump'
+      WHERE g.transaction_id = tx.id AND g.claimed_by_user_id IS NOT NULL
+    ORDER BY 1, 2, 3
+  LOOP
+    IF recipient.buyer IS NOT NULL THEN
+      IF recipient.product = tx.product_id THEN
+        PERFORM public.grant_product_and_bundle_components(recipient.buyer, recipient.product, recipient.duration, tx.id);
+      ELSE
+        PERFORM public.grant_product_access_service_role(recipient.buyer, recipient.product, override_duration_days_param => recipient.duration);
+      END IF;
+    END IF;
+  END LOOP;
+  PERFORM set_config('sellf.transfer_payment', coalesce(previous_payment, ''), true);
+  PERFORM set_config('sellf.paid_order', coalesce(previous_order, ''), true);
+END $$;
+
+
+ALTER FUNCTION public.settle_transfer_product_access(p_transaction_id uuid) OWNER TO postgres;
 
 --
 -- Name: snapshot_event_tier_label(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -23950,6 +24030,8 @@ function | public.set_revenue_goal(p_goal_amount bigint, p_start_date timestamp 
 function | public.set_revenue_goal(p_goal_amount bigint, p_start_date timestamp with time zone, p_product_id uuid) | service_role | EXECUTE | postgres | -
 function | public.set_webhook_endpoint_scoping(p_endpoint_id uuid, p_mode text, p_product_ids uuid[]) | postgres | EXECUTE | postgres | -
 function | public.set_webhook_endpoint_scoping(p_endpoint_id uuid, p_mode text, p_product_ids uuid[]) | service_role | EXECUTE | postgres | -
+function | public.settle_transfer_product_access(p_transaction_id uuid) | postgres | EXECUTE | postgres | -
+function | public.settle_transfer_product_access(p_transaction_id uuid) | service_role | EXECUTE | postgres | -
 function | public.snapshot_event_tier_label() | postgres | EXECUTE | postgres | -
 function | public.snapshot_event_tier_label() | service_role | EXECUTE | postgres | -
 function | public.snapshot_order_bundle_components(p_transaction_id uuid) | postgres | EXECUTE | postgres | -

@@ -7391,6 +7391,10 @@ export type Database = {
         Args: { p_endpoint_id: string; p_mode: string; p_product_ids: string[] }
         Returns: undefined
       }
+      settle_transfer_product_access: {
+        Args: { p_transaction_id: string }
+        Returns: undefined
+      }
       snapshot_order_bundle_components: {
         Args: { p_transaction_id: string }
         Returns: undefined
