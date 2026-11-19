@@ -2,6 +2,7 @@
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { z } from 'zod';
+import TransferStatusRefresh from '@/components/checkout/TransferStatusRefresh';
 import TransferDeclaration from '@/components/checkout/TransferDeclaration';
 import TransferInstructions from '@/components/checkout/TransferInstructions';
 import QuickPayButton from '@/components/checkout/QuickPayButton';
@@ -25,7 +26,7 @@ export default async function TransferPage({ params, searchParams }: { params: P
   // Past the deadline the release job cancels the order soon: say so instead of "reserved until <past date>".
   const overdue = isReservationOverdue(tx, now);
   const product = (Array.isArray(tx.products) ? tx.products[0] : tx.products) as { slug: string; is_active: boolean } | null;
-  return <main className="max-w-2xl mx-auto p-6 my-10"><h1 className="text-2xl font-semibold">{t(cancelled ? 'cancelledTitle' : 'thanks', { number: tx.order_number ?? '' })}</h1>
+  return <main className="max-w-2xl mx-auto p-6 my-10"><TransferStatusRefresh status={tx.status} releaseAt={tx.release_at} /><h1 className="text-2xl font-semibold">{t(cancelled ? 'cancelledTitle' : 'thanks', { number: tx.order_number ?? '' })}</h1>
     {!cancelled && !overdue && <p className="mt-3">{t(`status_${tx.status}`)}</p>}
     {unpaid && tx.invoice_hold_at && <p className="mt-3">{t('invoiceHold')}</p>}
     {unpaid && !overdue && tx.release_at && <p className="mt-3 font-semibold">{t('reservedUntil', { date: date(tx.release_at) })}</p>}
