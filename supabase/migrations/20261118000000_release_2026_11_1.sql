@@ -3256,7 +3256,14 @@ BEGIN
     AND nullif(current_setting('sellf.transfer_order', true), '') IS NULL
     AND (current_setting('sellf.grant_source', true) IN ('purchase', 'bundle', 'free')
       OR (TG_OP = 'INSERT' AND NEW.grant_source IN ('free', 'manual'))) THEN
-    NEW.independent_access := jsonb_build_object('expiresAt', NEW.access_expires_at);
+    IF TG_OP = 'INSERT' OR NEW.access_expires_at IS NULL OR OLD.access_expires_at <= now() THEN
+      NEW.independent_access := jsonb_build_object('expiresAt', NEW.access_expires_at);
+    ELSIF OLD.access_expires_at IS NOT NULL AND NEW.access_expires_at > OLD.access_expires_at THEN
+      NEW.independent_access := jsonb_build_object('expiresAt',
+        CASE WHEN OLD.independent_access IS NOT NULL AND OLD.independent_access->>'expiresAt' IS NULL THEN NULL
+          ELSE greatest(now(), (OLD.independent_access->>'expiresAt')::timestamptz)
+            + (NEW.access_expires_at - OLD.access_expires_at) END);
+    END IF;
   ELSIF TG_OP = 'UPDATE' AND OLD.grant_source IN ('free', 'manual') AND OLD.independent_access IS NULL THEN
     NEW.independent_access := jsonb_build_object('expiresAt', OLD.access_expires_at);
   END IF;

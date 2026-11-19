@@ -274,3 +274,25 @@ it.each(['terms', 'payment'])('records only effective placement grants before la
     }
   } finally { f.cleanup(); }
 });
+
+it.each(['bump', 'bundle-component', 'twice'])('retains only days added by an order-independent %s after refund @J34', path => {
+  const f = fixture();
+  try {
+    sql(`UPDATE public.products SET auto_grant_duration_days=365 WHERE id='${f.product}';`);
+    const paid = f.buy();
+    sql(`UPDATE public.payment_transactions SET created_at=now()-interval '100 days',paid_at=now()-interval '100 days',
+      access_terms=jsonb_build_object('${f.user}:${f.product}',jsonb_build_object('grantedAt',now()-interval '100 days','expiresAt',now()+interval '265 days')) WHERE id='${paid}';
+      UPDATE public.user_product_access SET access_granted_at=now()-interval '100 days',access_expires_at=now()+interval '265 days' WHERE user_id='${f.user}' AND product_id='${f.product}';
+      UPDATE public.products SET auto_grant_duration_days=30 WHERE id='${f.product}';`);
+    const count = path === 'twice' ? 2 : 1;
+    for (let i=0;i<count;i++) sql(path === 'bundle-component'
+      ? `SELECT public.grant_product_and_bundle_components('${f.user}','${f.bundle}');`
+      : `SELECT public.grant_product_and_bundle_components('${f.user}','${f.product}');`);
+    f.refund(paid);
+    const days = Number(sql(`SELECT extract(epoch FROM (access_expires_at-now()))/86400 FROM public.user_product_access WHERE user_id='${f.user}' AND product_id='${f.product}';`));
+    expect(days).toBeCloseTo(30*count,3);
+    const retained = f.access().access_expires_at;
+    f.revoke(paid);
+    expect(f.access()?.access_expires_at).toBe(retained);
+  } finally { f.cleanup(); }
+});
