@@ -3495,6 +3495,7 @@
         "messageHelp": "Widoczny na stronie przerwy, najwyżej 500 znaków.",
         "expectedEnd": "Przewidywany koniec (opcjonalnie)",
         "expectedEndHelp": "Widoczny na stronie i przekazywany przeglądarkom i wyszukiwarkom jako czas powrotu.",
+        "expectedEndInvalid": "Przewidywany koniec musi być w przyszłości.",
         "turnOn": "Włącz przerwę w działaniu",
         "update": "Zapisz komunikat i czas",
         "turnOff": "Wyłącz przerwę w działaniu",

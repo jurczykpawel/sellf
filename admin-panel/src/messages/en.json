@@ -3495,6 +3495,7 @@
         "messageHelp": "Shown on the maintenance page, at most 500 characters.",
         "expectedEnd": "Expected end (optional)",
         "expectedEndHelp": "Shown on the page and sent to browsers and search engines as the time to come back.",
+        "expectedEndInvalid": "The expected end must be in the future.",
         "turnOn": "Turn on maintenance mode",
         "update": "Save note and time",
         "turnOff": "Turn off maintenance mode",

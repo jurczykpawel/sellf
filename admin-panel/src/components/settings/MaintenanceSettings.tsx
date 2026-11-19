@@ -9,13 +9,16 @@
  * @see src/lib/maintenance/setting.ts
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { getMaintenanceStatus, setMaintenanceMode } from '@/lib/actions/maintenance';
 import type { MaintenanceStatus } from '@/lib/maintenance/setting';
 
-/** <input type="datetime-local"> value (local time) for an ISO instant, and back. */
+/** <input type="datetime-local"
+            ref={expectedEndRef}
+            aria-invalid={expectedEndError || undefined}
+            aria-describedby={expectedEndError ? 'maintenance-end-error' : undefined}> value (local time) for an ISO instant, and back. */
 function toLocalInput(iso: string | null): string {
   if (!iso) return '';
   const date = new Date(iso);
@@ -31,6 +34,8 @@ export default function MaintenanceSettings() {
   const [message, setMessage] = useState('');
   const [expectedEnd, setExpectedEnd] = useState('');
   const [saving, setSaving] = useState(false);
+  const [expectedEndError, setExpectedEndError] = useState(false);
+  const expectedEndRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let live = true;
@@ -46,6 +51,12 @@ export default function MaintenanceSettings() {
   }, [t]);
 
   async function change(enabled: boolean) {
+    if (enabled && expectedEnd && (!Number.isFinite(Date.parse(expectedEnd)) || Date.parse(expectedEnd) <= Date.now())) {
+      setExpectedEndError(true);
+      expectedEndRef.current?.focus();
+      return;
+    }
+    setExpectedEndError(false);
     setSaving(true);
     try {
       const result = await setMaintenanceMode({ enabled, message: enabled ? message : null, expected_end_at: enabled ? fromLocalInput(expectedEnd) : null });
@@ -106,12 +117,16 @@ export default function MaintenanceSettings() {
           {t('expectedEnd')}
           <input
             type="datetime-local"
+            ref={expectedEndRef}
+            aria-invalid={expectedEndError || undefined}
+            aria-describedby={expectedEndError ? 'maintenance-end-error' : undefined}
             className="mt-1 block border border-sf-border bg-sf-base p-2"
             value={expectedEnd}
             disabled={!status || saving}
-            onChange={event => setExpectedEnd(event.target.value)}
+            onChange={event => { setExpectedEnd(event.target.value); setExpectedEndError(false); }}
           />
           <span className="block text-xs text-sf-muted mt-1">{t('expectedEndHelp')}</span>
+          {expectedEndError && <span id="maintenance-end-error" role="alert" className="block text-xs text-sf-danger mt-1">{t('expectedEndInvalid')}</span>}
         </label>
         <div className="flex flex-wrap gap-3">
           <button
