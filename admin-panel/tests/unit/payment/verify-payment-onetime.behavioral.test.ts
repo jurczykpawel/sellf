@@ -1095,3 +1095,24 @@ describe.skipIf(!hasSupabase)('refunded order verification', () => {
     expect((await verifyPaymentSession(cs, asUser('different-user', 'different@example.com'))).error).toBe('Session does not belong to current user');
   });
 });
+
+describe.skipIf(!hasSupabase)('settled order verification', () => {
+  it.each(['partially_refunded', 'disputed'])('returns the saved %s state without repeating fulfillment', async status => {
+    const product = await createProduct();
+    const cs = uniq('cs'); const pi = uniq('pi');
+    const email = uniq('settled') + '@example.com'; createdEmails.push(email);
+    const userId = await createAuthUser(email);
+    await seedPendingTx({ sessionId: cs, productId: product.id, email, pi, userId, status: 'completed' });
+    expect((await db!.from('payment_transactions').update({ status, refunded_amount: status === 'partially_refunded' ? 100 : 0 }).eq('session_id', cs)).error).toBeNull();
+    if (status === 'partially_refunded') expect((await db!.from('user_product_access').insert({ user_id: userId, product_id: product.id, access_granted_at: new Date().toISOString() })).error).toBeNull();
+    h.stripe = makeStripeShim({ session: paidSession(cs, product.id, email, { payment_intent: pi }) });
+    const result = await verifyPaymentSession(cs, asUser(userId, email));
+    expect(result.error).toBeUndefined();
+    expect(result.payment_status).toBe(status === 'partially_refunded' ? 'paid' : 'disputed');
+    expect(result.access_granted).toBe(status === 'partially_refunded');
+    expect(mapVerifiedPaymentToStatus(result).paymentStatus).toBe(status === 'partially_refunded' ? 'completed' : 'disputed');
+    expect((await fetchTx(cs))?.status).toBe(status);
+    expect(purchaseCalls()).toHaveLength(0);
+    expect((await verifyPaymentSession(cs, asUser('different-user', 'different@example.com'))).error).toBe('Session does not belong to current user');
+  });
+});

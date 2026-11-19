@@ -197,6 +197,7 @@ export interface PaymentVerificationResult {
  */
 export type PaymentStatusKind =
   | 'refunded'
+  | 'disputed'
   | 'received'
   | 'data_error'
   | 'processing'
@@ -231,6 +232,7 @@ interface MappedPaymentStatus {
  * in the contract are caught by unit tests.
  */
 export function mapVerifiedPaymentToStatus(result: VerifiedPaymentShape): MappedPaymentStatus {
+  if (result.payment_status === 'disputed') return { paymentStatus: 'disputed', accessGranted: false, errorMessage: '' };
   if (result.payment_status === 'refunded') return { paymentStatus: 'refunded', accessGranted: false, errorMessage: '' };
 
   if (result.access_granted) {
@@ -327,7 +329,7 @@ async function getProcessedPaymentFromDatabase(
       )
     `)
     .eq('session_id', sessionId)
-    .in('status', ['completed', 'refunded'])
+    .in('status', ['completed', 'partially_refunded', 'refunded', 'disputed'])
     .maybeSingle();
 
   if (error || !transaction) {
@@ -353,9 +355,9 @@ async function getProcessedPaymentFromDatabase(
     };
   }
 
-  if (transaction.status === 'refunded') {
+  if (transaction.status === 'refunded' || transaction.status === 'disputed') {
     return {
-      session_id: sessionId, status: 'complete', payment_status: 'refunded',
+      session_id: sessionId, status: 'complete', payment_status: transaction.status,
       access_granted: false, requires_login: false, send_magic_link: false,
     };
   }

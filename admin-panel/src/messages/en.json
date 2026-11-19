@@ -1489,6 +1489,8 @@
 
     "paymentReceived": "Payment received",
     "preparingAccess": "Your payment has been received. We are preparing your access. This page will refresh automatically.",
+    "paymentDisputed": "Payment disputed",
+    "paymentDisputedDetails": "This payment is under dispute. Access from this order is suspended while the dispute is reviewed.",
     "paymentRefunded": "Payment refunded",
     "paymentRefundedDetails": "This payment has been fully refunded. Access from this order is no longer active.",
     "orderNeedsReview": "Payment received — order needs review",

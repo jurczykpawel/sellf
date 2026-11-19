@@ -76,7 +76,7 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
       if (result.status === 'expired') {
         paymentStatus = 'expired';
         errorMessage = 'Payment session has expired. Please try again.';
-      } else if (result.status === 'complete' && (result.payment_status === 'paid' || result.payment_status === 'refunded')) {
+      } else if (result.status === 'complete' && (result.payment_status === 'paid' || result.payment_status === 'refunded' || result.payment_status === 'disputed')) {
         const mapped = mapVerifiedPaymentToStatus(result);
         paymentStatus = mapped.paymentStatus;
         accessGranted = mapped.accessGranted;
