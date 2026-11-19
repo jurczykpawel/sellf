@@ -104,3 +104,22 @@ it('retains payment authentication past the local deadline and expires after a d
   await act(async () => { finish({ type: 'error', error: { message: 'Declined' } }); });
   await screen.findByText('Your payment session has expired.');
 });
+
+it('does not send a session deadline in buyer details', async () => {
+  const fetch = vi.fn(async () => Response.json({ success: true, data: { isValid: true } }));
+  vi.stubGlobal('fetch', fetch);
+  stripe.confirm.mockResolvedValueOnce({ type: 'error', error: { message: 'Declined' } });
+  const view = form('en', { sessionDeadline: performance.now() + 10000 });
+  fireEvent.submit(view.container.querySelector('form')!);
+  await waitFor(() => expect(stripe.confirm).toHaveBeenCalled());
+  const [, init] = fetch.mock.calls.find(([url]) => url === '/api/update-payment-metadata')! as unknown as [string, RequestInit];
+  expect(JSON.parse(init.body as string)).not.toHaveProperty('expiresAt');
+  expect(JSON.parse(init.body as string)).not.toHaveProperty('sessionDeadline');
+});
+
+it.each([en, pl])('keeps email validation messages in checkout only', messages => {
+  expect(messages.navigation).not.toHaveProperty('emailTooLong');
+  expect(messages.navigation).not.toHaveProperty('emailInvalidFormat');
+  expect(messages.checkout.emailTooLong).toBeTruthy();
+  expect(messages.checkout.emailInvalidFormat).toBeTruthy();
+});

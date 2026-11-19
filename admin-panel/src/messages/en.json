@@ -590,8 +590,6 @@
     "attribution": "Sales sources",
     "expandSidebar": "Expand navigation",
     "collapseSidebar": "Collapse navigation",
-    "emailTooLong": "Email addresses can have at most 254 characters.",
-    "emailInvalidFormat": "Enter a valid email address.",
     "sessionExpired": "Session expired — sign in again",
     "dashboard": "Dashboard",
     "products": "Products",
