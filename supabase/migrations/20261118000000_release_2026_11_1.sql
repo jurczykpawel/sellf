@@ -3248,14 +3248,24 @@ DECLARE
   term jsonb;
 BEGIN
   SELECT t.id INTO txid FROM public.payment_transactions t
-  WHERE t.id::text IN (current_setting('sellf.paid_order', true), current_setting('sellf.transfer_order', true))
+  WHERE t.id::text = coalesce(nullif(current_setting('sellf.transfer_order', true), ''), nullif(current_setting('sellf.paid_order', true), ''))
     AND (t.user_id = p_user_id OR EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p_user_id AND lower(u.email) = lower(t.customer_email))
       OR EXISTS (SELECT 1 FROM public.guest_purchases g WHERE g.transaction_id = t.id AND g.claimed_by_user_id = p_user_id))
     AND (t.product_id = p_product_id OR EXISTS (SELECT 1 FROM public.payment_line_items l WHERE l.transaction_id = t.id AND l.product_id = p_product_id)
       OR p_product_id IN (SELECT public.order_granted_components(t.id)))
     AND EXISTS (SELECT 1 FROM public.user_product_access a WHERE a.user_id = p_user_id AND a.product_id = p_product_id)
-  ORDER BY t.id LIMIT 1;
+  LIMIT 1;
   IF txid IS NULL THEN RETURN; END IF;
+  SELECT CASE WHEN bool_or(duration IS NULL) THEN NULL ELSE max(duration) END INTO p_duration
+  FROM (
+    SELECT p_duration AS duration
+    UNION ALL
+    SELECT nullif(l.access_duration_override, 0) FROM public.payment_line_items l
+      WHERE l.transaction_id = txid AND l.product_id = p_product_id AND l.access_duration_override IS NOT NULL
+    UNION ALL
+    SELECT p.auto_grant_duration_days FROM public.products p
+      WHERE p.id = p_product_id AND p.id IN (SELECT public.order_granted_components(txid))
+  ) periods;
   term := coalesce(restored, jsonb_build_object('grantedAt', now(), 'expiresAt',
     CASE WHEN p_duration IS NULL THEN NULL ELSE now() + make_interval(days => p_duration) END));
   UPDATE public.payment_transactions SET access_terms = access_terms || jsonb_build_object(term_key, term)
@@ -3299,15 +3309,19 @@ END $$;
 
 CREATE FUNCTION public.revoke_order_product_access(p_transaction_id uuid, p_user_id uuid, p_product_id uuid) RETURNS boolean
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
-DECLARE t public.payment_transactions; remaining integer; permanent boolean; expires timestamptz; removed integer;
+DECLARE t public.payment_transactions; current_access public.user_product_access;
+  remaining integer; permanent boolean; expires timestamptz; removed integer; suspended boolean;
 BEGIN
   IF (select auth.role()) IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'Service role required' USING ERRCODE = '42501';
   END IF;
   SELECT * INTO t FROM public.payment_transactions WHERE id = p_transaction_id;
   IF NOT FOUND OR p_user_id IS NULL THEN RETURN false; END IF;
-  PERFORM 1 FROM public.user_product_access WHERE user_id = p_user_id AND product_id = p_product_id FOR UPDATE;
+  SELECT * INTO current_access FROM public.user_product_access WHERE user_id = p_user_id AND product_id = p_product_id FOR UPDATE;
   IF NOT FOUND THEN RETURN false; END IF;
+  SELECT EXISTS (SELECT 1 FROM public.payment_disputes d JOIN public.payment_transactions disputed ON disputed.id = d.transaction_id
+    WHERE NOT d.closed AND d.status <> 'won' AND disputed.status = 'disputed' AND d.transaction_id <> t.id
+    AND d.suspended_at = current_access.access_expires_at AND d.account_access @> jsonb_build_array(jsonb_build_object('id', current_access.id))) INTO suspended;
   WITH sources AS (
     SELECT public.order_access_expiry(o.id, p_user_id, p_product_id) AS ends_at
     FROM public.payment_transactions o
@@ -3322,17 +3336,23 @@ BEGIN
         OR EXISTS (SELECT 1 FROM public.payment_line_items l WHERE l.transaction_id = o.id AND l.product_id = p_product_id)
         OR p_product_id IN (SELECT public.order_granted_components(o.id)))
     UNION ALL
-    SELECT CASE WHEN s.status = 'canceled' THEN s.paid_access_expires_at ELSE s.current_period_end END
+    SELECT CASE WHEN s.status = 'canceled' THEN s.paid_access_expires_at ELSE NULL END
     FROM public.subscriptions s WHERE s.user_id = p_user_id AND s.product_id = p_product_id
       AND s.id IS DISTINCT FROM t.subscription_id
-      AND (s.status IN ('active', 'trialing', 'past_due') OR (s.status = 'canceled' AND s.paid_access_expires_at > now()))
+      AND ((s.status IN ('active', 'trialing', 'past_due') AND (s.current_period_end IS NULL OR s.current_period_end > now()))
+        OR (s.status = 'canceled' AND s.paid_access_expires_at > now()))
     UNION ALL
-    SELECT other.access_expires_at FROM public.user_product_access other
+    SELECT least(other.access_expires_at, CASE WHEN component.auto_grant_duration_days IS NULL THEN NULL
+      ELSE other.access_granted_at + make_interval(days => component.auto_grant_duration_days) END)
+    FROM public.user_product_access other
     JOIN public.bundle_items b ON b.bundle_product_id = other.product_id
+    JOIN public.products component ON component.id = b.component_product_id
     WHERE other.user_id = p_user_id AND other.product_id IS DISTINCT FROM t.product_id
       AND b.component_product_id = p_product_id
       AND NOT EXISTS (
         SELECT 1 FROM public.payment_transactions o WHERE o.product_id = other.product_id
+          AND (o.status IN ('completed', 'partially_refunded', 'disputed')
+            OR (o.status = 'awaiting_payment' AND coalesce((o.metadata->>'access_on_placement')::boolean, false)))
           AND (o.user_id = p_user_id OR EXISTS (
             SELECT 1 FROM public.guest_purchases g WHERE g.claimed_by_user_id = p_user_id
               AND (g.transaction_id = o.id OR (g.transaction_id IS NULL AND g.session_id = o.session_id)))))
@@ -3340,10 +3360,22 @@ BEGIN
   SELECT count(*), bool_or(ends_at IS NULL), max(ends_at) INTO remaining, permanent, expires
   FROM sources WHERE ends_at IS NULL OR ends_at > now();
   IF remaining > 0 THEN
-    UPDATE public.user_product_access SET access_expires_at = CASE WHEN permanent THEN NULL ELSE expires END,
+    expires := CASE WHEN permanent THEN NULL ELSE expires END;
+    IF NOT suspended THEN expires := least(current_access.access_expires_at, expires); END IF;
+    UPDATE public.user_product_access SET access_expires_at = expires,
       expiry_notified_at = NULL, version = version + 1
     WHERE user_id = p_user_id AND product_id = p_product_id
-      AND access_expires_at IS DISTINCT FROM CASE WHEN permanent THEN NULL ELSE expires END;
+      AND access_expires_at IS DISTINCT FROM expires;
+    RETURN false;
+  END IF;
+  IF suspended THEN
+    UPDATE public.payment_disputes d SET account_access = (
+      SELECT jsonb_agg(CASE WHEN item->>'id' = current_access.id::text THEN
+        jsonb_set(item, '{access_expires_at}', coalesce(to_jsonb(least((item->>'access_expires_at')::timestamptz,
+          public.order_access_expiry(d.transaction_id, p_user_id, p_product_id))), 'null'::jsonb)) ELSE item END)
+      FROM jsonb_array_elements(d.account_access) item)
+    WHERE NOT d.closed AND d.status <> 'won' AND d.suspended_at = current_access.access_expires_at
+      AND d.account_access @> jsonb_build_array(jsonb_build_object('id', current_access.id));
     RETURN false;
   END IF;
   DELETE FROM public.user_product_access WHERE user_id = p_user_id AND product_id = p_product_id;
