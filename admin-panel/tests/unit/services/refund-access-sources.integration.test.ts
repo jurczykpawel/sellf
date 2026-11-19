@@ -254,7 +254,7 @@ it('does not reconcile a placement transfer that left the access row untouched @
   } finally { f.cleanup(); }
 });
 
-it.each(['terms', 'payment', 'bundle-payment'])('records only effective placement grants before later transfer %s @J182', check => {
+it.each(['terms', 'payment'])('records only effective placement grants before later transfer %s @J182', check => {
   const f = fixture();
   try {
     sql(`UPDATE public.products SET auto_grant_duration_days=365 WHERE id='${f.product}';`);
@@ -262,7 +262,7 @@ it.each(['terms', 'payment', 'bundle-payment'])('records only effective placemen
     sql(`UPDATE public.payment_transactions SET created_at=now()-interval '105 days',paid_at=now()-interval '105 days',
       access_terms=jsonb_build_object('${f.user}:${f.product}',jsonb_build_object('grantedAt',now()-interval '105 days','expiresAt',now()+interval '260 days')) WHERE id='${paid}';
       UPDATE public.user_product_access SET access_granted_at=now()-interval '105 days',access_expires_at=now()+interval '260 days' WHERE user_id='${f.user}' AND product_id='${f.product}';`);
-    const transfer = f.buy(check === 'bundle-payment' ? f.bundle : f.product,'bank_transfer','awaiting_payment');
+    const transfer = f.buy(f.product,'bank_transfer','awaiting_payment');
     sql(`UPDATE public.payment_transactions SET created_at=now()-interval '5 days' WHERE id='${transfer}';`);
     if (check === 'terms') expect(sql(`SELECT access_terms::text FROM public.payment_transactions WHERE id='${transfer}';`)).toBe('{}');
     else {
@@ -355,4 +355,35 @@ it.each(['subscription', 'transfer'])('does not turn a legacy unknown row owned 
     else sql(`UPDATE public.payment_transactions SET status='cancelled' WHERE id='${order}';`);
     expect(f.access()).toBeNull();
   } finally { f.cleanup(); }
+});
+
+it.each(['payment', 'cancel', 'refund'])('tracks the actual bundle-add-on component period through transfer %s @J182', action => {
+  const f = fixture(), main = randomUUID();
+  const enabled = sql('SELECT bank_transfer_enabled FROM public.bank_transfer_config;');
+  let order: string | undefined;
+  try {
+    sql(`UPDATE public.bank_transfer_config SET bank_transfer_enabled=true;
+      INSERT INTO public.products(id,name,slug,price,currency,auto_grant_duration_days,checkout_profile) VALUES('${main}','Main','${main}',40,'PLN',30,'{"v":1,"modules":[{"id":"buyer","types":["organization"],"bank_transfer_for":["organization"]}]}');
+      INSERT INTO public.order_bumps(main_product_id,bump_product_id,bump_title) VALUES('${main}','${f.bundle}','Bundle extra');`);
+    const placed = JSON.parse(sql(`SELECT public.bank_transfer_order(jsonb_build_object('product_id','${main}','currency','PLN','customer_email','${f.user}@example.com','order_details','{"v":1,"buyer":{"type":"organization","terms_accepted":true}}'::jsonb),
+      jsonb_build_array(jsonb_build_object('product_id','${main}','item_type','main_product','quantity',1,'unit_price',40,'total_price',40,'discounted_total',40,'currency','PLN'),
+        jsonb_build_object('product_id','${f.bundle}','item_type','order_bump','order_bump_id',(SELECT id FROM public.order_bumps WHERE main_product_id='${main}'),'quantity',1,'unit_price',60,'total_price',60,'discounted_total',60,'currency','PLN')));`));
+    order = placed.transaction_id;
+    expect(order).toBeTruthy();
+    expect(f.access()).not.toBeNull();
+    sql(`UPDATE public.payment_transactions SET created_at=now()-interval '5 days' WHERE id='${order}';
+      UPDATE public.user_product_access SET access_expires_at=now()+interval '25 days' WHERE user_id='${f.user}' AND product_id='${f.product}';`);
+    const original = f.access().access_expires_at;
+    expect(sql(`SELECT access_terms ? '${f.user}:${f.product}' FROM public.payment_transactions WHERE id='${order}';`)).toBe('t');
+    if (action !== 'cancel') {
+      expect(JSON.parse(sql(`SELECT public.complete_offline_order('${order}',10000);`)).success).toBe(true);
+      expect(f.access()?.access_expires_at).toBe(original);
+    }
+    if (action === 'cancel') sql(`SELECT public.cancel_unpaid_order('${order}','Fixture cancellation');`);
+    if (action === 'refund') sql(`UPDATE public.payment_transactions SET status='refunded',refunded_amount=amount WHERE id='${order}';`);
+    if (action !== 'payment') expect(f.access()).toBeNull();
+  } finally {
+    sql(`DELETE FROM public.payment_transactions WHERE product_id='${main}'; DELETE FROM public.products WHERE id='${main}'; UPDATE public.bank_transfer_config SET bank_transfer_enabled=${enabled === 't'};`);
+    f.cleanup();
+  }
 });

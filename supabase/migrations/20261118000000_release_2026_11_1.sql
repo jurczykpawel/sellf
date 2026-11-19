@@ -3288,7 +3288,9 @@ BEGIN
     AND (t.user_id = p_user_id OR EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p_user_id AND lower(u.email) = lower(t.customer_email))
       OR EXISTS (SELECT 1 FROM public.guest_purchases g WHERE g.transaction_id = t.id AND g.claimed_by_user_id = p_user_id))
     AND (t.product_id = p_product_id OR EXISTS (SELECT 1 FROM public.payment_line_items l WHERE l.transaction_id = t.id AND l.product_id = p_product_id)
-      OR p_product_id IN (SELECT public.order_granted_components(t.id)))
+      OR p_product_id IN (SELECT public.order_granted_components(t.id))
+      OR EXISTS (SELECT 1 FROM public.payment_line_items l JOIN public.bundle_items b ON b.bundle_product_id = l.product_id
+        WHERE l.transaction_id = t.id AND b.component_product_id = p_product_id))
     AND EXISTS (SELECT 1 FROM public.user_product_access a WHERE a.user_id = p_user_id AND a.product_id = p_product_id
       AND (t.status <> 'awaiting_payment' OR a.transfer_transaction_id = t.id))
   LIMIT 1;
@@ -3440,7 +3442,9 @@ BEGIN
           AND (g.transaction_id = o.id OR (g.transaction_id IS NULL AND g.session_id = o.session_id))))
       AND (o.product_id = p_product_id
         OR EXISTS (SELECT 1 FROM public.payment_line_items l WHERE l.transaction_id = o.id AND l.product_id = p_product_id)
-        OR p_product_id IN (SELECT public.order_granted_components(o.id)))
+        OR p_product_id IN (SELECT public.order_granted_components(o.id))
+        OR o.access_terms ? (p_user_id::text || ':' || p_product_id::text)
+        OR current_access.transfer_transaction_id = o.id)
     UNION ALL
     SELECT CASE WHEN s.status = 'canceled' THEN s.paid_access_expires_at ELSE NULL END
     FROM public.subscriptions s WHERE s.user_id = p_user_id AND s.product_id = p_product_id
@@ -3510,7 +3514,8 @@ BEGIN
   FOR candidate IN
     SELECT a.product_id FROM public.user_product_access a
   WHERE a.user_id = p_user_id
-    AND a.product_id IN (SELECT public.order_granted_components(t.id))
+    AND (a.product_id IN (SELECT public.order_granted_components(t.id))
+      OR t.access_terms ? (p_user_id::text || ':' || a.product_id::text))
     AND a.product_id IS DISTINCT FROM t.product_id
     AND a.subscription_id IS NULL
   ORDER BY a.product_id
@@ -3570,6 +3575,8 @@ BEGIN
         SELECT NEW.product_id WHERE NEW.product_id IS NOT NULL
         UNION SELECT product_id FROM public.payment_line_items WHERE transaction_id = NEW.id
         UNION SELECT public.order_granted_components(NEW.id)
+        UNION SELECT a.product_id FROM public.user_product_access a WHERE a.user_id = buyer
+          AND (a.transfer_transaction_id = NEW.id OR OLD.access_terms ? (buyer::text || ':' || a.product_id::text))
         ORDER BY 1
       LOOP
         IF NEW.status = 'refunded' OR OLD.access_terms ? (buyer::text || ':' || product::text)
@@ -3743,7 +3750,11 @@ BEGIN
     ORDER BY 1, 2, 3
   LOOP
     IF recipient.buyer IS NOT NULL THEN
-      PERFORM public.grant_product_and_bundle_components(recipient.buyer, recipient.product, recipient.duration, tx.id);
+      IF recipient.product = tx.product_id THEN
+        PERFORM public.grant_product_and_bundle_components(recipient.buyer, recipient.product, recipient.duration, tx.id);
+      ELSE
+        PERFORM public.grant_product_access_service_role(recipient.buyer, recipient.product, override_duration_days_param => recipient.duration);
+      END IF;
     END IF;
   END LOOP;
   PERFORM set_config('sellf.transfer_payment', coalesce(previous_payment, ''), true);
