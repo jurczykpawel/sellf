@@ -3513,6 +3513,20 @@ BEGIN
     E'OR EXISTS(SELECT 1 FROM public.payment_transactions o WHERE (o.id=g.transaction_id OR (g.transaction_id IS NULL AND o.session_id=g.session_id))\n      AND o.product_id=g.product_id AND p.id IN (SELECT public.order_granted_components(o.id)))\n    OR (NOT EXISTS(SELECT 1 FROM public.payment_transactions o WHERE o.id=g.transaction_id OR (g.transaction_id IS NULL AND o.session_id=g.session_id))\n      AND EXISTS(SELECT 1 FROM public.bundle_items b WHERE b.bundle_product_id=g.product_id AND b.component_product_id=p.id))');
 END $$;
 
+-- Sale counters acquire product rows in the same order for every cart.
+DO $$
+DECLARE definition text;
+  old_loop text := 'FROM public.payment_line_items WHERE transaction_id=tx.id LOOP';
+BEGIN
+  definition := pg_get_functiondef('public._order_grant_and_record(uuid,uuid,uuid,uuid,uuid,text)'::regprocedure);
+  IF (length(definition) - length(replace(definition, old_loop, ''))) / length(old_loop) <> 1 THEN
+    RAISE EXCEPTION 'Unexpected sale fulfillment definition';
+  END IF;
+  EXECUTE replace(definition, old_loop, 'FROM public.payment_line_items WHERE transaction_id=tx.id ORDER BY product_id LOOP');
+END $$;
+
+
+
 
 -- ===== Disputes act on the components the order granted =====
 -- Same function as in 20261110235906; only the bundle product set changes: the main bundle's

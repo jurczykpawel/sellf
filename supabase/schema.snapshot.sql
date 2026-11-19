@@ -231,7 +231,7 @@ BEGIN
   ) THEN RAISE EXCEPTION 'Order coupon has not been redeemed'; END IF;
   IF tx.pricing_snapshot_version IS NULL THEN PERFORM public.increment_sale_quantity_sold(tx.product_id);
   ELSE
-    FOR line IN SELECT product_id,quantity FROM public.payment_line_items WHERE transaction_id=tx.id LOOP
+    FOR line IN SELECT product_id,quantity FROM public.payment_line_items WHERE transaction_id=tx.id ORDER BY product_id LOOP
       PERFORM public.increment_sale_quantity_sold(line.product_id,line.quantity);
     END LOOP;
   END IF;
