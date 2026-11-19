@@ -411,6 +411,11 @@ In the panel, open **Products** and select the **Archive** filter to see retired
 
 Orders, invoices and licenses are never deleted together with a product.
 
+A product used as a **bundle component** cannot be archived or deleted, including permanently from the archive.
+The panel names the containing bundles and disables confirmation; API DELETE returns **409 CONFLICT** with their names.
+First remove the component from those bundles explicitly. A refused operation leaves the product and bundle contents unchanged.
+An existing active bundle containing an already archived component can still be purchased and grants access to that component; archiving a standalone offer does not remove bundle entitlements.
+
 - `DELETE /products/{id}` on a product **without** orders, licenses, buyer access or subscriptions deletes it: **204**.
 - The same call on a product **with** such history moves it to the **archive** instead: **200** with
   `{ "data": { "id": "…", "status": "archived", "impact": { "orders": 3, "invoices": 1, "licenses": 2, "accesses": 3, "subscriptions": 0, "hasHistory": true } } }`.
@@ -422,12 +427,13 @@ Orders, invoices and licenses are never deleted together with a product.
   Activating an archived product returns **409**.
 - `DELETE /products/{id}?permanent=true` deletes an archived product: **204**. Orders, invoices, licenses, ended
   subscriptions and reservations for past sessions stay with `product_id: null` and the product name from the time of
-  purchase (`product_name`); buyers lose access; partner commission rules and the product's place in bundles are removed.
+  purchase (`product_name`); buyers lose access; partner commission rules are removed.
   A product with history that is not archived returns **409** (archive it first). It also returns **409** and stays in
   the archive while it has an **active subscription** (Stripe status `trialing`, `active`, `past_due` or `incomplete`),
   a **reservation for an upcoming session** (confirmed or still held, session not yet ended) or recorded partner commissions.
 - `GET /products/{id}/deletion-impact` returns the `impact` object above without changing anything, plus
-  `activeSubscriptions`, `futureReservations`, `affiliateRules`, `affiliateCommissions` and `bundles`.
+  `activeSubscriptions`, `futureReservations`, `affiliateRules`, `affiliateCommissions`, `bundles` (count) and
+  `bundleReferences` (array of `{ "id": "…", "name": "…" }` identifying every containing bundle, including inactive or archived bundles).
 - Licenses (`GET /licenses`, `/licenses/{id}`) and payments of a permanently deleted product return `product.name`
   from the time of purchase.
 

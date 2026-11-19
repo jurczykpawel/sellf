@@ -106,6 +106,11 @@ W panelu otwórz **Produkty**, a potem wybierz filtr **Archiwum**, aby zobaczyć
 
 Zamówienia, faktury i licencje nigdy nie są usuwane razem z produktem.
 
+Produktu będącego **składnikiem pakietu** nie można przenieść do archiwum ani usunąć, również trwale z archiwum.
+Panel pokazuje nazwy powiązanych pakietów i blokuje potwierdzenie; API DELETE zwraca **409 CONFLICT** z ich nazwami.
+Najpierw jawnie usuń składnik z tych pakietów. Odmowa pozostawia produkt i skład pakietów bez zmian.
+Istniejący aktywny pakiet ze składnikiem już w archiwum nadal można kupić — kupujący otrzymuje dostęp także do tego składnika. Archiwizacja samodzielnej oferty nie odbiera uprawnień wynikających z pakietu.
+
 - `DELETE /products/{id}` produktu **bez** zamówień, licencji, dostępów kupujących i subskrypcji usuwa go: **204**.
 - To samo wywołanie dla produktu **z** taką historią przenosi go do **archiwum**: **200** z
   `{ "data": { "id": "…", "status": "archived", "impact": { "orders": 3, "invoices": 1, "licenses": 2, "accesses": 3, "subscriptions": 0, "hasHistory": true } } }`.
@@ -117,12 +122,13 @@ Zamówienia, faktury i licencje nigdy nie są usuwane razem z produktem.
   Włączenie produktu w archiwum zwraca **409**.
 - `DELETE /products/{id}?permanent=true` usuwa produkt z archiwum trwale: **204**. Zamówienia, faktury, licencje, zakończone
   subskrypcje i rezerwacje minionych terminów zostają z `product_id: null` i nazwą produktu z chwili zakupu (`product_name`);
-  kupujący tracą dostęp; reguły prowizji partnerów i miejsce produktu w pakietach są usuwane.
+  kupujący tracą dostęp; reguły prowizji partnerów są usuwane.
   Produkt z historią, który nie jest w archiwum, zwraca **409** (najpierw archiwizacja). **409** i pozostanie w archiwum
   dostaje też produkt z **aktywną subskrypcją** (status Stripe `trialing`, `active`, `past_due` lub `incomplete`),
   **rezerwacją na nadchodzący termin** (potwierdzoną lub jeszcze trzymaną, termin się nie skończył) albo naliczonymi prowizjami partnerów.
 - `GET /products/{id}/deletion-impact` zwraca obiekt `impact` bez żadnej zmiany, z polami `activeSubscriptions`,
-  `futureReservations`, `affiliateRules`, `affiliateCommissions` i `bundles`.
+  `futureReservations`, `affiliateRules`, `affiliateCommissions`, `bundles` (liczba) i `bundleReferences`
+  (tablica `{ "id": "…", "name": "…" }` wskazująca wszystkie powiązane pakiety, także nieaktywne i archiwalne).
 - Licencje (`GET /licenses`, `/licenses/{id}`) i płatności trwale usuniętego produktu zwracają `product.name` z chwili zakupu.
 
 Webhooki: archiwizacja i przywrócenie wysyłają `product.updated` (`changedFields` zawiera `archivedAt`; archiwizacja aktywnego
