@@ -72,6 +72,7 @@ type EmailValidationResponse = {
   };
   error?: {
     message: string;
+    code?: string;
   };
 };
 
@@ -127,6 +128,7 @@ export default function CustomPaymentForm({
   useEffect(() => () => onProcessingChange?.(false), [onProcessingChange]);
   const [paymentElementReady, setPaymentElementReady] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [emailError, setEmailError] = useState('');
   const [sessionExpired, setSessionExpired] = useState(false);
   useEffect(() => {
     if (!expiresAt) return;
@@ -213,6 +215,7 @@ export default function CustomPaymentForm({
 
     setIsProcessing(true);
     setErrorMessage('');
+    setEmailError('');
 
     try {
       const validationResponse = await fetch('/api/validate-email', {
@@ -224,6 +227,13 @@ export default function CustomPaymentForm({
         .json()
         .catch(() => null)) as EmailValidationResponse | null;
       if (!validationResponse.ok || !validation?.success || !validation.data?.isValid) {
+        const code = validation?.error?.code;
+        if (code === 'EMAIL_TOO_LONG' || code === 'INVALID_EMAIL_FORMAT') {
+          setEmailError(t(code === 'EMAIL_TOO_LONG' ? 'emailTooLong' : 'emailInvalidFormat'));
+          document.getElementById('checkoutEmail')?.focus();
+          setIsProcessing(false);
+          return;
+        }
         setErrorMessage(
           getCheckoutRequestError(validationResponse.status, validation?.data?.error || validation?.error?.message,
             'Invalid or disposable email address not allowed', t('emailValidationRateLimit'))
@@ -393,17 +403,18 @@ export default function CustomPaymentForm({
         <input
           type="email"
           id="checkoutEmail"
-          aria-invalid={moduleErrors.some(error => error.field === 'buyer.email')}
-          aria-describedby={moduleErrors.some(error => error.field === 'buyer.email') ? 'buyer.email-error' : undefined}
+          aria-invalid={!!emailError || moduleErrors.some(error => error.field === 'buyer.email')}
+          aria-describedby={emailError ? 'checkout-email-error' : moduleErrors.some(error => error.field === 'buyer.email') ? 'buyer.email-error' : undefined}
           value={linkEmail}
-          onChange={(e) => { setLinkEmail(e.target.value); onEmailChange(e.target.value); }}
+          onChange={(e) => { setEmailError(''); setLinkEmail(e.target.value); onEmailChange(e.target.value); }}
           placeholder="you@example.com"
           required
-          className={`w-full px-3 py-2.5 bg-sf-input border ${moduleErrors.some(error => error.field === 'buyer.email') ? 'border-sf-danger' : 'border-sf-border'} rounded-lg text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent`}
+          className={`w-full px-3 py-2.5 bg-sf-input border ${emailError || moduleErrors.some(error => error.field === 'buyer.email') ? 'border-sf-danger' : 'border-sf-border'} rounded-lg text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent`}
         />
         </>}
       </div>
 
+      {emailError && <p id="checkout-email-error" role="alert" className="text-sm text-sf-danger">{emailError}</p>}
       {moduleErrors.filter(error => error.field === 'buyer.email').map(error => <p id="buyer.email-error" key={error.field} role="alert" className="text-sm text-sf-danger">{t('profile.errors.invalid')}</p>)}
 
       {/* Email mismatch warning */}
