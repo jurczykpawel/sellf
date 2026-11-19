@@ -2,7 +2,7 @@
 
 /** Buyer and panel login copy. @see app/[locale]/login/page.tsx */
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useAuth } from '@/contexts/AuthContext'
 import { getLoginReturnPath } from '@/lib/auth/magic-link-redirect'
@@ -22,7 +22,8 @@ export default function LoginPage({ shopName = 'Sellf' }: { shopName?: string })
   const loginHint = demoMode ? 'auth.demoLoginHint' : passwordLoginEnabled ? (isPanelLogin || isPartnerApplication ? 'auth.passwordLoginHint' : 'auth.buyerPasswordLoginHint') : oauthProviders.length ? 'auth.oauthLoginHint' : 'auth.magicLinkLoginHint'
 
   // Derived from URL params — no state, no effect, no cascading renders.
-  const errorParam = searchParams.get('error')
+  const [dismissedError, setDismissedError] = useState<string | null>(null)
+  const errorParam = searchParams.get('error') === dismissedError ? null : searchParams.get('error')
   const messageParam = searchParams.get('message')
   let errorTitle = ''
   let errorMessage = ''
@@ -164,7 +165,7 @@ export default function LoginPage({ shopName = 'Sellf' }: { shopName?: string })
           )}
         </div>
 
-        <LoginForm redirectTo={returnPath} />
+        <LoginForm redirectTo={returnPath} onMagicLinkSent={() => setDismissedError(searchParams.get('error'))} />
       </div>
     </div>
   )
