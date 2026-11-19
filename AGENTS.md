@@ -1271,13 +1271,22 @@ in the same transaction. Sellers see waiting orders in the payments page panel (
 
 Products can have:
 - `available_from`, `available_until`: Publication windows
-- `auto_grant_duration_days`: Automatic expiration for free products
+- `auto_grant_duration_days`: Default duration for granted access
 
 User access can have:
 - `access_expires_at`: Individual expiration
 - `access_duration_days`: Track access duration
 
 All enforced at database level in RLS policies and access check functions.
+
+`payment_transactions.access_terms` records each buyer/product grant's own start and end,
+independently of the combined `user_product_access` deadline. `record_order_access_term`
+captures successful grants, including add-on overrides and bundle components. Refunds use
+`revoke_order_product_access` to retain the latest valid remaining period; active subscriptions
+keep their subscription-managed open access. Order and dispute snapshots also retain the grant
+version and dates needed to reconcile a later dispute outcome after a refund while preserving
+subsequent manual changes. Older orders use the date/duration fallback described in the EN/PL
+`custom-checkout.md` documentation.
 
 ### Login Wall (content gating snippet)
 
