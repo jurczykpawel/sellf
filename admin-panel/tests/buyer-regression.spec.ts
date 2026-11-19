@@ -1,5 +1,6 @@
 /** Buyer recovery, receipts and purchased access on the local stack. */
 import { randomUUID } from 'node:crypto';
+import Stripe from 'stripe';
 import { test, expect } from '@playwright/test';
 import { createTestUser, setAuthSession, supabaseAdmin as db } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
@@ -16,11 +17,20 @@ async function product(extra: Record<string, unknown> = {}) {
   products.push(p.id); return p;
 }
 let tracking: { id: string; cookie_consent_enabled: boolean | null };
+test.afterEach(async ({ page }) => { await page.waitForLoadState('networkidle'); });
 test.beforeAll(async () => {
   tracking = (await checked(await db.from('integrations_config').select('id,cookie_consent_enabled').single()))!;
   await checked(await db.from('integrations_config').update({ cookie_consent_enabled: true }).eq('id', tracking.id));
 });
 test.afterAll(async () => {
+  const pending = products.length ? await checked(await db.from('payment_transactions').select('session_id')
+    .in('product_id', products).in('status', ['pending', 'abandoned']).eq('payment_provider', 'stripe')) : [];
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+  for (const order of pending ?? []) {
+    if (!order.session_id?.startsWith('cs_test_')) continue;
+    const session = await stripe.checkout.sessions.retrieve(order.session_id);
+    if (session.status === 'open') expect((await stripe.checkout.sessions.expire(session.id)).status).toBe('expired');
+  }
   await db.from('integrations_config').update({ cookie_consent_enabled: tracking.cookie_consent_enabled }).eq('id', tracking.id);
   await db.from('guest_purchases').delete().in('product_id', products);
   await db.from('payment_transactions').delete().in('product_id', products);
