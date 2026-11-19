@@ -3280,7 +3280,8 @@ BEGIN
       OR EXISTS (SELECT 1 FROM public.guest_purchases g WHERE g.transaction_id = t.id AND g.claimed_by_user_id = p_user_id))
     AND (t.product_id = p_product_id OR EXISTS (SELECT 1 FROM public.payment_line_items l WHERE l.transaction_id = t.id AND l.product_id = p_product_id)
       OR p_product_id IN (SELECT public.order_granted_components(t.id)))
-    AND EXISTS (SELECT 1 FROM public.user_product_access a WHERE a.user_id = p_user_id AND a.product_id = p_product_id)
+    AND EXISTS (SELECT 1 FROM public.user_product_access a WHERE a.user_id = p_user_id AND a.product_id = p_product_id
+      AND (nullif(current_setting('sellf.transfer_order', true), '') IS NULL OR a.transfer_transaction_id = t.id))
   LIMIT 1;
   IF txid IS NULL THEN RETURN; END IF;
   SELECT CASE WHEN bool_or(duration IS NULL) THEN NULL ELSE max(duration) END INTO p_duration
@@ -3338,7 +3339,8 @@ WITH known AS (
   WHERE t.subscription_id IS NULL AND a.subscription_id IS NULL
     AND (a.transfer_transaction_id IS NULL OR a.transfer_transaction_id = t.id)
     AND (t.status IN ('completed', 'partially_refunded')
-    OR (t.status = 'awaiting_payment' AND coalesce((t.metadata->>'access_on_placement')::boolean, false)))
+    OR (t.status = 'awaiting_payment' AND coalesce((t.metadata->>'access_on_placement')::boolean, false)
+      AND (a.transfer_transaction_id = t.id OR t.access_terms ? (a.user_id::text || ':' || a.product_id::text))))
   GROUP BY t.id
 )
 UPDATE public.payment_transactions t SET access_terms = known.terms || t.access_terms
@@ -3396,7 +3398,8 @@ BEGIN
     FROM public.payment_transactions o
     WHERE o.id <> t.id AND o.subscription_id IS NULL
       AND (o.status IN ('completed', 'partially_refunded')
-        OR (o.status = 'awaiting_payment' AND coalesce((o.metadata->>'access_on_placement')::boolean, false)))
+        OR (o.status = 'awaiting_payment' AND coalesce((o.metadata->>'access_on_placement')::boolean, false)
+          AND (o.access_terms ? (p_user_id::text || ':' || p_product_id::text) OR current_access.transfer_transaction_id = o.id)))
       AND (o.amount = 0 OR coalesce(o.refunded_amount, 0) < o.amount)
       AND (o.user_id = p_user_id OR EXISTS (
         SELECT 1 FROM public.guest_purchases g WHERE g.claimed_by_user_id = p_user_id
