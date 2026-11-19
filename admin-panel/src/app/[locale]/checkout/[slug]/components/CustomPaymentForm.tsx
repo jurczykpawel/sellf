@@ -145,11 +145,11 @@ export default function CustomPaymentForm({
   const submitting = useRef(false);
   useLayoutEffect(() => { currentCart.current = { cartSignature, quantityInvalid }; }, [cartSignature, quantityInvalid]);
   useEffect(() => {
-    if (sessionDeadline === undefined) return;
+    if (sessionDeadline === undefined || isProcessing) return;
     const remaining = sessionDeadline - performance.now();
     const timer = setTimeout(() => setSessionExpired(true), Math.max(0, remaining));
     return () => clearTimeout(timer);
-  }, [sessionDeadline]);
+  }, [sessionDeadline, isProcessing]);
 
   // Invoice / NIP logic
   const parsedProfile = storedCheckoutProfileSchema.safeParse(product.checkout_profile);

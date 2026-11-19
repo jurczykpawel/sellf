@@ -90,3 +90,17 @@ it.each(['signature', 'invalid'])('stops confirmation if cart %s changes during 
   expect(stripe.confirm).not.toHaveBeenCalled();
   expect(view.container.querySelector('button[type=submit]')?.hasAttribute('disabled')).toBe(change === 'invalid');
 });
+
+it('retains payment authentication past the local deadline and expires after a declined confirmation', async () => {
+  let finish!: (value: unknown) => void;
+  stripe.confirm.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  vi.stubGlobal('fetch', vi.fn(async () => Response.json({ success: true, data: { isValid: true } })));
+  const view = form('en', { sessionDeadline: performance.now() + 100 });
+  fireEvent.submit(view.container.querySelector('form')!);
+  await waitFor(() => expect(stripe.confirm).toHaveBeenCalledOnce());
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 150)); });
+  expect(view.container.textContent).not.toContain('Your payment session has expired.');
+  expect(view.container.querySelector('form')).not.toBeNull();
+  await act(async () => { finish({ type: 'error', error: { message: 'Declined' } }); });
+  await screen.findByText('Your payment session has expired.');
+});

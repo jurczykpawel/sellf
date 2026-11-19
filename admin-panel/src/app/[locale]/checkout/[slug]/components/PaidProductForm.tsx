@@ -836,6 +836,8 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 collectTermsOfService={collectTermsOfService}
                 collectInvoiceRecipient={collectInvoiceRecipient}
                 onSessionExpired={async () => {
+                  confirmationPending.current = false;
+                  setPaymentProcessing(false);
                   await sessionQueue.update(null);
                   if (product.event_mode) await refreshEvents();
                   setClientSecret(null);
