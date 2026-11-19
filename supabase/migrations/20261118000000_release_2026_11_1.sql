@@ -3257,7 +3257,8 @@ BEGIN
     AND (current_setting('sellf.grant_source', true) IN ('purchase', 'bundle', 'free')
       OR (TG_OP = 'INSERT' AND NEW.grant_source IN ('free', 'manual'))) THEN
     IF TG_OP = 'INSERT' OR OLD.access_expires_at <= now()
-      OR (NEW.access_expires_at IS NULL AND OLD.access_expires_at IS NOT NULL) THEN
+      OR (NEW.access_expires_at IS NULL AND (OLD.access_expires_at IS NOT NULL
+        OR current_setting('sellf.independent_permanent', true) = 'true')) THEN
       NEW.independent_access := jsonb_build_object('expiresAt', NEW.access_expires_at);
     ELSIF OLD.access_expires_at IS NOT NULL AND NEW.access_expires_at > OLD.access_expires_at THEN
       NEW.independent_access := jsonb_build_object('expiresAt',
@@ -3371,23 +3372,27 @@ FROM known WHERE t.id = known.id;
 -- End legacy period preservation.
 
 DO $$
-DECLARE definition text; fn text; record_call text;
+DECLARE definition text; fn text; duration_sql text;
 BEGIN
-  FOR fn, record_call IN VALUES
-    ('public.grant_product_access_service_role(uuid,uuid,integer,integer)',
-      'PERFORM public.record_order_access_term(user_id_param, product_id_param, (SELECT CASE WHEN override_duration_days_param IS NULL THEN auto_grant_duration_days ELSE nullif(override_duration_days_param, 0) END FROM public.products WHERE id = product_id_param));'),
-    ('public.grant_bundle_component_access(uuid,uuid,integer)',
-      'PERFORM public.record_order_access_term(user_id_param, product_id_param, (SELECT auto_grant_duration_days FROM public.products WHERE id = product_id_param));')
+  FOR fn, duration_sql IN VALUES
+    ('public.grant_product_access_service_role(uuid,uuid,integer,integer)', '(SELECT CASE WHEN override_duration_days_param IS NULL THEN auto_grant_duration_days ELSE nullif(override_duration_days_param, 0) END FROM public.products WHERE id = product_id_param)'),
+    ('public.grant_bundle_component_access(uuid,uuid,integer)', '(SELECT auto_grant_duration_days FROM public.products WHERE id = product_id_param)')
   LOOP
     definition := pg_get_functiondef(fn::regprocedure);
     IF strpos(definition, 'RETURN result;') = 0 THEN RAISE EXCEPTION 'Unexpected access wrapper'; END IF;
+    definition := replace(definition, 'result jsonb;', 'result jsonb; previous_permanent text := current_setting(''sellf.independent_permanent'', true);');
     definition := regexp_replace(definition, E'BEGIN\n', E'BEGIN\n' || $guard$  IF EXISTS (SELECT 1 FROM public.payment_transactions t
     WHERE t.id::text = nullif(current_setting('sellf.transfer_payment', true), '')
       AND t.access_terms ? (user_id_param::text || ':' || product_id_param::text)) THEN
     RETURN jsonb_build_object('success', true, 'operation', 'existing_transfer');
   END IF;
 $guard$);
-    EXECUTE replace(definition, 'RETURN result;', 'IF (result->>''success'')::boolean THEN ' || record_call || ' END IF; RETURN result;');
+    definition := replace(definition, 'result := public.',
+      'PERFORM set_config(''sellf.independent_permanent'', (' || duration_sql || ' IS NULL)::text, true); result := public.');
+    EXECUTE replace(definition, 'RETURN result;',
+      'PERFORM set_config(''sellf.independent_permanent'', coalesce(previous_permanent, ''''), true); '
+      || 'IF (result->>''success'')::boolean THEN PERFORM public.record_order_access_term(user_id_param, product_id_param, '
+      || duration_sql || '); END IF; RETURN result;');
   END LOOP;
 END $$;
 

@@ -82,7 +82,7 @@ it('claim retains another completed order for the same product @J185', async () 
   }
 });
 
-it.each(['unchanged', 'metadata', 'admin', 'replacement'] as const)('full online refund reconciles placement access after %s changes @J185', (kind) => {
+it.each((['unchanged', 'metadata', 'admin', 'replacement'] as const).flatMap(kind => [30, null].map(duration => ({ kind, duration }))))('full online refund reconciles placement access after $kind changes (duration=$duration) @J185', ({ kind, duration }) => {
   const sql = `BEGIN;
     SET LOCAL request.jwt.claims='{"role":"service_role"}';
     DO $test$ DECLARE buyer uuid:=gen_random_uuid(); participant uuid:=gen_random_uuid();
@@ -91,7 +91,7 @@ it.each(['unchanged', 'metadata', 'admin', 'replacement'] as const)('full online
         (buyer,'placement-buyer@example.com',now()),(participant,'placement-participant@example.com',now());
       INSERT INTO public.products(name,slug,price,currency,checkout_profile) VALUES('Placement','placement-refund',100,'PLN',
         '{"v":1,"modules":[{"id":"buyer","types":["organization"],"gus":false,"bank_transfer_for":["organization"]}]}') RETURNING id INTO p;
-      INSERT INTO public.products(name,slug,price,currency) VALUES('Recording','placement-recording',20,'PLN') RETURNING id INTO recording;
+      INSERT INTO public.products(name,slug,price,currency,auto_grant_duration_days) VALUES('Recording','placement-recording',20,'PLN',${duration ?? 'NULL'}) RETURNING id INTO recording;
       INSERT INTO public.order_bumps(main_product_id,bump_product_id,bump_title) VALUES(p,recording,'Recording') RETURNING id INTO bump;
       UPDATE public.bank_transfer_config SET bank_transfer_enabled=true,bank_transfer_grant_access_on_placement=true;
       tx:=public.bank_transfer_order(jsonb_build_object('product_id',p,'currency','PLN','customer_email','placement-buyer@example.com','order_details',
