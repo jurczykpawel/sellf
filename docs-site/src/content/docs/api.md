@@ -407,7 +407,7 @@ All endpoints are prefixed with `/api/v1`. Every endpoint also supports `OPTIONS
 
 ### Deleting products and the archive
 
-In the panel, open **Products** and select the **Archive** filter to see retired offers. Removing a product with history archives it. Restoring leaves it inactive; review its settings and enable sales separately. Buyers keep their granted access.
+In the panel, open **Products** and select the **Archive** filter to see retired offers. Removing a product with history archives it. Restoring leaves it inactive; review its settings and enable sales separately. Buyers keep their granted access. To enable a restored product, click **Inactive** in its product-list row, or focus that button and press Enter.
 
 Orders, invoices and licenses are never deleted together with a product.
 
@@ -568,6 +568,8 @@ Supported outgoing event types include purchases, leads, waitlist signups, `refu
 | PATCH | `/refund-requests/{id}` | `refund-requests:write` | Process (approve/deny) |
 
 ### Licenses (Pro)
+
+The `tier` in license lists and details comes from the stored issued token. It keeps its issuance-time value after a product tier changes or the product is permanently deleted; a license without a tier returns `null`. Lists omit tokens; the single-license response includes its token.
 
 | Method | Path | Scope | Description |
 |--------|------|-------|-------------|

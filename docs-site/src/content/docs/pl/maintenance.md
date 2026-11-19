@@ -59,6 +59,8 @@ aplikację ponownie.
 pokazuje, które źródło jest włączone; przy pliku na serwerze podaje jego ścieżkę i polecenie, które
 go usuwa. Każda zmiana trafia do dziennika audytu razem ze zmianą, w jednej transakcji bazy danych.
 
+W panelu termin w przeszłości jest wskazany komunikatem przy polu przewidywanego końca. Pole otrzymuje fokus i jest oznaczone jako nieprawidłowe dla czytników ekranu; przerwa nie zostaje włączona. Popraw termin na przyszły albo wyczyść opcjonalne pole.
+
 ## Podczas aktualizacji
 
 Aktualizacja z panelu (Ustawienia → System) tworzy plik tuż przed zatrzymaniem działającej wersji
