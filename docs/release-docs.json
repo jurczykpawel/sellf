@@ -499,7 +499,8 @@
     "bank-transfers.md"
   ],
   "d993388daac1be797c216bc9ab4726f7c3e7d216": [
-    "custom-checkout.md"
+    "custom-checkout.md",
+    "webhooks.md"
   ],
   "88804533ae102e9540260ff7de50a109716024f0": [
     "custom-checkout.md"
