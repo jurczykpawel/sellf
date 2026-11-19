@@ -686,5 +686,8 @@
   "bdb4ef69397c046f09242cda80a023afc57b0ac4": [
     "bank-transfers.md",
     "custom-checkout.md"
+  ],
+  "bace86afa5c95e5e29d2a42cebcfc05ce682a629": [
+    "none \u2014 Equality-join implementation of the same upgrade backfill; no customer-facing contract change."
   ]
 }
