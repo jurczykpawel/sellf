@@ -126,12 +126,12 @@ for (const locale of ['pl', 'en'] as const) {
       await page.reload();
       await page.getByPlaceholder(t.searchPlaceholder).fill(code);
       await row.getByRole('button', { name: t.edit, exact: true }).click();
-      const invalidChip = form.getByText('invalid-address', { exact: true });
+      const invalidChip = form.locator('span[aria-invalid]').filter({ hasText: 'invalid-address' });
       await form.getByRole('button', { name: t.form.update, exact: true }).click();
       await expect(invalidChip).toHaveAttribute('aria-invalid', 'true');
       await expect(invalidChip).toHaveClass(/border-sf-danger/);
       await expect(form.getByText(t.form.emailInvalid)).toBeVisible();
-      await expect(form.getByText('buyer@example.test', { exact: true })).toHaveAttribute('aria-invalid', 'false');
+      await expect(form.locator('span[aria-invalid]').filter({ hasText: 'buyer@example.test' })).toHaveAttribute('aria-invalid', 'false');
       await invalidChip.getByRole('button').click();
       await expect(form.getByText(t.form.emailInvalid)).toHaveCount(0);
       const updated = page.waitForResponse(r => r.url().includes('/api/v1/coupons') && r.request().method() === 'PATCH');
