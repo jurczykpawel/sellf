@@ -1293,7 +1293,8 @@ a later manual grant. Cancelling placement-access transfers and refunding subscr
 use the same reconciliation instead of deleting a shared access row. Retained subscription access
 is detached from the refunded subscription. Dispute rows are locked before access rows.
 The 11.1 migration backfills missing legacy order terms from known access deadlines, including
-claimed guest purchases and bundle components. Historical contributions to a combined deadline
+claimed guest purchases and bundle components. Only periods overlapping the current grant start
+qualify; access owned by another placement transfer or a subscription is excluded. Historical contributions to a combined deadline
 cannot be split, so a matching legacy order conservatively retains the whole known deadline.
 Orders without a matching row use the date/duration fallback in EN/PL `custom-checkout.md`.
 
