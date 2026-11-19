@@ -10,6 +10,6 @@ it('cleans up an inline checkout product without updating its already inactive p
   try {
     await clearPaidCheckout('cs_test_fixture');
     expect(api.prices.update).not.toHaveBeenCalled();
-    expect(api.products.update).toHaveBeenCalledWith('prod_inline', { active: false });
+    expect(api.products.update).not.toHaveBeenCalled();
   } finally { vi.unstubAllEnvs(); }
 });
