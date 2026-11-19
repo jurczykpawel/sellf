@@ -326,6 +326,7 @@ export async function proxy(request: NextRequest) {
   // Skip proxy processing for API routes, static files, and payment success page
   if (
     pathname.startsWith('/api') ||
+    pathname === '/embed/v1/checkout.js' ||
     pathname === '/sitemap.xml' ||
     pathname.startsWith('/sitemaps/') ||
     pathname.startsWith('/_next') ||
