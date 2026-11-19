@@ -145,8 +145,10 @@ test('Polish video shows Polish loading and provider failure @J185', async ({ pa
   const p = await product({ preview_video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' });
   let abortScript: (() => Promise<void>) | undefined;
   await page.route('**/playerstack.min.js', async route => { await new Promise<void>(resolve => { abortScript = async () => { await route.abort(); resolve(); }; }); });
+  const checkoutReady = page.waitForResponse(response => response.url().endsWith('/api/create-payment-intent') && response.request().method() === 'POST');
   await page.goto(`/pl/p/${p.slug}`, { waitUntil: 'domcontentloaded' });
   await expect(page.getByText('Ładowanie filmu…', { exact: true })).toBeVisible();
   await expect.poll(() => Boolean(abortScript)).toBe(true); await abortScript!();
   await expect(page.getByText('Film jest niedostępny', { exact: true })).toBeVisible();
+  expect((await checkoutReady).status()).toBe(200);
 });
