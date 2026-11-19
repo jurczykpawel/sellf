@@ -723,9 +723,15 @@ BEGIN
     NEW.product_summary := OLD.product_summary;
   ELSIF NEW.product_summary IS NULL THEN
     SELECT jsonb_build_object('id', p.id, 'name', coalesce(NEW.product_name, p.name), 'slug', p.slug,
-      'currency', p.currency, 'recurring_price', p.recurring_price,
+      'currency', coalesce(purchase.currency, p.currency), 'recurring_price', coalesce(purchase.unit_price, p.recurring_price),
       'billing_interval', p.billing_interval, 'billing_interval_count', p.billing_interval_count)
-    INTO NEW.product_summary FROM public.products p WHERE p.id = NEW.product_id;
+    INTO NEW.product_summary FROM public.products p
+    LEFT JOIN LATERAL (
+      SELECT l.unit_price, l.currency FROM public.payment_transactions t
+      JOIN public.payment_line_items l ON l.transaction_id = t.id AND l.item_type = 'main_product'
+      WHERE t.subscription_id = NEW.id ORDER BY t.created_at, t.id LIMIT 1
+    ) purchase ON true
+    WHERE p.id = NEW.product_id;
   END IF;
   RETURN NEW;
 END $$;
