@@ -9,14 +9,14 @@ import QuickPayButton from '@/components/checkout/QuickPayButton';
 import { quoteOrderPayment } from '@/lib/orders/quick-pay';
 import { isReservationOverdue, transferDeadline } from '@/lib/orders/transfer-format';
 import { verifyTransferToken } from '@/lib/orders/transfer-token';
-import { checkRateLimit } from '@/lib/rate-limiting';
+import { checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { Metadata } from 'next';
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { robots: { index: false, follow: false }, referrer: 'no-referrer' };
 export default async function TransferPage({ params, searchParams }: { params: Promise<{ orderId: string; locale: string }>; searchParams: Promise<{ token?: string }> }) {
   const { orderId, locale } = await params, { token } = await searchParams;
-  if (!z.uuid().safeParse(orderId).success || !verifyTransferToken(token, orderId) || !await checkRateLimit('transfer_instructions', 60, 1)) notFound();
+  if (!z.uuid().safeParse(orderId).success || !verifyTransferToken(token, orderId) || !await checkRateLimitForIdentifier('transfer_instructions', 60, 1, `order:${orderId}`)) notFound();
   const { data: tx } = await createAdminClient().from('payment_transactions').select('id,payment_provider,product_id,coupon_id,customer_email,amount,currency,order_number,payment_due_at,transfer_details,status,release_at,invoice_hold_at,transfer_declared_at,products(slug,is_active)').eq('id', orderId).eq('payment_provider', 'bank_transfer').single();
   if (!tx) notFound();
   const t = await getTranslations({ locale, namespace: 'bankTransfer' });
