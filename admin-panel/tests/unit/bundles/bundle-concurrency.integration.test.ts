@@ -42,3 +42,27 @@ for (const archiveFirst of [true, false]) {
     }
   });
 }
+
+it('replaces membership while payment holds pricing and access-reference locks', async () => {
+  const component = crypto.randomUUID(), bundle = crypto.randomUUID();
+  sql(`INSERT INTO public.products(id,name,slug,price,is_bundle) VALUES
+    ('${bundle}','Bundle','${bundle}',50,true),('${component}','Component','${component}',20,false);`);
+  const payment = spawn('docker', connection());
+  const exited = new Promise<void>(resolve => payment.on('exit', () => resolve()));
+  let output = '';
+  const ready = new Promise<void>((resolve, reject) => {
+    payment.stdout.on('data', chunk => { output += chunk; if (output.includes('payment_ready')) resolve(); });
+    payment.on('error', reject);
+    payment.on('exit', code => { if (code) reject(new Error(`payment exited ${code}`)); });
+  });
+  try {
+    payment.stdin.write(`BEGIN; SELECT id FROM public.products WHERE id='${component}' FOR SHARE;
+      SELECT id FROM public.products WHERE id='${bundle}' FOR KEY SHARE;\n\\echo payment_ready\n`);
+    await ready;
+    await promisify(execFile)('docker', [...connection(), '-c', `${claims} SET statement_timeout='2s'; SELECT public.replace_bundle_items('${bundle}',ARRAY['${component}']::uuid[]);`]);
+    expect(sql(`SELECT count(*) FROM public.bundle_items WHERE bundle_product_id='${bundle}';`)).toBe('1');
+  } finally {
+    payment.stdin.end('ROLLBACK;\n'); await exited;
+    sql(`DELETE FROM public.bundle_items WHERE bundle_product_id='${bundle}'; DELETE FROM public.products WHERE id IN ('${bundle}','${component}');`);
+  }
+});
