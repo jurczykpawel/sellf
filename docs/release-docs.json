@@ -410,5 +410,8 @@
   ],
   "d394bf4173055f0b95fdda62a5e70199ebcc97de": [
     "api.md"
+  ],
+  "fe824d8de7a440af726e59441a2ec1842de21517": [
+    "none \u2014 Defence in depth inside the public-file check: encoded traversal paths keep normal routing; public URLs and documented behaviour are unchanged."
   ]
 }
