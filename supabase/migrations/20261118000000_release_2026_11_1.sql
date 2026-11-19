@@ -3337,8 +3337,6 @@ WITH known AS (
       OR a.product_id IN (SELECT public.order_granted_components(t.id)))
   WHERE t.subscription_id IS NULL AND a.subscription_id IS NULL
     AND (a.transfer_transaction_id IS NULL OR a.transfer_transaction_id = t.id)
-    AND (public.order_access_expiry(t.id, a.user_id, a.product_id) IS NULL
-      OR public.order_access_expiry(t.id, a.user_id, a.product_id) >= a.access_granted_at)
     AND (t.status IN ('completed', 'partially_refunded')
     OR (t.status = 'awaiting_payment' AND coalesce((t.metadata->>'access_on_placement')::boolean, false)))
   GROUP BY t.id

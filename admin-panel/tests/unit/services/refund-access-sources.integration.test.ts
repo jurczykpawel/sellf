@@ -146,7 +146,7 @@ it('reads a dispute again only after its refund snapshot update commits @J34', a
   }
 });
 
-it.each(['purchase','transfer','guest-transfer'])('does not assign a later %s period to an expired legacy order during upgrade @J34', source => {
+it.each(['purchase','transfer','guest-transfer'])('respects transfer ownership and conservative legacy periods for %s during upgrade @J34', source => {
   const f = fixture();
   try {
     const old = f.buy();
@@ -157,11 +157,13 @@ it.each(['purchase','transfer','guest-transfer'])('does not assign a later %s pe
     if (source === 'guest-transfer') sql(`UPDATE public.payment_transactions SET user_id=NULL WHERE id='${later}';
       INSERT INTO public.guest_purchases(product_id,customer_email,transaction_id,transaction_amount,claimed_by_user_id,claimed_at)
       VALUES('${f.product}','${f.user}@example.com','${later}',4000,'${f.user}',now());`);
+    const known = f.access();
     const migration = readFileSync(new URL('../../../../supabase/migrations/20261118000000_release_2026_11_1.sql', import.meta.url),'utf8');
     sql(migration.match(/-- Preserve known legacy periods\.([\s\S]*?)-- End legacy period preservation\./)![1]);
     if (source === 'purchase') f.refund(later);
     else sql(`UPDATE public.payment_transactions SET status='cancelled' WHERE id='${later}';`);
-    expect(f.access()).toBeNull();
+    if (source === 'purchase') expect(f.access()?.access_expires_at).toBe(known.access_expires_at);
+    else expect(f.access()).toBeNull();
   } finally { f.cleanup(); }
 });
 
@@ -190,5 +192,25 @@ it('leaves pre-existing access unchanged when cancelling a transfer that granted
       VALUES('${id}','${f.product}','${f.user}','${f.user}@example.com',4000,'PLN','awaiting_payment','bank_transfer',1);
       UPDATE public.payment_transactions SET status='cancelled' WHERE id='${id}';`);
     expect(f.access()).toEqual(original);
+  } finally { f.cleanup(); }
+});
+
+it.each([365,null])('preserves legacy access originally lasting %s days after a historical default change @J34', duration => {
+  const f = fixture();
+  try {
+    sql(`UPDATE public.products SET auto_grant_duration_days=${duration ?? 'NULL'} WHERE id='${f.product}';`);
+    const a = f.buy();
+    sql(`UPDATE public.payment_transactions SET created_at=now()-interval '100 days',paid_at=now()-interval '100 days',access_terms='{}' WHERE id='${a}';
+      UPDATE public.user_product_access SET access_granted_at=now()-interval '100 days',access_expires_at=${duration ? "now()+interval '265 days'" : 'NULL'} WHERE user_id='${f.user}' AND product_id='${f.product}';
+      UPDATE public.products SET auto_grant_duration_days=30 WHERE id='${f.product}';`);
+    const b = f.buy();
+    sql(`UPDATE public.payment_transactions SET created_at=now()-interval '50 days',paid_at=now()-interval '50 days',access_terms='{}' WHERE id='${b}';
+      UPDATE public.user_product_access SET access_granted_at=now()-interval '50 days' WHERE user_id='${f.user}' AND product_id='${f.product}';`);
+    const known = f.access();
+    const migration = readFileSync(new URL('../../../../supabase/migrations/20261118000000_release_2026_11_1.sql',import.meta.url),'utf8');
+    sql(migration.match(/-- Preserve known legacy periods\.([\s\S]*?)-- End legacy period preservation\./)![1]);
+    f.refund(b);
+    expect(f.access()).not.toBeNull();
+    expect(f.access().access_expires_at).toBe(known.access_expires_at);
   } finally { f.cleanup(); }
 });
