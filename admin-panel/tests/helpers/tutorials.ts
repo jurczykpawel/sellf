@@ -2,6 +2,9 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
+import { TUTORIALS } from '@/lib/tutorials/registry';
+import { tourSelector } from '@/lib/tutorials/driver-steps';
+import type { TutorialId } from '@/lib/tutorials/registry';
 import { createTestAdmin, loginAsAdmin, supabaseAdmin } from './admin-auth';
 
 type Steps = Record<string, { title: string; body: string; bodyAct?: string }>;
@@ -14,6 +17,12 @@ export const mustAct = texts.mustAct;
 export const menuName = (tutorial: string) => texts[tutorial].name;
 export const popover = (page: Page): Locator => page.locator('.driver-popover.sellf-tour');
 export const popoverTitle = (page: Page): Locator => popover(page).locator('.driver-popover-title');
+
+export async function expectTutorialIntro(page: Page, tutorial: TutorialId): Promise<void> {
+  const target = TUTORIALS[tutorial].steps.find(step => 'target' in step);
+  if (target && 'target' in target) await page.locator(tourSelector(target.target)).waitFor({ state: 'visible' });
+  await expect(popoverTitle(page)).toHaveText(stepText(tutorial, 'intro').title);
+}
 
 /** A fresh administrator who has seen no tutorial; `autostart` opts the test server in to first-visit tutorials. */
 export async function tutorialAdmin(page: Page, prefix: string, autostart = true) {

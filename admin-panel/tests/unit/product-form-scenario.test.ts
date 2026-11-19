@@ -252,6 +252,20 @@ describe('"What are you selling?" when creating', () => {
     expect(document.activeElement).toBe(option('download'));
   });
 
+  it('preserves focus on the buyer summary toggle after opening the form', async () => {
+    vi.useFakeTimers();
+    try {
+      await openNew();
+      const toggle = screen.getByRole('button', { name: lookup('admin.products.form.summary.more') as string });
+      toggle.focus();
+      fireEvent.click(toggle);
+      await act(async () => { vi.advanceTimersByTime(101); });
+      expect(document.activeElement).toBe(toggle);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('applies the first choice on an untouched form and says which scenario is set', async () => {
     await openNew();
     await act(async () => { fireEvent.click(option('free')); });

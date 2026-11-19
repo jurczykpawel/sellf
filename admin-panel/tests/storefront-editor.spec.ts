@@ -1,11 +1,13 @@
 import { getTestDatabaseContainer } from '@/../tests/helpers/database-container';
 /** Admin composition editor acceptance. @see storefront-config.md */
 import { execFileSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { createClient } from '@supabase/supabase-js';
 import { createTestAdmin, setAuthSession } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
+import { deleteChecked } from './helpers/db-cleanup';
 import { DEFAULT_CONFIG } from '@/lib/storefront-templates/fixtures';
 import type { StorefrontConfig } from '@/lib/storefront-templates/schemas';
 
@@ -13,6 +15,7 @@ const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPAB
 test.describe.configure({ mode: 'serial' });
 let admin: Awaited<ReturnType<typeof createTestAdmin>>;
 let productName: string;
+let productId: string;
 let container: string;
 let original: { revision: number };
 let originalJson: string;
@@ -24,21 +27,30 @@ test.beforeAll(async () => {
   original = JSON.parse(originalJson);
   sql(`UPDATE public.storefront_config SET draft=NULL,published=${literal(JSON.stringify(DEFAULT_CONFIG))}`);
   admin = await createTestAdmin('composition-editor');
-  const { data, error } = await db.from('products').select('id,name').eq('is_active', true).eq('is_listed', true).limit(1).single();
+  const fixture = randomUUID();
+  productName = `Composition editor ${fixture}`;
+  const { data, error } = await db.from('products').insert({ name: productName, slug: `composition-editor-${fixture}`, price: 30, currency: 'PLN', is_active: true, is_listed: true }).select('id').single();
   if (error) throw error;
-  productName = data.name;
+  productId = data.id;
 });
 test.afterAll(async () => {
-  if (original) {
-    sql(`BEGIN;
+  try {
+    if (original) {
+      sql(`BEGIN;
       UPDATE public.storefront_config c SET revision=b.revision,draft=b.draft,published=b.published,updated_at=b.updated_at,updated_by=b.updated_by
         FROM jsonb_populate_record(NULL::public.storefront_config,${literal(originalJson)}) b WHERE c.id=true;
       DELETE FROM public.storefront_config_history WHERE revision>${original.revision};
       DELETE FROM public.audit_log WHERE table_name='storefront_config' AND (new_values->>'revision')::bigint>${original.revision};
       COMMIT;`);
-    expect(sql('SELECT to_jsonb(c) FROM public.storefront_config c')).toBe(originalJson);
+      expect(sql('SELECT to_jsonb(c) FROM public.storefront_config c')).toBe(originalJson);
+    }
+  } finally {
+    try {
+      if (productId) await deleteChecked('composition product', db.from('products').delete().eq('id', productId));
+    } finally {
+      await admin?.cleanup();
+    }
   }
-  await admin?.cleanup();
 });
 
 test('reads, saves, reloads, retains inactive values and prevents a stale tab from overwriting @J79', async ({ page, context }) => {

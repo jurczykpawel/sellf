@@ -971,19 +971,28 @@ describe('get_abandoned_cart_stats', () => {
   });
 
   it('includes test abandoned and pending transactions in counts', async () => {
-    const { data, error } = await supabaseAdmin.rpc('get_abandoned_cart_stats', {
+    const { data: before, error: beforeError } = await supabaseAdmin.rpc('get_abandoned_cart_stats', {
       days_ago: 7,
     });
-
-    expect(error).toBeNull();
-    // We created 1 abandoned + 1 pending
-    expect(data.total_abandoned).toBeGreaterThanOrEqual(1);
-    expect(data.total_abandoned).toBeLessThan(10000); // sanity upper bound
-    expect(data.total_pending).toBeGreaterThanOrEqual(1);
-    expect(data.total_pending).toBeLessThan(10000); // sanity upper bound
-    // Total value: abandoned(5000) + pending(10000) = 15000
-    expect(data.total_value).toBeGreaterThanOrEqual(15000);
-    expect(data.total_value).toBeLessThan(100_000_000); // sanity upper bound
+    expect(beforeError).toBeNull();
+    const reference = crypto.randomUUID().replaceAll('-', '');
+    const added = await supabaseAdmin.from('payment_transactions').insert([
+      { product_id: productA.id, session_id: `cs_statsabandoned${reference}`, customer_email: `stats-${reference}@example.com`, amount: 5000, currency: 'USD', status: 'abandoned' },
+      { product_id: productB.id, session_id: `cs_statspending${reference}`, customer_email: `stats-${reference}@example.com`, amount: 10000, currency: 'PLN', status: 'pending' },
+    ]).select('id');
+    expect(added.error).toBeNull();
+    const ids = added.data!.map(row => row.id);
+    createdTransactionIds.push(...ids);
+    try {
+      const { data, error } = await supabaseAdmin.rpc('get_abandoned_cart_stats', { days_ago: 7 });
+      expect(error).toBeNull();
+      expect(data.total_abandoned - before.total_abandoned).toBe(1);
+      expect(data.total_pending - before.total_pending).toBe(1);
+      expect(data.total_value - before.total_value).toBe(15000);
+    } finally {
+      const removed = await supabaseAdmin.from('payment_transactions').delete().in('id', ids);
+      expect(removed.error).toBeNull();
+    }
   });
 
   it('calculates correct average cart value', async () => {
@@ -996,12 +1005,8 @@ describe('get_abandoned_cart_stats', () => {
     // We know we inserted at least 2 carts (1 abandoned + 1 pending)
     expect(totalCarts).toBeGreaterThanOrEqual(2);
 
-    // Verify avg is a meaningful number, not zero or negative.
-    // Pre-existing data in the DB may shift the average, so we use loose bounds.
-    // The key assertion is that avg is positive and within a reasonable range
-    // (not zero, not astronomically large), proving the function aggregates real data.
     expect(data.avg_cart_value).toBeGreaterThan(0);
-    expect(data.avg_cart_value).toBeLessThan(100_000_000); // sanity upper bound
+    expect(data.avg_cart_value).toBeCloseTo(data.total_value / totalCarts, 5);
   });
 
   it('returns zeros or near-zeros for days_ago=0 (minimal time window)', async () => {

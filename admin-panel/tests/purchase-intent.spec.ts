@@ -54,9 +54,12 @@ test('renders coupon entry and card-first payment at desktop and mobile sizes in
       await expect(page.locator('button[type="submit"]')).not.toHaveAttribute('data-checkout-pending', 'true');
       const branding = page.locator('a[href="https://demo.sellf.app?ref=checkout"]');
       if (await branding.count()) {
-        const footer = await branding.boundingBox();
-        const form = await page.locator('form').last().boundingBox();
-        expect(footer!.y).toBeGreaterThanOrEqual(form!.y + form!.height);
+        const gap = await branding.evaluate(footer => {
+          const form = document.forms.item(document.forms.length - 1);
+          if (!form) throw new Error('Checkout form is missing');
+          return footer.getBoundingClientRect().top - form.getBoundingClientRect().bottom;
+        });
+        expect(gap).toBeGreaterThanOrEqual(0);
       }
       await page.screenshot({ path: testInfo.outputPath(`payment-ready-${locale}-${width}.png`), animations: 'disabled' });
       await page.getByTestId('order-summary-total').scrollIntoViewIfNeeded();

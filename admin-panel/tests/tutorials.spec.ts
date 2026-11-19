@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 import { supabaseAdmin as db } from './helpers/admin-auth';
 import { checkAccessibility } from './helpers/axe';
-import { markSeen, menuName, mustAct, popover, popoverTitle, seenTutorials, stepText, tutorialAdmin, walk } from './helpers/tutorials';
+import { expectTutorialIntro, markSeen, menuName, mustAct, popover, popoverTitle, seenTutorials, stepText, tutorialAdmin, walk } from './helpers/tutorials';
 import { openFormSection } from './helpers/product-form';
 import type { Page } from '@playwright/test';
 
@@ -257,7 +257,7 @@ test('help menu lists the open screen first and opens other tutorials on their s
   await expect(page.getByTestId('tutorial-link-b2b-checkout-profile')).toContainText('Produkty, edycja produktu');
   await page.getByTestId('tutorial-link-attribution').click();
   await expect(page).toHaveURL(/dashboard\/settings\?tab=legal&tutorial=attribution|dashboard\/settings\?tab=legal$/);
-  await expect(popoverTitle(page)).toHaveText(stepText('attribution', 'intro').title);
+  await expectTutorialIntro(page, 'attribution');
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('tutorial-menu-button')).toBeVisible();
 });
@@ -347,10 +347,10 @@ test('Escape after launching a tutorial through menu navigation returns focus to
 test('tutorial links switch between settings tabs in both directions without a reload @J214 @J218', async ({ page }) => {
   await admin(page, 'tour-settings-switch', false);
   await page.goto('/pl/dashboard/settings?tab=payments');
-  for (const id of ['attribution', 'bank-transfer-setup']) {
+  for (const id of ['attribution', 'bank-transfer-setup'] as const) {
     await page.getByTestId('tutorial-menu-button').click();
     await page.getByTestId(`tutorial-link-${id}`).click();
-    await expect(popoverTitle(page)).toHaveText(stepText(id, 'intro').title);
+    await expectTutorialIntro(page, id);
     await page.keyboard.press('Escape');
     await expect(popover(page)).toHaveCount(0);
   }
@@ -433,7 +433,7 @@ test('starts every registered tutorial from the help menu and reaches its first 
       await page.goto('/pl/dashboard');
       await page.getByTestId('tutorial-menu-button').click();
       await page.getByTestId(`tutorial-link-${id}`).click();
-      await expect(popoverTitle(page)).toHaveText(stepText(id, 'intro').title);
+      await expectTutorialIntro(page, id);
       await popover(page).locator('.driver-popover-next-btn').click();
       await expect(popoverTitle(page)).toHaveText(stepText(id, TUTORIALS[id].steps[1].key).title);
       await expect(page.locator('.driver-active-element').first()).toBeInViewport();

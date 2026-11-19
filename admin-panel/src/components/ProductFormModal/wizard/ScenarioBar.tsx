@@ -42,15 +42,6 @@ export function ScenarioBar({ formData, onApply, t, startOpen, pristine, isStore
   const confirmRef = useRef<HTMLHeadingElement>(null);
   const firstOptionRef = useRef<HTMLButtonElement>(null);
 
-  // The open question comes first in a new product: focus it once the dialog has placed its own initial focus.
-  useEffect(() => {
-    if (!startOpen) return;
-    const timer = setTimeout(() => {
-      if (!document.activeElement?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')) firstOptionRef.current?.focus();
-    }, 100);
-    return () => clearTimeout(timer);
-  }, [startOpen]);
-
   useEffect(() => {
     if (!focusRequest) return;
     (focusRequest.mode === 'summary' ? changeRef : focusRequest.mode === 'confirm' ? confirmRef : firstOptionRef).current?.focus();

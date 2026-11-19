@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 interface BaseModalProps {
   isOpen: boolean;
   labelledBy?: string;
+  initialFocusSelector?: string;
   onClose: () => void;
   children: React.ReactNode;
   className?: string;
@@ -19,6 +20,7 @@ interface BaseModalProps {
 const BaseModal: React.FC<BaseModalProps> = ({
   isOpen,
   labelledBy,
+  initialFocusSelector,
   onClose,
   children,
   className = '',
@@ -92,13 +94,16 @@ const BaseModal: React.FC<BaseModalProps> = ({
     };
 
     modal.addEventListener('keydown', handleTabKey);
-    (focusableElements()[0] ?? modal).focus();
+    if (!modal.contains(document.activeElement) || document.activeElement === modal) {
+      const initial = initialFocusSelector ? modal.querySelector<HTMLElement>(initialFocusSelector) : null;
+      (initial ?? focusableElements()[0] ?? modal).focus();
+    }
 
     return () => {
       modal.removeEventListener('keydown', handleTabKey);
       previousFocus?.focus();
     };
-  }, [isOpen]);
+  }, [isOpen, initialFocusSelector]);
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (closeOnBackdropClick && e.target === e.currentTarget) {
