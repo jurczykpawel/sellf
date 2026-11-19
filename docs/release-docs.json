@@ -413,5 +413,17 @@
   ],
   "fe824d8de7a440af726e59441a2ec1842de21517": [
     "none \u2014 Defence in depth inside the public-file check: encoded traversal paths keep normal routing; public URLs and documented behaviour are unchanged."
+  ],
+  "0a7f0cd938540234d3d4e666c69ecda2644cb219": [
+    "custom-checkout.md"
+  ],
+  "eef3a3bd712e92414234d2526608de64b17ae5c7": [
+    "custom-checkout.md"
+  ],
+  "7ddc46c9f79c5d3d91011765c9d0d8a8dc1f9601": [
+    "custom-checkout.md"
+  ],
+  "6cae6a10ef1a9d6367a262fb3dec6d78773526cb": [
+    "custom-checkout.md"
   ]
 }

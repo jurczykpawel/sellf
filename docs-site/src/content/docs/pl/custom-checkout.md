@@ -71,3 +71,13 @@ Konfigurację adresów i dostarczania opisuje strona [Webhooki](/pl/webhooks/).
 ## Zmiany podczas płatności Stripe
 
 Zmiana koszyka aktualizuje pozycje w tej samej otwartej sesji Stripe Checkout na stronie sklepu, jeśli sesja spełnia warunki ponownego użycia. Zmiana języka, adresu powrotu lub maila kupującego wymaga nowej sesji. Rozpoczęta płatność może się zakończyć. Sellf zapisuje wersje koszyka i realizuje tę, którą Stripe faktycznie obciążył, z zapisanymi cenami i uprawnieniami. Ta funkcja nie wprowadza koszyka wielu produktów.
+
+Zastosowanie lub usunięcie kodu rabatowego również zachowuje tę samą sesję spełniającą warunki aktualizacji oraz wpisane dane karty. Sellf uwzględnia rabat w cenach pozycji, zamiast zmieniać rabaty Stripe. Podczas sprawdzania kodu i aktualizacji koszyka płatność jest zablokowana. Formularz pozostaje na stronie i odświeża się przez `runServerUpdate` Stripe. Ponowne użycie sesji dotyczy płatności jednorazowych poza wydarzeniami, z co najmniej dwiema minutami do wygaśnięcia; pozostałe koszyki mogą wymagać nowej sesji.
+
+## Wznowienie koszyka i walidacja
+
+Po wygaśnięciu sesji pojawia się komunikat **Sesja płatności wygasła** i przycisk **Rozpocznij nowy koszyk**, zamiast zachęty do ponownego zapisywania danych. Nowy koszyk ponownie sprawdza dostępność i ceny; miejsce na wydarzeniu zostanie ponownie zarezerwowane tylko wtedy, gdy jest nadal dostępne. Dane kupującego i faktury przechowywane przez stronę pozostają dostępne, ale nowy formularz Stripe wymaga ponownego wpisania danych płatności.
+
+Błędy formatu i długości adresu e-mail pojawiają się przy polu w języku strony. Adres może mieć maksymalnie 254 znaki. Poprawienie pola usuwa jego komunikat błędu.
+
+Po pełnym zwrocie otwarcie pierwotnego linku statusu płatności pokazuje **Płatność zwrócona**. Weryfikacja zwraca końcowy stan `payment_status: "refunded"`, bez ponownej realizacji zamówienia ani przyznania dostępu. Nie zgłasza awarii przetwarzania płatności ani potrzeby sprawdzania danych zamówienia.
