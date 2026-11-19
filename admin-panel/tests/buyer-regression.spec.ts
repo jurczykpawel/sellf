@@ -17,7 +17,6 @@ async function product(extra: Record<string, unknown> = {}) {
   products.push(p.id); return p;
 }
 let tracking: { id: string; cookie_consent_enabled: boolean | null };
-test.afterEach(async ({ page }) => { await page.waitForLoadState('networkidle'); });
 test.beforeAll(async () => {
   tracking = (await checked(await db.from('integrations_config').select('id,cookie_consent_enabled').single()))!;
   await checked(await db.from('integrations_config').update({ cookie_consent_enabled: true }).eq('id', tracking.id));
