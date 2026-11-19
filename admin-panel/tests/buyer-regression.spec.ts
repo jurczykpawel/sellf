@@ -200,3 +200,42 @@ test('Polish video shows Polish loading and provider failure @J185', async ({ pa
   await expect(page.getByText('Film jest niedostępny', { exact: true })).toBeVisible();
   expect((await checkoutReady).status()).toBe(200);
 });
+
+for (const source of ['bundle', 'manual'] as const) {
+  test(`buyer retains the independent ${source} deadline after refunds @J34`, async ({ page }) => {
+    const user = await createTestUser(`buyer-refund-${source}`);
+    const p = await product({ auto_grant_duration_days: 30, allow_repeat_purchase: true });
+    const pack = source === 'bundle' ? await product({ is_bundle: true }) : null;
+    try {
+      if (pack) await checked(await db.from('bundle_items').insert({ bundle_product_id: pack.id, component_product_id: p.id }));
+      async function buy(productId: string) {
+        const t = (await checked(await db.from('payment_transactions').insert({ product_id: productId, user_id: user.userId, customer_email: user.email,
+          amount: 2000, currency: 'PLN', status: 'completed', session_id: `cs_${randomUUID().replaceAll('-', '')}` }).select('id,session_id').single()))!;
+        expect((await checked(await db.rpc('grant_product_and_bundle_components', { user_id_param: user.userId, product_id_param: productId, transaction_id_param: t.id }))).success).toBe(true);
+        return t;
+      }
+      const first = await buy(p.id);
+      const original = (await checked(await db.from('user_product_access').select('id,access_expires_at').eq('user_id', user.userId).eq('product_id', p.id).single()))!;
+      const other = await buy(pack?.id ?? p.id);
+      if (source === 'manual') await checked(await db.rpc('mutate_access', { p_action: 'update', p_user_id: user.userId, p_access_id: original.id,
+        p_values: { access_expires_at: null }, p_actor: { type: 'api_key', id: randomUUID() } }));
+      await acceptAllCookies(page); await setAuthSession(page,user.email,user.password);
+      await page.goto('/pl/my-products'); await expect(page.getByText(p.name,{ exact: true })).toBeVisible();
+      await checked(await db.from('payment_transactions').update({ status: 'refunded', refunded_amount: 2000 }).eq('id',other.id));
+      const target = { transactionId: other.id, userId: user.userId, productId: pack?.id ?? p.id, sessionId: other.session_id };
+      expect((await revokeTransactionAccess(db,target)).success).toBe(true);
+      expect((await revokeTransactionAccess(db,target)).success).toBe(true);
+      const retained = await checked(await db.from('user_product_access').select('id,access_expires_at').eq('id',original.id).single());
+      expect(retained).toEqual({ id: original.id, access_expires_at: source === 'manual' ? null : original.access_expires_at });
+      await page.reload(); await expect(page.getByText(p.name,{ exact: true })).toBeVisible();
+      if (source === 'manual') {
+        await checked(await db.from('payment_transactions').update({ status: 'refunded', refunded_amount: 2000 }).eq('id',first.id));
+        expect((await revokeTransactionAccess(db,{ transactionId: first.id, userId: user.userId, productId: p.id, sessionId: first.session_id })).success).toBe(true);
+        await page.reload(); await expect(page.getByText(p.name,{ exact: true })).toBeVisible();
+      }
+    } finally {
+      if (pack) await db.from('bundle_items').delete().eq('bundle_product_id',pack.id);
+      await user.cleanup();
+    }
+  });
+}
