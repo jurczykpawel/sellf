@@ -79,16 +79,16 @@ it.each([false, true])('keeps a fresh %s event checkout usable with client clock
 });
 
 
-it.each(['signature', 'invalid'])('stops confirmation if cart %s changes during buyer validation', async change => {
+it.each([['en', 'signature'], ['en', 'invalid'], ['pl', 'signature'], ['pl', 'invalid']] as const)('explains the changed cart in %s when %s changes during validation', async (locale, change) => {
   let release!: (value: Response) => void;
   vi.stubGlobal('fetch', vi.fn((url: string) => url === '/api/validate-email' ? new Promise<Response>(resolve => { release = resolve; }) : Promise.resolve(Response.json({ success: true }))));
-  const view = form('en', { cartSignature: 'first' });
+  const view = form(locale, { cartSignature: 'first' });
   fireEvent.submit(view.container.querySelector('form')!);
-  view.rerender(tree('en', { cartSignature: change === 'signature' ? 'second' : 'first', quantityInvalid: change === 'invalid' }));
+  view.rerender(tree(locale, { cartSignature: change === 'signature' ? 'second' : 'first', quantityInvalid: change === 'invalid' }));
   await act(async () => { release(Response.json({ success: true, data: { isValid: true } })); });
   expect(stripe.updateBillingAddress).toHaveBeenCalled();
   expect(stripe.confirm).not.toHaveBeenCalled();
-  expect(screen.getByRole('alert').textContent).toContain('Your cart has changed. Review it before paying again.');
+  expect(screen.getByRole('alert').textContent).toContain(locale === 'pl' ? 'Koszyk się zmienił. Sprawdź go przed ponowną próbą płatności.' : 'Your cart has changed. Review it before paying again.');
   expect(view.container.querySelector('button[type=submit]')?.hasAttribute('disabled')).toBe(change === 'invalid');
 });
 
