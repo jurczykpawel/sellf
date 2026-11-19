@@ -52,6 +52,17 @@ function fixture(product = randomUUID(), bundle = randomUUID()) {
     cleanup() { sql(`DELETE FROM public.payment_transactions WHERE product_id IN ('${product}','${bundle}'); DELETE FROM public.subscriptions WHERE user_id='${user}'; DELETE FROM auth.users WHERE id='${user}'; DELETE FROM public.bundle_items WHERE bundle_product_id='${bundle}'; DELETE FROM public.products WHERE id IN ('${product}','${bundle}');`); } };
 }
 
+function paidBundleAddon(f: ReturnType<typeof fixture>) {
+  const main = randomUUID();
+  sql(`INSERT INTO public.products(id,name,slug,price,currency,auto_grant_duration_days,allow_repeat_purchase) VALUES('${main}','Main','${main}',40,'PLN',30,true);`);
+  const order = f.buy(main);
+  sql(`UPDATE public.payment_transactions SET amount=10000 WHERE id='${order}';
+    INSERT INTO public.payment_line_items(transaction_id,product_id,item_type,unit_price,total_price,currency) VALUES
+      ('${order}','${main}','main_product',40,40,'PLN'),('${order}','${f.bundle}','order_bump',60,60,'PLN');
+    SELECT public.grant_product_and_bundle_components('${f.user}','${f.bundle}',NULL,'${order}');`);
+  return { order, main, cleanup() { sql(`DELETE FROM public.payment_transactions WHERE product_id='${main}'; DELETE FROM public.products WHERE id='${main}';`); } };
+}
+
 it.each(['stripe', 'bank_transfer', 'free'])('restores the original %s component deadline after a later bundle refund @J34', source => {
   const f = fixture();
   try {
@@ -433,4 +444,19 @@ it.each(['payment', 'cancel', 'refund', 'refund-independent', 'refund-expired'])
     sql(`DELETE FROM public.payment_transactions WHERE product_id='${main}'; DELETE FROM public.products WHERE id='${main}'; UPDATE public.bank_transfer_config SET bank_transfer_enabled=${config.enabled},bank_transfer_grant_access_on_placement=${config.placement};`);
     f.cleanup();
   }
+});
+
+it('retains the original free component deadline after a paid bundle add-on updates the bundle grant date @J34', () => {
+  const [component,bundle] = [randomUUID(),randomUUID()].sort(), f=fixture(component,bundle);
+  let paid: ReturnType<typeof paidBundleAddon> | undefined;
+  try {
+    sql(`UPDATE public.products SET auto_grant_duration_days=60 WHERE id='${f.bundle}'; SELECT public.grant_product_and_bundle_components('${f.user}','${f.bundle}');
+      UPDATE public.user_product_access SET access_granted_at=now()-interval '10 days',
+        access_expires_at=now()+CASE WHEN product_id='${f.product}' THEN interval '20 days' ELSE interval '50 days' END,
+        independent_access=jsonb_set(jsonb_set(independent_access,'{expiresAt}',to_jsonb(now()+CASE WHEN product_id='${f.product}' THEN interval '20 days' ELSE interval '50 days' END)), '{grantedAt}',to_jsonb(now()-interval '10 days'),false)
+      WHERE user_id='${f.user}';`);
+    const original=f.access().access_expires_at;
+    paid=paidBundleAddon(f); f.refund(paid.order,paid.main);
+    expect(f.access()?.access_expires_at).toBe(original);
+  } finally { paid?.cleanup(); f.cleanup(); }
 });

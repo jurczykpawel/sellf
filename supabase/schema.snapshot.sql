@@ -12188,7 +12188,7 @@ CREATE FUNCTION public.retain_independent_access() RETURNS trigger
 BEGIN
   IF TG_OP = 'UPDATE' AND current_setting('sellf.grant_source', true) = 'manual' THEN
     NEW.grant_source := 'manual';
-    NEW.independent_access := jsonb_build_object('expiresAt', NEW.access_expires_at);
+    NEW.independent_access := jsonb_build_object('expiresAt', NEW.access_expires_at, 'grantedAt', now());
   ELSIF NEW.subscription_id IS NULL AND NEW.transfer_transaction_id IS NULL
     AND nullif(current_setting('sellf.paid_order', true), '') IS NULL
     AND nullif(current_setting('sellf.transfer_order', true), '') IS NULL
@@ -12197,15 +12197,18 @@ BEGIN
     IF TG_OP = 'INSERT' OR OLD.access_expires_at <= now()
       OR (NEW.access_expires_at IS NULL AND (OLD.access_expires_at IS NOT NULL
         OR current_setting('sellf.independent_permanent', true) = 'true')) THEN
-      NEW.independent_access := jsonb_build_object('expiresAt', NEW.access_expires_at);
+      NEW.independent_access := jsonb_build_object('expiresAt', NEW.access_expires_at, 'grantedAt', NEW.access_granted_at);
     ELSIF OLD.access_expires_at IS NOT NULL AND NEW.access_expires_at > OLD.access_expires_at THEN
       NEW.independent_access := jsonb_build_object('expiresAt',
         CASE WHEN OLD.independent_access IS NOT NULL AND OLD.independent_access->>'expiresAt' IS NULL THEN NULL
           ELSE greatest(now(), (OLD.independent_access->>'expiresAt')::timestamptz)
-            + (NEW.access_expires_at - OLD.access_expires_at) END);
+            + (NEW.access_expires_at - OLD.access_expires_at) END,
+        'grantedAt', CASE WHEN OLD.independent_access IS NULL
+          OR (OLD.independent_access->>'expiresAt')::timestamptz <= now() THEN now()
+          ELSE coalesce((OLD.independent_access->>'grantedAt')::timestamptz, OLD.access_granted_at) END);
     END IF;
   ELSIF TG_OP = 'UPDATE' AND OLD.grant_source IN ('free', 'manual') AND OLD.independent_access IS NULL THEN
-    NEW.independent_access := jsonb_build_object('expiresAt', OLD.access_expires_at);
+    NEW.independent_access := jsonb_build_object('expiresAt', OLD.access_expires_at, 'grantedAt', OLD.access_granted_at);
   END IF;
   RETURN NEW;
 END $$;
@@ -12425,7 +12428,8 @@ BEGIN
     SELECT least(CASE WHEN t.access_terms ? (p_user_id::text || ':' || other.product_id::text)
       THEN (other.independent_access->>'expiresAt')::timestamptz ELSE other.access_expires_at END,
       CASE WHEN component.auto_grant_duration_days IS NULL THEN NULL
-      ELSE other.access_granted_at + make_interval(days => component.auto_grant_duration_days) END)
+      ELSE coalesce((other.independent_access->>'grantedAt')::timestamptz, other.access_granted_at)
+        + make_interval(days => component.auto_grant_duration_days) END)
     FROM public.user_product_access other
     JOIN public.bundle_items b ON b.bundle_product_id = other.product_id
     JOIN public.products component ON component.id = b.component_product_id
