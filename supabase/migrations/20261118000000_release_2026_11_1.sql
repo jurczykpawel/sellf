@@ -3208,7 +3208,7 @@ REVOKE EXECUTE ON FUNCTION public.order_granted_components(uuid) FROM PUBLIC, an
 -- components the buyer still holds through a real entitlement: another paid order (or an unpaid
 -- bank-transfer order that granted access on placement) that includes the component, or another
 -- bundle the buyer has live access to.
-CREATE FUNCTION public.revoke_order_bundle_components(p_transaction_id uuid, p_user_id uuid) RETURNS integer
+CREATE FUNCTION public.revoke_order_product_access(p_transaction_id uuid, p_user_id uuid, p_product_id uuid) RETURNS boolean
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE t public.payment_transactions; removed integer;
 BEGIN
@@ -3216,13 +3216,14 @@ BEGIN
     RAISE EXCEPTION 'Service role required' USING ERRCODE = '42501';
   END IF;
   SELECT * INTO t FROM public.payment_transactions WHERE id = p_transaction_id;
-  IF NOT FOUND OR p_user_id IS NULL THEN RETURN 0; END IF;
+  IF NOT FOUND OR p_user_id IS NULL THEN RETURN false; END IF;
   DELETE FROM public.user_product_access a
-  WHERE a.user_id = p_user_id
-    AND a.product_id IN (SELECT public.order_granted_components(t.id))
-    AND a.product_id IS DISTINCT FROM t.product_id
-    AND a.grant_source = 'bundle'
-    AND a.subscription_id IS NULL
+  WHERE a.user_id = p_user_id AND a.product_id = p_product_id
+    AND NOT EXISTS (
+      SELECT 1 FROM public.subscriptions s WHERE s.user_id = p_user_id AND s.product_id = a.product_id
+        AND s.id IS DISTINCT FROM t.subscription_id AND s.status IN ('active', 'trialing', 'past_due')
+        AND (s.current_period_end IS NULL OR s.current_period_end > now())
+    )
     AND NOT EXISTS (
       SELECT 1 FROM public.payment_transactions o
       WHERE o.id <> t.id
@@ -3254,6 +3255,33 @@ BEGIN
         AND (other.access_expires_at IS NULL OR other.access_expires_at > now())
     );
   GET DIAGNOSTICS removed = ROW_COUNT;
+  RETURN removed > 0;
+END $$;
+REVOKE EXECUTE ON FUNCTION public.revoke_order_product_access(uuid, uuid, uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.revoke_order_product_access(uuid, uuid, uuid) TO service_role;
+
+CREATE FUNCTION public.revoke_order_bundle_components(p_transaction_id uuid, p_user_id uuid) RETURNS integer
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE t public.payment_transactions; removed integer := 0; candidate uuid;
+BEGIN
+  IF (select auth.role()) IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'Service role required' USING ERRCODE = '42501';
+  END IF;
+  SELECT * INTO t FROM public.payment_transactions WHERE id = p_transaction_id;
+  IF NOT FOUND OR p_user_id IS NULL THEN RETURN 0; END IF;
+  FOR candidate IN
+    SELECT a.product_id FROM public.user_product_access a
+  WHERE a.user_id = p_user_id
+    AND a.product_id IN (SELECT public.order_granted_components(t.id))
+    AND a.product_id IS DISTINCT FROM t.product_id
+    AND (a.grant_source = 'bundle' OR (a.grant_source = 'purchase' AND EXISTS (
+      SELECT 1 FROM public.payment_transactions old WHERE old.product_id = a.product_id
+        AND old.user_id = p_user_id AND old.status IN ('refunded', 'cancelled', 'disputed')
+    )))
+    AND a.subscription_id IS NULL
+  LOOP
+    IF public.revoke_order_product_access(t.id, p_user_id, candidate) THEN removed := removed + 1; END IF;
+  END LOOP;
   RETURN removed;
 END $$;
 REVOKE EXECUTE ON FUNCTION public.revoke_order_bundle_components(uuid, uuid) FROM PUBLIC, anon, authenticated;
