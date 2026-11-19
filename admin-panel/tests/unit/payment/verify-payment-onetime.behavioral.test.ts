@@ -1117,7 +1117,7 @@ describe.skipIf(!hasSupabase)('settled order verification', () => {
   });
 });
 
-describe('paid offer withdrawn before the webhook @J185', () => {
+describe.skipIf(!hasSupabase)('paid offer withdrawn before the webhook @J185', () => {
   it.each(['session', 'intent'] as const)('%s verification completes the saved order and its withdrawn bump', async path => {
     const recordedSession = (await import('../../fixtures/stripe/checkout_completed_receiver.json')).default.data.object;
     const recordedIntent = (await import('../../fixtures/stripe/dispute_payment_intent_won.json')).default;
