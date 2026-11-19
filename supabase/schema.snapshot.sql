@@ -11328,6 +11328,8 @@ CREATE FUNCTION public.product_deletion_impact(p_product_id uuid) RETURNS jsonb
   SELECT jsonb_build_object('orders', orders, 'invoices', invoices, 'licenses', licenses, 'accesses', accesses,
     'subscriptions', subscriptions, 'activeSubscriptions', active_subscriptions, 'futureReservations', future_reservations,
     'affiliateRules', affiliate_rules, 'affiliateCommissions', affiliate_commissions, 'bundles', bundles,
+    'bundleReferences', (SELECT coalesce(jsonb_agg(jsonb_build_object('id',p.id,'name',p.name) ORDER BY p.name,p.id),'[]'::jsonb)
+      FROM public.bundle_items bi JOIN public.products p ON p.id=bi.bundle_product_id WHERE bi.component_product_id=p_product_id),
     'hasHistory', orders > 0 OR licenses > 0 OR accesses > 0 OR subscriptions > 0 OR affiliate_rules > 0)
   FROM counts;
 $$;
@@ -11846,6 +11848,11 @@ BEGIN
   SELECT * INTO current_row FROM public.products WHERE id = p_product_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'Product not found' USING ERRCODE = 'P0002'; END IF;
   impact := public.product_deletion_impact(p_product_id);
+  IF (impact->>'bundles')::int > 0 THEN
+    RAISE EXCEPTION 'Product belongs to bundles' USING ERRCODE = '2BP01',
+      DETAIL = (SELECT string_agg(r->>'name', ', ' ORDER BY r->>'name')
+        FROM jsonb_array_elements(impact->'bundleReferences') r);
+  END IF;
   IF (impact->>'hasHistory')::boolean AND NOT p_permanent THEN
     IF current_row.archived_at IS NULL THEN
       PERFORM public.mutate_product_as(event_actor, 'UPDATE',
@@ -20017,7 +20024,7 @@ ALTER TABLE ONLY public.bundle_items
 --
 
 ALTER TABLE ONLY public.bundle_items
-    ADD CONSTRAINT bundle_items_component_product_id_fkey FOREIGN KEY (component_product_id) REFERENCES public.products(id) ON DELETE CASCADE;
+    ADD CONSTRAINT bundle_items_component_product_id_fkey FOREIGN KEY (component_product_id) REFERENCES public.products(id) ON DELETE RESTRICT;
 
 
 --

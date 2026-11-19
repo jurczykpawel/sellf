@@ -1702,10 +1702,10 @@
         "permanentError": "Nie udało się usunąć produktu trwale. Produkt zostaje w archiwum.",
         "error": "Nie udało się usunąć produktu",
         "permanentRules": "Usunięte razem z produktem: reguły prowizji partnerów ({count}).",
-        "permanentBundles": "Produkt zniknie z pakietów, w których jest składnikiem ({count}).",
         "permanentBlockedLead": "Nie można teraz usunąć produktu trwale, zostaje w archiwum.",
         "blockedSubscriptions": "Ma aktywne subskrypcje ({count}) — anuluj je lub poczekaj na ich koniec.",
         "blockedReservations": "Ma rezerwacje na nadchodzące terminy ({count}).",
+        "blockedBundles": "Produkt jest składnikiem pakietów: {names}. Usuń go najpierw ze składu tych pakietów, zanim przeniesiesz go do archiwum lub usuniesz. Skład pakietów pozostaje bez zmian.",
         "blockedCommissions": "Ma naliczone prowizje partnerów ({count}), które są historią wypłat.",
         "cancel": "Anuluj"
       },

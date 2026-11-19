@@ -76,16 +76,20 @@ describe.skipIf(!db)('bundle_items schema + guards', () => {
     expect(error).not.toBeNull();
   });
 
-  it('rejects duplicate component and removes the link when the component is deleted', async () => {
+  it('rejects duplicate components and component deletion until the containing bundle is removed', async () => {
     const bundle = await mkProduct({ is_bundle: true });
     const comp = await mkProduct({ is_bundle: false });
     await db!.from('bundle_items').insert({ bundle_product_id: bundle, component_product_id: comp });
     const dup = await db!.from('bundle_items').insert({ bundle_product_id: bundle, component_product_id: comp });
     expect(dup.error).not.toBeNull();
-    // A deleted product leaves the bundles that contain it.
     const del = await db!.from('products').delete().eq('id', comp);
-    expect(del.error).toBeNull();
+    expect(del.error?.code).toBe('23503');
+    expect((await db!.from('bundle_items').select('component_product_id').eq('bundle_product_id', bundle)).data)
+      .toEqual([{ component_product_id: comp }]);
+    expect((await db!.from('products').select('id').eq('id', comp).single()).data?.id).toBe(comp);
+    expect((await db!.from('products').delete().eq('id', bundle)).error).toBeNull();
     expect((await db!.from('bundle_items').select('component_product_id').eq('bundle_product_id', bundle)).data).toEqual([]);
+    expect((await db!.from('products').delete().eq('id', comp)).error).toBeNull();
   });
 
   it('grant_product_and_bundle_components grants the bundle + every component, idempotently', async () => {

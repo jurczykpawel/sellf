@@ -6,6 +6,7 @@
  * @see src/components/ProductRemoveDialog.tsx
  */
 import { test, expect, type Page } from '@playwright/test';
+import { insertTestApiKey } from './helpers/api-key';
 import { acceptAllCookies } from './helpers/consent';
 import { createTestAdmin, createTestUser, setAuthSession, supabaseAdmin } from './helpers/admin-auth';
 
@@ -13,6 +14,8 @@ test.describe.configure({ mode: 'serial' });
 
 let admin: Awaited<ReturnType<typeof createTestAdmin>>;
 const productIds: string[] = [];
+let apiKey: string;
+let apiKeyId: string;
 
 /** A paid product with one completed order and an issued license. */
 async function soldProduct(name: string): Promise<{ id: string; orderId: string; licenseId: string }> {
@@ -48,9 +51,19 @@ async function rowAction(page: Page, name: string, action: RegExp) {
   await page.locator('button').filter({ hasText: action }).first().click();
 }
 
-test.beforeAll(async () => { admin = await createTestAdmin('product-archive-admin'); });
+test.beforeAll(async () => {
+  admin = await createTestAdmin('product-archive-admin');
+  const owner = await supabaseAdmin.from('admin_users').select('id').limit(1).single();
+  expect(owner.error).toBeNull();
+  apiKey = `sf_test_${crypto.randomUUID().replace(/-/g, '')}${crypto.randomUUID().replace(/-/g, '')}`;
+  const key = await insertTestApiKey(supabaseAdmin, apiKey, {
+    name: 'Archive fixture', admin_user_id: owner.data!.id, scopes: ['products:read', 'products:write'], is_active: true,
+  });
+  apiKeyId = key.data.id;
+});
 test.afterAll(async () => {
   for (const id of productIds) await supabaseAdmin.from('products').delete().eq('id', id);
+  await supabaseAdmin.from('api_keys').delete().eq('id', apiKeyId);
   await admin.cleanup();
 });
 
@@ -141,3 +154,39 @@ test('a buyer keeps the content of an archived product while the public no longe
   await expect(page.getByText(name).first()).toBeVisible();
   await buyer.cleanup();
 });
+
+for (const state of ['unsold', 'sold', 'archived']) {
+  test(`bundle component ${state} cannot be removed in the panel or API @J602`, async ({ page }) => {
+    const name = `Component ${state} ${Date.now()}`;
+    const component = await soldProduct(name);
+    if (state === 'unsold') {
+      expect((await supabaseAdmin.from('issued_licenses').delete().eq('id', component.licenseId)).error).toBeNull();
+      expect((await supabaseAdmin.from('payment_transactions').delete().eq('id', component.orderId)).error).toBeNull();
+    }
+    if (state === 'archived') expect((await supabaseAdmin.from('products').update({ archived_at: new Date().toISOString(), is_active: false }).eq('id', component.id)).error).toBeNull();
+    const { data: bundle, error } = await supabaseAdmin.from('products').insert({
+      name: `Containing ${name}`, slug: `bundle-${component.id}`, price: 79, is_bundle: true, is_active: true,
+    }).select('id,name').single();
+    expect(error).toBeNull();
+    productIds.unshift(bundle!.id);
+    expect((await supabaseAdmin.from('bundle_items').insert({ bundle_product_id: bundle!.id, component_product_id: component.id })).error).toBeNull();
+    const before = await supabaseAdmin.from('bundle_items').select('*').eq('bundle_product_id', bundle!.id);
+    await openProducts(page, name);
+    if (state === 'archived') await page.locator('#status-filter').selectOption('archived');
+    const row = page.locator('tr').filter({ has: page.getByText(name, { exact: true }) });
+    await row.locator('button[aria-expanded]').click();
+    await page.locator('button').filter({ hasText: state === 'archived' ? /^Usuń trwale$/ : /^Usuń$/ }).first().click();
+    const dialog = page.getByTestId('product-remove-dialog');
+    await expect(dialog).toContainText(bundle!.name);
+    await expect(dialog).toContainText('Usuń go najpierw ze składu tych pakietów');
+    await expect(page.getByRole('button', { name: state === 'archived' ? 'Usuń trwale' : state === 'sold' ? 'Przenieś do archiwum' : 'Usuń', exact: true }).last()).toBeDisabled();
+    const response = await page.request.delete(`/api/v1/products/${component.id}${state === 'archived' ? '?permanent=true' : ''}`, { headers: { Authorization: `Bearer ${apiKey}`, Origin: new URL(page.url()).origin } });
+    expect(response.status()).toBe(409);
+    expect((await response.json()).error.message).toContain(bundle!.name);
+    expect((await supabaseAdmin.from('bundle_items').select('*').eq('bundle_product_id', bundle!.id)).data).toEqual(before.data);
+    const kept = await supabaseAdmin.from('products').select('archived_at,is_active').eq('id', component.id).single();
+    expect(kept.error).toBeNull();
+    expect(Boolean(kept.data!.archived_at)).toBe(state === 'archived');
+    expect(kept.data!.is_active).toBe(state !== 'archived');
+  });
+}

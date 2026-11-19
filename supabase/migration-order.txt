@@ -73,3 +73,4 @@
 20261110235906_release_2026_11_0_fulfillment_orders.sql
 20261110235907_release_2026_11_0_attribution_mail_analytics.sql
 20261118000000_release_2026_11_1.sql
+20261119100000_bundle_component_guard.sql

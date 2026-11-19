@@ -421,6 +421,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  * DELETE /api/v1/products/:id?permanent=true deletes an archived product (204); orders,
  * invoices, licenses, ended subscriptions and past reservations are kept with the purchase-time
  * product name, buyer access ends. Active subscriptions or upcoming reservations block it (409).
+ * Bundle membership blocks both archiving and deletion (409 with containing bundle names).
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
@@ -453,6 +454,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     });
 
     if (removeError) {
+      if (removeError.code === '2BP01') {
+        return apiError(request, 'CONFLICT',
+          `This product belongs to bundles: ${removeError.details}. Remove it from these bundles before archiving or deleting it.`);
+      }
       if (removeError.code === 'P0002') return apiError(request, 'NOT_FOUND', 'Product not found');
       if (removeError.code === '55000') {
         return apiError(request, 'CONFLICT', 'This product has orders. Archive it first (DELETE without permanent=true).');
