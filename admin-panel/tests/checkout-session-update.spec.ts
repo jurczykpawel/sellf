@@ -12,13 +12,14 @@ import type Stripe from 'stripe';
 import { test, startNativeCheckout } from './helpers/checkout-intent';
 import { supabaseAdmin } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
-import { recordedEvent, sendStripeEvent, testStripe } from './helpers/stripe-test-events';
+import { clearPaidCheckout, refundEvent, recordedEvent, sendStripeEvent, testStripe } from './helpers/stripe-test-events';
 
 test.describe.configure({ mode: 'serial' });
 
 const slug = `session-update-${randomUUID().slice(0, 8)}`;
 const email = `${slug}@example.com`;
 const productIds: string[] = [];
+const sessionIds = new Set<string>();
 let couponId = '';
 const couponCode = `W219-${randomUUID().slice(0, 6)}`.toUpperCase();
 
@@ -42,6 +43,11 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
+  for (const id of sessionIds) {
+    const session = await testStripe().checkout.sessions.retrieve(id);
+    if (session.status === 'open') await testStripe().checkout.sessions.expire(id);
+    await clearPaidCheckout(id);
+  }
   const { data: txs } = await supabaseAdmin.from('payment_transactions').select('id').in('product_id', productIds);
   const ids = (txs ?? []).map(tx => tx.id);
   if (ids.length) {
@@ -60,7 +66,7 @@ test.afterAll(async () => {
   if (buyer) await supabaseAdmin.auth.admin.deleteUser(buyer.id);
 });
 
-test('entered coupon, quantity, add-on and coupon removal keep one Stripe session that is paid and accepted by the webhook @J660', async ({ page, request }) => {
+test('entered coupon, quantity, add-on and coupon removal keep one Stripe session that is paid and accepted by the webhook @J660 @J712', async ({ page, request }) => {
   test.setTimeout(300000);
   const stripe = testStripe();
   const since = Math.floor(Date.now() / 1000) - 5;
@@ -69,7 +75,7 @@ test('entered coupon, quantity, add-on and coupon removal keep one Stripe sessio
   await acceptAllCookies(page);
   await page.goto(`/en/checkout/${slug}?email=${encodeURIComponent(email)}&coupon=UNKNOWN-CODE`);
 
-  const sessionOf = async (response: Awaited<ReturnType<typeof startNativeCheckout>>) => (await response.json()).checkoutSessionId as string;
+  const sessionOf = async (response: Awaited<ReturnType<typeof startNativeCheckout>>) => { const id = (await response.json()).checkoutSessionId as string; sessionIds.add(id); return id; };
   const first = await sessionOf(await startNativeCheckout(page));
   expect(first).toMatch(/^cs_test_/);
   expect((await stripe.checkout.sessions.retrieve(first)).amount_total).toBe(10000);
@@ -133,4 +139,17 @@ test('entered coupon, quantity, add-on and coupon removal keep one Stripe sessio
   expect(intent.amount).toBe(32000);
   expect(intent.metadata).toMatchObject({ product_id: productIds[0], has_coupon: 'false', sellf_instance: session.metadata?.sellf_instance });
   expect(intent.metadata.coupon_id).toBeUndefined();
+
+  const refunded = await refundEvent(intent.id, 32000, 32000);
+  expect((await sendStripeEvent(request, refunded.event)).status()).toBe(200);
+  const verified = await request.post('/api/verify-payment', { data: { session_id: first } });
+  expect(verified.status()).toBe(200);
+  expect(await verified.json()).toMatchObject({ payment_status: 'refunded', access_granted: false });
+  await page.unroute(/\/(payment\/success|p\/[^/]+\/payment-status)/);
+  for (const locale of ['pl', 'en']) {
+    await page.goto(`/${locale}/p/${slug}/payment-status?session_id=${first}`);
+    await expect(page.getByRole('heading', { name: locale === 'pl' ? 'Płatność zwrócona' : 'Payment refunded' })).toBeVisible();
+  }
+  const { data: accesses } = await supabaseAdmin.from('user_product_access').select('id').in('product_id', productIds);
+  expect(accesses).toEqual([]);
 });
