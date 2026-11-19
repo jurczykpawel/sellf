@@ -5,9 +5,8 @@ import { applyProductTypeDefaults } from '@/lib/product-defaults';
 /**
  * Tests for ProductCreationWizard logic.
  *
- * The wizard's validation and dirty-detection logic lives inside React hooks/callbacks
- * and cannot be imported directly. We test equivalent logic inline to ensure the
- * behavioral contract holds, using initialFormData as the shared ground truth.
+ * Form dirty state is exercised through the actual hook in product-form-focus.test.ts.
+ * These tests cover the initial fields and product type defaults.
  */
 
 describe('ProductCreationWizard', () => {
@@ -36,34 +35,6 @@ describe('ProductCreationWizard', () => {
 
     it('should pass when name is filled', () => {
       expect(validateStep1({ name: 'My Product', description: 'A description' })).toBe(true);
-    });
-  });
-
-  describe('dirty detection (equivalent logic)', () => {
-    // Mirrors isFormDirty from ProductCreationWizard.tsx:
-    // form is dirty when name, price, or description differ from defaults
-    function isFormDirty(formData: { name: string; price: number; description: string }): boolean {
-      return formData.name !== '' || formData.price > 0 || formData.description !== '';
-    }
-
-    it('should detect form as clean with initial data', () => {
-      expect(isFormDirty(initialFormData)).toBe(false);
-    });
-
-    it('should detect form as dirty when name is set', () => {
-      expect(isFormDirty({ ...initialFormData, name: 'Test' })).toBe(true);
-    });
-
-    it('should detect form as dirty when price is set', () => {
-      expect(isFormDirty({ ...initialFormData, price: 10 })).toBe(true);
-    });
-
-    it('should detect form as dirty when description is set', () => {
-      expect(isFormDirty({ ...initialFormData, description: 'Desc' })).toBe(true);
-    });
-
-    it('should detect as clean when all trigger fields are default', () => {
-      expect(isFormDirty({ name: '', price: 0, description: '' })).toBe(false);
     });
   });
 
