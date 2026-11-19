@@ -43,3 +43,18 @@ it('focuses and reveals the code when saving an empty coupon from the footer', a
   await vi.waitFor(() => expect(document.activeElement).toBe(code));
   expect(scroll).toHaveBeenCalled();
 });
+it('keeps zero visible and validates the global usage limit before submitting', async () => {
+  const { form, code, value, submit } = await setup();
+  fireEvent.change(code, { target: { value: 'LIMIT' } });
+  fireEvent.change(value, { target: { value: '10' } });
+  const limit = form.querySelectorAll<HTMLInputElement>('input[type=number]')[1];
+  fireEvent.change(limit, { target: { value: '0' } });
+  expect(limit.value).toBe('0');
+  fireEvent.submit(form);
+  expect(submit).not.toHaveBeenCalled();
+  expect(limit.getAttribute('aria-invalid')).toBe('true');
+  expect(document.activeElement).toBe(limit);
+  fireEvent.change(limit, { target: { value: '' } });
+  fireEvent.submit(form);
+  expect(submit).toHaveBeenCalledWith(expect.objectContaining({ usage_limit_global: null }));
+});

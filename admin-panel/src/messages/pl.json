@@ -2948,6 +2948,7 @@
       "deleteExpiredSuccess": "Pomyślnie usunięto {count} wygasłych kuponów",
       "deleteExpiredPartial": "Usunięto {deleted} wygasłych kuponów, {failed} nie powiodło się",
       "form": {
+        "limitInvalid": "Wpisz liczbę całkowitą od 1 do {max} lub zostaw puste pole dla braku limitu.",
         "codeInvalid": "Użyj liter, cyfr, myślnika lub podkreślenia, bez spacji.",
         "percentageInvalid": "Podaj rabat większy od 0 i nie większy niż 100%.",
         "valueInvalid": "Podaj poprawną wartość zniżki.",

@@ -93,6 +93,9 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
   const [submitted, setSubmitted] = useState(false);
   const codeInvalid = !/^[A-Za-z0-9_-]{1,50}$/.test(formData.code || '');
   const valueInvalid = couponValueError(formData.discount_type || '', formData.discount_value ?? NaN, formData.currency || defaultCurrency) !== null;
+  const invalidLimit = (value: number | null | undefined, max: number) => value != null && (!Number.isInteger(value) || value < 1 || value > max);
+  const globalLimitInvalid = invalidLimit(formData.usage_limit_global, 10000000);
+  const userLimitInvalid = invalidLimit(formData.usage_limit_per_user, 10000);
   const codeError = (submitted || Boolean(formData.code)) && codeInvalid;
   const valueError = (submitted || Boolean(formData.discount_value)) && valueInvalid;
   useEffect(() => {
@@ -118,7 +121,7 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
     e.preventDefault();
     setSubmitted(true);
     if (!currencyLoaded) return;
-    if (codeInvalid || valueInvalid) { setRejections(count => count + 1); return; }
+    if (codeInvalid || valueInvalid || globalLimitInvalid || userLimitInvalid) { setRejections(count => count + 1); return; }
     if (!e.currentTarget.reportValidity()) return;
     
     // Ensure currency is null for percentage discounts to satisfy DB constraint
@@ -312,13 +315,16 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
                 <label className="block text-sm font-medium text-sf-body mb-1">{t('form.usageLimit')}</label>
                 <input
                   type="number"
-                  min="0"
-                  aria-describedby="coupon-global-limit-hint"
-                  value={formData.usage_limit_global || ''}
-                  onChange={e => setFormData({ ...formData, usage_limit_global: e.target.value ? parseInt(e.target.value) : null })}
+                  min="1"
+                  max="10000000"
+                  aria-invalid={globalLimitInvalid}
+                  aria-describedby={globalLimitInvalid ? "coupon-global-limit-error" : "coupon-global-limit-hint"}
+                  value={formData.usage_limit_global ?? ''}
+                  onChange={e => setFormData({ ...formData, usage_limit_global: e.target.value ? Number(e.target.value) : null })}
                   className="w-full px-4 py-2 border-2 border-sf-border-medium focus:ring-2 focus:ring-sf-accent bg-sf-input text-sf-heading"
                   placeholder=""
                 />
+                {globalLimitInvalid && <p id="coupon-global-limit-error" role="alert" className="mt-1 text-xs text-sf-danger">{t('form.limitInvalid', { max: 10000000 })}</p>}
                 <p id="coupon-global-limit-hint" className="mt-1 text-xs text-sf-muted">{t('form.unlimited')}</p>
               </div>
               <div>
@@ -326,12 +332,15 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
                 <input
                   type="number"
                   min="1"
-                  aria-describedby="coupon-user-limit-hint"
+                  max="10000"
+                  aria-invalid={userLimitInvalid}
+                  aria-describedby={userLimitInvalid ? "coupon-user-limit-error" : "coupon-user-limit-hint"}
                   value={formData.usage_limit_per_user ?? ''}
-                  onChange={e => setFormData({ ...formData, usage_limit_per_user: e.target.value ? parseInt(e.target.value) : null })}
+                  onChange={e => setFormData({ ...formData, usage_limit_per_user: e.target.value ? Number(e.target.value) : null })}
                   className="w-full px-4 py-2 border-2 border-sf-border-medium focus:ring-2 focus:ring-sf-accent bg-sf-input text-sf-heading"
                   placeholder=""
                 />
+                {userLimitInvalid && <p id="coupon-user-limit-error" role="alert" className="mt-1 text-xs text-sf-danger">{t('form.limitInvalid', { max: 10000 })}</p>}
                 <p id="coupon-user-limit-hint" className="mt-1 text-xs text-sf-muted">{t('form.perUserLimitHint')}</p>
               </div>
               <div>
