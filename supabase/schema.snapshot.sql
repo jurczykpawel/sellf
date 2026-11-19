@@ -12129,7 +12129,10 @@ CREATE FUNCTION public.retain_independent_access() RETURNS trigger
     SET search_path TO ''
     AS $$
 BEGIN
-  IF TG_OP = 'INSERT' AND NEW.grant_source IN ('free', 'manual') THEN
+  IF TG_OP = 'UPDATE' AND current_setting('sellf.grant_source', true) = 'manual' THEN
+    NEW.grant_source := 'manual';
+    NEW.independent_access := jsonb_build_object('expiresAt', NEW.access_expires_at);
+  ELSIF TG_OP = 'INSERT' AND NEW.grant_source IN ('free', 'manual') THEN
     NEW.independent_access := jsonb_build_object('expiresAt', NEW.access_expires_at);
   ELSIF TG_OP = 'UPDATE' AND OLD.grant_source IN ('free', 'manual') AND OLD.independent_access IS NULL THEN
     NEW.independent_access := jsonb_build_object('expiresAt', OLD.access_expires_at);
@@ -12249,7 +12252,6 @@ BEGIN
   WHERE a.user_id = p_user_id
     AND a.product_id IN (SELECT public.order_granted_components(t.id))
     AND a.product_id IS DISTINCT FROM t.product_id
-    AND a.grant_source <> 'manual'
     AND a.subscription_id IS NULL
   LOOP
     IF public.revoke_order_product_access(t.id, p_user_id, candidate) THEN removed := removed + 1; END IF;

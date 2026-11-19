@@ -46,3 +46,31 @@ it.each(['stripe', 'bank_transfer', 'free'])('restores the original %s component
     expect(f.access()?.access_expires_at).toBe(original.access_expires_at);
   } finally { f.cleanup(); }
 });
+
+function manual(f: ReturnType<typeof fixture>, expires: string | null, action = 'update') {
+  sql(`SELECT * FROM public.mutate_access('${action}','${f.user}','${f.product}',${action === 'grant' ? 'NULL' : `(SELECT id FROM public.user_product_access WHERE user_id='${f.user}' AND product_id='${f.product}')`},
+    jsonb_build_object('access_expires_at',${expires ? `'${expires}'::timestamptz` : 'NULL'}),'${JSON.stringify({ type: 'api_key', id: randomUUID() })}');`);
+}
+it.each([false,true])('preserves an administrator deadline including unlimited=%s across repeated refunds @J34', unlimited => {
+  const f = fixture();
+  try {
+    f.buy(); const b = f.buy();
+    manual(f, unlimited ? null : '2027-06-01T12:00:00Z');
+    const expected = f.access().access_expires_at;
+    f.refund(b); expect(f.access()?.access_expires_at).toBe(expected);
+    manual(f, unlimited ? '2027-09-01T12:00:00Z' : null);
+    const later = f.access().access_expires_at;
+    f.revoke(b); f.refund(b);
+    expect(f.access()?.access_expires_at).toBe(later);
+  } finally { f.cleanup(); }
+});
+it.each([false,true])('retains manual access while removing a later purchased extension (bundle=%s) @J34', bundle => {
+  const f = fixture();
+  try {
+    manual(f, '2027-02-01T12:00:00Z','grant'); const original = f.access();
+    const id = f.buy(bundle ? f.bundle : f.product);
+    expect(new Date(f.access().access_expires_at).getTime()).toBeGreaterThan(new Date(original.access_expires_at).getTime());
+    f.refund(id,bundle ? f.bundle : f.product);
+    expect(f.access()?.access_expires_at).toBe(original.access_expires_at);
+  } finally { f.cleanup(); }
+});
