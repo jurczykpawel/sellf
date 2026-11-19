@@ -19,13 +19,14 @@ function backfill(user: string) {
   const schema = `upgrade_${randomUUID().replaceAll('-', '')}`;
   const tables = ['user_product_access', 'payment_transactions', 'guest_purchases', 'payment_line_items', 'order_bundle_components', 'bundle_items'];
   const block = migration.match(/-- Preserve known legacy periods\.([\s\S]*?)-- End legacy period preservation\./)![1];
-  const components = migration.match(/CREATE FUNCTION public.order_granted_components[\s\S]*?\$\$;/)![0];
-  sql(`CREATE SCHEMA ${schema}; ${tables.map(table => `CREATE TABLE ${schema}.${table} (LIKE public.${table}); INSERT INTO ${schema}.${table} SELECT * FROM public.${table};`).join('')}
-    ${components.replaceAll('public.', `${schema}.`)} ${block.replaceAll('public.', `${schema}.`)}
+  sql(`BEGIN; CREATE SCHEMA ${schema}; ${tables.map(table => `CREATE TABLE ${schema}.${table} (LIKE public.${table}); INSERT INTO ${schema}.${table} SELECT * FROM public.${table};`).join('')}
+    ALTER TABLE ${schema}.user_product_access DROP COLUMN independent_access;
+    ALTER TABLE ${schema}.user_product_access ADD COLUMN independent_access jsonb;
+    ${block.replaceAll('public.', `${schema}.`)}
     UPDATE public.user_product_access a SET independent_access=b.independent_access FROM ${schema}.user_product_access b WHERE a.id=b.id AND a.user_id='${user}';
     UPDATE public.payment_transactions t SET access_terms=b.access_terms FROM ${schema}.payment_transactions b WHERE t.id=b.id
       AND (t.user_id='${user}' OR EXISTS (SELECT 1 FROM public.guest_purchases g WHERE g.transaction_id=t.id AND g.claimed_by_user_id='${user}'));
-    DROP SCHEMA ${schema} CASCADE;`);
+    DROP SCHEMA ${schema} CASCADE; COMMIT;`);
 }
 function fixture() {
   const user = randomUUID(), product = randomUUID(), bundle = randomUUID();
@@ -140,7 +141,7 @@ it.each(['before','after','manual','none'])('keeps the independent %s source whe
   } finally { f.cleanup(); }
 });
 
-it('reads a dispute again only after its refund snapshot update commits @J34', async () => {
+it.each(['apply', 'revoke'])('waits for the dispute snapshot before %s @J34', async operation => {
   const f = fixture(), dispute = `dp_${randomUUID().replaceAll('-', '')}`;
   const holder = spawn('docker', ['exec','-i',getTestDatabaseContainer(),'psql','-XqAt','-U','postgres','-v','ON_ERROR_STOP=1']);
   const ended = once(holder,'exit');
@@ -154,7 +155,8 @@ it('reads a dispute again only after its refund snapshot update commits @J34', a
       holder.once('error', error => { clearTimeout(timer); reject(error); });
       holder.stdin.write(`BEGIN; UPDATE public.payment_disputes SET account_access=account_access WHERE stripe_dispute_id='${dispute}'; SELECT 'held';\n`);
     });
-    expect(() => sql(`SET lock_timeout='200ms'; ${apply}`)).toThrow(/lock timeout/);
+    const command = operation === 'apply' ? apply : `SELECT public.revoke_order_product_access('${order}','${f.user}','${f.product}');`;
+    expect(() => sql(`SET lock_timeout='200ms'; ${command}`)).toThrow(/lock timeout/);
   } finally {
     holder.stdin.end('ROLLBACK;\n'); await ended; f.cleanup();
   }
@@ -227,11 +229,11 @@ it.each([365,null])('preserves legacy access originally lasting %s days after a 
   } finally { f.cleanup(); }
 });
 
-it.each(['bundle-refund', 'bundle-cancel', 'product-cancel', 'product-refund'])('retains a pre-upgrade unknown deadline after %s @J34', scenario => {
+it.each(['bundle-refund', 'bundle-cancel', 'product-cancel', 'product-refund'].flatMap(scenario => [165, null].map(days => [scenario, days] as const)))('retains a pre-upgrade unknown deadline after %s (days=%s) @J34', (scenario, days) => {
   const f = fixture();
   try {
     sql(`INSERT INTO public.user_product_access(user_id,product_id,grant_source,access_granted_at,access_expires_at)
-      VALUES('${f.user}','${f.product}','unknown',now()-interval '200 days',now()+interval '165 days');`);
+      VALUES('${f.user}','${f.product}','unknown',now()-interval '200 days',${days === null ? 'NULL' : `now()+interval '${days} days'`});`);
     const original = f.access();
     expect(original.independent_access).toBeNull();
     backfill(f.user);
@@ -312,6 +314,31 @@ it('backfills legacy periods through equality joins @J34', () => {
   expect(block).toMatch(/a\.product_id = .*\.product_id/);
 });
 
+it('keeps another buyer fixture byte-identical while backfilling an upgrade @J34', () => {
+  const f = fixture(), other = fixture();
+  try {
+    sql(`INSERT INTO public.user_product_access(user_id,product_id,grant_source,access_expires_at) VALUES('${f.user}','${f.product}','unknown',now()+interval '100 days');`);
+    const order = other.buy();
+    sql(`UPDATE public.payment_transactions SET access_terms='{}' WHERE id='${order}';`);
+    const beforeAccess = other.access();
+    const beforeOrder = sql(`SELECT row_to_json(t)::text FROM public.payment_transactions t WHERE id='${order}';`);
+    backfill(f.user);
+    expect(other.access()).toEqual(beforeAccess);
+    expect(sql(`SELECT row_to_json(t)::text FROM public.payment_transactions t WHERE id='${order}';`)).toBe(beforeOrder);
+  } finally { f.cleanup(); other.cleanup(); }
+});
+
+it('adds no independent days when a free claim leaves paid access unchanged @J34', () => {
+  const f = fixture();
+  try {
+    const order = f.buy(), before = f.access();
+    sql(`UPDATE public.products SET price=0 WHERE id='${f.product}'; SET request.jwt.claim.sub='${f.user}'; SELECT public.grant_free_product_access('${f.product}',30);`);
+    expect(f.access()).toEqual(before);
+    f.refund(order);
+    expect(f.access()).toBeNull();
+  } finally { f.cleanup(); }
+});
+
 it('adds no free period to an already permanent paid entitlement @J34', () => {
   const f = fixture();
   try {
@@ -357,6 +384,22 @@ it.each(['subscription', 'transfer'])('does not turn a legacy unknown row owned 
   } finally { f.cleanup(); }
 });
 
+it('preserves the paid period after reopening a cancelled transfer and refunding a later purchase @J182', () => {
+  const f = fixture();
+  try {
+    sql(`UPDATE public.products SET auto_grant_duration_days=365 WHERE id='${f.product}';`);
+    const transfer = f.buy(f.product,'bank_transfer','awaiting_payment');
+    sql(`UPDATE public.payment_transactions SET created_at=now()-interval '100 days',access_terms=jsonb_build_object('${f.user}:${f.product}',jsonb_build_object('grantedAt',now()-interval '100 days','expiresAt',now()+interval '265 days')) WHERE id='${transfer}';
+      UPDATE public.user_product_access SET access_expires_at=now()+interval '265 days' WHERE user_id='${f.user}' AND product_id='${f.product}';
+      SELECT public.cancel_unpaid_order('${transfer}','Fixture cancellation');`);
+    const result = JSON.parse(sql(`SELECT public.admin_bank_transfer_order('${transfer}','mark-paid',4000,now(),'Late payment accepted',(SELECT user_id FROM public.admin_users LIMIT 1),true,false);`));
+    expect(result.success).toBe(true);
+    const paidDeadline = f.access().access_expires_at;
+    const later = f.buy(); f.refund(later);
+    expect(f.access()?.access_expires_at).toBe(paidDeadline);
+  } finally { f.cleanup(); }
+});
+
 it.each(['payment', 'cancel', 'refund'])('tracks the actual bundle-add-on component period through transfer %s @J182', action => {
   const f = fixture(), main = randomUUID();
   const enabled = sql('SELECT bank_transfer_enabled FROM public.bank_transfer_config;');
@@ -386,20 +429,4 @@ it.each(['payment', 'cancel', 'refund'])('tracks the actual bundle-add-on compon
     sql(`DELETE FROM public.payment_transactions WHERE product_id='${main}'; DELETE FROM public.products WHERE id='${main}'; UPDATE public.bank_transfer_config SET bank_transfer_enabled=${enabled === 't'};`);
     f.cleanup();
   }
-});
-
-it('preserves the paid period after reopening a cancelled transfer and refunding a later purchase @J182', () => {
-  const f = fixture();
-  try {
-    sql(`UPDATE public.products SET auto_grant_duration_days=365 WHERE id='${f.product}';`);
-    const transfer = f.buy(f.product,'bank_transfer','awaiting_payment');
-    sql(`UPDATE public.payment_transactions SET created_at=now()-interval '100 days',access_terms=jsonb_build_object('${f.user}:${f.product}',jsonb_build_object('grantedAt',now()-interval '100 days','expiresAt',now()+interval '265 days')) WHERE id='${transfer}';
-      UPDATE public.user_product_access SET access_expires_at=now()+interval '265 days' WHERE user_id='${f.user}' AND product_id='${f.product}';
-      SELECT public.cancel_unpaid_order('${transfer}','Fixture cancellation');`);
-    const result = JSON.parse(sql(`SELECT public.admin_bank_transfer_order('${transfer}','mark-paid',4000,now(),'Late payment accepted',(SELECT user_id FROM public.admin_users LIMIT 1),true,false);`));
-    expect(result.success).toBe(true);
-    const paidDeadline = f.access().access_expires_at;
-    const later = f.buy(); f.refund(later);
-    expect(f.access()?.access_expires_at).toBe(paidDeadline);
-  } finally { f.cleanup(); }
 });
