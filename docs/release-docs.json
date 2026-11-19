@@ -482,5 +482,38 @@
   ],
   "f3641dca135fff0f48451be09629a4ef4b2d9f6d": [
     "none \u2014 Migration placement change was reverted by dfe7e61ab5582b98fe374c52771b3e0b5097819e; the transfer mail policy remains in the single 11.1 migration and is documented by 2be973a49b3b5833c38ba398984526f2dd4fc833."
+  ],
+  "2ebaf90fe5482afdb7d77342c2494d2782d93909": [
+    "none \u2014 Internal tooltip reference composition; existing click, focus and pointer behavior remains unchanged."
+  ],
+  "676d3f0b8701829ef7a2749a74291561155eb97e": [
+    "guided-tutorials.md"
+  ],
+  "2363de52b31c5cb2d20e7d4b8a1fa578d5353bd6": [
+    "guided-tutorials.md"
+  ],
+  "4789f40f264b1b6444cfcc2b564b673be2c31952": [
+    "guided-tutorials.md"
+  ],
+  "aaaafa8c04607dc31d26f14b3cef4521d251e40e": [
+    "configuration.md"
+  ],
+  "8be39d349bb213d503dc626a50d469fb7ee0e96c": [
+    "configuration.md"
+  ],
+  "2a73eb57e012a81d5f6926189bc4c5d7e98ba253": [
+    "configuration.md"
+  ],
+  "311d1aa1cebed99c21035704835a3f6381fa715e": [
+    "configuration.md"
+  ],
+  "e7971e8ac57b140fdc8052d08722903da29f6b55": [
+    "configuration.md"
+  ],
+  "537eaba4e90457d0d120bbe9a29af31bc776123a": [
+    "guided-tutorials.md"
+  ],
+  "5d2a67091d89dc9a3f2dd294beaa25b8374c032c": [
+    "guided-tutorials.md"
   ]
 }
