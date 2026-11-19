@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { PaymentElement, useCheckoutElements } from '@stripe/react-stripe-js/checkout';
 import { storedCheckoutProfileSchema } from '@/lib/checkout-modules/profile';
@@ -39,6 +39,7 @@ interface CustomPaymentFormProps {
   onChangeAccount?: () => void;
   customAmountError?: string | null;
   quantityInvalid?: boolean;
+  cartSignature?: string;
   clientSecret?: string;
   bindingToken?: string;
   sessionDeadline?: number;
@@ -84,7 +85,7 @@ export default function CustomPaymentForm({
   bumpProducts = [],
   selectedBumpIds = new Set(),
   onChangeAccount,
-  customAmountError, quantityInvalid = false,
+  customAmountError, quantityInvalid = false, cartSignature,
   clientSecret,
   bindingToken, sessionDeadline,
   onConfirmationChange, onProcessingChange,
@@ -140,6 +141,9 @@ export default function CustomPaymentForm({
   const [errorMessage, setErrorMessage] = useState('');
   const [emailError, setEmailError] = useState('');
   const [sessionExpired, setSessionExpired] = useState(false);
+  const currentCart = useRef({ cartSignature, quantityInvalid });
+  const submitting = useRef(false);
+  useLayoutEffect(() => { currentCart.current = { cartSignature, quantityInvalid }; }, [cartSignature, quantityInvalid]);
   useEffect(() => {
     if (sessionDeadline === undefined) return;
     const remaining = sessionDeadline - performance.now();
@@ -192,7 +196,7 @@ export default function CustomPaymentForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (sessionExpired || quantityInvalid || !profileForm.validate()) return;
+    if (submitting.current || sessionExpired || quantityInvalid || !profileForm.validate()) return;
 
     if (checkoutResult.type !== 'success' || !paymentElementReady) return;
     const checkout = checkoutResult.checkout;
@@ -223,6 +227,7 @@ export default function CustomPaymentForm({
       return;
     }
 
+    submitting.current = true;
     setIsProcessing(true);
     setErrorMessage('');
     setEmailError('');
@@ -367,6 +372,10 @@ export default function CustomPaymentForm({
         return;
       }
 
+      if (currentCart.current.quantityInvalid || currentCart.current.cartSignature !== cartSignature) {
+        setIsProcessing(false);
+        return;
+      }
       onConfirmationChange?.(true);
       const result = await checkout.confirm();
 
@@ -379,6 +388,8 @@ export default function CustomPaymentForm({
       onConfirmationChange?.(false);
       setErrorMessage(err instanceof Error ? err.message : t('unexpectedError'));
       setIsProcessing(false);
+    } finally {
+      submitting.current = false;
     }
   };
 

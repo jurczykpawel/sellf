@@ -455,7 +455,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
   // One request at a time; superseded responses remain available for replacement.
   useEffect(() => {
-    if (activeMethod !== 'online' || coupon.isVerifyingCoupon) {
+    if (paymentProcessing || activeMethod !== 'online' || coupon.isVerifyingCoupon) {
       sessionQueue.pause();
       return;
     }
@@ -552,7 +552,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       },
     });
   }, [
-    activeMethod, coupon.isVerifyingCoupon, quantityInvalid, checkoutVisit, eventNotice,
+    paymentProcessing, activeMethod, coupon.isVerifyingCoupon, quantityInvalid, checkoutVisit, eventNotice,
     eventReady, eventEmailReady, eventSessionId, refreshEvents, eventText, purchaseStarted, hasAccess, error, authLoading,
     product, email, locale, quantity, selectedBumpIds, coupon.appliedCoupon, searchParams, t,
     customAmount, customAmountError, isFunnelTest, isFreeAccess, grantAccess,
@@ -611,6 +611,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
         </div>
       )}
 
+      <fieldset disabled={paymentProcessing}>
       {(!isSubscription || isPwywSubscription) && (
         <PwywSection
           product={product}
@@ -669,6 +670,8 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
         />
       )}
 
+      </fieldset>
+
       {/* Checkout Card */}
       {!(isFreeAccess && !error && !hasAccess) && (
         <div className="bg-sf-raised backdrop-blur-md rounded-2xl p-4 sm:p-6 border border-sf-border relative overflow-hidden">
@@ -679,7 +682,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           <h2 className="text-xl font-semibold text-sf-heading mb-4">{t('purchaseTitle')}</h2>
 
           {product.event_mode && <>
-            <EventSessions sessions={eventSessions} currency={product.currency} selected={eventSessionId} onSelect={id => { setEventSessionId(id); setError(null); }} />
+            <fieldset disabled={paymentProcessing}><EventSessions sessions={eventSessions} currency={product.currency} selected={eventSessionId} onSelect={id => { setEventSessionId(id); setError(null); }} /></fieldset>
             {eventLoadError && <p role="alert">{eventText('loadError')}</p>}
             {eventNotice?.key === checkoutSessionSignature && <div role="alert" className="mb-4 text-sf-danger">
               <p>{eventNotice.message}</p>
@@ -803,6 +806,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
               <CustomPaymentForm
                 termsAccepted={termsAccepted}
                 onTermsAcceptedChange={setTermsAccepted}
+                cartSignature={checkoutSessionSignature}
                 quantityInvalid={quantityInvalid || coupon.isVerifyingCoupon || lastCheckoutSessionSignature !== checkoutSessionSignature}
                 onRegisterServerUpdate={registerServerUpdate}
                 product={product}
