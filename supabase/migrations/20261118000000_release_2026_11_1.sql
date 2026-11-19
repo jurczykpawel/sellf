@@ -3359,6 +3359,9 @@ WITH eligible AS MATERIALIZED (
   UNION
   SELECT t.id, l.product_id FROM eligible t JOIN public.payment_line_items l ON l.transaction_id = t.id
   UNION
+  SELECT t.id, b.component_product_id FROM eligible t JOIN public.payment_line_items l ON l.transaction_id = t.id
+    JOIN public.bundle_items b ON b.bundle_product_id = l.product_id WHERE l.item_type = 'order_bump'
+  UNION
   SELECT t.id, c.component_product_id FROM eligible t JOIN public.order_bundle_components c ON c.transaction_id = t.id
   UNION
   SELECT t.id, b.component_product_id FROM eligible t JOIN public.bundle_items b ON b.bundle_product_id = t.product_id

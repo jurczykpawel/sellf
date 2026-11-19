@@ -460,3 +460,19 @@ it('retains the original free component deadline after a paid bundle add-on upda
     expect(f.access()?.access_expires_at).toBe(original);
   } finally { paid?.cleanup(); f.cleanup(); }
 });
+
+it('preserves the known legacy add-on component period after a later add-on refund @J34', () => {
+  const [component,bundle] = [randomUUID(),randomUUID()].sort(), f=fixture(component,bundle);
+  let old: ReturnType<typeof paidBundleAddon> | undefined, later: ReturnType<typeof paidBundleAddon> | undefined;
+  try {
+    sql(`UPDATE public.products SET auto_grant_duration_days=90 WHERE id='${f.product}'; UPDATE public.products SET auto_grant_duration_days=120 WHERE id='${f.bundle}';`);
+    old=paidBundleAddon(f);
+    sql(`UPDATE public.payment_transactions SET created_at=now()-interval '10 days',paid_at=now()-interval '10 days',access_terms='{}' WHERE id='${old.order}';
+      UPDATE public.user_product_access SET access_granted_at=now()-interval '10 days', access_expires_at=now()+CASE WHEN product_id='${f.product}' THEN interval '80 days' WHEN product_id='${f.bundle}' THEN interval '110 days' ELSE interval '20 days' END WHERE user_id='${f.user}';`);
+    const original=f.access().access_expires_at;
+    backfill(f.user);
+    sql(`UPDATE public.products SET auto_grant_duration_days=7 WHERE id='${f.product}'; UPDATE public.products SET auto_grant_duration_days=30 WHERE id='${f.bundle}';`);
+    later=paidBundleAddon(f); f.refund(later.order,later.main);
+    expect(f.access()?.access_expires_at).toBe(original);
+  } finally { later?.cleanup(); old?.cleanup(); f.cleanup(); }
+});
