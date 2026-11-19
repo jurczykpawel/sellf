@@ -3269,7 +3269,11 @@ BEGIN
   IF TG_OP = 'UPDATE' AND current_setting('sellf.grant_source', true) = 'manual' THEN
     NEW.grant_source := 'manual';
     NEW.independent_access := jsonb_build_object('expiresAt', NEW.access_expires_at);
-  ELSIF TG_OP = 'INSERT' AND NEW.grant_source IN ('free', 'manual') THEN
+  ELSIF NEW.subscription_id IS NULL AND NEW.transfer_transaction_id IS NULL
+    AND nullif(current_setting('sellf.paid_order', true), '') IS NULL
+    AND nullif(current_setting('sellf.transfer_order', true), '') IS NULL
+    AND (current_setting('sellf.grant_source', true) IN ('purchase', 'bundle', 'free')
+      OR (TG_OP = 'INSERT' AND NEW.grant_source IN ('free', 'manual'))) THEN
     NEW.independent_access := jsonb_build_object('expiresAt', NEW.access_expires_at);
   ELSIF TG_OP = 'UPDATE' AND OLD.grant_source IN ('free', 'manual') AND OLD.independent_access IS NULL THEN
     NEW.independent_access := jsonb_build_object('expiresAt', OLD.access_expires_at);
@@ -3466,6 +3470,32 @@ BEGIN
 END $$;
 REVOKE EXECUTE ON FUNCTION public.revoke_order_bundle_components(uuid, uuid) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.revoke_order_bundle_components(uuid, uuid) TO service_role;
+
+CREATE OR REPLACE FUNCTION public.release_transfer_access() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE buyer uuid; product uuid;
+BEGIN
+  IF (NEW.status = 'cancelled' AND OLD.status = 'awaiting_payment')
+    OR (NEW.status = 'refunded' AND NEW.status IS DISTINCT FROM OLD.status) THEN
+    FOR buyer IN
+      SELECT NEW.user_id WHERE NEW.user_id IS NOT NULL
+      UNION SELECT claimed_by_user_id FROM public.guest_purchases
+        WHERE transaction_id = NEW.id AND claimed_by_user_id IS NOT NULL
+    LOOP
+      FOR product IN
+        SELECT NEW.product_id WHERE NEW.product_id IS NOT NULL
+        UNION SELECT product_id FROM public.payment_line_items WHERE transaction_id = NEW.id
+        UNION SELECT public.order_granted_components(NEW.id)
+      LOOP
+        PERFORM public.revoke_order_product_access(NEW.id, buyer, product);
+      END LOOP;
+      UPDATE public.user_product_access SET transfer_transaction_id = NULL
+      WHERE user_id = buyer AND transfer_transaction_id = NEW.id;
+    END LOOP;
+    DELETE FROM public.guest_purchases WHERE transaction_id = NEW.id;
+  END IF;
+  RETURN NEW;
+END $$;
 
 -- The grant primitive takes the order it grants for: a bundle bought in that order grants the
 -- components recorded for the order (recording them first if needed), so the grant and a later

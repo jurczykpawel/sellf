@@ -21,7 +21,7 @@ function fixture() {
     const id = randomUUID();
     sql(`INSERT INTO public.payment_transactions(id,product_id,user_id,customer_email,amount,currency,status,payment_provider,session_id,metadata,subscription_id,pricing_snapshot_version)
       VALUES('${id}','${productId}','${user}','${user}@example.com',4000,'PLN','${status}','${provider}',${provider === 'stripe' ? `'cs_${id.replaceAll('-', '')}'` : 'NULL'},'{"access_on_placement":true}',${subscriptionId ? `'${subscriptionId}'` : 'NULL'},1);`);
-    sql(`SELECT public.grant_product_and_bundle_components('${user}','${productId}',NULL,'${id}');`);
+    sql(`BEGIN; SELECT set_config('sellf.transfer_order','${status === 'awaiting_payment' ? id : ''}',true); SELECT public.grant_product_and_bundle_components('${user}','${productId}',NULL,'${id}'); COMMIT;`);
     return id;
   }
   function revoke(id: string, productId = product) {
@@ -31,7 +31,7 @@ function fixture() {
     sql(`UPDATE public.payment_transactions SET status='refunded',refunded_amount=amount WHERE id='${id}';`); revoke(id, productId);
   }
   return { user, product, bundle, access, buy, refund, revoke,
-    cleanup() { sql(`DELETE FROM public.payment_transactions WHERE user_id='${user}'; DELETE FROM public.subscriptions WHERE user_id='${user}'; DELETE FROM auth.users WHERE id='${user}'; DELETE FROM public.bundle_items WHERE bundle_product_id='${bundle}'; DELETE FROM public.products WHERE id IN ('${product}','${bundle}');`); } };
+    cleanup() { sql(`DELETE FROM public.payment_transactions WHERE product_id IN ('${product}','${bundle}'); DELETE FROM public.subscriptions WHERE user_id='${user}'; DELETE FROM auth.users WHERE id='${user}'; DELETE FROM public.bundle_items WHERE bundle_product_id='${bundle}'; DELETE FROM public.products WHERE id IN ('${product}','${bundle}');`); } };
 }
 
 it.each(['stripe', 'bank_transfer', 'free'])('restores the original %s component deadline after a later bundle refund @J34', source => {
@@ -86,5 +86,20 @@ it.each([false,true])('preserves the known legacy period after reducing the prod
     sql(migration.match(/-- Preserve known legacy periods\.([\s\S]*?)-- End legacy period preservation\./)?.[1] || 'SELECT 1;');
     const b = f.buy(); f.refund(b);
     expect(f.access()?.access_expires_at).toBe(original.access_expires_at);
+  } finally { f.cleanup(); }
+});
+
+it.each([false,true])('releases the unpaid placement period after a later purchase (guest=%s) @J182', guest => {
+  const f = fixture();
+  try {
+    const a = f.buy(f.product,'bank_transfer','awaiting_payment');
+    expect(f.access().transfer_transaction_id).toBe(a);
+    if (guest) sql(`UPDATE public.payment_transactions SET user_id=NULL WHERE id='${a}';
+      INSERT INTO public.guest_purchases(product_id,customer_email,session_id,transaction_id,transaction_amount,claimed_by_user_id,claimed_at)
+      VALUES('${f.product}','${f.user}@example.com',NULL,'${a}',4000,'${f.user}',now());`);
+    const b = f.buy(); expect(f.access().transfer_transaction_id).toBeNull();
+    const terms = JSON.parse(sql(`SELECT access_terms->'${f.user}:${f.product}' FROM public.payment_transactions WHERE id='${b}';`));
+    sql(`UPDATE public.payment_transactions SET status='cancelled' WHERE id='${a}';`);
+    expect(new Date(f.access().access_expires_at).getTime()).toBe(new Date(terms.expiresAt).getTime());
   } finally { f.cleanup(); }
 });
