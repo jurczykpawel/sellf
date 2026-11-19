@@ -39,7 +39,7 @@ for (const locale of ['en', 'pl']) {
     await page.goto(`/${locale}/checkout/${product.slug}?email=expiry-${randomUUID()}@example.com`);
     const opened = await (await startNativeCheckout(page)).json(); sessions.add(opened.checkoutSessionId);
     await page.locator('#fullName').fill('Recovery Buyer');
-    for (const checkbox of await page.locator('input[type=checkbox]').all()) if (await checkbox.isVisible() && !await checkbox.isChecked()) await checkbox.check();
+    for (const checkbox of await page.locator('input[type=checkbox][required]').all()) if (await checkbox.isVisible() && !await checkbox.isChecked()) await checkbox.check();
     const stripe = testStripe();
     await stripe.checkout.sessions.expire(opened.checkoutSessionId);
     const card = page.frameLocator('iframe[title="Secure payment input frame"][src*="elements-inner-payment"]');
@@ -70,7 +70,7 @@ for (const locale of ['en', 'pl']) {
     const opened = await (await startNativeCheckout(page)).json(); sessions.add(opened.checkoutSessionId);
     await page.locator('#checkoutEmail').fill('r'.repeat(255) + '@example.com');
     await page.locator('#fullName').fill('Email Buyer');
-    for (const checkbox of await page.locator('input[type=checkbox]').all()) if (await checkbox.isVisible() && !await checkbox.isChecked()) await checkbox.check();
+    for (const checkbox of await page.locator('input[type=checkbox][required]').all()) if (await checkbox.isVisible() && !await checkbox.isChecked()) await checkbox.check();
     await expect(page.locator('button[type=submit]')).toBeEnabled();
     await page.locator('button[type=submit]').click();
     const error = page.locator('#checkout-email-error');
