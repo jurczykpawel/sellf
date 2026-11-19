@@ -475,6 +475,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         clientSecret: checkoutSession.client_secret,
         checkoutSessionId: checkoutSession.id,
+      expiresInSeconds: Math.max(0, checkoutSession.expires_at - Math.floor(Date.now() / 1000)),
         bindingToken: signCheckoutBinding({
           stripeObjectId: checkoutSession.id,
           userId: user?.id ?? null,
@@ -922,6 +923,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           clientSecret,
           checkoutSessionId: reusable.id,
+          expiresInSeconds: Math.max(0, reusable.expires_at - Math.floor(Date.now() / 1000)),
           paymentIntentId: null,
           bindingToken: previousBindingToken,
         });
@@ -978,6 +980,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       clientSecret: checkoutSession.client_secret,
       checkoutSessionId: checkoutSession.id,
+      expiresInSeconds: Math.max(0, checkoutSession.expires_at - Math.floor(Date.now() / 1000)),
       paymentIntentId: null,
       bindingToken: checkoutBindingToken,
     });

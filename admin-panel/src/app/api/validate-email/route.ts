@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { DisposableEmailService } from '@/lib/services/disposable-email';
 import { checkRateLimit, checkRateLimitForIdentifier } from '@/lib/rate-limiting';
 import { canonicalizeEmailForBucket } from '@/lib/security/email-canonical';
-import { isValidEmailFormat } from '@/lib/validations/email-format';
+import { isValidEmailFormat, MAX_EMAIL_LENGTH } from '@/lib/validations/email-format';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 /**
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<EmailVali
         success: false,
         error: {
           message: 'Invalid email format',
-          code: 'VALIDATION_ERROR'
+          code: email.length > MAX_EMAIL_LENGTH ? 'EMAIL_TOO_LONG' : 'INVALID_EMAIL_FORMAT'
         },
         meta: {
           timestamp: new Date().toISOString(),

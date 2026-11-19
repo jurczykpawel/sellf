@@ -5533,6 +5533,78 @@
         "integration",
         "unit"
       ]
+    },
+    {
+      "id": "J710",
+      "title": "Expired event checkout restarts with current availability",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "event",
+        "payment": "abandoned",
+        "moment": "after_expiry",
+        "operation": "purchase"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Sees an expired-session message and can start a new checkout retaining buyer details.",
+        "seller": "A new session reserves an available seat again; no expired session is charged.",
+        "integrator": "Receives no purchase event for the expired attempt."
+      },
+      "layers": [
+        "unit",
+        "database",
+        "browser",
+        "sandbox"
+      ]
+    },
+    {
+      "id": "J711",
+      "title": "Email length validation is localized beside the checkout field",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "paid",
+        "payment": "none",
+        "moment": "after_edit",
+        "operation": "read"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Sees the localized email length error at the email field and clears it by editing.",
+        "seller": "No payment is attempted with an invalid email.",
+        "integrator": "No purchase event is emitted for failed email validation."
+      },
+      "layers": [
+        "unit",
+        "database",
+        "browser",
+        "sandbox"
+      ]
+    },
+    {
+      "id": "J712",
+      "title": "Reopening a paid session after a full refund shows a terminal refund",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "coupon_bump",
+        "payment": "refund",
+        "moment": "after_payment",
+        "operation": "read"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Sees Payment refunded in either locale.",
+        "seller": "Order remains refunded and no access is granted again.",
+        "integrator": "Verification returns refunded with HTTP 200 and does not repeat fulfillment."
+      },
+      "layers": [
+        "unit",
+        "database",
+        "browser",
+        "sandbox"
+      ]
     }
   ],
   "escapes": [

@@ -17,11 +17,12 @@ export interface CheckoutSessionTask<T extends CheckoutSessionIdentity> {
 
 export function createCheckoutSessionQueue<T extends CheckoutSessionIdentity>(
   expire: (identity: CheckoutSessionIdentity) => Promise<void>,
-): { update: (task: CheckoutSessionTask<T> | null, quiet?: boolean) => void; pause: () => void } {
+): { update: (task: CheckoutSessionTask<T> | null, quiet?: boolean) => Promise<void>; pause: () => void } {
   let desired: CheckoutSessionTask<T> | null = null;
   let identity: CheckoutSessionIdentity | null = null;
   let signature: string | null = null;
   let running = false;
+  let draining: Promise<void> = Promise.resolve();
   let quietExpiration = false;
   let paused = false;
   let applyOnReturn = false;
@@ -55,7 +56,7 @@ export function createCheckoutSessionQueue<T extends CheckoutSessionIdentity>(
         try {
           const received = await task.run(identity);
           result = received;
-          identity = received.clientSecret ? received : null;
+          identity = received.clientSecret ? { clientSecret: received.clientSecret, bindingToken: received.bindingToken, checkoutSessionId: received.checkoutSessionId } : null;
           signature = task.key;
           const latest = desired as CheckoutSessionTask<T> | null;
           if (latest?.key === task.key) { applyOnReturn = false; latest.apply(received); }
@@ -85,7 +86,8 @@ export function createCheckoutSessionQueue<T extends CheckoutSessionIdentity>(
       paused = false;
       quietExpiration = quiet;
       desired = task;
-      void drain();
+      if (!running) draining = drain();
+      return draining;
     },
     pause() {
       paused = true;

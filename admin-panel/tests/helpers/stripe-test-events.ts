@@ -94,8 +94,8 @@ export async function clearPaidCheckout(sessionId: string): Promise<void> {
   if (pi) await clearPaidIntent(pi);
   const lines = await stripe.checkout.sessions.listLineItems(sessionId);
   for (const line of lines.data) {
-    if (line.price) await stripe.prices.update(line.price.id, { active: false });
-    const product = line.price?.product;
+    if (line.price?.active) await stripe.prices.update(line.price.id, { active: false });
+    const product = line.price?.active ? line.price.product : null;
     if (product) await stripe.products.update(typeof product === 'string' ? product : product.id, { active: false });
   }
   if (session.customer) await stripe.customers.del(typeof session.customer === 'string' ? session.customer : session.customer.id);

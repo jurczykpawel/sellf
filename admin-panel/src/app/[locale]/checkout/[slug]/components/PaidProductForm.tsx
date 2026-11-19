@@ -61,6 +61,8 @@ import PwywSection from './PwywSection';
 
 interface CheckoutSessionResponse extends CheckoutSessionIdentity {
   freeAccess?: boolean;
+  expiresInSeconds?: number;
+  receivedAt?: number;
 }
 
 interface PaidProductFormProps {
@@ -131,6 +133,8 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const trackingFired = useRef(false);
   const checkoutTrackingFired = useRef(false);
   const confirmationPending = useRef(false);
+  const serverUpdate = useRef<((update: () => Promise<unknown>) => Promise<void>) | null>(null);
+  const registerServerUpdate = useCallback((runner: typeof serverUpdate.current) => { serverUpdate.current = runner; }, []);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [checkoutVisit, setCheckoutVisit] = useState(0);
@@ -145,6 +149,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const [error, setError] = useState<string | null>(null);
   const [eventNotice, setEventNotice] = useState<{ key: string; message: string } | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [sessionDeadline, setSessionDeadline] = useState<number | undefined>(undefined);
   const [bindingToken, setBindingToken] = useState<string | null>(null);
   const [checkoutSessionId, setCheckoutSessionId] = useState<string | null>(null);
   const [lastCheckoutSessionSignature, setLastCheckoutSessionSignature] = useState<string | null>(null);
@@ -451,11 +456,11 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
   // One request at a time; superseded responses remain available for replacement.
   useEffect(() => {
-    if (activeMethod !== 'online') {
+    if (paymentProcessing || activeMethod !== 'online' || coupon.isVerifyingCoupon) {
       sessionQueue.pause();
       return;
     }
-    if (eventNotice?.key === checkoutSessionSignature || !eventEmailReady || quantityInvalid || coupon.isVerifyingCoupon || !eventReady || !purchaseStarted || hasAccess || error || authLoading || isFunnelTest || isFreeAccess ||
+    if (eventNotice?.key === checkoutSessionSignature || !eventEmailReady || quantityInvalid || !eventReady || !purchaseStarted || hasAccess || error || authLoading || isFunnelTest || isFreeAccess ||
       !!customAmountError) {
       sessionQueue.update(null);
       return;
@@ -464,42 +469,58 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     sessionQueue.update({
       key: checkoutSessionSignature,
       run: async previous => {
-        const send = () => fetch('/api/create-payment-intent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            productId: product.id,
-            locale,
-            quantity,
-            sessionId: product.event_mode ? eventSessionId : undefined,
-            clientSecret: previous?.clientSecret,
-            bindingToken: previous?.bindingToken ?? undefined,
-            email: email?.trim() || undefined,
-            bumpProductIds: selectedBumpIds.size > 0 ? Array.from(selectedBumpIds) : undefined,
-            couponCode: coupon.appliedCoupon?.code,
-            successUrl: searchParams.get('success_url') || undefined,
-            customAmount: product.allow_custom_price ? customAmount : undefined,
-            customFieldValues: customFieldDefs.length > 0 ? customFieldValues : undefined,
-            repurchase: explicitRepurchase,
-            attribution: readBrowserAttribution(),
-          }),
-        });
-        let response = await send();
-        // Another update of the same session is still running (e.g. a second tab): retry shortly.
-        for (let attempt = 1; response.status === 409 && !product.event_mode && attempt <= 5; attempt++) {
-          const busy = await response.clone().json().catch(() => ({})) as { code?: string };
-          if (busy.code !== CHECKOUT_UPDATE_IN_PROGRESS) break;
-          await new Promise(resolve => setTimeout(resolve, 500 * attempt));
-          response = await send();
-        }
-        if (!response.ok) {
-          const data = await response.json().catch(() => ({}));
-          if (product.event_mode && (response.status === 409 || response.status === 429)) {
-            throw Object.assign(new Error(eventText(response.status === 429 ? 'holdLimit' : data.error === 'sold_out' ? 'soldOut' : 'priceChanged')), { eventAvailability: true });
+        const update = async () => {
+          const signal = AbortSignal.timeout(15000);
+          const send = () => fetch('/api/create-payment-intent', {
+            signal,
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              productId: product.id,
+              locale,
+              quantity,
+              sessionId: product.event_mode ? eventSessionId : undefined,
+              clientSecret: previous?.clientSecret,
+              bindingToken: previous?.bindingToken ?? undefined,
+              email: email?.trim() || undefined,
+              bumpProductIds: selectedBumpIds.size > 0 ? Array.from(selectedBumpIds) : undefined,
+              couponCode: coupon.appliedCoupon?.code,
+              successUrl: searchParams.get('success_url') || undefined,
+              customAmount: product.allow_custom_price ? customAmount : undefined,
+              customFieldValues: customFieldDefs.length > 0 ? customFieldValues : undefined,
+              repurchase: explicitRepurchase,
+              attribution: readBrowserAttribution(),
+            }),
+          });
+          let response = await send();
+          // Another update of the same session is still running (e.g. a second tab): retry shortly.
+          for (let attempt = 1; response.status === 409 && !product.event_mode && attempt <= 5; attempt++) {
+            const busy = await response.clone().json().catch(() => ({})) as { code?: string };
+            if (busy.code !== CHECKOUT_UPDATE_IN_PROGRESS) break;
+            await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+            response = await send();
           }
-          throw Object.assign(new Error(getCheckoutRequestError(response.status, data.error, t('createSessionError'), t('requestRateLimit'), { code: data.code, messages: { AMOUNT_BELOW_MINIMUM: t('amountBelowMinimum'), COUPON_OWNED_PRODUCT: t('couponOwnedProduct'), MAINTENANCE: t('shopMaintenance'), [CHECKOUT_UPDATE_IN_PROGRESS]: t('createSessionError') } })), { details: data.details });
+          if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            if (product.event_mode && (response.status === 409 || response.status === 429)) {
+              throw Object.assign(new Error(eventText(response.status === 429 ? 'holdLimit' : data.error === 'sold_out' ? 'soldOut' : 'priceChanged')), { eventAvailability: true });
+            }
+            throw Object.assign(new Error(getCheckoutRequestError(response.status, data.error, t('createSessionError'), t('requestRateLimit'), { code: data.code, messages: { AMOUNT_BELOW_MINIMUM: t('amountBelowMinimum'), COUPON_OWNED_PRODUCT: t('couponOwnedProduct'), MAINTENANCE: t('shopMaintenance'), [CHECKOUT_UPDATE_IN_PROGRESS]: t('createSessionError') } })), { details: data.details });
+          }
+          const data = await response.json() as CheckoutSessionResponse;
+          return { ...data, receivedAt: performance.now() };
+        };
+        const runner = previous?.clientSecret === clientSecret ? serverUpdate.current : null;
+        if (!runner) return update();
+        let updated: CheckoutSessionResponse | undefined;
+        try {
+          await runner(async () => { updated = await update(); });
+        } catch (error) {
+          // A replacement session is mounted separately; refreshing the old one may fail.
+          if (!updated?.clientSecret || updated.clientSecret === previous?.clientSecret) throw error;
         }
-        return await response.json() as CheckoutSessionResponse;
+        if (!updated) throw new Error(t('createSessionError'));
+        return updated;
       },
       apply: data => {
         setEventNotice(null);
@@ -512,6 +533,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
         setClientSecret(data.clientSecret ?? null);
         setCheckoutSessionId(data.checkoutSessionId ?? null);
         setBindingToken(data.bindingToken ?? null);
+        setSessionDeadline(data.expiresInSeconds === undefined ? undefined : (data.receivedAt ?? performance.now()) + data.expiresInSeconds * 1000);
       },
       fail: err => {
         if (err instanceof Error && 'eventAvailability' in err) {
@@ -534,11 +556,11 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       },
     });
   }, [
-    activeMethod, coupon.isVerifyingCoupon, quantityInvalid, checkoutVisit, eventNotice,
+    paymentProcessing, activeMethod, coupon.isVerifyingCoupon, quantityInvalid, checkoutVisit, eventNotice,
     eventReady, eventEmailReady, eventSessionId, refreshEvents, eventText, purchaseStarted, hasAccess, error, authLoading,
     product, email, locale, quantity, selectedBumpIds, coupon.appliedCoupon, searchParams, t,
     customAmount, customAmountError, isFunnelTest, isFreeAccess, grantAccess,
-    checkoutSessionSignature, explicitRepurchase, sessionQueue, customFieldDefs, customFieldValues,
+    checkoutSessionSignature, explicitRepurchase, sessionQueue, customFieldDefs, customFieldValues, clientSecret,
   ]);
 
   const handleSignOutAndCheckout = async () => {
@@ -593,6 +615,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
         </div>
       )}
 
+      <fieldset disabled={paymentProcessing}>
       {(!isSubscription || isPwywSubscription) && (
         <PwywSection
           product={product}
@@ -651,6 +674,8 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
         />
       )}
 
+      </fieldset>
+
       {/* Checkout Card */}
       {!(isFreeAccess && !error && !hasAccess) && (
         <div className="bg-sf-raised backdrop-blur-md rounded-2xl p-4 sm:p-6 border border-sf-border relative overflow-hidden">
@@ -661,7 +686,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           <h2 className="text-xl font-semibold text-sf-heading mb-4">{t('purchaseTitle')}</h2>
 
           {product.event_mode && <>
-            <EventSessions sessions={eventSessions} currency={product.currency} selected={eventSessionId} onSelect={id => { setEventSessionId(id); setError(null); }} />
+            <fieldset disabled={paymentProcessing}><EventSessions sessions={eventSessions} currency={product.currency} selected={eventSessionId} onSelect={id => { setEventSessionId(id); setError(null); }} /></fieldset>
             {eventLoadError && <p role="alert">{eventText('loadError')}</p>}
             {eventNotice?.key === checkoutSessionSignature && <div role="alert" className="mb-4 text-sf-danger">
               <p>{eventNotice.message}</p>
@@ -757,9 +782,9 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           )}
           {trialDays && searchParams.get('coupon') && <p role="status" className="my-3 text-sm text-sf-body">{t('trial.unsupportedCoupon')}</p>}
 
-          {!isFunnelTest && !error && !hasAccess && !isFreeAccess && activeMethod === 'online' && purchaseStarted && !quantityInvalid && !customAmountError && (!clientSecret || lastCheckoutSessionSignature !== checkoutSessionSignature) && <PaymentFormSkeleton />}
+          {!isFunnelTest && !error && !hasAccess && !isFreeAccess && activeMethod === 'online' && purchaseStarted && !quantityInvalid && !customAmountError && !clientSecret && <PaymentFormSkeleton />}
 
-          {!isFunnelTest && !error && !hasAccess && !isFreeAccess && stripePromise && clientSecret && lastCheckoutSessionSignature === checkoutSessionSignature && (
+          {!isFunnelTest && !error && !hasAccess && !isFreeAccess && stripePromise && clientSecret && (
             <div hidden={activeMethod !== 'online'}><CheckoutElementsProvider
               key={`${product.id}-${checkoutSessionId || clientSecret}-${resolvedTheme}`}
               stripe={stripePromise}
@@ -785,7 +810,9 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
               <CustomPaymentForm
                 termsAccepted={termsAccepted}
                 onTermsAcceptedChange={setTermsAccepted}
-                quantityInvalid={quantityInvalid}
+                cartSignature={checkoutSessionSignature}
+                quantityInvalid={quantityInvalid || coupon.isVerifyingCoupon || lastCheckoutSessionSignature !== checkoutSessionSignature}
+                onRegisterServerUpdate={registerServerUpdate}
                 product={product}
                 email={user?.email ?? formEmail ?? email}
                 invoice={invoice}
@@ -799,6 +826,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 customAmountError={product.allow_custom_price ? customAmountError : null}
                 clientSecret={clientSecret || undefined}
                 bindingToken={bindingToken || undefined}
+                sessionDeadline={sessionDeadline}
                 onConfirmationChange={handleConfirmationChange}
                 pricing={pricing}
                 paymentMethodOrder={paymentMethodOrder}
@@ -811,6 +839,17 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 isGuest={!user}
                 collectTermsOfService={collectTermsOfService}
                 collectInvoiceRecipient={collectInvoiceRecipient}
+                onSessionExpired={async () => {
+                  confirmationPending.current = false;
+                  setPaymentProcessing(false);
+                  await sessionQueue.update(null);
+                  if (product.event_mode) await refreshEvents();
+                  setClientSecret(null);
+                  setBindingToken(null);
+                  setCheckoutSessionId(null);
+                  setLastCheckoutSessionSignature(null);
+                  setCheckoutVisit(value => value + 1);
+                }}
                 onCouponUnavailable={coupon.invalidateCoupon}
               />
             </CheckoutElementsProvider></div>
