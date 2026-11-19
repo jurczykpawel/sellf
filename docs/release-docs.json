@@ -591,5 +591,26 @@
   ],
   "500755e300eea7b7bb32ce0afdf546ee20aeae79": [
     "guided-tutorials.md"
+  ],
+  "11664fee0575b6517c5a8deced2748329e1f6127": [
+    "none \u2014 Internal row update ordering; sale quantities, pricing and public behavior are unchanged."
+  ],
+  "e4a62a60e98bd8bfbb184a50ef22a5aedef234c6": [
+    "configuration.md"
+  ],
+  "64634f51f51afbe57946d81ee614350dc329e132": [
+    "custom-checkout.md"
+  ],
+  "23eaa5530115748574dc4b8e47f9ce44fd965bd8": [
+    "none \u2014 Internal notification builder cleanup; committed event tiers and public payload fields are unchanged."
+  ],
+  "a7be48a64ff6c6ccde6692123ee91522959ce86e": [
+    "custom-checkout.md"
+  ],
+  "4e5df2e6161bc529f99cc3932d1d0839225056f1": [
+    "none \u2014 Test-only signing configuration isolation; application behavior is unchanged."
+  ],
+  "459ef6c802573a0874c5ea7e9ce7cc1d082dd049": [
+    "none \u2014 Test-only local database availability guard; application behavior is unchanged."
   ]
 }

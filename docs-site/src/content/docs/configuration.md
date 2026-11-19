@@ -176,6 +176,6 @@ Before an update or shop maintenance, enable a break from the panel or a server 
 
 ## Coupon and co-creator form validation
 
-Coupon forms show errors beside the fields and scroll to and focus the first error on save. An empty usage limit means unlimited; a supplied limit must be a whole number from 1 to 10,000,000 globally or 1 to 10,000 per buyer. Zero stays visible and must be corrected or cleared. Names allow up to 200 characters; long names are shortened in the list, with the full name available on hover. Email restrictions accept valid addresses only; an invalid address is explained before adding it to the list.
+Coupon forms show errors beside the fields and scroll to and focus the first error on save. An empty usage limit means unlimited; a supplied limit must be a whole number from 1 to 10,000,000 globally or 1 to 10,000 per buyer. Zero stays visible and must be corrected or cleared. Names allow up to 200 characters; long names are shortened in the list, with the full name available on hover. Email restrictions accept valid addresses only; an invalid address is explained before adding it to the list. A saved invalid address is marked on its chip as well; remove it to clear the error and save.
 
 Co-creator fields validate email and share separately. Percentage shares must be 0.01–100% with at most two decimal places. Fixed shares must be positive, use the currency’s precision and stay within the maximum shown next to the invalid field. Invalid fields prevent saving; account-status errors appear only after the server responds.
