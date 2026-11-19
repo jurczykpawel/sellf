@@ -4462,6 +4462,8 @@
     "saleQuantityRemaining": "Tylko {count} szt. w tej cenie!"
   },
   "myPurchases": {
+    "statusCancelled": "Anulowane — nie opłacaj tego zamówienia",
+    "statusAwaitingPayment": "Oczekuje na przelew",
     "title": "Moje Zakupy",
     "subtitle": "Przeglądaj historię zakupów i zarządzaj zwrotami",
     "loading": "Ładowanie zakupów...",

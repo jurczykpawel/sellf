@@ -4462,6 +4462,8 @@
     "saleQuantityRemaining": "Only {count} left at this price!"
   },
   "myPurchases": {
+    "statusCancelled": "Cancelled — do not pay this order",
+    "statusAwaitingPayment": "Awaiting bank transfer",
     "title": "My Purchases",
     "subtitle": "View your purchase history and manage refunds",
     "loading": "Loading purchases...",

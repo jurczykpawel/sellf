@@ -210,6 +210,12 @@ export default function MyPurchasesPage() {
   };
 
   const getStatusBadge = (purchase: UserPurchase) => {
+    if (purchase.status === 'cancelled') {
+      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-sf-danger-soft text-sf-danger">{t('statusCancelled')}</span>;
+    }
+    if (purchase.status === 'awaiting_payment') {
+      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-sf-warning-soft text-sf-warning">{t('statusAwaitingPayment')}</span>;
+    }
     if (purchase.status === 'refunded') {
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-sf-raised text-sf-heading">
