@@ -12,7 +12,7 @@
 'use client';
 
 import { currencyExponent } from '@/lib/currency/minor-units';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AffiliateCouponEditor } from '@/components/affiliates/products/Settings';
 import { Coupon, CouponFormData } from '@/types/coupon';
 import { Product } from '@/types';
@@ -82,6 +82,14 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
     currency: formData.currency, allowed_product_ids: formData.allowed_product_ids,
   });
   const [emailInput, setEmailInput] = useState('');
+  const formRef = useRef<HTMLFormElement>(null);
+  const [rejections, setRejections] = useState(0);
+  useEffect(() => {
+    if (!rejections) return;
+    const field = formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
+    field?.scrollIntoView?.({ block: 'center' });
+    field?.focus();
+  }, [rejections]);
   const [submitted, setSubmitted] = useState(false);
   const codeInvalid = !/^[A-Za-z0-9_-]{1,50}$/.test(formData.code || '');
   const valueInvalid = couponValueError(formData.discount_type || '', formData.discount_value ?? NaN, formData.currency || defaultCurrency) !== null;
@@ -109,7 +117,8 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitted(true);
-    if (!currencyLoaded || codeInvalid || valueInvalid) return;
+    if (!currencyLoaded) return;
+    if (codeInvalid || valueInvalid) { setRejections(count => count + 1); return; }
     if (!e.currentTarget.reportValidity()) return;
     
     // Ensure currency is null for percentage discounts to satisfy DB constraint
@@ -161,7 +170,7 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
 
         <div className="px-6 pt-6"><AffiliateCouponEditor couponId={editingCoupon?.id} /></div>
 
-        <form noValidate onSubmit={handleSubmit} className="p-6 space-y-8">
+        <form ref={formRef} noValidate onSubmit={handleSubmit} className="p-6 space-y-8">
           {/* Section: Basic Info */}
           <div className="space-y-4">
             <h3 className="text-sm font-semibold text-sf-heading uppercase tracking-wider border-b border-sf-border pb-2">

@@ -35,3 +35,11 @@ it('keeps the typed coupon code and explains spaces instead of silently normaliz
   expect(code.getAttribute('aria-invalid')).toBe('true');
   expect(document.getElementById(code.getAttribute('aria-describedby')!)?.textContent).toBe(messages.admin.coupons.form.codeInvalid);
 });
+it('focuses and reveals the code when saving an empty coupon from the footer', async () => {
+  const { form, code } = await setup();
+  const scroll = vi.fn(); code.scrollIntoView = scroll;
+  screen.getByRole('button', { name: pl.admin.coupons.form.save }).focus();
+  fireEvent.submit(form);
+  await vi.waitFor(() => expect(document.activeElement).toBe(code));
+  expect(scroll).toHaveBeenCalled();
+});
