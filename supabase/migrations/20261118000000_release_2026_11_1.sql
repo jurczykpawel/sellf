@@ -3267,9 +3267,11 @@ BEGIN
       WHERE p.id = p_product_id AND p.id IN (SELECT public.order_granted_components(txid))
   ) periods;
   term := coalesce(restored, jsonb_build_object('grantedAt', now(), 'expiresAt',
-    CASE WHEN p_duration IS NULL THEN NULL ELSE now() + make_interval(days => p_duration) END));
-  UPDATE public.payment_transactions SET access_terms = access_terms || jsonb_build_object(term_key, term)
-    WHERE id = txid AND NOT access_terms ? term_key;
+    CASE WHEN p_duration IS NULL THEN NULL ELSE now() + make_interval(days => p_duration) END))
+    || (SELECT jsonb_build_object('grantVersion', a.version, 'grantExpiresAt', a.access_expires_at)
+      FROM public.user_product_access a WHERE a.user_id = p_user_id AND a.product_id = p_product_id);
+  UPDATE public.payment_transactions SET access_terms = access_terms || jsonb_build_object(term_key,
+    coalesce(access_terms->term_key, term) || (term - 'grantedAt' - 'expiresAt')) WHERE id = txid;
 END $$;
 REVOKE EXECUTE ON FUNCTION public.record_order_access_term(uuid, uuid, integer) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.record_order_access_term(uuid, uuid, integer) TO service_role;
@@ -3310,7 +3312,7 @@ END $$;
 CREATE FUNCTION public.revoke_order_product_access(p_transaction_id uuid, p_user_id uuid, p_product_id uuid) RETURNS boolean
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE t public.payment_transactions; current_access public.user_product_access;
-  remaining integer; permanent boolean; expires timestamptz; removed integer; suspended boolean;
+  remaining integer; permanent boolean; expires timestamptz; removed integer; suspended boolean; pending_disputes text[]; next_version integer;
 BEGIN
   IF (select auth.role()) IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'Service role required' USING ERRCODE = '42501';
@@ -3319,9 +3321,18 @@ BEGIN
   IF NOT FOUND OR p_user_id IS NULL THEN RETURN false; END IF;
   SELECT * INTO current_access FROM public.user_product_access WHERE user_id = p_user_id AND product_id = p_product_id FOR UPDATE;
   IF NOT FOUND THEN RETURN false; END IF;
-  SELECT EXISTS (SELECT 1 FROM public.payment_disputes d JOIN public.payment_transactions disputed ON disputed.id = d.transaction_id
-    WHERE NOT d.closed AND d.status <> 'won' AND disputed.status = 'disputed' AND d.transaction_id <> t.id
-    AND d.suspended_at = current_access.access_expires_at AND d.account_access @> jsonb_build_array(jsonb_build_object('id', current_access.id))) INTO suspended;
+  SELECT array_agg(d.stripe_dispute_id) INTO pending_disputes FROM public.payment_disputes d
+  WHERE NOT d.closed AND d.status <> 'won' AND EXISTS (
+    SELECT 1 FROM jsonb_array_elements(d.account_access) item WHERE item->>'id' = current_access.id::text
+      AND (d.suspended_at = current_access.access_expires_at
+        OR ((item->>'retainedVersion')::integer = current_access.version
+          AND current_access.access_expires_at IS NOT DISTINCT FROM (item->>'retainedExpiresAt')::timestamptz)
+        OR EXISTS (SELECT 1 FROM public.payment_transactions o
+          WHERE (o.access_terms->(p_user_id::text || ':' || p_product_id::text)->>'grantVersion')::integer = current_access.version
+            AND (o.access_terms->(p_user_id::text || ':' || p_product_id::text)->>'grantedAt')::timestamptz = current_access.access_granted_at
+            AND current_access.access_expires_at IS NOT DISTINCT FROM
+              (o.access_terms->(p_user_id::text || ':' || p_product_id::text)->>'grantExpiresAt')::timestamptz)));
+  suspended := coalesce(cardinality(pending_disputes), 0) > 0;
   WITH sources AS (
     SELECT public.order_access_expiry(o.id, p_user_id, p_product_id) AS ends_at
     FROM public.payment_transactions o
@@ -3362,20 +3373,24 @@ BEGIN
   IF remaining > 0 THEN
     expires := CASE WHEN permanent THEN NULL ELSE expires END;
     IF NOT suspended THEN expires := least(current_access.access_expires_at, expires); END IF;
-    UPDATE public.user_product_access SET access_expires_at = expires,
-      expiry_notified_at = NULL, version = version + 1
-    WHERE user_id = p_user_id AND product_id = p_product_id
-      AND access_expires_at IS DISTINCT FROM expires;
-    RETURN false;
+  ELSIF suspended THEN
+    SELECT max(greatest(current_access.access_granted_at, d.suspended_at)) INTO expires
+    FROM public.payment_disputes d JOIN public.payment_transactions o ON o.id = d.transaction_id
+    WHERE d.stripe_dispute_id = ANY(pending_disputes) AND d.transaction_id <> t.id AND o.status = 'disputed';
   END IF;
-  IF suspended THEN
-    UPDATE public.payment_disputes d SET account_access = (
-      SELECT jsonb_agg(CASE WHEN item->>'id' = current_access.id::text THEN
-        jsonb_set(item, '{access_expires_at}', coalesce(to_jsonb(least((item->>'access_expires_at')::timestamptz,
-          public.order_access_expiry(d.transaction_id, p_user_id, p_product_id))), 'null'::jsonb)) ELSE item END)
-      FROM jsonb_array_elements(d.account_access) item)
-    WHERE NOT d.closed AND d.status <> 'won' AND d.suspended_at = current_access.access_expires_at
-      AND d.account_access @> jsonb_build_array(jsonb_build_object('id', current_access.id));
+  IF remaining > 0 OR expires IS NOT NULL THEN
+    next_version := current_access.version + CASE WHEN current_access.access_expires_at IS DISTINCT FROM expires THEN 1 ELSE 0 END;
+    UPDATE public.user_product_access SET access_expires_at = expires, expiry_notified_at = NULL, version = next_version
+    WHERE user_id = p_user_id AND product_id = p_product_id AND access_expires_at IS DISTINCT FROM expires;
+    IF suspended THEN
+      UPDATE public.payment_disputes d SET account_access = (
+        SELECT jsonb_agg(CASE WHEN item->>'id' = current_access.id::text THEN
+          jsonb_set(item, '{access_expires_at}', coalesce(to_jsonb(least((item->>'access_expires_at')::timestamptz,
+            public.order_access_expiry(d.transaction_id, p_user_id, p_product_id))), 'null'::jsonb))
+            || jsonb_build_object('retainedVersion', next_version, 'retainedExpiresAt', expires, 'retainedDuration', current_access.access_duration_days) ELSE item END)
+        FROM jsonb_array_elements(d.account_access) item)
+      WHERE d.stripe_dispute_id = ANY(pending_disputes);
+    END IF;
     RETURN false;
   END IF;
   DELETE FROM public.user_product_access WHERE user_id = p_user_id AND product_id = p_product_id;
@@ -3573,7 +3588,7 @@ DECLARE
   d public.payment_disputes;
   original jsonb; item jsonb; result jsonb; product_ids uuid[]; buyer_ids uuid[];
   stamp timestamptz := now();
-  restored_access jsonb := '[]'; term record;
+  restored_access jsonb := '[]'; term record; restored_until timestamptz;
   restored boolean := false; changed integer; entitled boolean; can_restore boolean;
   next_status text; stripe_subscription text;
   license record; restored_license public.issued_licenses; restored_licenses jsonb:='[]'; can_restore_license boolean;
@@ -3667,15 +3682,22 @@ BEGIN
       PERFORM set_config('sellf.event_context','{"reason":"dispute_won"}',true);
       FOR item IN SELECT value FROM jsonb_array_elements(d.account_access) LOOP
         IF item->>'access_expires_at' IS NULL OR (item->>'access_expires_at')::timestamptz>stamp THEN
-          UPDATE public.user_product_access SET access_expires_at=(item->>'access_expires_at')::timestamptz,
+          UPDATE public.user_product_access a SET access_expires_at=CASE WHEN item ? 'retainedVersion' THEN
+              CASE WHEN a.access_expires_at IS NULL OR item->>'access_expires_at' IS NULL THEN NULL
+                ELSE greatest(a.access_expires_at, (item->>'access_expires_at')::timestamptz) END
+              ELSE (item->>'access_expires_at')::timestamptz END,
             expiry_notified_at=(item->>'expiry_notified_at')::timestamptz
-            WHERE id=(item->>'id')::uuid AND access_expires_at=d.suspended_at
+            WHERE id=(item->>'id')::uuid AND (access_expires_at=d.suspended_at
+              OR (version=(item->>'retainedVersion')::integer
+                AND access_expires_at IS NOT DISTINCT FROM (item->>'retainedExpiresAt')::timestamptz))
               AND user_id=(item->>'user_id')::uuid AND product_id=(item->>'product_id')::uuid
               AND subscription_id IS NOT DISTINCT FROM (item->>'subscription_id')::uuid
-              AND access_duration_days IS NOT DISTINCT FROM (item->>'access_duration_days')::integer;
+              AND access_duration_days IS NOT DISTINCT FROM CASE WHEN item ? 'retainedVersion'
+                THEN (item->>'retainedDuration')::integer ELSE (item->>'access_duration_days')::integer END
+            RETURNING a.access_expires_at INTO restored_until;
           GET DIAGNOSTICS changed=ROW_COUNT; restored := restored OR changed>0;
           IF changed>0 THEN restored_access:=restored_access||jsonb_build_array(jsonb_build_object(
-            'productId',item->'product_id','userId',item->'user_id','grantedAt',item->'access_granted_at','expiresAt',item->'access_expires_at')); END IF;
+            'productId',item->'product_id','userId',item->'user_id','grantedAt',item->'access_granted_at','expiresAt',restored_until)); END IF;
         END IF;
       END LOOP;
       FOR item IN SELECT value FROM jsonb_array_elements(d.guest_access) LOOP

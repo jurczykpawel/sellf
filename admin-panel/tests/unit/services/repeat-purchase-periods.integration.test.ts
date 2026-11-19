@@ -129,3 +129,40 @@ it('records claimed add-ons against the claim when a prior fulfillment context e
     SELECT public.claim_guest_purchases_for_user('${buyer}');
     ${assertion(`(SELECT access_terms ? '${buyer}:${product}' FROM public.payment_transactions WHERE id='${b}')`)}`)).not.toThrow();
 });
+
+it('retains the other purchase when refunding the disputed order itself @J34', () => {
+  expect(() => run(`${order(a)}${grant(a)}${order(b)}${grant(b)}${apply(created,false)}${refund(a)}
+    ${assertion(`EXISTS(${access} AND access_expires_at=now()+interval '30 days')`)}`)).not.toThrow();
+});
+it.each([10,120])('restores the won period alongside a remaining %s-day purchase after a refund @J34', days => {
+  const third = 'e2970000-0000-4000-a000-000000000006';
+  expect(() => run(`UPDATE public.products SET auto_grant_duration_days=90 WHERE id='${product}';
+    ${order(a)}${grant(a)} UPDATE public.products SET auto_grant_duration_days=${days} WHERE id='${product}';
+    ${order(b)}${grant(b)} UPDATE public.products SET auto_grant_duration_days=30 WHERE id='${product}';
+    ${order(third)}${grant(third)}${apply(created,false)}${refund(third)}
+    ${assertion(`EXISTS(${access} AND access_expires_at=now()+interval '${days} days')`)}
+    ${refund(third)}${apply(won,true)}${assertion(`EXISTS(${access} AND access_expires_at=now()+interval '${Math.max(days,90)} days')`)}`)).not.toThrow();
+});
+it('keeps the disputed period after refunding a purchase made during the dispute @J34', () => {
+  expect(() => run(`UPDATE public.products SET auto_grant_duration_days=90 WHERE id='${product}';
+    ${order(a)}${grant(a)}${apply(created,false)}
+    UPDATE public.products SET auto_grant_duration_days=30 WHERE id='${product}';
+    ${order(b)}${grant(b)}${refund(b)}${apply(won,true)}
+    ${assertion(`EXISTS(${access} AND access_expires_at=now()+interval '90 days')`)}`)).not.toThrow();
+});
+it('respects a manual deadline applied after a refund during a dispute @J34', () => {
+  const third = 'e2970000-0000-4000-a000-000000000006';
+  expect(() => run(`UPDATE public.products SET auto_grant_duration_days=90 WHERE id='${product}';
+    ${order(a)}${grant(a)}${order(b)}${grant(b)}${order(third)}${grant(third)}${apply(created,false)}${refund(third)}
+    UPDATE public.user_product_access SET access_expires_at=now()+interval '5 days' WHERE user_id='${buyer}' AND product_id='${product}';
+    ${apply(won,true)}${assertion(`EXISTS(${access} AND access_expires_at=now()+interval '5 days')`)}`)).not.toThrow();
+});
+
+it('respects a manual duration edit after a refund during a dispute @J34', () => {
+  const third = 'e2970000-0000-4000-a000-000000000006';
+  expect(() => run(`UPDATE public.products SET auto_grant_duration_days=90 WHERE id='${product}';
+    ${order(a)}${grant(a)} UPDATE public.products SET auto_grant_duration_days=10 WHERE id='${product}';
+    ${order(b)}${grant(b)}${order(third)}${grant(third)}${apply(created,false)}${refund(third)}
+    UPDATE public.user_product_access SET access_duration_days=5 WHERE user_id='${buyer}' AND product_id='${product}';
+    ${apply(won,true)}${assertion(`EXISTS(${access} AND access_expires_at=now()+interval '10 days' AND access_duration_days=5)`)}`)).not.toThrow();
+});
