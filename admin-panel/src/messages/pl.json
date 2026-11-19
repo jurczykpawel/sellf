@@ -1304,6 +1304,8 @@
     }
   },
   "productView": {
+    "videoLoading": "Ładowanie filmu…",
+    "videoUnavailable": "Film jest niedostępny",
     "emailTooLong": "Adres e-mail może mieć maksymalnie 254 znaki.",
     "loading": "Ładowanie...",
     "checkingAccess": "Sprawdzanie Twojego dostępu do tego produktu...",

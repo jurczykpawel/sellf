@@ -1304,6 +1304,8 @@
     }
   },
   "productView": {
+    "videoLoading": "Loading video…",
+    "videoUnavailable": "Video unavailable",
     "emailTooLong": "Email address must be at most 254 characters.",
     "loading": "Loading...",
     "checkingAccess": "Checking your access to this product...",
