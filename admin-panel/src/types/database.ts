@@ -4443,6 +4443,7 @@ export type Database = {
           paid_access_invoice_id: string | null
           product_id: string | null
           product_name: string | null
+          product_summary: Json | null
           renewal_notice_at: string | null
           renewal_notice_payload: Json | null
           status: string
@@ -4466,6 +4467,7 @@ export type Database = {
           paid_access_invoice_id?: string | null
           product_id?: string | null
           product_name?: string | null
+          product_summary?: Json | null
           renewal_notice_at?: string | null
           renewal_notice_payload?: Json | null
           status: string
@@ -4489,6 +4491,7 @@ export type Database = {
           paid_access_invoice_id?: string | null
           product_id?: string | null
           product_name?: string | null
+          product_summary?: Json | null
           renewal_notice_at?: string | null
           renewal_notice_payload?: Json | null
           status?: string
@@ -7131,6 +7134,14 @@ export type Database = {
           changed: boolean
           id: string
         }[]
+      }
+      revoke_order_product_access: {
+        Args: {
+          p_product_id: string
+          p_transaction_id: string
+          p_user_id: string
+        }
+        Returns: boolean
       }
       rotate_webhook_secret: {
         Args: {

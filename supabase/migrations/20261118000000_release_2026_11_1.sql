@@ -714,6 +714,26 @@ ALTER TABLE public.subscriptions ALTER COLUMN product_id DROP NOT NULL,
   DROP CONSTRAINT subscriptions_product_id_fkey,
   ADD CONSTRAINT subscriptions_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE SET NULL;
 
+-- Subscription receipts keep their purchased summary when the offer leaves the catalogue.
+ALTER TABLE public.subscriptions ADD COLUMN product_summary jsonb;
+CREATE FUNCTION public.snapshot_subscription_product() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  IF TG_OP = 'UPDATE' AND OLD.product_summary IS NOT NULL THEN
+    NEW.product_summary := OLD.product_summary;
+  ELSIF NEW.product_summary IS NULL THEN
+    SELECT jsonb_build_object('id', p.id, 'name', coalesce(NEW.product_name, p.name), 'slug', p.slug,
+      'currency', p.currency, 'recurring_price', p.recurring_price,
+      'billing_interval', p.billing_interval, 'billing_interval_count', p.billing_interval_count)
+    INTO NEW.product_summary FROM public.products p WHERE p.id = NEW.product_id;
+  END IF;
+  RETURN NEW;
+END $$;
+REVOKE EXECUTE ON FUNCTION public.snapshot_subscription_product() FROM PUBLIC, anon, authenticated;
+CREATE TRIGGER snapshot_subscription_product BEFORE INSERT OR UPDATE ON public.subscriptions
+  FOR EACH ROW EXECUTE FUNCTION public.snapshot_subscription_product();
+UPDATE public.subscriptions SET product_summary = NULL WHERE product_id IS NOT NULL;
+
 -- Past reservations are detached from the deleted sessions by remove_product_as; the session
 -- foreign keys keep blocking the removal of a reserved session through a product edit.
 ALTER TABLE public.seat_reservations ALTER COLUMN session_id DROP NOT NULL, ALTER COLUMN tier_id DROP NOT NULL;

@@ -13102,6 +13102,29 @@ END $$;
 ALTER FUNCTION public.snapshot_purchase_product_name() OWNER TO postgres;
 
 --
+-- Name: snapshot_subscription_product(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.snapshot_subscription_product() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+BEGIN
+  IF TG_OP = 'UPDATE' AND OLD.product_summary IS NOT NULL THEN
+    NEW.product_summary := OLD.product_summary;
+  ELSIF NEW.product_summary IS NULL THEN
+    SELECT jsonb_build_object('id', p.id, 'name', coalesce(NEW.product_name, p.name), 'slug', p.slug,
+      'currency', p.currency, 'recurring_price', p.recurring_price,
+      'billing_interval', p.billing_interval, 'billing_interval_count', p.billing_interval_count)
+    INTO NEW.product_summary FROM public.products p WHERE p.id = NEW.product_id;
+  END IF;
+  RETURN NEW;
+END $$;
+
+
+ALTER FUNCTION public.snapshot_subscription_product() OWNER TO postgres;
+
+--
 -- Name: stamp_original_seller_id(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -16052,6 +16075,7 @@ CREATE TABLE public.subscriptions (
     paid_access_expires_at timestamp with time zone,
     paid_access_invoice_id text,
     product_name text,
+    product_summary jsonb,
     CONSTRAINT subscriptions_status_check CHECK ((status = ANY (ARRAY['incomplete'::text, 'incomplete_expired'::text, 'trialing'::text, 'active'::text, 'past_due'::text, 'canceled'::text, 'unpaid'::text, 'paused'::text])))
 );
 
@@ -19682,6 +19706,13 @@ CREATE TRIGGER snapshot_purchase_attribution AFTER UPDATE OF status ON public.pa
 --
 
 CREATE TRIGGER snapshot_purchase_attribution_inserted AFTER INSERT ON public.payment_transactions REFERENCING NEW TABLE AS new_rows FOR EACH STATEMENT EXECUTE FUNCTION public.snapshot_purchase_attribution_inserted();
+
+
+--
+-- Name: subscriptions snapshot_subscription_product; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER snapshot_subscription_product BEFORE INSERT OR UPDATE ON public.subscriptions FOR EACH ROW EXECUTE FUNCTION public.snapshot_subscription_product();
 
 
 --
@@ -23707,6 +23738,8 @@ function | public.snapshot_purchase_attribution_row(n payment_transactions) | po
 function | public.snapshot_purchase_attribution_row(n payment_transactions) | service_role | EXECUTE | postgres | -
 function | public.snapshot_purchase_product_name() | postgres | EXECUTE | postgres | -
 function | public.snapshot_purchase_product_name() | service_role | EXECUTE | postgres | -
+function | public.snapshot_subscription_product() | postgres | EXECUTE | postgres | -
+function | public.snapshot_subscription_product() | service_role | EXECUTE | postgres | -
 function | public.stamp_original_seller_id() | postgres | EXECUTE | postgres | -
 function | public.stamp_original_seller_id() | service_role | EXECUTE | postgres | -
 function | public.stamp_webhook_url() | postgres | EXECUTE | postgres | -
