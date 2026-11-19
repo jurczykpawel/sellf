@@ -6,7 +6,7 @@ import { expect, it } from 'vitest';
 import { purchaseEventMail } from '@/lib/events/mail';
 import { deliverMagicLink } from '@/lib/auth/magic-link/deliver';
 import recordedPurchase from '../../fixtures/stripe/initial-subscription-purchase.json';
-import { waitForEmail, searchMessages } from '../../helpers/mailpit';
+import { waitForEmail, searchMessages, extractMagicLink } from '../../helpers/mailpit';
 
 /** Text of every table row as the buyer reads it: cells joined by one space. */
 function visibleRows(html: string): string[] {
@@ -218,5 +218,58 @@ it.each(['pl', 'en'])('renders the license deadline in both Auth mail templates 
       id ??= (await db.auth.admin.listUsers({ perPage:1000 })).data.users.find(u=>u.email===email)?.id;
       if(id) await db.auth.admin.deleteUser(id);
     }
+  }
+});
+
+
+it.each(['pl', 'en'])('first transfer mail follows the order access policy in %s', async locale => {
+  const { sendOrderNotice } = await import('@/lib/orders/transfer-mail');
+  const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+  const config = await db.from('bank_transfer_config').select('*').single();
+  expect(config.error).toBeNull();
+  const product = await db.from('products').insert({ name: 'Policy workshop', slug: `policy-${crypto.randomUUID()}`, price: 10, currency: 'PLN', checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['organization'], bank_transfer_for: ['organization'] }] } }).select('id').single();
+  expect(product.error).toBeNull();
+  try {
+    for (const confirmed of [false, true]) for (const access of [false, true]) {
+      const email = `policy-${crypto.randomUUID()}@example.com`;
+      let userId: string | undefined;
+      try {
+        if (confirmed) {
+          const user = await db.auth.admin.createUser({ email, email_confirm: true });
+          expect(user.error).toBeNull(); userId = user.data.user!.id;
+        }
+        expect((await db.from('bank_transfer_config').update({ bank_transfer_enabled: true, bank_account_holder: 'Workshop', bank_account_number: 'PL61109010140000071219812874', bank_transfer_grant_access_on_placement: access }).eq('id', true)).error).toBeNull();
+        const order = await db.rpc('bank_transfer_order', {
+          p_order: { product_id: product.data!.id, customer_email: email, currency: 'PLN', metadata: { locale }, order_details: { v: 1, buyer: { type: 'organization', terms_accepted: true } } },
+          p_lines: [{ product_id: product.data!.id, item_type: 'main_product', quantity: 1, unit_price: 10, total_price: 10, discounted_total: 10, currency: 'PLN' }],
+        });
+        expect(order.error).toBeNull();
+        const orderId = (order.data as { transaction_id: string }).transaction_id;
+        expect((await db.from('bank_transfer_config').update({ bank_transfer_grant_access_on_placement: !access }).eq('id', true)).error).toBeNull();
+        await sendOrderNotice(db, orderId, 'placed');
+        const mail = await waitForEmail(email);
+        const immediate = locale === 'pl' ? 'Dostęp otrzymujesz po potwierdzeniu adresu email' : 'You get access after confirming your email';
+        const afterPayment = locale === 'pl' ? 'dostęp otrzymasz po zaksięgowaniu wpłaty' : 'you get access once the payment is booked';
+        expect(mail.HTML).toContain(access ? immediate : afterPayment);
+        expect(mail.HTML).not.toContain(access ? afterPayment : immediate);
+        const link = extractMagicLink(mail.HTML!);
+        expect(link).not.toBeNull();
+        const url = new URL(link!);
+        const auth = createClient(process.env.SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+        const verified = await auth.auth.verifyOtp({ token_hash: url.searchParams.get('token_hash')!, type: url.searchParams.get('type') as 'signup' | 'magiclink' });
+        expect(verified.error).toBeNull(); userId = verified.data.user!.id;
+        const grants = await db.from('user_product_access').select('id').eq('user_id', userId).eq('product_id', product.data!.id);
+        expect(grants.error).toBeNull(); expect(grants.data).toHaveLength(access ? 1 : 0);
+
+      } finally {
+        userId ??= (await db.auth.admin.listUsers({ perPage: 1000 })).data.users.find(u => u.email === email)?.id;
+        if (userId) await db.auth.admin.deleteUser(userId);
+        await db.from('payment_transactions').delete().eq('customer_email', email);
+      }
+    }
+  } finally {
+    await db.from('guest_purchases').delete().eq('product_id', product.data!.id);
+    await db.from('products').delete().eq('id', product.data!.id);
+    if (config.data) expect((await db.from('bank_transfer_config').upsert(config.data)).error).toBeNull();
   }
 });
