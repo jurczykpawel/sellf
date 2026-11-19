@@ -2088,7 +2088,7 @@
           "cancel": "Anuluj",
           "earlyCreateHint": "Możesz utworzyć produkt teraz z samymi podstawami lub kontynuować konfigurację dostawy treści, promocji cenowych i więcej.",
           "exitTitle": "Odrzucić zmiany?",
-          "exitMessage": "Masz niezapisane dane produktu. Zamknąć bez tworzenia?",
+          "exitMessage": "Masz niezapisane dane produktu. Zamknąć bez zapisywania?",
           "exitDiscard": "Odrzuć",
           "exitKeepEditing": "Kontynuuj edycję"
         },

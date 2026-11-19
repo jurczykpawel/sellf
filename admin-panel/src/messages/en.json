@@ -2088,7 +2088,7 @@
           "cancel": "Cancel",
           "earlyCreateHint": "You can create your product now with just the essentials, or continue to configure content delivery, pricing promotions, and more.",
           "exitTitle": "Discard changes?",
-          "exitMessage": "You have unsaved product data. Close without creating?",
+          "exitMessage": "You have unsaved product data. Close without saving?",
           "exitDiscard": "Discard",
           "exitKeepEditing": "Keep Editing"
         },
