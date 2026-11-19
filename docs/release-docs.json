@@ -689,5 +689,8 @@
   ],
   "bace86afa5c95e5e29d2a42cebcfc05ce682a629": [
     "none \u2014 Equality-join implementation of the same upgrade backfill; no customer-facing contract change."
+  ],
+  "e774ffc6299beb7c476f06c242e4bfd3fe14a2d1": [
+    "custom-checkout.md"
   ]
 }
