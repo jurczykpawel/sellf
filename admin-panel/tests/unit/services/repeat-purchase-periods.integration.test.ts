@@ -127,6 +127,8 @@ it('records claimed add-ons against the claim when a prior fulfillment context e
     INSERT INTO public.guest_purchases(product_id,customer_email,session_id,transaction_id,transaction_amount)
       VALUES('${parent}','periods@example.com','cs_${b.replaceAll('-', '')}','${b}',4000);
     SELECT public.claim_guest_purchases_for_user('${buyer}');
+    ${assertion(`(SELECT status='completed' FROM public.payment_transactions WHERE id='${b}')`)}
+    ${assertion(`EXISTS(${access} AND transfer_transaction_id IS NULL)`)}
     ${assertion(`(SELECT access_terms ? '${buyer}:${product}' FROM public.payment_transactions WHERE id='${b}')`)}`)).not.toThrow();
 });
 

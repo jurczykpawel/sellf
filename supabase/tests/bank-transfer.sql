@@ -78,7 +78,7 @@ BEGIN
   DECLARE second_tx jsonb:=public.bank_transfer_order(input,lines);
   BEGIN
     PERFORM public.cancel_unpaid_order((tx->>'transaction_id')::uuid,'First of two orders');
-    ASSERT EXISTS(SELECT 1 FROM public.user_product_access WHERE user_id=buyer AND product_id=p);
+    ASSERT NOT EXISTS(SELECT 1 FROM public.user_product_access WHERE user_id=buyer AND product_id=p);
     PERFORM public.cancel_unpaid_order((second_tx->>'transaction_id')::uuid,'Second order');
     ASSERT NOT EXISTS(SELECT 1 FROM public.user_product_access WHERE user_id=buyer AND product_id=p);
   END;
