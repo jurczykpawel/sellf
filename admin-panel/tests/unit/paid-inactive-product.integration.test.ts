@@ -24,8 +24,11 @@ it.each(['inactive', 'archived'] as const)('finishes the guest receipt and claim
     state.result = { session_id: session, status: 'complete', payment_status: 'paid', customer_email: email, is_guest_purchase: true, send_magic_link: true, metadata: { product_id: product.id } };
     const view = await PaymentStatusPage({ params: Promise.resolve({ locale: 'pl', slug: product.slug }), searchParams: Promise.resolve({ session_id: session }) });
     expect(view.props).toMatchObject({ product: { id: product.id }, paymentStatus: 'magic_link_sent', customerEmail: email });
-    const buyer = (await checked(await db.auth.admin.createUser({ email, email_confirm: true }))).user!; userId = buyer.id;
+    const buyer = (await checked(await db.auth.admin.createUser({ email, password: `Password-${id}!`, email_confirm: true }))).user!; userId = buyer.id;
     expect(await checked(await db.from('user_product_access').select('product_id').eq('user_id', buyer.id))).toEqual([{ product_id: product.id }]);
+    const owner = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
+    await checked(await owner.auth.signInWithPassword({ email, password: `Password-${id}!` }));
+    expect(await checked(await owner.from('products').select('id').eq('id', product.id))).toEqual([{ id: product.id }]);
     expect(await checked(await anonymous.from('products').select('id').eq('id', product.id))).toEqual([]);
   } finally {
     await db.from('guest_purchases').delete().eq('product_id', product.id);

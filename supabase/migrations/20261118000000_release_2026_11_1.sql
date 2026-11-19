@@ -701,7 +701,7 @@ CREATE POLICY "SELECT policy for products" ON public.products FOR SELECT USING (
       AND (available_from IS NULL OR available_from <= now())
       AND (available_until IS NULL OR available_until >= now()))
   OR (archived_at IS NULL AND is_active = false AND enable_waitlist = true)
-  OR (archived_at IS NOT NULL AND public.owns_product_access(id))
+  OR public.owns_product_access(id)
 );
 
 -- ===== HISTORY KEPT ON PERMANENT DELETE =====
@@ -3397,7 +3397,9 @@ BEGIN
   EXECUTE replace(definition, original, $clause$
     WHERE id = product_id_param AND (is_active = true OR EXISTS (
       SELECT 1 FROM public.payment_transactions t JOIN auth.users u ON u.id = user_id_param
-      WHERE t.id::text = current_setting('sellf.paid_order', true) AND t.product_id = product_id_param
+      WHERE t.id::text IN (current_setting('sellf.paid_order', true), current_setting('sellf.transfer_order', true))
+        AND (t.product_id = product_id_param OR EXISTS (SELECT 1 FROM public.payment_line_items l
+          WHERE l.transaction_id = t.id AND l.product_id = product_id_param))
         AND t.status IN ('completed', 'partially_refunded')
         AND (t.amount = 0 OR coalesce(t.refunded_amount, 0) < t.amount)
         AND (t.user_id = user_id_param OR (t.user_id IS NULL AND lower(t.customer_email) = lower(u.email)))
@@ -3413,13 +3415,13 @@ BEGIN
   FOR fn, old_call, new_call IN VALUES
     ('public._order_grant_and_record(uuid,uuid,uuid,uuid,uuid,text)',
       'grant_product_and_bundle_components(p_user_id,tx.product_id);',
-      'grant_product_and_bundle_components(p_user_id,tx.product_id,NULL,tx.id);'),
+      E'grant_product_and_bundle_components(p_user_id,tx.product_id,NULL,tx.id);\n    PERFORM set_config(\'sellf.paid_order\',tx.id::text,true);'),
     ('public._claim_guest_purchases_before_disputes(uuid)',
       'grant_product_and_bundle_components(p_user_id,claim.product_id);',
       'grant_product_and_bundle_components(p_user_id,claim.product_id,NULL,claim.transaction_id);'),
     ('public._process_stripe_payment_completion_with_bump_impl(text,uuid,text,numeric,text,text,uuid,uuid[],uuid,numeric,boolean)',
       'grant_product_and_bundle_components(current_user_id, product_id_param);',
-      'grant_product_and_bundle_components(current_user_id, product_id_param, NULL, existing_transaction_id);')
+      E'grant_product_and_bundle_components(current_user_id, product_id_param, NULL, existing_transaction_id);\n            PERFORM set_config(\'sellf.paid_order\',existing_transaction_id::text,true);')
   LOOP
     definition := pg_get_functiondef(fn::regprocedure);
     IF (length(definition) - length(replace(definition, old_call, ''))) / length(old_call) <> 1 THEN

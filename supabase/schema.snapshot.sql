@@ -248,6 +248,7 @@ BEGIN
   END IF;
   IF p_user_id IS NOT NULL THEN
     PERFORM public.grant_product_and_bundle_components(p_user_id,tx.product_id,NULL,tx.id);
+    PERFORM set_config('sellf.paid_order',tx.id::text,true);
     FOR line IN SELECT product_id,access_duration_override FROM public.payment_line_items WHERE transaction_id=tx.id AND item_type='order_bump' LOOP
       PERFORM public.grant_product_access_service_role(p_user_id,line.product_id,override_duration_days_param=>line.access_duration_override);
     END LOOP;
@@ -508,6 +509,7 @@ BEGIN
           WHERE session_id = session_id_param AND claimed_by_user_id IS NULL
         ) THEN
           PERFORM public.grant_product_and_bundle_components(current_user_id, product_id_param, NULL, existing_transaction_id);
+            PERFORM set_config('sellf.paid_order',existing_transaction_id::text,true);
 
           FOR bump_rec IN
             SELECT pli.product_id, pli.access_duration_override
@@ -8059,7 +8061,9 @@ BEGIN
     
     WHERE id = product_id_param AND (is_active = true OR EXISTS (
       SELECT 1 FROM public.payment_transactions t JOIN auth.users u ON u.id = user_id_param
-      WHERE t.id::text = current_setting('sellf.paid_order', true) AND t.product_id = product_id_param
+      WHERE t.id::text IN (current_setting('sellf.paid_order', true), current_setting('sellf.transfer_order', true))
+        AND (t.product_id = product_id_param OR EXISTS (SELECT 1 FROM public.payment_line_items l
+          WHERE l.transaction_id = t.id AND l.product_id = product_id_param))
         AND t.status IN ('completed', 'partially_refunded')
         AND (t.amount = 0 OR coalesce(t.refunded_amount, 0) < t.amount)
         AND (t.user_id = user_id_param OR (t.user_id IS NULL AND lower(t.customer_email) = lower(u.email)))
@@ -21395,7 +21399,7 @@ CREATE POLICY "Public read access to shop_config" ON public.shop_config FOR SELE
 -- Name: products SELECT policy for products; Type: POLICY; Schema: public; Owner: postgres
 --
 
-CREATE POLICY "SELECT policy for products" ON public.products FOR SELECT USING ((( SELECT public.is_admin() AS is_admin) OR ((archived_at IS NULL) AND (is_active = true) AND ((available_from IS NULL) OR (available_from <= now())) AND ((available_until IS NULL) OR (available_until >= now()))) OR ((archived_at IS NULL) AND (is_active = false) AND (enable_waitlist = true)) OR ((archived_at IS NOT NULL) AND public.owns_product_access(id))));
+CREATE POLICY "SELECT policy for products" ON public.products FOR SELECT USING ((( SELECT public.is_admin() AS is_admin) OR ((archived_at IS NULL) AND (is_active = true) AND ((available_from IS NULL) OR (available_from <= now())) AND ((available_until IS NULL) OR (available_until >= now()))) OR ((archived_at IS NULL) AND (is_active = false) AND (enable_waitlist = true)) OR public.owns_product_access(id)));
 
 
 --

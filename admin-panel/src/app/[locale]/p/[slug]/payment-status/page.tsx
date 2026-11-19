@@ -45,7 +45,7 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
     ? await verifyPaymentSession(session_id, user)
     : payment_intent ? await verifyPaymentIntent(payment_intent, user) : null;
   const verifiedProductId = verification && !verification.error && (
-    ('payment_status' in verification && verification.status === 'complete' && verification.payment_status === 'paid') || verification.status === 'succeeded'
+    ('payment_status' in verification && verification.status === 'complete' && ['paid', 'refunded', 'disputed', 'no_payment_required'].includes(verification.payment_status ?? '')) || verification.status === 'succeeded'
   ) ? verification.metadata?.product_id : null;
   const productClient = typeof verifiedProductId === 'string' ? createAdminClient() : supabase;
   // Paid receipts use the verified order's product; the public catalogue keeps its visibility rules.
