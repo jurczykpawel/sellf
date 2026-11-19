@@ -19,10 +19,9 @@ describe('release migration sources', () => {
     expect(sources).toHaveLength(76);
     expect(new Set(sources).size).toBe(76);
   });
-  it('keeps the consolidated 11.1 file and requires the 11.0 updater', () => {
+  it('ships 11.1 as one ordered file and requires the 11.0 updater', () => {
     const directory = new URL('../../../../supabase/migrations/', import.meta.url);
-    // The consolidated file is frozen; subsequent fixes append migrations after it.
-    const files = readdirSync(directory).filter(file => file.endsWith('.sql') && file >= '20261111000000' && file < '20261119000000').sort();
+    const files = readdirSync(directory).filter(file => file.endsWith('.sql') && file >= '20261111000000').sort();
     expect(files).toEqual(['20261118000000_release_2026_11_1.sql']);
     const sql = readFileSync(new URL(files[0], directory), 'utf8');
     const sources = [...sql.matchAll(/^-- ===== Source: (.+) =====$/gm)].map(match => match[1]);
