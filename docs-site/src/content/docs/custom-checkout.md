@@ -75,7 +75,7 @@ Applying or removing a discount code also keeps the same eligible session and th
 
 ## Checkout recovery and validation
 
-An expired payment session shows **Your payment session has expired** and **Start a new checkout**, instead of inviting the buyer to retry saving details. The new checkout checks current availability and prices again; an event seat is reserved again only if still available. Buyer and invoice values held by the page remain available, but the new Stripe form needs payment details again.
+An expired payment session shows **Your payment session has expired** and **Start a new checkout**, instead of inviting the buyer to retry saving details. The new checkout checks current availability and prices again; an event seat is reserved again only if still available. Buyer values held by the page remain available, but the new Stripe form needs payment details again.
 
 Email format and length errors appear beside the email field in the page language. An email address can have at most 254 characters. Correcting the field clears its error.
 

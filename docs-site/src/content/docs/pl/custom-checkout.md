@@ -76,7 +76,7 @@ Zastosowanie lub usunięcie kodu rabatowego również zachowuje tę samą sesję
 
 ## Wznowienie koszyka i walidacja
 
-Po wygaśnięciu sesji pojawia się komunikat **Sesja płatności wygasła** i przycisk **Rozpocznij nowy koszyk**, zamiast zachęty do ponownego zapisywania danych. Nowy koszyk ponownie sprawdza dostępność i ceny; miejsce na wydarzeniu zostanie ponownie zarezerwowane tylko wtedy, gdy jest nadal dostępne. Dane kupującego i faktury przechowywane przez stronę pozostają dostępne, ale nowy formularz Stripe wymaga ponownego wpisania danych płatności.
+Po wygaśnięciu sesji pojawia się komunikat **Sesja płatności wygasła** i przycisk **Rozpocznij nowy koszyk**, zamiast zachęty do ponownego zapisywania danych. Nowy koszyk ponownie sprawdza dostępność i ceny; miejsce na wydarzeniu zostanie ponownie zarezerwowane tylko wtedy, gdy jest nadal dostępne. Dane kupującego przechowywane przez stronę pozostają dostępne, ale nowy formularz Stripe wymaga ponownego wpisania danych płatności.
 
 Błędy formatu i długości adresu e-mail pojawiają się przy polu w języku strony. Adres może mieć maksymalnie 254 znaki. Poprawienie pola usuwa jego komunikat błędu.
 
