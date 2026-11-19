@@ -11937,8 +11937,6 @@ BEGIN
       LOOP
         PERFORM public.revoke_order_product_access(NEW.id, buyer, product);
       END LOOP;
-      UPDATE public.user_product_access SET transfer_transaction_id = NULL
-      WHERE user_id = buyer AND transfer_transaction_id = NEW.id;
     END LOOP;
     DELETE FROM public.guest_purchases WHERE transaction_id = NEW.id;
   END IF;
@@ -12351,9 +12349,6 @@ BEGIN
   ORDER BY d.stripe_dispute_id FOR UPDATE;
   SELECT * INTO current_access FROM public.user_product_access WHERE user_id = p_user_id AND product_id = p_product_id FOR UPDATE;
   IF NOT FOUND THEN RETURN false; END IF;
-  IF current_access.subscription_id = t.subscription_id THEN
-    UPDATE public.user_product_access SET subscription_id = NULL WHERE id = current_access.id;
-  END IF;
   SELECT array_agg(d.stripe_dispute_id) INTO pending_disputes FROM public.payment_disputes d
   WHERE NOT d.closed AND d.status <> 'won' AND EXISTS (
     SELECT 1 FROM jsonb_array_elements(d.account_access) item WHERE item->>'id' = current_access.id::text
@@ -12416,8 +12411,11 @@ BEGIN
   END IF;
   IF remaining > 0 OR expires IS NOT NULL THEN
     next_version := current_access.version + CASE WHEN current_access.access_expires_at IS DISTINCT FROM expires THEN 1 ELSE 0 END;
-    UPDATE public.user_product_access SET access_expires_at = expires, expiry_notified_at = NULL, version = next_version
-    WHERE user_id = p_user_id AND product_id = p_product_id AND access_expires_at IS DISTINCT FROM expires;
+    UPDATE public.user_product_access SET access_expires_at = expires, expiry_notified_at = NULL, version = next_version,
+      subscription_id = CASE WHEN subscription_id = t.subscription_id THEN NULL ELSE subscription_id END,
+      transfer_transaction_id = CASE WHEN transfer_transaction_id = t.id THEN NULL ELSE transfer_transaction_id END
+    WHERE user_id = p_user_id AND product_id = p_product_id
+      AND (access_expires_at IS DISTINCT FROM expires OR subscription_id = t.subscription_id OR transfer_transaction_id = t.id);
     IF suspended THEN
       UPDATE public.payment_disputes d SET account_access = (
         SELECT jsonb_agg(CASE WHEN item->>'id' = current_access.id::text THEN

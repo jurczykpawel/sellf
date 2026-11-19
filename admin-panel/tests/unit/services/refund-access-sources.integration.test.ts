@@ -164,3 +164,19 @@ it.each(['purchase','transfer','guest-transfer'])('does not assign a later %s pe
     expect(f.access()).toBeNull();
   } finally { f.cleanup(); }
 });
+
+it('publishes one final access change when retaining a purchase after a subscription refund @J34', () => {
+  const f = fixture(), sub = randomUUID();
+  try {
+    f.buy();
+    sql(`INSERT INTO public.subscriptions(id,user_id,product_id,stripe_customer_id,stripe_subscription_id,status,current_period_end)
+      VALUES('${sub}','${f.user}','${f.product}','cus_${sub}','sub_${sub}','active',now()+interval '30 days');`);
+    const invoice = f.buy(f.product,'stripe','completed',sub);
+    sql(`UPDATE public.user_product_access SET subscription_id='${sub}',access_expires_at=NULL WHERE user_id='${f.user}' AND product_id='${f.product}';`);
+    const count = () => Number(sql(`SELECT count(*) FROM public.business_events WHERE product_id='${f.product}' AND event_type='access.updated';`));
+    const before = count();
+    sql(`UPDATE public.payment_transactions SET status='refunded',refunded_amount=amount WHERE id='${invoice}';`);
+    expect(count() - before).toBe(1);
+    expect(f.access()?.subscription_id).toBeNull(); expect(f.access()?.access_expires_at).not.toBeNull();
+  } finally { f.cleanup(); }
+});
