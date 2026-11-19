@@ -3239,6 +3239,22 @@ REVOKE EXECUTE ON FUNCTION public.order_granted_components(uuid) FROM PUBLIC, an
 ALTER TABLE public.payment_transactions ADD COLUMN access_terms jsonb NOT NULL DEFAULT '{}'
   CHECK (jsonb_typeof(access_terms) = 'object');
 
+ALTER TABLE public.user_product_access ADD COLUMN independent_access jsonb;
+
+CREATE FUNCTION public.retain_independent_access() RETURNS trigger
+LANGUAGE plpgsql SET search_path = '' AS $$
+BEGIN
+  IF TG_OP = 'INSERT' AND NEW.grant_source IN ('free', 'manual') THEN
+    NEW.independent_access := jsonb_build_object('expiresAt', NEW.access_expires_at);
+  ELSIF TG_OP = 'UPDATE' AND OLD.grant_source IN ('free', 'manual') AND OLD.independent_access IS NULL THEN
+    NEW.independent_access := jsonb_build_object('expiresAt', OLD.access_expires_at);
+  END IF;
+  RETURN NEW;
+END $$;
+REVOKE EXECUTE ON FUNCTION public.retain_independent_access() FROM PUBLIC, anon, authenticated;
+CREATE TRIGGER z_retain_independent_access BEFORE INSERT OR UPDATE ON public.user_product_access
+FOR EACH ROW EXECUTE FUNCTION public.retain_independent_access();
+
 CREATE FUNCTION public.record_order_access_term(p_user_id uuid, p_product_id uuid, p_duration integer) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
@@ -3334,6 +3350,9 @@ BEGIN
               (o.access_terms->(p_user_id::text || ':' || p_product_id::text)->>'grantExpiresAt')::timestamptz)));
   suspended := coalesce(cardinality(pending_disputes), 0) > 0;
   WITH sources AS (
+    SELECT (current_access.independent_access->>'expiresAt')::timestamptz AS ends_at
+    WHERE current_access.independent_access IS NOT NULL
+    UNION ALL
     SELECT public.order_access_expiry(o.id, p_user_id, p_product_id) AS ends_at
     FROM public.payment_transactions o
     WHERE o.id <> t.id AND o.subscription_id IS NULL
@@ -3414,10 +3433,7 @@ BEGIN
   WHERE a.user_id = p_user_id
     AND a.product_id IN (SELECT public.order_granted_components(t.id))
     AND a.product_id IS DISTINCT FROM t.product_id
-    AND (a.grant_source = 'bundle' OR (a.grant_source = 'purchase' AND EXISTS (
-      SELECT 1 FROM public.payment_transactions old WHERE old.product_id = a.product_id
-        AND old.user_id = p_user_id AND old.status IN ('refunded', 'cancelled', 'disputed')
-    )))
+    AND a.grant_source <> 'manual'
     AND a.subscription_id IS NULL
   LOOP
     IF public.revoke_order_product_access(t.id, p_user_id, candidate) THEN removed := removed + 1; END IF;

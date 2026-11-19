@@ -4713,6 +4713,7 @@ export type Database = {
           expiry_notified_at: string | null
           grant_source: string
           id: string
+          independent_access: Json | null
           license_requested: boolean
           product_id: string
           subscription_id: string | null
@@ -4729,6 +4730,7 @@ export type Database = {
           expiry_notified_at?: string | null
           grant_source: string
           id?: string
+          independent_access?: Json | null
           license_requested?: boolean
           product_id: string
           subscription_id?: string | null
@@ -4745,6 +4747,7 @@ export type Database = {
           expiry_notified_at?: string | null
           grant_source?: string
           id?: string
+          independent_access?: Json | null
           license_requested?: boolean
           product_id?: string
           subscription_id?: string | null
@@ -6656,6 +6659,7 @@ export type Database = {
           expiry_notified_at: string | null
           grant_source: string
           id: string
+          independent_access: Json | null
           license_requested: boolean
           product_id: string
           subscription_id: string | null
@@ -6689,6 +6693,7 @@ export type Database = {
           expiry_notified_at: string | null
           grant_source: string
           id: string
+          independent_access: Json | null
           license_requested: boolean
           product_id: string
           subscription_id: string | null
@@ -6721,6 +6726,7 @@ export type Database = {
           expiry_notified_at: string | null
           grant_source: string
           id: string
+          independent_access: Json | null
           license_requested: boolean
           product_id: string
           subscription_id: string | null
@@ -7202,6 +7208,7 @@ export type Database = {
           expiry_notified_at: string | null
           grant_source: string
           id: string
+          independent_access: Json | null
           license_requested: boolean
           product_id: string
           subscription_id: string | null

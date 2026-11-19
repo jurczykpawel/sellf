@@ -10155,6 +10155,7 @@ CREATE TABLE public.user_product_access (
     custom_field_values jsonb DEFAULT '{}'::jsonb NOT NULL,
     grant_source text NOT NULL,
     license_requested boolean DEFAULT false NOT NULL,
+    independent_access jsonb,
     CONSTRAINT check_access_expiration CHECK (((access_expires_at IS NULL) OR (access_expires_at >= access_granted_at))),
     CONSTRAINT user_product_access_access_duration_days_check CHECK (((access_duration_days IS NULL) OR ((access_duration_days > 0) AND (access_duration_days <= 3650)))),
     CONSTRAINT user_product_access_custom_field_values_check CHECK ((jsonb_typeof(custom_field_values) = 'object'::text)),
@@ -12120,6 +12121,26 @@ END $$;
 ALTER FUNCTION public.retain_disputed_access() OWNER TO postgres;
 
 --
+-- Name: retain_independent_access(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.retain_independent_access() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO ''
+    AS $$
+BEGIN
+  IF TG_OP = 'INSERT' AND NEW.grant_source IN ('free', 'manual') THEN
+    NEW.independent_access := jsonb_build_object('expiresAt', NEW.access_expires_at);
+  ELSIF TG_OP = 'UPDATE' AND OLD.grant_source IN ('free', 'manual') AND OLD.independent_access IS NULL THEN
+    NEW.independent_access := jsonb_build_object('expiresAt', OLD.access_expires_at);
+  END IF;
+  RETURN NEW;
+END $$;
+
+
+ALTER FUNCTION public.retain_independent_access() OWNER TO postgres;
+
+--
 -- Name: retry_business_event(uuid); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -12228,10 +12249,7 @@ BEGIN
   WHERE a.user_id = p_user_id
     AND a.product_id IN (SELECT public.order_granted_components(t.id))
     AND a.product_id IS DISTINCT FROM t.product_id
-    AND (a.grant_source = 'bundle' OR (a.grant_source = 'purchase' AND EXISTS (
-      SELECT 1 FROM public.payment_transactions old WHERE old.product_id = a.product_id
-        AND old.user_id = p_user_id AND old.status IN ('refunded', 'cancelled', 'disputed')
-    )))
+    AND a.grant_source <> 'manual'
     AND a.subscription_id IS NULL
   LOOP
     IF public.revoke_order_product_access(t.id, p_user_id, candidate) THEN removed := removed + 1; END IF;
@@ -12301,6 +12319,9 @@ BEGIN
               (o.access_terms->(p_user_id::text || ':' || p_product_id::text)->>'grantExpiresAt')::timestamptz)));
   suspended := coalesce(cardinality(pending_disputes), 0) > 0;
   WITH sources AS (
+    SELECT (current_access.independent_access->>'expiresAt')::timestamptz AS ends_at
+    WHERE current_access.independent_access IS NOT NULL
+    UNION ALL
     SELECT public.order_access_expiry(o.id, p_user_id, p_product_id) AS ends_at
     FROM public.payment_transactions o
     WHERE o.id <> t.id AND o.subscription_id IS NULL
@@ -20002,6 +20023,13 @@ CREATE TRIGGER validate_lead_consent_version BEFORE UPDATE OF lead_consent_versi
 
 
 --
+-- Name: user_product_access z_retain_independent_access; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER z_retain_independent_access BEFORE INSERT OR UPDATE ON public.user_product_access FOR EACH ROW EXECUTE FUNCTION public.retain_independent_access();
+
+
+--
 -- Name: user_product_access zz_keep_refunded_subscription_access_ended; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
@@ -23814,6 +23842,8 @@ function | public.restore_product_as(event_actor jsonb, p_product_id uuid, actor
 function | public.restore_product_as(event_actor jsonb, p_product_id uuid, actor_id uuid) | service_role | EXECUTE | postgres | -
 function | public.retain_disputed_access() | postgres | EXECUTE | postgres | -
 function | public.retain_disputed_access() | service_role | EXECUTE | postgres | -
+function | public.retain_independent_access() | postgres | EXECUTE | postgres | -
+function | public.retain_independent_access() | service_role | EXECUTE | postgres | -
 function | public.retry_business_event(p_id uuid) | postgres | EXECUTE | postgres | -
 function | public.retry_business_event(p_id uuid) | service_role | EXECUTE | postgres | -
 function | public.revoke_issued_licenses(p_license_ids uuid[], p_actor uuid, p_reason text) | postgres | EXECUTE | postgres | -
