@@ -701,7 +701,7 @@ CREATE POLICY "SELECT policy for products" ON public.products FOR SELECT USING (
       AND (available_from IS NULL OR available_from <= now())
       AND (available_until IS NULL OR available_until >= now()))
   OR (archived_at IS NULL AND is_active = false AND enable_waitlist = true)
-  OR public.owns_product_access(id)
+  OR (is_active = false AND public.owns_product_access(id))
 );
 
 -- ===== HISTORY KEPT ON PERMANENT DELETE =====

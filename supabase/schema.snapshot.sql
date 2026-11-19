@@ -21406,7 +21406,7 @@ CREATE POLICY "Public read access to shop_config" ON public.shop_config FOR SELE
 -- Name: products SELECT policy for products; Type: POLICY; Schema: public; Owner: postgres
 --
 
-CREATE POLICY "SELECT policy for products" ON public.products FOR SELECT USING ((( SELECT public.is_admin() AS is_admin) OR ((archived_at IS NULL) AND (is_active = true) AND ((available_from IS NULL) OR (available_from <= now())) AND ((available_until IS NULL) OR (available_until >= now()))) OR ((archived_at IS NULL) AND (is_active = false) AND (enable_waitlist = true)) OR public.owns_product_access(id)));
+CREATE POLICY "SELECT policy for products" ON public.products FOR SELECT USING ((( SELECT public.is_admin() AS is_admin) OR ((archived_at IS NULL) AND (is_active = true) AND ((available_from IS NULL) OR (available_from <= now())) AND ((available_until IS NULL) OR (available_until >= now()))) OR ((archived_at IS NULL) AND (is_active = false) AND (enable_waitlist = true)) OR ((is_active = false) AND public.owns_product_access(id))));
 
 
 --
