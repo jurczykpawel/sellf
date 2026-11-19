@@ -3250,7 +3250,9 @@ LANGUAGE plpgsql SET search_path = '' AS $$
 BEGIN
   IF TG_OP = 'UPDATE' AND current_setting('sellf.grant_source', true) = 'manual' THEN
     NEW.grant_source := 'manual';
-    NEW.independent_access := jsonb_build_object('expiresAt', NEW.access_expires_at, 'grantedAt', now());
+    NEW.independent_access := jsonb_build_object('expiresAt', NEW.access_expires_at,
+      'grantedAt', CASE WHEN OLD.access_expires_at <= now() THEN now()
+        ELSE coalesce((OLD.independent_access->>'grantedAt')::timestamptz, OLD.access_granted_at) END);
   ELSIF NEW.subscription_id IS NULL AND NEW.transfer_transaction_id IS NULL
     AND nullif(current_setting('sellf.paid_order', true), '') IS NULL
     AND nullif(current_setting('sellf.transfer_order', true), '') IS NULL

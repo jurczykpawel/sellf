@@ -446,18 +446,26 @@ it.each(['payment', 'cancel', 'refund', 'refund-independent', 'refund-expired'])
   }
 });
 
-it('retains the original free component deadline after a paid bundle add-on updates the bundle grant date @J34', () => {
+it.each([false,true])('retains the original free component deadline after a later bundle grant (manual=%s) @J34', shorten => {
   const [component,bundle] = [randomUUID(),randomUUID()].sort(), f=fixture(component,bundle);
   let paid: ReturnType<typeof paidBundleAddon> | undefined;
+  const age=shorten ? 25 : 10;
+  let manualDeadline: string | undefined;
   try {
     sql(`UPDATE public.products SET auto_grant_duration_days=60 WHERE id='${f.bundle}'; SELECT public.grant_product_and_bundle_components('${f.user}','${f.bundle}');
-      UPDATE public.user_product_access SET access_granted_at=now()-interval '10 days',
-        access_expires_at=now()+CASE WHEN product_id='${f.product}' THEN interval '20 days' ELSE interval '50 days' END,
-        independent_access=jsonb_set(jsonb_set(independent_access,'{expiresAt}',to_jsonb(now()+CASE WHEN product_id='${f.product}' THEN interval '20 days' ELSE interval '50 days' END)), '{grantedAt}',to_jsonb(now()-interval '10 days'),false)
+      UPDATE public.user_product_access SET access_granted_at=now()-make_interval(days=>${age}),
+        access_expires_at=now()+CASE WHEN product_id='${f.product}' THEN make_interval(days=>30-${age}) ELSE make_interval(days=>60-${age}) END,
+        independent_access=jsonb_set(jsonb_set(independent_access,'{expiresAt}',to_jsonb(now()+CASE WHEN product_id='${f.product}' THEN make_interval(days=>30-${age}) ELSE make_interval(days=>60-${age}) END)), '{grantedAt}',to_jsonb(now()-make_interval(days=>${age})),false)
       WHERE user_id='${f.user}';`);
     const original=f.access().access_expires_at;
-    paid=paidBundleAddon(f); f.refund(paid.order,paid.main);
+    paid=paidBundleAddon(f);
+    if (shorten) {
+      manual(f,new Date(Date.now()+40*86400000).toISOString(),'update',f.bundle);
+      manualDeadline=sql(`SELECT access_expires_at FROM public.user_product_access WHERE user_id='${f.user}' AND product_id='${f.bundle}';`);
+    }
+    f.refund(paid.order,paid.main);
     expect(f.access()?.access_expires_at).toBe(original);
+    if (shorten) expect(sql(`SELECT access_expires_at FROM public.user_product_access WHERE user_id='${f.user}' AND product_id='${f.bundle}';`)).toBe(manualDeadline);
   } finally { paid?.cleanup(); f.cleanup(); }
 });
 
