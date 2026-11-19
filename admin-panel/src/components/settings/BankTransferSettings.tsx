@@ -38,7 +38,7 @@ export default function BankTransferSettings() {
         const error = errors[key];
         return <label key={key} data-tour={FIELD_TOUR[key]} className="block text-sm">{t(key)}<input aria-invalid={error ? true : undefined} aria-describedby={error ? `${key}-error` : undefined} className="mt-1 block w-full rounded-lg border border-sf-border bg-sf-input p-3" type={numeric ? 'number' : 'text'} min={key === 'declared_hold_hours' ? 0 : numeric ? 1 : undefined} max={NUMBER_MAX[key as keyof typeof NUMBER_MAX]} maxLength={key === 'bank_account_number' ? 64 : 200} value={form[key]} onChange={e => setForm({ ...form, [key]: numeric ? Number(e.target.value) : e.target.value })} onBlur={() => setErrors(prev => { const next = { ...prev }; const code = bankTransferFieldErrors(form)[key]; if (code) next[key] = code; else delete next[key]; return next; })} />{error && <span id={`${key}-error`} role="alert" className="mt-1 block text-xs text-sf-danger">{t(`errors.${error}`, { min: key === 'declared_hold_hours' ? 0 : key === 'reservation_release_hours' ? 2 : 1, max: NUMBER_MAX[key as keyof typeof NUMBER_MAX] ?? 0 })}</span>}</label>;
       })}
-      <p>{t('preview')}: {form.bank_transfer_title_template.replaceAll('{order_number}', '12345')}</p>
+      <p className="[overflow-wrap:anywhere]">{t('preview')}: {form.bank_transfer_title_template.replaceAll('{order_number}', '12345')}</p>
       <p className="text-sm text-sf-muted">{t('reservationHelp')}</p>
       <p className="text-sm text-sf-muted">{t('sessionRuleHelp')}</p>
       <p className="text-sm text-sf-muted">{t('profileHelp')}</p>
