@@ -107,7 +107,7 @@ export async function backfillBuyerDetails(
         fullName: meta.full_name || details?.name,
         termsAccepted: meta.terms_accepted === 'true',
         needsInvoice: meta.needs_invoice === 'true' || Boolean(details?.tax_ids?.length),
-        buyerType: meta.needs_invoice === 'true' || Boolean(details?.tax_ids?.length) ? 'organization' : 'person',
+        buyerType: meta.nip || details?.tax_ids?.length ? 'organization' : undefined,
         nip: meta.nip || details?.tax_ids?.[0]?.value,
         companyName: meta.company_name || details?.business_name,
         address: meta.address || details?.address?.line1,
