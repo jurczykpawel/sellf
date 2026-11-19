@@ -240,7 +240,7 @@ it.each(['pl', 'en'])('first transfer mail follows the order access policy in %s
         }
         expect((await db.from('bank_transfer_config').update({ bank_transfer_enabled: true, bank_account_holder: 'Workshop', bank_account_number: 'PL61109010140000071219812874', bank_transfer_grant_access_on_placement: access }).eq('id', true)).error).toBeNull();
         const order = await db.rpc('bank_transfer_order', {
-          p_order: { product_id: product.data!.id, customer_email: email, currency: 'PLN', metadata: { locale }, order_details: { v: 1, buyer: { type: 'organization', terms_accepted: true } } },
+          p_order: { product_id: product.data!.id, customer_email: email, ...(userId ? { user_id: userId } : {}), currency: 'PLN', metadata: { locale }, order_details: { v: 1, buyer: { type: 'organization', terms_accepted: true } } },
           p_lines: [{ product_id: product.data!.id, item_type: 'main_product', quantity: 1, unit_price: 10, total_price: 10, discounted_total: 10, currency: 'PLN' }],
         });
         expect(order.error).toBeNull();
@@ -248,9 +248,12 @@ it.each(['pl', 'en'])('first transfer mail follows the order access policy in %s
         expect((await db.from('bank_transfer_config').update({ bank_transfer_grant_access_on_placement: !access }).eq('id', true)).error).toBeNull();
         await sendOrderNotice(db, orderId, 'placed');
         const mail = await waitForEmail(email);
-        const immediate = locale === 'pl' ? 'Dostęp otrzymujesz po potwierdzeniu adresu email' : 'You get access after confirming your email';
+        const immediate = confirmed
+          ? (locale === 'pl' ? 'Dostęp jest już aktywny' : 'Your access is already active')
+          : (locale === 'pl' ? 'Dostęp otrzymujesz po potwierdzeniu adresu email' : 'You get access after confirming your email');
         const afterPayment = locale === 'pl' ? 'dostęp otrzymasz po zaksięgowaniu wpłaty' : 'you get access once the payment is booked';
         expect(mail.HTML).toContain(access ? immediate : afterPayment);
+        if (confirmed && access) expect(mail.HTML).not.toContain(locale === 'pl' ? 'po potwierdzeniu adresu email' : 'after confirming your email');
         expect(mail.HTML).not.toContain(access ? afterPayment : immediate);
         const link = extractMagicLink(mail.HTML!);
         expect(link).not.toBeNull();
