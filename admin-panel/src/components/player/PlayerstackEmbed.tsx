@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { createElement, useEffect, useMemo, useState } from 'react';
 import type { ContentItemConfig } from '@/types';
 import {
@@ -55,6 +56,7 @@ function loadPlayerstackScript(): Promise<void> {
 }
 
 export default function PlayerstackEmbed({ url, title, config, poster }: PlayerstackEmbedProps) {
+  const t = useTranslations('productView');
   const [scriptReady, setScriptReady] = useState(false);
   const [scriptError, setScriptError] = useState(false);
   const [twitchParent] = useState<string | null>(() => getTwitchParent());
@@ -87,7 +89,7 @@ export default function PlayerstackEmbed({ url, title, config, poster }: Players
   if (scriptError) {
     return (
       <div className="flex h-full min-h-[180px] items-center justify-center bg-black text-sm text-white/70">
-        Video unavailable
+        {t('videoUnavailable')}
       </div>
     );
   }
@@ -98,7 +100,7 @@ export default function PlayerstackEmbed({ url, title, config, poster }: Players
         className="flex h-full min-h-[180px] items-center justify-center bg-black text-sm text-white/70"
         data-testid="playerstack-loading"
       >
-        Loading video...
+        {t('videoLoading')}
       </div>
     );
   }

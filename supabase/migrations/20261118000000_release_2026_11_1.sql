@@ -701,7 +701,7 @@ CREATE POLICY "SELECT policy for products" ON public.products FOR SELECT USING (
       AND (available_from IS NULL OR available_from <= now())
       AND (available_until IS NULL OR available_until >= now()))
   OR (archived_at IS NULL AND is_active = false AND enable_waitlist = true)
-  OR (archived_at IS NOT NULL AND public.owns_product_access(id))
+  OR (is_active = false AND public.owns_product_access(id))
 );
 
 -- ===== HISTORY KEPT ON PERMANENT DELETE =====
@@ -713,6 +713,33 @@ UPDATE public.subscriptions s SET product_name = p.name FROM public.products p
 ALTER TABLE public.subscriptions ALTER COLUMN product_id DROP NOT NULL,
   DROP CONSTRAINT subscriptions_product_id_fkey,
   ADD CONSTRAINT subscriptions_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE SET NULL;
+
+-- Subscription receipts keep their purchased summary when the offer leaves the catalogue.
+ALTER TABLE public.subscriptions ADD COLUMN product_summary jsonb;
+CREATE FUNCTION public.snapshot_subscription_product() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  IF TG_OP = 'UPDATE' AND OLD.product_summary IS NOT NULL THEN
+    NEW.product_summary := OLD.product_summary;
+  ELSIF NEW.product_summary IS NULL THEN
+    SELECT jsonb_build_object('id', p.id, 'name', coalesce(NEW.product_name, p.name), 'slug', p.slug,
+      'currency', coalesce(purchase.currency, p.currency), 'recurring_price', coalesce(purchase.amount / public.currency_minor_factor(purchase.currency), p.recurring_price),
+      'billing_interval', p.billing_interval, 'billing_interval_count', p.billing_interval_count)
+    INTO NEW.product_summary FROM public.products p
+    LEFT JOIN LATERAL (
+      SELECT t.amount, t.currency FROM public.payment_transactions t
+      WHERE t.subscription_id = NEW.id AND t.amount > 0
+        AND t.status IN ('completed', 'partially_refunded')
+      ORDER BY t.created_at, t.id LIMIT 1
+    ) purchase ON true
+    WHERE p.id = NEW.product_id;
+  END IF;
+  RETURN NEW;
+END $$;
+REVOKE EXECUTE ON FUNCTION public.snapshot_subscription_product() FROM PUBLIC, anon, authenticated;
+CREATE TRIGGER snapshot_subscription_product BEFORE INSERT OR UPDATE ON public.subscriptions
+  FOR EACH ROW EXECUTE FUNCTION public.snapshot_subscription_product();
+UPDATE public.subscriptions SET product_summary = NULL WHERE product_id IS NOT NULL;
 
 -- Past reservations are detached from the deleted sessions by remove_product_as; the session
 -- foreign keys keep blocking the removal of a reserved session through a product edit.
@@ -3208,7 +3235,7 @@ REVOKE EXECUTE ON FUNCTION public.order_granted_components(uuid) FROM PUBLIC, an
 -- components the buyer still holds through a real entitlement: another paid order (or an unpaid
 -- bank-transfer order that granted access on placement) that includes the component, or another
 -- bundle the buyer has live access to.
-CREATE FUNCTION public.revoke_order_bundle_components(p_transaction_id uuid, p_user_id uuid) RETURNS integer
+CREATE FUNCTION public.revoke_order_product_access(p_transaction_id uuid, p_user_id uuid, p_product_id uuid) RETURNS boolean
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE t public.payment_transactions; removed integer;
 BEGIN
@@ -3216,13 +3243,14 @@ BEGIN
     RAISE EXCEPTION 'Service role required' USING ERRCODE = '42501';
   END IF;
   SELECT * INTO t FROM public.payment_transactions WHERE id = p_transaction_id;
-  IF NOT FOUND OR p_user_id IS NULL THEN RETURN 0; END IF;
+  IF NOT FOUND OR p_user_id IS NULL THEN RETURN false; END IF;
   DELETE FROM public.user_product_access a
-  WHERE a.user_id = p_user_id
-    AND a.product_id IN (SELECT public.order_granted_components(t.id))
-    AND a.product_id IS DISTINCT FROM t.product_id
-    AND a.grant_source = 'bundle'
-    AND a.subscription_id IS NULL
+  WHERE a.user_id = p_user_id AND a.product_id = p_product_id
+    AND NOT EXISTS (
+      SELECT 1 FROM public.subscriptions s WHERE s.user_id = p_user_id AND s.product_id = a.product_id
+        AND s.id IS DISTINCT FROM t.subscription_id AND s.status IN ('active', 'trialing', 'past_due')
+        AND (s.current_period_end IS NULL OR s.current_period_end > now())
+    )
     AND NOT EXISTS (
       SELECT 1 FROM public.payment_transactions o
       WHERE o.id <> t.id
@@ -3254,6 +3282,33 @@ BEGIN
         AND (other.access_expires_at IS NULL OR other.access_expires_at > now())
     );
   GET DIAGNOSTICS removed = ROW_COUNT;
+  RETURN removed > 0;
+END $$;
+REVOKE EXECUTE ON FUNCTION public.revoke_order_product_access(uuid, uuid, uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.revoke_order_product_access(uuid, uuid, uuid) TO service_role;
+
+CREATE FUNCTION public.revoke_order_bundle_components(p_transaction_id uuid, p_user_id uuid) RETURNS integer
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE t public.payment_transactions; removed integer := 0; candidate uuid;
+BEGIN
+  IF (select auth.role()) IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'Service role required' USING ERRCODE = '42501';
+  END IF;
+  SELECT * INTO t FROM public.payment_transactions WHERE id = p_transaction_id;
+  IF NOT FOUND OR p_user_id IS NULL THEN RETURN 0; END IF;
+  FOR candidate IN
+    SELECT a.product_id FROM public.user_product_access a
+  WHERE a.user_id = p_user_id
+    AND a.product_id IN (SELECT public.order_granted_components(t.id))
+    AND a.product_id IS DISTINCT FROM t.product_id
+    AND (a.grant_source = 'bundle' OR (a.grant_source = 'purchase' AND EXISTS (
+      SELECT 1 FROM public.payment_transactions old WHERE old.product_id = a.product_id
+        AND old.user_id = p_user_id AND old.status IN ('refunded', 'cancelled', 'disputed')
+    )))
+    AND a.subscription_id IS NULL
+  LOOP
+    IF public.revoke_order_product_access(t.id, p_user_id, candidate) THEN removed := removed + 1; END IF;
+  END LOOP;
   RETURN removed;
 END $$;
 REVOKE EXECUTE ON FUNCTION public.revoke_order_bundle_components(uuid, uuid) FROM PUBLIC, anon, authenticated;
@@ -3272,15 +3327,18 @@ CREATE FUNCTION public.grant_product_and_bundle_components(
 ) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
+  previous_paid_order text := current_setting('sellf.paid_order', true);
   is_bundle_var boolean;
   order_scoped boolean;
   comp_rec record;
   comp_result jsonb;
   granted integer := 0;
 BEGIN
+  PERFORM set_config('sellf.paid_order', coalesce(transaction_id_param::text, ''), true);
   PERFORM public.grant_product_access_service_role(
     user_id_param, product_id_param, override_duration_days_param => override_duration_days_param
   );
+  PERFORM set_config('sellf.paid_order', coalesce(previous_paid_order, ''), true);
   granted := granted + 1;
 
   SELECT is_bundle INTO is_bundle_var FROM public.products WHERE id = product_id_param;
@@ -3335,6 +3393,26 @@ END $$;
 REVOKE EXECUTE ON FUNCTION public.grant_product_and_bundle_components(uuid, uuid, integer, uuid) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.grant_product_and_bundle_components(uuid, uuid, integer, uuid) TO service_role;
 
+-- A paid order can be claimed after the offer is withdrawn; new grants still require an active offer.
+DO $$
+DECLARE definition text; original text := 'WHERE id = product_id_param AND is_active = true;';
+BEGIN
+  definition := pg_get_functiondef('public.grant_product_access_service_role_impl(uuid,uuid,integer,integer)'::regprocedure);
+  IF (length(definition) - length(replace(definition, original, ''))) / length(original) <> 1 THEN
+    RAISE EXCEPTION 'Unexpected product grant definition';
+  END IF;
+  EXECUTE replace(definition, original, $clause$
+    WHERE id = product_id_param AND (is_active = true OR EXISTS (
+      SELECT 1 FROM public.payment_transactions t JOIN auth.users u ON u.id = user_id_param
+      WHERE t.id::text IN (current_setting('sellf.paid_order', true), current_setting('sellf.transfer_order', true))
+        AND (t.product_id = product_id_param OR EXISTS (SELECT 1 FROM public.payment_line_items l
+          WHERE l.transaction_id = t.id AND l.product_id = product_id_param))
+        AND t.status IN ('completed', 'partially_refunded')
+        AND (t.amount = 0 OR coalesce(t.refunded_amount, 0) < t.amount)
+        AND (t.user_id = user_id_param OR (t.user_id IS NULL AND lower(t.customer_email) = lower(u.email)))
+    ));$clause$);
+END $$;
+
 -- Order completion, a guest's claim and the repeated-verification claim pass their order to the
 -- grant primitive. The current definitions are patched in place, so changes made by other
 -- migrations survive.
@@ -3344,13 +3422,13 @@ BEGIN
   FOR fn, old_call, new_call IN VALUES
     ('public._order_grant_and_record(uuid,uuid,uuid,uuid,uuid,text)',
       'grant_product_and_bundle_components(p_user_id,tx.product_id);',
-      'grant_product_and_bundle_components(p_user_id,tx.product_id,NULL,tx.id);'),
+      E'grant_product_and_bundle_components(p_user_id,tx.product_id,NULL,tx.id);\n    PERFORM set_config(\'sellf.paid_order\',tx.id::text,true);'),
     ('public._claim_guest_purchases_before_disputes(uuid)',
       'grant_product_and_bundle_components(p_user_id,claim.product_id);',
       'grant_product_and_bundle_components(p_user_id,claim.product_id,NULL,claim.transaction_id);'),
     ('public._process_stripe_payment_completion_with_bump_impl(text,uuid,text,numeric,text,text,uuid,uuid[],uuid,numeric,boolean)',
       'grant_product_and_bundle_components(current_user_id, product_id_param);',
-      'grant_product_and_bundle_components(current_user_id, product_id_param, NULL, existing_transaction_id);')
+      E'grant_product_and_bundle_components(current_user_id, product_id_param, NULL, existing_transaction_id);\n            PERFORM set_config(\'sellf.paid_order\',existing_transaction_id::text,true);')
   LOOP
     definition := pg_get_functiondef(fn::regprocedure);
     IF (length(definition) - length(replace(definition, old_call, ''))) / length(old_call) <> 1 THEN

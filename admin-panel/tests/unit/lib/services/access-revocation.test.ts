@@ -134,7 +134,11 @@ function createMockSupabase({
     };
   });
 
-  const rpc = vi.fn().mockResolvedValue(componentResult);
+  const rpc = vi.fn().mockImplementation(async (name: string, args: { p_product_id?: string }) => {
+    if (name === 'revoke_order_bundle_components') return componentResult;
+    const error = deleteErrors[`user_product_access:product_id=${args.p_product_id}`] ?? null;
+    return { data: !error, error };
+  });
   return { from, rpc, _fromCalls: fromCalls };
 }
 
@@ -238,7 +242,7 @@ describe('revokeTransactionAccess', () => {
       // Should query payment_line_items
       expect(mock.from).toHaveBeenCalledWith('payment_line_items');
       // Should delete from user_product_access
-      expect(mock.from).toHaveBeenCalledWith('user_product_access');
+      expect(mock.rpc).toHaveBeenCalledWith('revoke_order_product_access', expect.objectContaining({ p_user_id: USER_ID, p_product_id: PRODUCT_ID }));
     });
 
     it('revokes guest_purchases for guest session', async () => {
@@ -258,7 +262,7 @@ describe('revokeTransactionAccess', () => {
       expect(result.success).toBe(true);
       expect(result.mainProductRevoked).toBe(true);
       expect(result.mainGuestRevoked).toBe(true);
-      expect(mock.from).toHaveBeenCalledWith('user_product_access');
+      expect(mock.rpc).toHaveBeenCalledWith('revoke_order_product_access', expect.objectContaining({ p_user_id: USER_ID, p_product_id: PRODUCT_ID }));
       expect(mock.from).toHaveBeenCalledWith('guest_purchases');
     });
 
@@ -324,7 +328,7 @@ describe('revokeTransactionAccess', () => {
       expect(result.success).toBe(true);
       expect(result.mainProductRevoked).toBe(false);
       expect(result.bumpProductsRevoked).toBe(1);
-      expect(mock._fromCalls.some(c => c.table === 'user_product_access' && c.filters.product_id === `[${BUMP_1}]`)).toBe(true);
+      expect(mock.rpc).toHaveBeenCalledWith('revoke_order_product_access', expect.objectContaining({ p_product_id: BUMP_1 }));
     });
 
     it('revokes bump guest_purchases even without user_id (guest-only)', async () => {
@@ -376,7 +380,7 @@ describe('revokeTransactionAccess', () => {
       expect(result.success).toBe(false);
       expect(result.warnings).toContain('Failed to query bump line items: DB timeout');
       // Main product revocation should still proceed
-      expect(mock.from).toHaveBeenCalledWith('user_product_access');
+      expect(mock.rpc).toHaveBeenCalledWith('revoke_order_product_access', expect.objectContaining({ p_user_id: USER_ID, p_product_id: PRODUCT_ID }));
     });
 
     it('warns on main product revocation failure but continues', async () => {
@@ -392,22 +396,22 @@ describe('revokeTransactionAccess', () => {
       expect(result.warnings.some(w => w.includes('Failed to revoke main product access'))).toBe(true);
     });
 
-    it('warns on batch bump revocation failure', async () => {
+    it('warns on a failed bump and still revokes the other bump', async () => {
       const mock = createMockSupabase({
         bumpLineItems: [
           { product_id: BUMP_1 },
           { product_id: BUMP_2 },
         ],
         deleteErrors: {
-          // Any matching product_id error triggers the batch .in() to fail
+          // Only this product fails.
           [`user_product_access:product_id=${BUMP_1}`]: { message: 'Some error' },
         },
       });
 
       const result = await revokeTransactionAccess(mock as never, fullTarget);
 
-      // Batch failed — no bumps revoked
-      expect(result.bumpProductsRevoked).toBe(0);
+      // The other bump still completes.
+      expect(result.bumpProductsRevoked).toBe(1);
       expect(result.warnings.some(w => w.includes('bump product access'))).toBe(true);
     });
 
@@ -454,7 +458,7 @@ describe('revokeTransactionAccess', () => {
         'utf-8'
       );
 
-      expect(source).toContain("'user_product_access'");
+      expect(source).toContain("'revoke_order_product_access'");
       expect(source).toContain("'guest_purchases'");
       expect(source).toContain("'payment_line_items'");
       expect(source).toContain('.delete()');

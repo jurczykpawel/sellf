@@ -14,7 +14,7 @@ vi.mock('@/components/DashboardLayout', () => ({ default: ({ children }: { child
 vi.mock('next/image', () => ({ default: ({ alt }: { alt: string }) => createElement('img', { alt }) }));
 
 const base = { icon: '📦', price: 49, currency: 'PLN', is_active: true, is_featured: false, created_at: '2026-01-01T00:00:00Z' };
-const owned = { ...base, id: 'p-owned', name: 'Owned canonical', slug: 'owned', description: 'Owned canonical text', image_url: 'https://example.com/a.png' };
+const owned = { ...base, id: 'p-owned', name: 'Owned canonical', slug: 'owned', description: 'Owned canonical text', image_url: 'https://example.com/a.png', archived_at: null as string | null };
 const other = { ...base, id: 'p-other', name: 'Other canonical', slug: 'other', description: 'Other canonical text', image_url: null };
 vi.mock('@/lib/supabase/client', () => ({
   createClient: async () => ({
@@ -29,7 +29,7 @@ vi.mock('@/lib/supabase/client', () => ({
   }),
 }));
 
-afterEach(() => { cleanup(); vi.resetAllMocks(); mocks.discover = null; });
+afterEach(() => { cleanup(); vi.resetAllMocks(); mocks.discover = null; owned.is_active = true; owned.archived_at = null; });
 const view = (locale: 'pl' | 'en') => createElement(NextIntlClientProvider, { locale, messages: locale === 'pl' ? pl : en }, createElement(MyProductsPage));
 
 it('renders owned and available cards in the active locale with locale-preserving links and canonical fallback (GitHub #73)', async () => {
@@ -62,4 +62,17 @@ it('translates every card of a catalog larger than one server request (201 produ
   expect(screen.getByText('Przetłumaczony p-200')).toBeTruthy();
   expect(screen.queryByText('Canonical 0')).toBeNull();
   for (const [ids] of mocks.localizations.mock.calls) expect((ids as string[]).length).toBeLessThanOrEqual(200);
+});
+
+it('keeps a paused purchase visible without a link to unavailable content', async () => {
+  mocks.localizations.mockResolvedValue({}); owned.is_active = false;
+  render(view('pl'));
+  await screen.findByText('Owned canonical');
+  expect(screen.getByText('Sprzedawca wstrzymał dostęp do tego produktu. Twój zakup pozostaje zapisany.')).toBeTruthy();
+  expect(screen.getAllByRole('link').some(link => link.getAttribute('href') === '/pl/p/owned')).toBe(false);
+});
+it('still opens archived content for its buyer', async () => {
+  mocks.localizations.mockResolvedValue({}); owned.is_active = false; owned.archived_at = '2026-11-19T12:00:00Z';
+  render(view('pl')); await screen.findByText('Owned canonical');
+  expect(screen.getAllByRole('link').some(link => link.getAttribute('href') === '/pl/p/owned')).toBe(true);
 });

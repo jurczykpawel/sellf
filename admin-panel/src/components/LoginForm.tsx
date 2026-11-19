@@ -16,7 +16,7 @@ import type { OAuthProvider } from '@/components/OAuthIconButtons'
  * Login form component that handles magic link authentication
  * Demo uses passwords; test mode also offers the standard magic-link flow.
  */
-export default function LoginForm({ redirectTo }: { redirectTo?: string }) {
+export default function LoginForm({ redirectTo, onMagicLinkSent }: { redirectTo?: string; onMagicLinkSent?: () => void }) {
   const { demoMode, passwordLoginEnabled, oauthProviders } = useConfig()
   const magicLinkEnabled = !demoMode
   const [email, setEmail] = useState(demoMode ? 'demo@sellf.app' : '')
@@ -97,6 +97,7 @@ export default function LoginForm({ redirectTo }: { redirectTo?: string }) {
         setSentEmail(false)
       } else {
         setSentEmail(true)
+        onMagicLinkSent?.()
         setMessage(t('productView.checkEmailForMagicLink'))
       }
     } catch {

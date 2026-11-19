@@ -7,7 +7,7 @@ Sellf wysyła zdarzenia do skonfigurowanych endpointów HTTPS. Każda dostawa je
 zapisywana przed wysłaniem żądania HTTP. Nieudane próby trafiają do kolejki ponowień.
 
 
-Pełny zwrot płatności za subskrypcję kończy ją od razu i odbiera dostęp. Kolejny płatny okres wymaga nowego zakupu. Wygrany spór przywraca pierwotne uprawnienie, także gdy gość potwierdził adres email w trakcie sporu.
+Pełny zwrot płatności za subskrypcję kończy ją od razu. Inna aktywna subskrypcja tego samego produktu nadal uprawnia do dostępu. Nowy płatny okres zakończonej subskrypcji wymaga nowego zakupu. Wygrany spór przywraca pierwotne uprawnienie, także gdy gość potwierdził adres email w trakcie sporu.
 
 ## Rotacja sekretu podpisującego
 

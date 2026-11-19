@@ -1311,6 +1311,8 @@
     }
   },
   "productView": {
+    "videoLoading": "Loading video…",
+    "videoUnavailable": "Video unavailable",
     "emailTooLong": "Email address must be at most 254 characters.",
     "loading": "Loading...",
     "checkingAccess": "Checking your access to this product...",
@@ -1442,6 +1444,7 @@
     }
   },
   "myProducts": {
+    "accessPaused": "The seller has paused access to this product. Your purchase remains saved.",
     "title": "My Products",
     "subtitle": "Your products and what's available in the store.",
     "loadingProducts": "Loading your products...",
@@ -4467,6 +4470,8 @@
     "saleQuantityRemaining": "Only {count} left at this price!"
   },
   "myPurchases": {
+    "statusCancelled": "Cancelled — do not pay this order",
+    "statusAwaitingPayment": "Awaiting bank transfer",
     "title": "My Purchases",
     "subtitle": "View your purchase history and manage refunds",
     "loading": "Loading purchases...",

@@ -36,3 +36,11 @@ The first transfer-instructions email follows the access policy saved on the ord
 Every state change sends a signed webhook: `order.placed`, `order.payment_reminder`, `order.transfer_declared`, `order.invoice_issued`, `order.cancelled`, `order.reopened`, `purchase.completed` (see [Webhooks](/webhooks/)).
 
 **Pay online from the link.** The order page (linked from the mails and from `payUrl` in webhooks) has a **Pay online** button. An unpaid order is paid at its saved amount (price and seat stay reserved) through Stripe Checkout. A cancelled order cannot be paid online. After the reservation deadline no new online payment can be started (the server answers `payment_window_closed`), and until the automatic release runs the order page says **The payment deadline has passed — the order will be cancelled soon** instead of the transfer details; a payment started before the deadline may finish, and the automatic release waits for it at most 30 minutes after the deadline, then cancels the order (a payment that still lands is refunded). An order paid online stays a transfer order but carries a Stripe payment, so refunds work as for card orders. If an administrator marks the transfer paid or cancels the order while an online payment is in progress, Sellf expires the Stripe page; a payment that still gets through is refunded automatically.
+
+## Open receipts and printing
+
+An open unpaid receipt refreshes at the reservation deadline, every 15 seconds and when the window regains focus. It removes payment instructions when the deadline passes or the seller cancels the order. **My purchases** labels cancelled transfers **Cancelled — do not pay this order** and unpaid transfers **Awaiting bank transfer**.
+
+**Print / save PDF** omits cookie-preference controls and their footer, so a short receipt fits on one A4 page without an extra interface-only page.
+
+Each validated order link has its own refresh allowance, so buyers of different orders do not share one refresh budget.

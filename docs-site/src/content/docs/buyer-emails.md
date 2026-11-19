@@ -40,3 +40,13 @@ Sign-in mail requests and the retry worker share a limit of **5 attempts per inb
 The authentication-mail queue makes up to six retry attempts. A successful access or license grant stays successful while its email waits. For API grants, inspect `license.email_pending`; `POST /api/v1/licenses` uses `emailPending`. Repeating **Grant access** can resume an abandoned license email. See [SMTP and the retry schedule](/email-setup/).
 
 On a long-running production server, the app checks the queue every minute. For deployments without a persistent process, schedule `/api/cron?job=auth-mail-retry` every minute with `Authorization: Bearer <CRON_SECRET>`. Keep that credential in the scheduler's secret store. This job is separate from webhook delivery retries.
+
+## Recovering access after payment
+
+After requesting a fresh sign-in link successfully, the login page clears the previous expired-link warning. A refused send keeps that warning visible.
+
+Withdrawing or archiving an offer after checkout has started does not cancel a completed payment: its confirmation page still offers a sign-in link, and confirming that email claims the paid product. The offer remains unavailable for new purchases.
+
+In **My purchases**, subscription cards retain the purchased name, price, currency and billing cadence when an offer is deactivated or archived.
+
+A paused offer keeps its recorded purchase and access in the buyer library, with a paused message instead of an unavailable content link. Archived content remains open to its buyers. For subscriptions created before this update, the summary uses the first saved positive paid invoice amount (including its VAT and discounts); if no paid invoice exists, it uses the catalogue terms available during the update.

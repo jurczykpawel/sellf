@@ -1311,6 +1311,8 @@
     }
   },
   "productView": {
+    "videoLoading": "Ładowanie filmu…",
+    "videoUnavailable": "Film jest niedostępny",
     "emailTooLong": "Adres e-mail może mieć maksymalnie 254 znaki.",
     "loading": "Ładowanie...",
     "checkingAccess": "Sprawdzanie Twojego dostępu do tego produktu...",
@@ -1442,6 +1444,7 @@
     }
   },
   "myProducts": {
+    "accessPaused": "Sprzedawca wstrzymał dostęp do tego produktu. Twój zakup pozostaje zapisany.",
     "title": "Moje produkty",
     "subtitle": "Twoje produkty i oferta dostępna w sklepie.",
     "loadingProducts": "Ładowanie Twoich produktów...",
@@ -4467,6 +4470,8 @@
     "saleQuantityRemaining": "Tylko {count} szt. w tej cenie!"
   },
   "myPurchases": {
+    "statusCancelled": "Anulowane — nie opłacaj tego zamówienia",
+    "statusAwaitingPayment": "Oczekuje na przelew",
     "title": "Moje Zakupy",
     "subtitle": "Przeglądaj historię zakupów i zarządzaj zwrotami",
     "loading": "Ładowanie zakupów...",

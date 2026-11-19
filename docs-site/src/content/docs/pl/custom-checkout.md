@@ -87,3 +87,9 @@ Po pełnym zwrocie otwarcie pierwotnego linku statusu płatności pokazuje **Pł
 Częściowy zwrot zachowuje ścieżkę weryfikacji zakończonej płatności i pozostały dostęp. Otwarty spór płatniczy pokazuje **Płatność zakwestionowana**, zwraca `payment_status: "disputed"` i nie przyznaje dostępu ani nie realizuje zamówienia ponownie.
 
 Jeśli koszyk zmieni się podczas przygotowywania płatności, Sellf zatrzymuje się przed potwierdzeniem i prosi o sprawdzenie koszyka przed ponowną próbą. Gdy nie da się odczytać podglądu pakietu, checkout pozostaje dostępny bez listy składników i informacji o oszczędności. Powrót na stronę potwierdzenia płatności po częściowym zwrocie zachowuje dostęp zgodnie z zamówieniem, ale nie generuje kuponu oferty po zakupie.
+
+## Dostęp z kilku zakupów
+
+Pełny zwrot kończy uprawnienie z danego zamówienia. Kupujący zachowuje produkt, jeśli nadal uprawnia do niego inny zakup, opłacony przelew, pakiet, dodatek do zamówienia lub aktywna subskrypcja. Zwrot ostatniego uprawniającego zamówienia odbiera odpowiadający mu dostęp.
+
+Komunikaty ładowania i niedostępności filmu są wyświetlane w języku widoku kupującego: polskim lub angielskim.

@@ -11,7 +11,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { fulfillStripeOrder } from '@/lib/services/fulfill-paid-order';
 import { backfillBuyerDetails } from '@/lib/payment/buyer-details';
 import { readCartVersion } from '@/lib/stripe/checkout-session-update';
-import { isForeignStripeMarker, readStripeInstanceMarker } from '@/lib/stripe/instance-marker';
+import { isOwnStripeMarker, isForeignStripeMarker, readStripeInstanceMarker } from '@/lib/stripe/instance-marker';
 import { redactEmail } from '@/lib/logger';
 import type Stripe from 'stripe';
 import type { User } from '@supabase/supabase-js';
@@ -357,7 +357,7 @@ async function getProcessedPaymentFromDatabase(
 
   if (transaction.status === 'refunded' || transaction.status === 'disputed') {
     return {
-      session_id: sessionId, status: 'complete', payment_status: transaction.status,
+      session_id: sessionId, status: 'complete', payment_status: transaction.status, metadata: { product_id: transaction.product_id },
       access_granted: false, requires_login: false, send_magic_link: false,
     };
   }
@@ -613,6 +613,7 @@ export async function verifyPaymentSession(
             // Net subtotal: net-priced products validate the NET amount, not the gross.
             amount_subtotal_param: session.amount_subtotal ?? undefined,
             cart_version_param: readCartVersion(session.metadata),
+            allow_inactive_product_param: readStripeInstanceMarker(session) !== null && await isOwnStripeMarker(readStripeInstanceMarker(session)!),
           };
           
           const { data: paymentResultRaw, error: paymentError } = await serviceClient
@@ -889,6 +890,8 @@ export async function verifyPaymentIntent(
             coupon_id_param: couponId || undefined,
             amount_subtotal_param: piAmountSubtotal,
             cart_version_param: readCartVersion(ownerSession?.metadata ?? paymentIntent.metadata),
+            allow_inactive_product_param: (readStripeInstanceMarker(paymentIntent) ?? readStripeInstanceMarker(ownerSession)) !== null
+              && await isOwnStripeMarker((readStripeInstanceMarker(paymentIntent) ?? readStripeInstanceMarker(ownerSession))!),
           };
 
           const { data: paymentResultRaw2, error: paymentError } = await serviceClient

@@ -26,6 +26,7 @@ interface Product {
   custom_price_min?: number | null;
   currency: string;
   is_active: boolean;
+  archived_at?: string | null;
   is_featured: boolean;
   created_at: string;
   product_type?: string | null;
@@ -128,7 +129,7 @@ export default function MyProductsPage() {
           access_expires_at,
           product:products!inner (
             id, name, slug, description, icon, image_url, price, currency,
-            is_active, is_featured, created_at, product_type, checkout_template
+            is_active, archived_at, is_featured, created_at, product_type, checkout_template
           ),
           subscription:subscriptions (
             status, cancel_at_period_end, current_period_end
@@ -335,12 +336,12 @@ export default function MyProductsPage() {
           </div>
         </div>
 
-        <Link
+        {!product.is_active && !product.archived_at ? <p className="text-sm text-sf-warning" role="status">{t('accessPaused')}</p> : <Link
           href={`/p/${product.slug}`}
           className="block w-full text-center font-semibold py-3 px-4 rounded-full transition-colors duration-200 active:scale-[0.98] bg-sf-success hover:bg-sf-success/90 text-sf-inverse"
         >
           {t('openProduct')}
-        </Link>
+        </Link>}
       </div>
     </div>
     );

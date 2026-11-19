@@ -1,0 +1,31 @@
+// @vitest-environment happy-dom
+import { createElement } from 'react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { NextIntlClientProvider } from 'next-intl';
+import { afterEach, expect, it, vi } from 'vitest';
+import pl from '@/messages/pl.json';
+const submit = vi.hoisted(() => vi.fn());
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }), useSearchParams: () => new URLSearchParams('error=magic_link_expired&redirect_to=%2Fpl%2Fauth%2Fproduct-access%3Fproduct%3Dcourse') }));
+vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: null, loading: false }) }));
+vi.mock('@/components/providers/config-provider', () => ({ useConfig: () => ({ demoMode: false, passwordLoginEnabled: false, oauthProviders: [] }) }));
+vi.mock('@/components/SiteMenu', () => ({ default: () => null }));
+vi.mock('@/components/TermsCheckbox', () => ({ default: ({ onChange }: { onChange: (value: boolean) => void }) => createElement('button', { type: 'button', onClick: () => onChange(true) }, 'Accept terms') }));
+vi.mock('@/components/captcha/CaptchaWidget', () => ({ default: () => null }));
+vi.mock('@/hooks/useCaptcha', () => ({ useCaptcha: () => ({}) }));
+vi.mock('@/lib/auth/magic-link/submit', () => ({ submitMagicLink: submit }));
+import LoginPage from '@/components/LoginPage';
+afterEach(cleanup);
+it('clears the previous link error only after sending a new link', async () => {
+  submit.mockResolvedValueOnce({ ok: false, reason: 'rate_limited' }).mockResolvedValueOnce({ ok: true });
+  render(createElement(NextIntlClientProvider, { locale: 'pl', messages: pl }, createElement(LoginPage)));
+  expect(screen.getByText(pl.auth.magicLinkExpired)).toBeTruthy();
+  fireEvent.change(screen.getByLabelText(pl.auth.email), { target: { value: 'buyer@example.com' } });
+  fireEvent.click(screen.getByText('Accept terms'));
+  fireEvent.submit(document.querySelector('form')!);
+  await waitFor(() => expect(screen.getByText(pl.auth.magicLinkRateLimit)).toBeTruthy());
+  expect(screen.getByText(pl.auth.magicLinkExpired)).toBeTruthy();
+  fireEvent.submit(document.querySelector('form')!);
+  await waitFor(() => expect(screen.getByText(pl.productView.checkEmailForMagicLink)).toBeTruthy());
+  expect(screen.queryByText(pl.auth.magicLinkExpired)).toBeNull();
+  expect(submit).toHaveBeenLastCalledWith(expect.objectContaining({ redirectTo: '/pl/auth/product-access?product=course' }));
+});

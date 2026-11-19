@@ -32,7 +32,7 @@ export async function GET() {
   const { data: subscriptions, error: subError } = await supabase
     .from('subscriptions')
     .select(
-      'id, status, current_period_start, current_period_end, cancel_at_period_end, canceled_at, trial_end, latest_invoice_id, stripe_subscription_id, product_id, created_at'
+      'id, status, current_period_start, current_period_end, cancel_at_period_end, canceled_at, trial_end, latest_invoice_id, stripe_subscription_id, product_id, product_summary, created_at'
     )
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
@@ -57,7 +57,7 @@ export async function GET() {
   return NextResponse.json({
     subscriptions: subscriptions.map((sub) => ({
       ...sub,
-      product: productMap.get(sub.product_id) ?? null,
+      product: sub.product_summary ?? productMap.get(sub.product_id) ?? null,
     })),
   });
 }

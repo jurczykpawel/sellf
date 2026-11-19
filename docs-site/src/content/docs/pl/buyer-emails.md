@@ -40,3 +40,13 @@ Mapowania i szablony Mailstacka są rozwijane osobno w jego repozytorium. Sprawd
 Kolejka poczty uwierzytelniającej podejmuje do sześciu prób ponowienia. Nadany dostęp i wystawiona licencja pozostają ważne, gdy mail czeka. API nadania dostępu zwraca `license.email_pending`, a `POST /api/v1/licenses` zwraca `emailPending`. Ponowne **Przyznaj dostęp** może wznowić porzucony mail z licencją. Zobacz [SMTP i odstępy między próbami](/pl/email-setup/).
 
 Na serwerze z ciągłym procesem produkcyjnym aplikacja sprawdza kolejkę co minutę. W pozostałych środowiskach zaplanuj `/api/cron?job=auth-mail-retry` co minutę z nagłówkiem `Authorization: Bearer <CRON_SECRET>`. Sekret przechowuj w konfiguracji harmonogramu. To osobne zadanie niż ponawianie dostaw webhooków.
+
+## Odzyskanie dostępu po płatności
+
+Po udanym wysłaniu nowego linku logowania strona usuwa ostrzeżenie o poprzednim, wygasłym linku. Przy odmowie wysyłki ostrzeżenie pozostaje.
+
+Wyłączenie lub archiwizacja oferty po rozpoczęciu zakupu nie anuluje opłaconego zamówienia: strona potwierdzenia nadal umożliwia wysłanie linku logowania, a potwierdzenie adresu przypisuje kupującemu opłacony produkt. Oferta pozostaje niedostępna dla nowych zakupów.
+
+W **Moich zakupach** karta subskrypcji zachowuje nazwę, cenę, walutę i okres rozliczeniowy z zakupu także po wyłączeniu lub archiwizacji oferty.
+
+Przy wstrzymanej ofercie biblioteka zachowuje zakup i zapisany dostęp, ale zamiast linku do niedostępnej treści pokazuje informację o wstrzymaniu. Treść archiwalnego produktu nadal otwiera się kupującym. Dla subskrypcji sprzed tej aktualizacji podsumowanie używa kwoty pierwszego zapisanego dodatniego opłaconego rachunku (z VAT i rabatami); przy braku opłaconego rachunku używa warunków katalogowych dostępnych podczas aktualizacji.

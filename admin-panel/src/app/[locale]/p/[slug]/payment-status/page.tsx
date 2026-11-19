@@ -41,12 +41,20 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
     redirect('/login');
   }
 
-  // Get product details
-  const { data: product, error: productError } = await supabase
+  const verification = session_id
+    ? await verifyPaymentSession(session_id, user)
+    : payment_intent ? await verifyPaymentIntent(payment_intent, user) : null;
+  const verifiedProductId = verification && !verification.error && (
+    ('payment_status' in verification && verification.status === 'complete' && ['paid', 'refunded', 'disputed', 'no_payment_required'].includes(verification.payment_status ?? '')) || verification.status === 'succeeded'
+  ) ? verification.metadata?.product_id : null;
+  const productClient = typeof verifiedProductId === 'string' ? createAdminClient() : supabase;
+  // Paid receipts use the verified order's product; the public catalogue keeps its visibility rules.
+  let productQuery = productClient
     .from('products')
     .select('id, name, slug, description, icon, price, currency, allow_custom_price, custom_price_min, success_redirect_url, pass_params_to_redirect')
-    .eq('slug', resolvedParams.slug)
-    .single();
+    .eq('slug', resolvedParams.slug);
+  if (typeof verifiedProductId === 'string') productQuery = productQuery.eq('id', verifiedProductId);
+  const { data: product, error: productError } = await productQuery.single();
 
   if (productError || !product) {
     redirect('/');
@@ -63,7 +71,7 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
   try {
     if (isStripePayment && session_id) {
       // Handle paid product with Stripe Checkout Session (embedded checkout flow)
-      const result = await verifyPaymentSession(session_id, user);
+      const result = verification as Awaited<ReturnType<typeof verifyPaymentSession>>;
       customerEmail = result.customer_email || '';
       // Subscription receipts are stored under invoice IDs, not Checkout Session IDs.
       if (result.scenario === 'subscription_guest') purchaseSessionId = undefined;
@@ -89,7 +97,7 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
       }
     } else if (isStripePayment && payment_intent) {
       // Handle Payment Intent flow (custom payment form)
-      const result = await verifyPaymentIntent(payment_intent, user);
+      const result = verification as Awaited<ReturnType<typeof verifyPaymentIntent>>;
       customerEmail = result.customer_email || '';
 
       // Capture OTO info (both active and skipped)
@@ -291,7 +299,7 @@ export default async function PaymentStatusPage({ params, searchParams }: PagePr
 
   return (
     <PaymentStatusView
-      product={product}
+      product={{ ...product, description: product.description ?? '', icon: product.icon ?? '' }}
       accessGranted={accessGranted}
       paymentStatus={paymentStatus}
       errorMessage={errorMessage}

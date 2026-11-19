@@ -33,7 +33,7 @@ export interface RevocationTarget {
 export interface RevocationResult {
   /** Whether the revocation completed without critical errors */
   success: boolean;
-  /** Whether main product user_product_access was revoked (or attempted) */
+  /** Whether the main product access row was removed */
   mainProductRevoked: boolean;
   /** Whether main product guest_purchase was revoked (or attempted) */
   mainGuestRevoked: boolean;
@@ -119,35 +119,25 @@ export async function revokeTransactionAccess(
     .map((item: { product_id: string | null }) => item.product_id)
     .filter((id): id is string => id !== null);
 
-  // --- 2. Revoke user_product_access (main + bumps) ---
+  // --- 2. End access not retained through another source (main + bumps) ---
   if (target.userId) {
     if (target.productId) {
-      const { error: mainRevokeError } = await supabase
-        .from('user_product_access')
-        .delete()
-        .eq('user_id', target.userId)
-        .eq('product_id', target.productId);
+      const { data: revoked, error: mainRevokeError } = await supabase
+        .rpc('revoke_order_product_access', { p_transaction_id: target.transactionId, p_user_id: target.userId, p_product_id: target.productId });
 
       if (mainRevokeError) {
         warnings.push(`Failed to revoke main product access: ${mainRevokeError.message}`);
       } else {
-        mainProductRevoked = true;
+        mainProductRevoked = revoked === true;
       }
     }
 
-    // Bump products (batch DELETE to avoid N+1)
-    if (bumpProductIds.length > 0) {
-      const { error: bumpRevokeError } = await supabase
-        .from('user_product_access')
-        .delete()
-        .eq('user_id', target.userId)
-        .in('product_id', bumpProductIds);
-
-      if (bumpRevokeError) {
-        warnings.push(`Failed to revoke bump product access: ${bumpRevokeError.message}`);
-      } else {
-        bumpProductsRevoked = bumpProductIds.length;
-      }
+    for (const productId of bumpProductIds) {
+      const { data: revoked, error } = await supabase.rpc('revoke_order_product_access', {
+        p_transaction_id: target.transactionId, p_user_id: target.userId, p_product_id: productId,
+      });
+      if (error) warnings.push(`Failed to revoke bump product access: ${error.message}`);
+      else if (revoked === true) bumpProductsRevoked++;
     }
 
     // Bundle components granted by this order (runs before the guest claim rows go away).

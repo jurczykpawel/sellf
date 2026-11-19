@@ -105,10 +105,11 @@ describe('Refund Access Revocation Security', () => {
   });
 
   describe('Shared Revocation Service (access-revocation.ts)', () => {
-    it('revokes user_product_access with user_id and product_id conditions', () => {
-      expect(accessRevocationSource).toMatch(/\.from\(\s*['"]user_product_access['"]\s*\)[\s\S]*?\.delete\(\)/);
-      expect(accessRevocationSource).toContain('.eq(\'user_id\', target.userId)');
-      expect(accessRevocationSource).toContain('.eq(\'product_id\', target.productId)');
+    it('scopes the product operation to its order and buyer', () => {
+      expect(accessRevocationSource).toContain(".rpc('revoke_order_product_access'");
+      expect(accessRevocationSource).toContain('p_transaction_id: target.transactionId');
+      expect(accessRevocationSource).toContain('p_user_id: target.userId');
+      expect(accessRevocationSource).toContain('p_product_id: target.productId');
     });
 
     it('revokes guest_purchases using session_id', () => {

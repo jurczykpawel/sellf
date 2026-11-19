@@ -248,6 +248,7 @@ BEGIN
   END IF;
   IF p_user_id IS NOT NULL THEN
     PERFORM public.grant_product_and_bundle_components(p_user_id,tx.product_id,NULL,tx.id);
+    PERFORM set_config('sellf.paid_order',tx.id::text,true);
     FOR line IN SELECT product_id,access_duration_override FROM public.payment_line_items WHERE transaction_id=tx.id AND item_type='order_bump' LOOP
       PERFORM public.grant_product_access_service_role(p_user_id,line.product_id,override_duration_days_param=>line.access_duration_override);
     END LOOP;
@@ -508,6 +509,7 @@ BEGIN
           WHERE session_id = session_id_param AND claimed_by_user_id IS NULL
         ) THEN
           PERFORM public.grant_product_and_bundle_components(current_user_id, product_id_param, NULL, existing_transaction_id);
+            PERFORM set_config('sellf.paid_order',existing_transaction_id::text,true);
 
           FOR bump_rec IN
             SELECT pli.product_id, pli.access_duration_override
@@ -8056,7 +8058,16 @@ BEGIN
     SELECT auto_grant_duration_days
     INTO product_auto_duration
     FROM public.products
-    WHERE id = product_id_param AND is_active = true;
+    
+    WHERE id = product_id_param AND (is_active = true OR EXISTS (
+      SELECT 1 FROM public.payment_transactions t JOIN auth.users u ON u.id = user_id_param
+      WHERE t.id::text IN (current_setting('sellf.paid_order', true), current_setting('sellf.transfer_order', true))
+        AND (t.product_id = product_id_param OR EXISTS (SELECT 1 FROM public.payment_line_items l
+          WHERE l.transaction_id = t.id AND l.product_id = product_id_param))
+        AND t.status IN ('completed', 'partially_refunded')
+        AND (t.amount = 0 OR coalesce(t.refunded_amount, 0) < t.amount)
+        AND (t.user_id = user_id_param OR (t.user_id IS NULL AND lower(t.customer_email) = lower(u.email)))
+    ));
 
     -- If product doesn't exist, return error
     IF NOT FOUND THEN
@@ -8297,15 +8308,18 @@ CREATE FUNCTION public.grant_product_and_bundle_components(user_id_param uuid, p
     SET search_path TO ''
     AS $$
 DECLARE
+  previous_paid_order text := current_setting('sellf.paid_order', true);
   is_bundle_var boolean;
   order_scoped boolean;
   comp_rec record;
   comp_result jsonb;
   granted integer := 0;
 BEGIN
+  PERFORM set_config('sellf.paid_order', coalesce(transaction_id_param::text, ''), true);
   PERFORM public.grant_product_access_service_role(
     user_id_param, product_id_param, override_duration_days_param => override_duration_days_param
   );
+  PERFORM set_config('sellf.paid_order', coalesce(previous_paid_order, ''), true);
   granted := granted + 1;
 
   SELECT is_bundle INTO is_bundle_var FROM public.products WHERE id = product_id_param;
@@ -12124,50 +12138,26 @@ CREATE FUNCTION public.revoke_order_bundle_components(p_transaction_id uuid, p_u
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO ''
     AS $$
-DECLARE t public.payment_transactions; removed integer;
+DECLARE t public.payment_transactions; removed integer := 0; candidate uuid;
 BEGIN
   IF (select auth.role()) IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'Service role required' USING ERRCODE = '42501';
   END IF;
   SELECT * INTO t FROM public.payment_transactions WHERE id = p_transaction_id;
   IF NOT FOUND OR p_user_id IS NULL THEN RETURN 0; END IF;
-  DELETE FROM public.user_product_access a
+  FOR candidate IN
+    SELECT a.product_id FROM public.user_product_access a
   WHERE a.user_id = p_user_id
     AND a.product_id IN (SELECT public.order_granted_components(t.id))
     AND a.product_id IS DISTINCT FROM t.product_id
-    AND a.grant_source = 'bundle'
+    AND (a.grant_source = 'bundle' OR (a.grant_source = 'purchase' AND EXISTS (
+      SELECT 1 FROM public.payment_transactions old WHERE old.product_id = a.product_id
+        AND old.user_id = p_user_id AND old.status IN ('refunded', 'cancelled', 'disputed')
+    )))
     AND a.subscription_id IS NULL
-    AND NOT EXISTS (
-      SELECT 1 FROM public.payment_transactions o
-      WHERE o.id <> t.id
-        AND (o.status IN ('completed', 'partially_refunded', 'disputed')
-          OR (o.status = 'awaiting_payment' AND coalesce((o.metadata->>'access_on_placement')::boolean, false)))
-        AND (o.amount = 0 OR coalesce(o.refunded_amount, 0) < o.amount)
-        AND (o.user_id = p_user_id OR EXISTS (
-          SELECT 1 FROM public.guest_purchases g
-          WHERE g.claimed_by_user_id = p_user_id AND (g.transaction_id = o.id OR (g.transaction_id IS NULL AND g.session_id = o.session_id))))
-        AND (o.product_id = a.product_id
-          OR EXISTS (SELECT 1 FROM public.payment_line_items l WHERE l.transaction_id = o.id AND l.product_id = a.product_id)
-          OR a.product_id IN (SELECT public.order_granted_components(o.id)))
-    )
-    AND NOT EXISTS (
-      SELECT 1 FROM public.user_product_access other
-      JOIN public.bundle_items b ON b.bundle_product_id = other.product_id
-      WHERE other.user_id = p_user_id AND other.product_id IS DISTINCT FROM t.product_id
-        AND b.component_product_id = a.product_id
-        AND NOT EXISTS (
-          SELECT 1 FROM public.payment_transactions o
-          WHERE o.product_id = other.product_id
-            AND (o.status IN ('completed', 'partially_refunded', 'disputed')
-              OR (o.status = 'awaiting_payment' AND coalesce((o.metadata->>'access_on_placement')::boolean, false)))
-            AND (o.amount = 0 OR coalesce(o.refunded_amount, 0) < o.amount)
-            AND (o.user_id = p_user_id OR EXISTS (
-              SELECT 1 FROM public.guest_purchases g WHERE g.claimed_by_user_id = p_user_id
-                AND (g.transaction_id = o.id OR (g.transaction_id IS NULL AND g.session_id = o.session_id))))
-        )
-        AND (other.access_expires_at IS NULL OR other.access_expires_at > now())
-    );
-  GET DIAGNOSTICS removed = ROW_COUNT;
+  LOOP
+    IF public.revoke_order_product_access(t.id, p_user_id, candidate) THEN removed := removed + 1; END IF;
+  END LOOP;
   RETURN removed;
 END $$;
 
@@ -12201,6 +12191,65 @@ END $$;
 
 
 ALTER FUNCTION public.revoke_order_licenses(p_product_id uuid, p_order_ids text[], p_reason text) OWNER TO postgres;
+
+--
+-- Name: revoke_order_product_access(uuid, uuid, uuid); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.revoke_order_product_access(p_transaction_id uuid, p_user_id uuid, p_product_id uuid) RETURNS boolean
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+DECLARE t public.payment_transactions; removed integer;
+BEGIN
+  IF (select auth.role()) IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'Service role required' USING ERRCODE = '42501';
+  END IF;
+  SELECT * INTO t FROM public.payment_transactions WHERE id = p_transaction_id;
+  IF NOT FOUND OR p_user_id IS NULL THEN RETURN false; END IF;
+  DELETE FROM public.user_product_access a
+  WHERE a.user_id = p_user_id AND a.product_id = p_product_id
+    AND NOT EXISTS (
+      SELECT 1 FROM public.subscriptions s WHERE s.user_id = p_user_id AND s.product_id = a.product_id
+        AND s.id IS DISTINCT FROM t.subscription_id AND s.status IN ('active', 'trialing', 'past_due')
+        AND (s.current_period_end IS NULL OR s.current_period_end > now())
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM public.payment_transactions o
+      WHERE o.id <> t.id
+        AND (o.status IN ('completed', 'partially_refunded', 'disputed')
+          OR (o.status = 'awaiting_payment' AND coalesce((o.metadata->>'access_on_placement')::boolean, false)))
+        AND (o.amount = 0 OR coalesce(o.refunded_amount, 0) < o.amount)
+        AND (o.user_id = p_user_id OR EXISTS (
+          SELECT 1 FROM public.guest_purchases g
+          WHERE g.claimed_by_user_id = p_user_id AND (g.transaction_id = o.id OR (g.transaction_id IS NULL AND g.session_id = o.session_id))))
+        AND (o.product_id = a.product_id
+          OR EXISTS (SELECT 1 FROM public.payment_line_items l WHERE l.transaction_id = o.id AND l.product_id = a.product_id)
+          OR a.product_id IN (SELECT public.order_granted_components(o.id)))
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM public.user_product_access other
+      JOIN public.bundle_items b ON b.bundle_product_id = other.product_id
+      WHERE other.user_id = p_user_id AND other.product_id IS DISTINCT FROM t.product_id
+        AND b.component_product_id = a.product_id
+        AND NOT EXISTS (
+          SELECT 1 FROM public.payment_transactions o
+          WHERE o.product_id = other.product_id
+            AND (o.status IN ('completed', 'partially_refunded', 'disputed')
+              OR (o.status = 'awaiting_payment' AND coalesce((o.metadata->>'access_on_placement')::boolean, false)))
+            AND (o.amount = 0 OR coalesce(o.refunded_amount, 0) < o.amount)
+            AND (o.user_id = p_user_id OR EXISTS (
+              SELECT 1 FROM public.guest_purchases g WHERE g.claimed_by_user_id = p_user_id
+                AND (g.transaction_id = o.id OR (g.transaction_id IS NULL AND g.session_id = o.session_id))))
+        )
+        AND (other.access_expires_at IS NULL OR other.access_expires_at > now())
+    );
+  GET DIAGNOSTICS removed = ROW_COUNT;
+  RETURN removed > 0;
+END $$;
+
+
+ALTER FUNCTION public.revoke_order_product_access(p_transaction_id uuid, p_user_id uuid, p_product_id uuid) OWNER TO postgres;
 
 --
 -- Name: revoke_terminal_order_licenses(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -13066,6 +13115,36 @@ END $$;
 
 
 ALTER FUNCTION public.snapshot_purchase_product_name() OWNER TO postgres;
+
+--
+-- Name: snapshot_subscription_product(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.snapshot_subscription_product() RETURNS trigger
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+BEGIN
+  IF TG_OP = 'UPDATE' AND OLD.product_summary IS NOT NULL THEN
+    NEW.product_summary := OLD.product_summary;
+  ELSIF NEW.product_summary IS NULL THEN
+    SELECT jsonb_build_object('id', p.id, 'name', coalesce(NEW.product_name, p.name), 'slug', p.slug,
+      'currency', coalesce(purchase.currency, p.currency), 'recurring_price', coalesce(purchase.amount / public.currency_minor_factor(purchase.currency), p.recurring_price),
+      'billing_interval', p.billing_interval, 'billing_interval_count', p.billing_interval_count)
+    INTO NEW.product_summary FROM public.products p
+    LEFT JOIN LATERAL (
+      SELECT t.amount, t.currency FROM public.payment_transactions t
+      WHERE t.subscription_id = NEW.id AND t.amount > 0
+        AND t.status IN ('completed', 'partially_refunded')
+      ORDER BY t.created_at, t.id LIMIT 1
+    ) purchase ON true
+    WHERE p.id = NEW.product_id;
+  END IF;
+  RETURN NEW;
+END $$;
+
+
+ALTER FUNCTION public.snapshot_subscription_product() OWNER TO postgres;
 
 --
 -- Name: stamp_original_seller_id(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -16018,6 +16097,7 @@ CREATE TABLE public.subscriptions (
     paid_access_expires_at timestamp with time zone,
     paid_access_invoice_id text,
     product_name text,
+    product_summary jsonb,
     CONSTRAINT subscriptions_status_check CHECK ((status = ANY (ARRAY['incomplete'::text, 'incomplete_expired'::text, 'trialing'::text, 'active'::text, 'past_due'::text, 'canceled'::text, 'unpaid'::text, 'paused'::text])))
 );
 
@@ -19651,6 +19731,13 @@ CREATE TRIGGER snapshot_purchase_attribution_inserted AFTER INSERT ON public.pay
 
 
 --
+-- Name: subscriptions snapshot_subscription_product; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER snapshot_subscription_product BEFORE INSERT OR UPDATE ON public.subscriptions FOR EACH ROW EXECUTE FUNCTION public.snapshot_subscription_product();
+
+
+--
 -- Name: seat_reservations sold_out_business_event; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
@@ -21320,7 +21407,7 @@ CREATE POLICY "Public read access to shop_config" ON public.shop_config FOR SELE
 -- Name: products SELECT policy for products; Type: POLICY; Schema: public; Owner: postgres
 --
 
-CREATE POLICY "SELECT policy for products" ON public.products FOR SELECT USING ((( SELECT public.is_admin() AS is_admin) OR ((archived_at IS NULL) AND (is_active = true) AND ((available_from IS NULL) OR (available_from <= now())) AND ((available_until IS NULL) OR (available_until >= now()))) OR ((archived_at IS NULL) AND (is_active = false) AND (enable_waitlist = true)) OR ((archived_at IS NOT NULL) AND public.owns_product_access(id))));
+CREATE POLICY "SELECT policy for products" ON public.products FOR SELECT USING ((( SELECT public.is_admin() AS is_admin) OR ((archived_at IS NULL) AND (is_active = true) AND ((available_from IS NULL) OR (available_from <= now())) AND ((available_until IS NULL) OR (available_until >= now()))) OR ((archived_at IS NULL) AND (is_active = false) AND (enable_waitlist = true)) OR ((is_active = false) AND public.owns_product_access(id))));
 
 
 --
@@ -23615,6 +23702,8 @@ function | public.revoke_order_bundle_components(p_transaction_id uuid, p_user_i
 function | public.revoke_order_bundle_components(p_transaction_id uuid, p_user_id uuid) | service_role | EXECUTE | postgres | -
 function | public.revoke_order_licenses(p_product_id uuid, p_order_ids text[], p_reason text) | postgres | EXECUTE | postgres | -
 function | public.revoke_order_licenses(p_product_id uuid, p_order_ids text[], p_reason text) | service_role | EXECUTE | postgres | -
+function | public.revoke_order_product_access(p_transaction_id uuid, p_user_id uuid, p_product_id uuid) | postgres | EXECUTE | postgres | -
+function | public.revoke_order_product_access(p_transaction_id uuid, p_user_id uuid, p_product_id uuid) | service_role | EXECUTE | postgres | -
 function | public.revoke_terminal_order_licenses() | postgres | EXECUTE | postgres | -
 function | public.rotate_webhook_secret(p_endpoint_id uuid, p_secret text, p_actor_id uuid, p_api_key_id uuid) | postgres | EXECUTE | postgres | -
 function | public.rotate_webhook_secret(p_endpoint_id uuid, p_secret text, p_actor_id uuid, p_api_key_id uuid) | service_role | EXECUTE | postgres | -
@@ -23671,6 +23760,8 @@ function | public.snapshot_purchase_attribution_row(n payment_transactions) | po
 function | public.snapshot_purchase_attribution_row(n payment_transactions) | service_role | EXECUTE | postgres | -
 function | public.snapshot_purchase_product_name() | postgres | EXECUTE | postgres | -
 function | public.snapshot_purchase_product_name() | service_role | EXECUTE | postgres | -
+function | public.snapshot_subscription_product() | postgres | EXECUTE | postgres | -
+function | public.snapshot_subscription_product() | service_role | EXECUTE | postgres | -
 function | public.stamp_original_seller_id() | postgres | EXECUTE | postgres | -
 function | public.stamp_original_seller_id() | service_role | EXECUTE | postgres | -
 function | public.stamp_webhook_url() | postgres | EXECUTE | postgres | -

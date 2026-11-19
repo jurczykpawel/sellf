@@ -86,3 +86,9 @@ After a full refund, reopening the original payment-status link shows **Payment 
 A partial refund preserves the completed-payment verification path and any remaining access. An open payment dispute shows **Payment disputed**, returns `payment_status: "disputed"`, and grants no access or new fulfillment.
 
 If the cart changes during payment preparation, Sellf stops before confirmation and asks the buyer to review the cart before trying again. If the bundle preview cannot be read, checkout stays available without the component preview or savings claim. Returning to the payment confirmation page after a partial refund preserves access according to the order, but does not generate a post-purchase offer coupon.
+
+## Access from several purchases
+
+A full refund removes only the entitlement from that order. The buyer keeps the product while another qualifying purchase, paid bank transfer, bundle, order bump or active subscription still grants it. Refunding the last qualifying order removes the corresponding access.
+
+Video loading and unavailable messages follow the buyer view language (English or Polish).
