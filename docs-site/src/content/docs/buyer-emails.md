@@ -48,3 +48,5 @@ After requesting a fresh sign-in link successfully, the login page clears the pr
 Withdrawing or archiving an offer after checkout has started does not cancel a completed payment: its confirmation page still offers a sign-in link, and confirming that email claims the paid product. The offer remains unavailable for new purchases.
 
 In **My purchases**, subscription cards retain the purchased name, price, currency and billing cadence when an offer is deactivated or archived.
+
+A paused offer keeps its recorded purchase and access in the buyer library, with a paused message instead of an unavailable content link. Archived content remains open to its buyers. For subscriptions created before this update, the summary uses the first saved positive paid invoice amount (including its VAT and discounts); if no paid invoice exists, it uses the catalogue terms available during the update.

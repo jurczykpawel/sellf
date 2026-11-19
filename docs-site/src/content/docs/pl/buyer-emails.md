@@ -48,3 +48,5 @@ Po udanym wysłaniu nowego linku logowania strona usuwa ostrzeżenie o poprzedni
 Wyłączenie lub archiwizacja oferty po rozpoczęciu zakupu nie anuluje opłaconego zamówienia: strona potwierdzenia nadal umożliwia wysłanie linku logowania, a potwierdzenie adresu przypisuje kupującemu opłacony produkt. Oferta pozostaje niedostępna dla nowych zakupów.
 
 W **Moich zakupach** karta subskrypcji zachowuje nazwę, cenę, walutę i okres rozliczeniowy z zakupu także po wyłączeniu lub archiwizacji oferty.
+
+Przy wstrzymanej ofercie biblioteka zachowuje zakup i zapisany dostęp, ale zamiast linku do niedostępnej treści pokazuje informację o wstrzymaniu. Treść archiwalnego produktu nadal otwiera się kupującym. Dla subskrypcji sprzed tej aktualizacji podsumowanie używa kwoty pierwszego zapisanego dodatniego opłaconego rachunku (z VAT i rabatami); przy braku opłaconego rachunku używa warunków katalogowych dostępnych podczas aktualizacji.
