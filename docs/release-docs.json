@@ -627,7 +627,8 @@
   "6bb0168be389a23642f913ec56da94fae3df5603": [
     "custom-checkout.md",
     "configuration.md",
-    "bank-transfers.md"
+    "bank-transfers.md",
+    "webhooks.md"
   ],
   "6bd5f69c8da9c6954c6eed8d7d8d74ca7de313ec": [
     "custom-checkout.md",
@@ -652,7 +653,8 @@
   "454b255b5cfaa819962adb220929cb2b89e1e5fe": [
     "custom-checkout.md",
     "configuration.md",
-    "bank-transfers.md"
+    "bank-transfers.md",
+    "webhooks.md"
   ],
   "7f02769555810e8bd9986add33a0786f7c7592d5": [
     "custom-checkout.md",

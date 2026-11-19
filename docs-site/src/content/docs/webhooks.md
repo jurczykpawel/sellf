@@ -6,7 +6,7 @@ description: "Sellf delivers events to customer-configured HTTPS endpoints with 
 Sellf delivers events to customer-configured HTTPS endpoints with HMAC-signed payloads, automatic retry, a per-tenant dead-letter queue, and an admin Replay UI. The model deliberately mirrors what Stripe, Paddle, and Lemonsqueezy do.
 
 
-A full subscription refund ends that subscription immediately. Another active subscription for the same product keeps granting access. Starting a new paid period for the ended subscription requires a new purchase. A won dispute restores the original entitlement, including a guest purchase confirmed while the dispute was open.
+A full subscription refund ends that subscription immediately. Other active subscriptions, separate one-time purchases and independent free or administrator grants for the same product keep their access. Starting a new paid period for the ended subscription requires a new purchase. A won dispute restores the original entitlement, including a guest purchase confirmed while the dispute was open.
 
 ## Signing secret rotation
 
@@ -230,8 +230,8 @@ When a subscription ends **without a refund**, existing access and invoice licen
 at the paid period end, emitting `access.expired` and `license.expired`. A changed license
 deadline emits `license.updated`. Previously issued tokens retain their signature: consumers
 must refresh the CRL, which includes orders whose ledger deadline has elapsed. Full or partial
-refunds after cancellation remove access and revoke licenses immediately, including later
-refunds. A credit balance or pending proration alone is not proof of a money refund; Stripe
+refunds after cancellation end that subscription's access and revoke its invoice licenses immediately, including later
+refunds. Separately purchased access and administrator grants remain. A credit balance or pending proration alone is not proof of a money refund; Stripe
 refund webhooks reconcile the refund ledger. Disputes still suspend access immediately.
 Subscriptions ending **unpaid** (`unpaid` or `incomplete_expired`) retain `access.revoked` /
 `license.revoked` with `revocationReason: "expired"`.
@@ -709,7 +709,7 @@ The root `accessGrantedAt/accessExpiresAt` aliases contain the same saved dates.
 `access.granted` and `access.updated` also carry `accessEndsAt`: the saved expiry, or for a
 subscription the end of the current paid period (null for unlimited access). A subscription
 sends `access.updated` (`reason: "subscription_renewed"`) **once per renewed period**; repeated
-Stripe events for the same period do not produce further updates.
+Stripe events for the same period do not produce further updates. When a refund or transfer cancellation changes retained access, one `access.updated` contains its final deadline and remaining subscription/transfer binding; there is no intermediate detachment event.
 `access.revoked` and `access.expired` carry `revocationReason`: `refund`, `dispute`, `manual`,
 `subscription_cancelled` or `expired` (a subscription that ended unpaid, or a natural expiry).
 `reason` keeps its original meaning (where the access came from: `purchase`, `subscription`, …).
