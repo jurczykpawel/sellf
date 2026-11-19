@@ -680,7 +680,11 @@
   "5f2f8452f5565464068add36a6a73a6ca09bdf4c": [
     "custom-checkout.md"
   ],
-  "1419594c23f6ad9535ed16b6a67bb417383b881d": {
-    "none": "Internal deterministic lock ordering; access entitlement semantics are unchanged."
-  }
+  "1419594c23f6ad9535ed16b6a67bb417383b881d": [
+    "none \u2014 Internal deterministic lock ordering; access entitlement semantics are unchanged."
+  ],
+  "bdb4ef69397c046f09242cda80a023afc57b0ac4": [
+    "bank-transfers.md",
+    "custom-checkout.md"
+  ]
 }
