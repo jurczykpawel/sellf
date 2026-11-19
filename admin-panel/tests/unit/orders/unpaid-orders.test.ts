@@ -123,6 +123,11 @@ describe('buyer mail', () => {
     expect(data.release_text).toContain('3 lutego 2026');
     expect(queries[2].update).toHaveBeenCalledWith({ reminder_mail_sent_at: expect.any(String) });
   });
+  it.each([false, true])('placed mail carries the saved access policy %s', async access => {
+    const { db } = client([{ data: { ...row, metadata: { access_on_placement: access, locale: 'en' } } }, { data: { slug: 'w', name: 'Workshop' } }, {}]);
+    await sendOrderNotice(db, id, 'placed');
+    expect(magic.mock.calls[0][0].data.access_on_placement).toBe(access ? 'true' : 'false');
+  });
   it('placed mail is sent for every transfer order', async () => {
     const { db } = client([{ data: { ...row, metadata: { access_on_placement: false, locale: 'en' } } }, { data: { slug: 'w', name: 'Workshop' } }, {}]);
     await sendOrderNotice(db, id, 'placed');

@@ -58,6 +58,8 @@ characters) and expected end, then **Turn on maintenance mode**. The section sho
 for the server file it names the file and the command that removes it. Every change is written to the
 audit log together with the change, in one database transaction.
 
+In the panel, a past expected end shows an error beside that field. Focus moves to the field and screen readers receive its invalid state; maintenance stays unchanged. Choose a future time or clear the optional field.
+
 ## During an update
 
 The in-place update (Settings → System) creates the server file right before it stops the running

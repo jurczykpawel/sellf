@@ -8,6 +8,8 @@
 import { archiveLegacyBundleComponent } from './helpers/legacy-bundle';
 import en from '../src/messages/en.json';
 import pl from '../src/messages/pl.json';
+import { generateKeyPairSync } from 'node:crypto';
+import { signLicense } from '@/lib/license-keys/format';
 import { test, expect, type Page } from '@playwright/test';
 import { insertTestApiKey } from './helpers/api-key';
 import { acceptAllCookies } from './helpers/consent';
@@ -33,9 +35,11 @@ async function soldProduct(name: string): Promise<{ id: string; orderId: string;
   }).select('id').single();
   expect(orderError).toBeNull();
   const { data: seller } = await supabaseAdmin.from('admin_users').select('user_id').limit(1).single();
+  const { privateKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+  const token = signLicense({ v: 1, kid: 'archive', product: product!.id, email: 'archive-buyer@example.com', order: order!.id, tier: 'original', iat: 1, exp: null }, privateKey.export({ type: 'pkcs8', format: 'pem' }).toString());
   const { data: license, error: licenseError } = await supabaseAdmin.from('issued_licenses').insert({
     seller_id: seller!.user_id, original_seller_id: seller!.user_id, product_id: product!.id,
-    email: 'archive-buyer@example.com', order_id: order!.id, kid: 'archive', license_key: `archive-${order!.id}`,
+    email: 'archive-buyer@example.com', order_id: order!.id, kid: 'archive', license_key: token,
   }).select('id').single();
   expect(licenseError).toBeNull();
   return { id: product!.id, orderId: order!.id, licenseId: license!.id };
@@ -101,6 +105,15 @@ test('deleting a sold product moves it to the archive and restore brings it back
   await expect(page.locator('tr').filter({ hasText: name })).toContainText('Nieaktywny');
   const restored = await supabaseAdmin.from('products').select('archived_at,is_active').eq('id', product.id).single();
   expect(restored.data).toEqual({ archived_at: null, is_active: false });
+  const restoredRow = page.locator('tr').filter({ hasText: name });
+  await restoredRow.getByRole('button', { name: 'Nieaktywny', exact: true }).click();
+  await expect(restoredRow.getByRole('button', { name: 'Aktywny', exact: true })).toBeVisible();
+  expect((await supabaseAdmin.from('products').select('is_active').eq('id', product.id).single()).data?.is_active).toBe(true);
+  await restoredRow.getByRole('button', { name: 'Aktywny', exact: true }).click();
+  const inactive = restoredRow.getByRole('button', { name: 'Nieaktywny', exact: true });
+  await inactive.focus(); await inactive.press('Enter');
+  await expect(restoredRow.getByRole('button', { name: 'Aktywny', exact: true })).toBeVisible();
+  expect((await supabaseAdmin.from('products').select('is_active').eq('id', product.id).single()).data?.is_active).toBe(true);
 });
 
 test('permanent delete from the archive lists the kept records and keeps the order and license @J601', async ({ page }) => {
@@ -113,6 +126,10 @@ test('permanent delete from the archive lists the kept records and keeps the ord
   await page.locator('#status-filter').selectOption('archived');
   await expect(page.locator('tr').filter({ hasText: name })).toBeVisible();
 
+  expect((await supabaseAdmin.from('products').update({ license_tier: 'changed' }).eq('id', product.id)).error).toBeNull();
+  const before = await page.request.get(`/api/v1/licenses/${product.licenseId}`);
+  expect(before.status()).toBe(200);
+  expect((await before.json()).data.tier).toBe('original');
   await rowAction(page, name, /^Usuń trwale$/);
   const dialog = page.getByTestId('product-remove-dialog');
   await expect(dialog).toContainText('zamówienia (1), faktury (0), licencje (1)');
@@ -127,6 +144,13 @@ test('permanent delete from the archive lists the kept records and keeps the ord
   expect(order.data).toEqual({ product_id: null, product_name: name, status: 'completed' });
   const license = await supabaseAdmin.from('issued_licenses').select('product_id,product_name').eq('id', product.licenseId).single();
   expect(license.data).toEqual({ product_id: null, product_name: name });
+  const detail = await page.request.get(`/api/v1/licenses/${product.licenseId}`);
+  expect(detail.status()).toBe(200);
+  expect((await detail.json()).data).toMatchObject({ productId: null, tier: 'original', product: { name, slug: null }, token: expect.any(String) });
+  const list = await page.request.get('/api/v1/licenses?email=archive-buyer%40example.com');
+  expect(list.status()).toBe(200);
+  const item = (await list.json()).data.find((row: { id: string }) => row.id === product.licenseId);
+  expect(item).toMatchObject({ tier: 'original' }); expect(item).not.toHaveProperty('token');
   expect((await supabaseAdmin.from('user_product_access').select('id').eq('user_id', buyer.userId)).data).toEqual([]);
   await buyer.cleanup();
 });

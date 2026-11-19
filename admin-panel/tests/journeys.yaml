@@ -2172,7 +2172,7 @@
       },
       "end_state": {
         "buyer": "Not exercised: no customer state change in this probe.",
-        "seller": "Payment configuration selection is saved.",
+        "seller": "Payment configuration selection is saved; a permitted 200-character transfer reference wraps without horizontal overflow",
         "integrator": "Not exercised: no outgoing integration contract asserted."
       },
       "status": "automated",
@@ -3305,7 +3305,7 @@
         "browser"
       ],
       "end_state": {
-        "buyer": "First message identifies the product, amount due and account; its delivered link confirms the buyer and opens early access.",
+        "buyer": "First message identifies the product, amount due and account; its delivered link confirms the buyer and opens early access. First transfer mail follows the saved early/deferred access policy; the delivered token grants access only when that policy permits it.",
         "seller": "Order remains awaiting_payment; early-access setting is enabled.",
         "integrator": "Not exercised; this journey checks buyer mail and access."
       }
@@ -5035,7 +5035,7 @@
       "status": "automated",
       "end_state": {
         "buyer": "Order, license and access stay; the buyer keeps the content of the archived product (J603)",
-        "seller": "Dialog 'Produkt ma 1 zamówienie — zostanie przeniesiony do archiwum.'; product leaves the list, appears under the Archiwum filter and Przywróć returns it as inactive",
+        "seller": "Dialog 'Produkt ma 1 zamówienie — zostanie przeniesiony do archiwum.'; product leaves the list, appears under the Archiwum filter and Przywróć returns it as inactive; the restored inactive button activates by click and Enter",
         "integrator": "Not exercised in the browser; archive state is covered by J602"
       },
       "layers": [
@@ -5058,7 +5058,7 @@
       "end_state": {
         "buyer": "Loses product access (the dialog says so); the order and license stay with the purchase-time product name",
         "seller": "Dialog lists kept orders, invoices and licenses, lost buyer access and that it cannot be undone; product disappears",
-        "integrator": "Not exercised in the browser; deletion events are covered by J602"
+        "integrator": "License list and detail keep the issuance-time tier after editing or deleting the product; lists omit tokens. Deletion events are covered by J602."
       },
       "layers": [
         "browser",
@@ -5417,7 +5417,7 @@
       "status": "automated",
       "end_state": {
         "buyer": "Shop, product page and checkout show “Down for maintenance, we’ll be back soon” (503, PL/EN, optional note and expected end); embedded checkout shows the same notice; no payment can be started.",
-        "seller": "Settings > System > Maintenance mode shows it is on and from which source; the admin panel keeps working; turning it off reopens the shop; both changes are in audit_log.",
+        "seller": "Settings > System > Maintenance mode shows it is on and from which source; the admin panel keeps working; turning it off reopens the shop; both changes are in audit_log; a past expected end has a field-linked error and focus, with no mutation",
         "integrator": "Checkout APIs (create-payment-intent, embed checkout-session, order pay) answer 503 with code MAINTENANCE and Retry-After; API v1 keeps working."
       },
       "layers": [

@@ -20,7 +20,7 @@ export async function OPTIONS(request: NextRequest) {
 }
 
 async function load(id: string) {
-  return createAdminClient().from('issued_licenses').select(`${LICENSE_API_FIELDS}, license_key`).eq('id', id).maybeSingle();
+  return createAdminClient().from('issued_licenses').select(`${LICENSE_API_FIELDS}`).eq('id', id).maybeSingle();
 }
 
 export async function GET(request: NextRequest, { params }: Params) {
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     const { data, error } = await load(id);
     if (error) return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch license');
     if (!data) return apiError(request, 'NOT_FOUND', 'License not found');
-    return jsonResponse(successResponse(toLicenseApiView(data as unknown as LicenseApiRow, getCanonicalOrigin(request))), request);
+    return jsonResponse(successResponse(toLicenseApiView(data as unknown as LicenseApiRow, getCanonicalOrigin(request), true)), request);
   } catch (error) {
     return handleApiError(error, request);
   }

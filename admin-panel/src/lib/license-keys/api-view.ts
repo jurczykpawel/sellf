@@ -1,5 +1,7 @@
+import { parseLicenseClaims } from '@/lib/license-keys/format';
+
 /** Public API shape of an issued license (API v1). The token is included only when explicitly requested. */
-export const LICENSE_API_FIELDS = 'id, product_id, email, order_id, kid, issued_at, expires_at, revoked_at, revoked_by_dispute_id, issuance_source, license_domain, original_seller_id, product_name, products(name, slug, license_tier)';
+export const LICENSE_API_FIELDS = 'id, product_id, email, order_id, kid, issued_at, expires_at, revoked_at, revoked_by_dispute_id, issuance_source, license_domain, original_seller_id, product_name, license_key, products(name, slug, license_tier)';
 
 export interface LicenseApiRow {
   id: string;
@@ -28,7 +30,7 @@ export function licenseStatus(row: Pick<LicenseApiRow, 'revoked_at' | 'expires_a
   return 'active';
 }
 
-export function toLicenseApiView(row: LicenseApiRow, origin: string) {
+export function toLicenseApiView(row: LicenseApiRow, origin: string, includeToken = false) {
   return {
     id: row.id,
     productId: row.product_id,
@@ -36,7 +38,7 @@ export function toLicenseApiView(row: LicenseApiRow, origin: string) {
     email: row.email,
     order: row.order_id,
     kid: row.kid,
-    tier: row.products?.license_tier ?? null,
+    tier: parseLicenseClaims(row.license_key ?? '')?.tier ?? null,
     domain: row.license_domain,
     issuanceSource: row.issuance_source,
     issuedAt: row.issued_at,
@@ -46,6 +48,6 @@ export function toLicenseApiView(row: LicenseApiRow, origin: string) {
     status: licenseStatus(row),
     jwksUrl: `${origin}/api/licenses/jwks?seller=${row.original_seller_id}`,
     crlUrl: `${origin}/api/licenses/revoked?seller=${row.original_seller_id}`,
-    ...(row.license_key !== undefined && { token: row.license_key }),
+    ...(includeToken && row.license_key !== undefined && { token: row.license_key }),
   };
 }
