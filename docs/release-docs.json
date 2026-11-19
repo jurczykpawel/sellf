@@ -710,5 +710,9 @@
   ],
   "1484acfacdcf5ce8162e97ee76b9c106c22ff52f": [
     "bank-transfers.md"
+  ],
+  "3facaac675224c17653ef4ed5828af1f29e4095f": [
+    "bank-transfers.md",
+    "custom-checkout.md"
   ]
 }
