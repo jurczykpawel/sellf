@@ -20,7 +20,7 @@ export const popoverTitle = (page: Page): Locator => popover(page).locator('.dri
 
 export async function expectTutorialIntro(page: Page, tutorial: TutorialId): Promise<void> {
   const target = TUTORIALS[tutorial].steps.find(step => 'target' in step);
-  if (target && 'target' in target) await page.locator(tourSelector(target.target)).waitFor({ state: 'visible' });
+  if (target && 'target' in target) await page.locator(tourSelector(target.target)).waitFor({ state: 'visible', timeout: 10_000 });
   await expect(popoverTitle(page)).toHaveText(stepText(tutorial, 'intro').title);
 }
 

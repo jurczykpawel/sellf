@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
 
@@ -31,6 +31,21 @@ const BaseModal: React.FC<BaseModalProps> = ({
 }) => {
   const tCommon = useTranslations('common');
   const modalRef = useRef<HTMLDivElement>(null);
+
+  const initialFocusRef = useRef(initialFocusSelector);
+  const previousFocusRef = useRef<Element | null>(null);
+  // Capture before React commits descendants' autoFocus, including on a reopened modal.
+  const [focusSession, setFocusSession] = useState(() => ({
+    isOpen,
+    opener: typeof document === 'undefined' ? null : document.activeElement,
+  }));
+  if (focusSession.isOpen !== isOpen) {
+    setFocusSession({ isOpen, opener: isOpen ? document.activeElement : null });
+  }
+  useLayoutEffect(() => { initialFocusRef.current = initialFocusSelector; }, [initialFocusSelector]);
+  useLayoutEffect(() => {
+    if (focusSession.isOpen) previousFocusRef.current = focusSession.opener;
+  }, [focusSession]);
 
   // Handle ESC key
   useEffect(() => {
@@ -68,7 +83,6 @@ const BaseModal: React.FC<BaseModalProps> = ({
     const modal = modalRef.current;
     if (!modal) return;
 
-    const previousFocus = document.activeElement as HTMLElement | null;
     const focusableElements = () => modal.querySelectorAll<HTMLElement>(
       'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])'
     );
@@ -95,15 +109,16 @@ const BaseModal: React.FC<BaseModalProps> = ({
 
     modal.addEventListener('keydown', handleTabKey);
     if (!modal.contains(document.activeElement) || document.activeElement === modal) {
-      const initial = initialFocusSelector ? modal.querySelector<HTMLElement>(initialFocusSelector) : null;
+      const initial = initialFocusRef.current ? modal.querySelector<HTMLElement>(initialFocusRef.current) : null;
       (initial ?? focusableElements()[0] ?? modal).focus();
     }
 
     return () => {
       modal.removeEventListener('keydown', handleTabKey);
-      previousFocus?.focus();
+      // StrictMode replays effects while the dialog is still mounted.
+      if (!modal.isConnected && previousFocusRef.current instanceof HTMLElement) previousFocusRef.current.focus();
     };
-  }, [isOpen, initialFocusSelector]);
+  }, [isOpen]);
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (closeOnBackdropClick && e.target === e.currentTarget) {

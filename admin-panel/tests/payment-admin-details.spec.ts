@@ -42,7 +42,6 @@ test.afterAll(async () => {
       DELETE FROM public.affiliate_membership_events WHERE member_id=NULLIF(:'member','')::uuid;
       DELETE FROM public.affiliate_memberships WHERE id=NULLIF(:'member','')::uuid;
       DELETE FROM public.coupons WHERE id=NULLIF(:'coupon','')::uuid;
-      DELETE FROM public.issued_licenses WHERE order_id=NULLIF(:'transaction','');
       DELETE FROM public.invoices WHERE transaction_id=NULLIF(:'transaction','')::uuid;
       DELETE FROM public.seat_reservations WHERE transaction_id=NULLIF(:'transaction','')::uuid;
       DELETE FROM public.payment_line_items WHERE transaction_id=NULLIF(:'transaction','')::uuid;

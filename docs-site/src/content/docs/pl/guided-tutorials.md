@@ -23,4 +23,4 @@ Formularz produktu ma sześć sekcji: podstawy, dostawa, dane w koszyku, terminy
 
 Podsumowanie **Kupujący otrzyma** uwzględnia ustawienia produktu i sklepu, w tym przelew tradycyjny i abonament. Na telefonie można je zwinąć. Błąd przy zapisie otwiera właściwą sekcję i przenosi fokus na pole do poprawienia. Lista błędów prowadzi do tych pól. Liczniki sekcji pokazują liczbę ustawionych pól koszyka i terminów.
 
-Jeśli nowy formularz otwiera się z wyborem scenariusza, fokus trafia na pierwszy z nich. Gdy wybierzesz inną kontrolkę, fokus na niej pozostaje. Na telefonie rozwiniesz i zwiniesz podsumowanie klawiszem **Enter** na przyciskach **pokaż więcej** i **pokaż mniej**.
+Jeśli nowy formularz otwiera się z wyborem scenariusza, fokus trafia na pierwszy z nich. Przy edycji i duplikowaniu produktu oraz tworzeniu nowego zestawu fokus trafia na pole nazwy. Gdy wybierzesz inną kontrolkę, także przycisk, fokus na niej pozostaje. Zamknięcie okna przywraca fokus przyciskowi, który je otworzył, także wtedy, gdy treść okna automatycznie ustawia fokus na polu. Na telefonie rozwiniesz i zwiniesz podsumowanie klawiszem **Enter** na przyciskach **pokaż więcej** i **pokaż mniej**.

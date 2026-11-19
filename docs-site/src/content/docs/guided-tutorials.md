@@ -23,4 +23,4 @@ The product form has six sections: basics, delivery, checkout data, dates and se
 
 The **Buyer gets** summary follows the product and shop settings, including bank transfer and subscriptions. On phones it can be collapsed. Saving with an error opens the relevant section and focuses the control to correct; the error list links to those controls. Section counters show configured checkout fields and dates.
 
-When a new form opens with the scenario picker, focus starts on its first option. Moving to another control keeps focus there. On phones, press **Enter** on **show more** or **show less** to expand or collapse the buyer summary.
+When a new form opens with the scenario picker, focus starts on its first option. Editing or duplicating a product and creating a new bundle starts on the name field. Moving to another control, including a button, keeps focus there. Closing the dialog returns focus to the button that opened it, including when its content focuses a field automatically. On phones, press **Enter** on **show more** or **show less** to expand or collapse the buyer summary.
