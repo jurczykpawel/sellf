@@ -2858,7 +2858,7 @@ BEGIN
     OR p_amount<0 OR p_currency IS NULL THEN RAISE EXCEPTION 'Invalid dispute'; END IF;
   SELECT * INTO STRICT t FROM public.payment_transactions WHERE id=p_transaction_id FOR UPDATE;
   IF t.status='pending' THEN RAISE EXCEPTION 'Payment awaiting completion' USING ERRCODE='40001'; END IF;
-  SELECT * INTO d FROM public.payment_disputes WHERE stripe_dispute_id=p_dispute_id;
+  SELECT * INTO d FROM public.payment_disputes WHERE stripe_dispute_id=p_dispute_id FOR UPDATE;
   IF FOUND THEN
     IF d.transaction_id<>t.id THEN RAISE EXCEPTION 'Dispute binding differs'; END IF;
     IF d.closed AND (NOT p_closed OR d.status<>p_status) THEN RETURN NULL; END IF;
@@ -12346,6 +12346,10 @@ BEGIN
   END IF;
   SELECT * INTO t FROM public.payment_transactions WHERE id = p_transaction_id;
   IF NOT FOUND OR p_user_id IS NULL THEN RETURN false; END IF;
+  PERFORM 1 FROM public.payment_disputes d
+  WHERE NOT d.closed AND EXISTS (SELECT 1 FROM jsonb_array_elements(d.account_access) item
+    WHERE item->>'user_id' = p_user_id::text AND item->>'product_id' = p_product_id::text)
+  ORDER BY d.stripe_dispute_id FOR UPDATE;
   SELECT * INTO current_access FROM public.user_product_access WHERE user_id = p_user_id AND product_id = p_product_id FOR UPDATE;
   IF NOT FOUND THEN RETURN false; END IF;
   SELECT array_agg(d.stripe_dispute_id) INTO pending_disputes FROM public.payment_disputes d

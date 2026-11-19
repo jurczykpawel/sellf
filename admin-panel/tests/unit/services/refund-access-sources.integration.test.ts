@@ -1,7 +1,9 @@
 /** Independent grants and order periods are reconciled through real committed purchases. */
 import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
+import { once } from 'node:events';
+import created from '../../fixtures/stripe/charge_dispute_created_needs_response.json';
 import { expect, it } from 'vitest';
 import { getTestDatabaseContainer } from '../../helpers/database-container';
 
@@ -122,4 +124,24 @@ it.each(['before','after','manual','none'])('keeps the independent %s source whe
       expect(f.access()?.subscription_id).toBeNull();
     }
   } finally { f.cleanup(); }
+});
+
+it('reads a dispute again only after its refund snapshot update commits @J34', async () => {
+  const f = fixture(), dispute = `dp_${randomUUID().replaceAll('-', '')}`;
+  const holder = spawn('docker', ['exec','-i',getTestDatabaseContainer(),'psql','-XqAt','-U','postgres','-v','ON_ERROR_STOP=1']);
+  const ended = once(holder,'exit');
+  try {
+    const order = f.buy(), d = created.data.object;
+    const apply = `SELECT public.apply_payment_dispute('${order}','${dispute}','${d.status}',false,'${d.reason}',${d.amount},'${d.currency}',to_timestamp(${d.created}));`;
+    sql(apply);
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Dispute lock was not acquired')),5000);
+      holder.stdout.on('data', chunk => { if (String(chunk).includes('held')) { clearTimeout(timer); resolve(); } });
+      holder.once('error', error => { clearTimeout(timer); reject(error); });
+      holder.stdin.write(`BEGIN; UPDATE public.payment_disputes SET account_access=account_access WHERE stripe_dispute_id='${dispute}'; SELECT 'held';\n`);
+    });
+    expect(() => sql(`SET lock_timeout='200ms'; ${apply}`)).toThrow(/lock timeout/);
+  } finally {
+    holder.stdin.end('ROLLBACK;\n'); await ended; f.cleanup();
+  }
 });

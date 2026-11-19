@@ -3236,8 +3236,10 @@ REVOKE EXECUTE ON FUNCTION public.order_granted_components(uuid) FROM PUBLIC, an
 -- bank-transfer order that granted access on placement) that includes the component, or another
 -- bundle the buyer has live access to.
 -- Each order retains its own grant dates independently of the combined access row.
-ALTER TABLE public.payment_transactions ADD COLUMN access_terms jsonb NOT NULL DEFAULT '{}'
-  CHECK (jsonb_typeof(access_terms) = 'object');
+ALTER TABLE public.payment_transactions ADD COLUMN access_terms jsonb NOT NULL DEFAULT '{}';
+ALTER TABLE public.payment_transactions ADD CONSTRAINT payment_transactions_access_terms_check
+  CHECK (jsonb_typeof(access_terms) = 'object') NOT VALID;
+ALTER TABLE public.payment_transactions VALIDATE CONSTRAINT payment_transactions_access_terms_check;
 
 ALTER TABLE public.user_product_access ADD COLUMN independent_access jsonb;
 
@@ -3364,8 +3366,15 @@ BEGIN
   END IF;
   SELECT * INTO t FROM public.payment_transactions WHERE id = p_transaction_id;
   IF NOT FOUND OR p_user_id IS NULL THEN RETURN false; END IF;
+  PERFORM 1 FROM public.payment_disputes d
+  WHERE NOT d.closed AND EXISTS (SELECT 1 FROM jsonb_array_elements(d.account_access) item
+    WHERE item->>'user_id' = p_user_id::text AND item->>'product_id' = p_product_id::text)
+  ORDER BY d.stripe_dispute_id FOR UPDATE;
   SELECT * INTO current_access FROM public.user_product_access WHERE user_id = p_user_id AND product_id = p_product_id FOR UPDATE;
   IF NOT FOUND THEN RETURN false; END IF;
+  IF current_access.subscription_id = t.subscription_id THEN
+    UPDATE public.user_product_access SET subscription_id = NULL WHERE id = current_access.id;
+  END IF;
   SELECT array_agg(d.stripe_dispute_id) INTO pending_disputes FROM public.payment_disputes d
   WHERE NOT d.closed AND d.status <> 'won' AND EXISTS (
     SELECT 1 FROM jsonb_array_elements(d.account_access) item WHERE item->>'id' = current_access.id::text
@@ -3480,9 +3489,8 @@ BEGIN
   END IF;
   FOR a IN SELECT access.* FROM public.user_product_access access
     JOIN public.payment_transactions t ON t.subscription_id = access.subscription_id
-    WHERE t.id = p_transaction_id ORDER BY access.id FOR UPDATE OF access
+    WHERE t.id = p_transaction_id ORDER BY access.id
   LOOP
-    UPDATE public.user_product_access SET subscription_id = NULL WHERE id = a.id;
     PERFORM public.revoke_order_product_access(p_transaction_id, a.user_id, a.product_id);
   END LOOP;
 END $$;
@@ -3700,7 +3708,7 @@ BEGIN
     OR p_amount<0 OR p_currency IS NULL THEN RAISE EXCEPTION 'Invalid dispute'; END IF;
   SELECT * INTO STRICT t FROM public.payment_transactions WHERE id=p_transaction_id FOR UPDATE;
   IF t.status='pending' THEN RAISE EXCEPTION 'Payment awaiting completion' USING ERRCODE='40001'; END IF;
-  SELECT * INTO d FROM public.payment_disputes WHERE stripe_dispute_id=p_dispute_id;
+  SELECT * INTO d FROM public.payment_disputes WHERE stripe_dispute_id=p_dispute_id FOR UPDATE;
   IF FOUND THEN
     IF d.transaction_id<>t.id THEN RAISE EXCEPTION 'Dispute binding differs'; END IF;
     IF d.closed AND (NOT p_closed OR d.status<>p_status) THEN RETURN NULL; END IF;
