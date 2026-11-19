@@ -40,6 +40,8 @@ The built-in MCP endpoint `/api/mcp` is generated from this description: one too
 
 The description is generated from one registry in the code. A CI test fails when a route has no entry there, or when the documented scope or query parameters differ from what the route checks, so the file stays in step with the release you run. The API section of `/llms.txt` (on your instance and on docs.sellf.app) is generated from the same registry: agent instructions, group descriptions and one line per operation (method, path, `operationId`, scope, summary).
 
+On your Sellf instance, request `/llms.txt` directly, without a language prefix. It is a public plain-text file, like `/robots.txt`, and keeps the same security headers. Files shipped in `public/`, including `/auth-email-templates/*.html`, `/gate-examples/*.html` and `/vendor/` assets, are also served at their original paths without language routing. Application pages such as `/pl/login` keep their language routing and session handling.
+
 ---
 
 ## Quick Start

@@ -24,6 +24,8 @@ Wbudowany endpoint MCP `/api/mcp` powstaje z tego opisu: jedno narzędzie na ka�
 
 Opis powstaje z jednego rejestru w kodzie. Test w CI nie przepuści trasy bez wpisu w rejestrze ani różnicy między opisanym uprawnieniem lub parametrami zapytania a tym, co trasa faktycznie sprawdza, więc plik zgadza się z wersją, którą masz zainstalowaną. Część o API w `/llms.txt` (na Twojej instancji i na docs.sellf.app) powstaje z tego samego rejestru: instrukcja dla agenta, opisy grup i po jednej linii na operację (metoda, ścieżka, `operationId`, uprawnienie, krótki opis).
 
+Na własnej instancji Sellf pobierz `/llms.txt` bezpośrednio, bez przedrostka języka. Jest publicznym plikiem tekstowym, tak jak `/robots.txt`, i zachowuje te same nagłówki bezpieczeństwa. Pliki dostarczane w `public/`, w tym `/auth-email-templates/*.html`, `/gate-examples/*.html` i zasoby `/vendor/`, również są dostępne pod oryginalnymi ścieżkami bez routingu językowego. Strony aplikacji, takie jak `/pl/login`, zachowują routing językowy i obsługę sesji.
+
 ## Przerwa w działaniu
 
 `GET /system/maintenance` (`system:read`) zwraca stan przerwy, jej źródło (`file`, `env`, `database`)
