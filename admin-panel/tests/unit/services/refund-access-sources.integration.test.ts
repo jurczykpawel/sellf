@@ -180,3 +180,15 @@ it('publishes one final access change when retaining a purchase after a subscrip
     expect(f.access()?.subscription_id).toBeNull(); expect(f.access()?.access_expires_at).not.toBeNull();
   } finally { f.cleanup(); }
 });
+
+it('leaves pre-existing access unchanged when cancelling a transfer that granted no placement access @J182', () => {
+  const f = fixture(), id = randomUUID();
+  try {
+    sql(`INSERT INTO public.user_product_access(user_id,product_id,access_expires_at) VALUES('${f.user}','${f.product}',now()+interval '30 days');`);
+    const original = f.access();
+    sql(`INSERT INTO public.payment_transactions(id,product_id,user_id,customer_email,amount,currency,status,payment_provider,pricing_snapshot_version)
+      VALUES('${id}','${f.product}','${f.user}','${f.user}@example.com',4000,'PLN','awaiting_payment','bank_transfer',1);
+      UPDATE public.payment_transactions SET status='cancelled' WHERE id='${id}';`);
+    expect(f.access()).toEqual(original);
+  } finally { f.cleanup(); }
+});

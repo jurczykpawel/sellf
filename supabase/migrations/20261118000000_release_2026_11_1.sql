@@ -3522,6 +3522,8 @@ DECLARE buyer uuid; product uuid;
 BEGIN
   IF (NEW.status = 'cancelled' AND OLD.status = 'awaiting_payment')
     OR (NEW.status = 'refunded' AND NEW.status IS DISTINCT FROM OLD.status) THEN
+    IF NEW.status = 'refunded' OR coalesce((OLD.metadata->>'access_on_placement')::boolean, false)
+      OR EXISTS (SELECT 1 FROM public.user_product_access WHERE transfer_transaction_id = NEW.id) THEN
     FOR buyer IN
       SELECT NEW.user_id WHERE NEW.user_id IS NOT NULL
       UNION SELECT claimed_by_user_id FROM public.guest_purchases
@@ -3535,6 +3537,7 @@ BEGIN
         PERFORM public.revoke_order_product_access(NEW.id, buyer, product);
       END LOOP;
     END LOOP;
+    END IF;
     DELETE FROM public.guest_purchases WHERE transaction_id = NEW.id;
   END IF;
   RETURN NEW;
