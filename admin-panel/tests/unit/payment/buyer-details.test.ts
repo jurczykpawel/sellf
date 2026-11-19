@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { backfillBuyerDetails, buildBuyerDetails } from '@/lib/payment/buyer-details';
+import embeddedCompany from '../../fixtures/stripe/embedded-company-customer.json';
 import { TAX_ID_MAX_LENGTH } from '@/lib/validation/tax-id';
 
 /**
@@ -109,4 +110,18 @@ describe('buildBuyerDetails — tax id length', () => {
     const taxId = 'X'.repeat(TAX_ID_MAX_LENGTH);
     expect(buildBuyerDetails({ nip: taxId }, 'checkout').nip).toBe(taxId);
   });
+});
+
+it('records an organization invoice requested through Stripe tax collection', async () => {
+  const client = makeClient({ data: 1 });
+  await backfillBuyerDetails(client, { sessionId: 'cs_embed_company', metadata: {}, customerDetails: embeddedCompany as never });
+  expect((client.rpc as ReturnType<typeof vi.fn>).mock.calls[0][1].p_buyer).toMatchObject({ type: 'organization', needs_invoice: true, nip: '5260250274', company_name: 'Embedded Company' });
+});
+
+it('keeps an invoice for a named person personal when no company identifier was collected', async () => {
+  const client = makeClient({ data: 1 });
+  await backfillBuyerDetails(client, { sessionId: 'cs_person_invoice', metadata: { needs_invoice: 'true' }, customerDetails: { name: 'Jan Nowak', tax_ids: [] } as never });
+  const buyer = (client.rpc as ReturnType<typeof vi.fn>).mock.calls[0][1].p_buyer;
+  expect(buyer.needs_invoice).toBe(true);
+  expect(buyer.type).toBeUndefined();
 });

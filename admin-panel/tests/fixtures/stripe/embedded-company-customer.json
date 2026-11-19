@@ -1,0 +1,22 @@
+{
+  "address": {
+    "city": "Krak\u00f3w",
+    "country": "PL",
+    "line1": "Kr\u00f3tka 2",
+    "line2": null,
+    "postal_code": "30-001",
+    "state": null
+  },
+  "business_name": "Embedded Company",
+  "email": "embed-fixture@example.com",
+  "individual_name": null,
+  "name": "Embedded Company",
+  "phone": null,
+  "tax_exempt": "none",
+  "tax_ids": [
+    {
+      "type": "pl_nip",
+      "value": "5260250274"
+    }
+  ]
+}

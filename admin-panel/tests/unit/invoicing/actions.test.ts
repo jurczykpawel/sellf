@@ -75,3 +75,14 @@ describe('invoice actions audit', () => {
     expect(mock.audit).toHaveBeenLastCalledWith(expect.objectContaining({ new_values: { transaction_id: TRANSACTION_ID, action: 'issue_failed', request_audit_id: 'audit-1' } }));
   });
 });
+
+it.each([
+  [{ provider: 'fakturownia', domain: '' }, 'domain'],
+  [{ template: 'without placeholder' }, 'template'],
+  [{ provider: 'fakturownia', domain: 'shop.fakturownia.pl' }, 'token'],
+])('identifies the invalid invoice field before saving %j', async (values, field) => {
+  mock.config.token = null;
+  const result = await saveInvoiceSettings({ ...SETTINGS, ...values });
+  expect(result).toMatchObject({ success: false, fieldErrors: { [field]: expect.any(String) } });
+  expect(mock.rpc).not.toHaveBeenCalled();
+});

@@ -26,3 +26,15 @@ it('does not read privileged component metadata when the bundle has no public ma
   expect(view.props.bundleComponents).toEqual([]);
   expect(state.products).not.toHaveBeenCalled();
 });
+it('keeps checkout available if component metadata cannot be read', async () => {
+  state.ids = ['unavailable'];
+  state.products.mockReturnValue({ select: () => ({ in: async () => ({ data: null, error: { code: 'unavailable' } }) }) });
+  const view = await ProductPurchasePage({ product: { id: 'bundle-read-error', is_bundle: true } as Product });
+  expect(view.props.bundleComponents).toEqual([]);
+});
+it('does not publish an incomplete component sum when a member is missing', async () => {
+  state.ids = ['gone'];
+  state.products.mockReturnValue({ select: () => ({ in: async () => ({ data: [], error: null }) }) });
+  const view = await ProductPurchasePage({ product: { id: 'bundle-missing-member', is_bundle: true } as Product });
+  expect(view.props.bundleComponents).toEqual([]);
+});

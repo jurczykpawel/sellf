@@ -61,6 +61,12 @@
     "description": "Adres powrotu nie jest dozwolony. Wróć na stronę sprzedawcy i skontaktuj się z nim, jeśli problem się powtarza."
   },
   "invoicing": {
+    "validation": {
+      "domain": "Podaj domenę konta Fakturowni, np. sklep.fakturownia.pl.",
+      "token": "Podaj token API tego konta. Puste pole zachowuje zapisany token tylko dla tego samego konta.",
+      "template": "Wpisz od 1 do 300 znaków i uwzględnij pokazany poniżej znacznik produktu.",
+      "exemption": "Wpisz maksymalnie 1000 znaków."
+    },
     "manualCorrectionHelp": "Faktura została oznaczona jako wystawiona poza Sellf. Wystaw korektę w swoim systemie fakturowym, a następnie odnotuj ją tutaj.",
     "title": "Faktury",
     "column": "Faktura",
@@ -252,6 +258,7 @@
       "publishVersion": "Opublikuj tę wersję"
   },
   "checkout": {
+    "cartChanged": "Koszyk się zmienił. Sprawdź go przed ponowną próbą płatności.",
     "invoiceSection": {
       "wantInvoice": "Chcę fakturę na firmę",
       "taxIdLabel": "NIP lub numer VAT UE",

@@ -42,7 +42,6 @@ function makeComponent(
 ): BundleComponentSummary {
   return {
     icon: '📦',
-    slug: overrides.id,
     ...overrides,
   };
 }

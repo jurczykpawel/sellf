@@ -61,6 +61,12 @@
     "description": "This return address is not allowed. Return to the seller’s page and contact them if the problem persists."
   },
   "invoicing": {
+    "validation": {
+      "domain": "Enter your Fakturownia account domain, for example shop.fakturownia.pl.",
+      "token": "Enter an API token for this account. Leave blank only to keep the saved token for the same account.",
+      "template": "Use 1–300 characters and include the product placeholder shown below.",
+      "exemption": "Use at most 1000 characters."
+    },
     "manualCorrectionHelp": "The invoice was marked as issued outside Sellf. Issue a correction in your invoicing system, then record it here.",
     "title": "Invoicing",
     "column": "Invoice",
@@ -252,6 +258,7 @@
       "publishVersion": "Publish this version"
   },
   "checkout": {
+    "cartChanged": "Your cart has changed. Review it before paying again.",
     "invoiceSection": {
       "wantInvoice": "I want a company invoice",
       "taxIdLabel": "NIP or EU VAT number",

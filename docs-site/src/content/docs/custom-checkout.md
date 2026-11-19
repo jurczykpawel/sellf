@@ -84,3 +84,5 @@ Email format and length errors appear beside the email field in the page languag
 After a full refund, reopening the original payment-status link shows **Payment refunded**. Verification returns the terminal `payment_status: "refunded"` state without another fulfillment or access grant. It does not report a payment-processing failure or ask the buyer to check order details.
 
 A partial refund preserves the completed-payment verification path and any remaining access. An open payment dispute shows **Payment disputed**, returns `payment_status: "disputed"`, and grants no access or new fulfillment.
+
+If the cart changes during payment preparation, Sellf stops before confirmation and asks the buyer to review the cart before trying again. If the bundle preview cannot be read, checkout stays available without the component preview or savings claim. Returning to the payment confirmation page after a partial refund preserves access according to the order, but does not generate a post-purchase offer coupon.

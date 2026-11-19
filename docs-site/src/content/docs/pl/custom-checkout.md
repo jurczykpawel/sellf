@@ -85,3 +85,5 @@ Błędy formatu i długości adresu e-mail pojawiają się przy polu w języku s
 Po pełnym zwrocie otwarcie pierwotnego linku statusu płatności pokazuje **Płatność zwrócona**. Weryfikacja zwraca końcowy stan `payment_status: "refunded"`, bez ponownej realizacji zamówienia ani przyznania dostępu. Nie zgłasza awarii przetwarzania płatności ani potrzeby sprawdzania danych zamówienia.
 
 Częściowy zwrot zachowuje ścieżkę weryfikacji zakończonej płatności i pozostały dostęp. Otwarty spór płatniczy pokazuje **Płatność zakwestionowana**, zwraca `payment_status: "disputed"` i nie przyznaje dostępu ani nie realizuje zamówienia ponownie.
+
+Jeśli koszyk zmieni się podczas przygotowywania płatności, Sellf zatrzymuje się przed potwierdzeniem i prosi o sprawdzenie koszyka przed ponowną próbą. Gdy nie da się odczytać podglądu pakietu, checkout pozostaje dostępny bez listy składników i informacji o oszczędności. Powrót na stronę potwierdzenia płatności po częściowym zwrocie zachowuje dostęp zgodnie z zamówieniem, ale nie generuje kuponu oferty po zakupie.

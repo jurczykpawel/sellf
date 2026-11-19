@@ -87,3 +87,5 @@ transfer order (hosted Checkout, 170 PLN, `pm` card 4242), recorded 2026-11-03 f
 `tests/stripe-live/quick-pay.spec.ts` run. Kept fields only; Stripe IDs replaced consistently, metadata UUIDs replaced
 by test constants, email set to an example address. Amount, currency, status and payment status are unchanged.
 Original event SHA-256: `f0a3eb64acb97836fae80498abec41865f680ca3589077c985a4101dc26a7d83`.
+
+`embedded-company-customer.json` preserves the customer-details shape recorded from a completed embedded Stripe Checkout with business name, address and Polish tax ID. Company, address and contact values are replaced with test data. It exercises invoice backfill and the admin order view without checkout-profile metadata.
