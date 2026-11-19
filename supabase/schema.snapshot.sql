@@ -12422,13 +12422,17 @@ BEGIN
       AND ((s.status IN ('active', 'trialing', 'past_due') AND (s.current_period_end IS NULL OR s.current_period_end > now()))
         OR (s.status = 'canceled' AND s.paid_access_expires_at > now()))
     UNION ALL
-    SELECT least(other.access_expires_at, CASE WHEN component.auto_grant_duration_days IS NULL THEN NULL
+    SELECT least(CASE WHEN t.access_terms ? (p_user_id::text || ':' || other.product_id::text)
+      THEN (other.independent_access->>'expiresAt')::timestamptz ELSE other.access_expires_at END,
+      CASE WHEN component.auto_grant_duration_days IS NULL THEN NULL
       ELSE other.access_granted_at + make_interval(days => component.auto_grant_duration_days) END)
     FROM public.user_product_access other
     JOIN public.bundle_items b ON b.bundle_product_id = other.product_id
     JOIN public.products component ON component.id = b.component_product_id
     WHERE other.user_id = p_user_id AND other.product_id IS DISTINCT FROM t.product_id
       AND b.component_product_id = p_product_id
+      AND (other.independent_access IS NOT NULL
+        OR NOT (t.access_terms ? (p_user_id::text || ':' || other.product_id::text)))
       AND NOT EXISTS (
         SELECT 1 FROM public.payment_transactions o WHERE o.product_id = other.product_id
           AND (o.status IN ('completed', 'partially_refunded', 'disputed')
