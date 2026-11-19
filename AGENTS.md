@@ -1297,6 +1297,7 @@ claimed guest purchases and bundle components. Access owned by another placement
 a subscription is excluded; the current product default cannot disprove historical purchase terms. Historical contributions to a combined deadline
 cannot be split, so a matching legacy order conservatively retains the whole known deadline.
 Orders without a matching row use the date/duration fallback in EN/PL `custom-checkout.md`.
+Grant wrappers preserve the requested unlimited independent grant in a scoped `sellf.independent_permanent` context; finite grants that add no days to permanent paid access create no extra period. Order terms also capture actually granted bundle-add-on components, and revocation includes saved buyer/product keys or transfer-owned rows. Reopening a cancelled transfer clears obsolete terms before its new paid grant.
 
 ### Login Wall (content gating snippet)
 
