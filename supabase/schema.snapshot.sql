@@ -8056,7 +8056,14 @@ BEGIN
     SELECT auto_grant_duration_days
     INTO product_auto_duration
     FROM public.products
-    WHERE id = product_id_param AND is_active = true;
+    
+    WHERE id = product_id_param AND (is_active = true OR EXISTS (
+      SELECT 1 FROM public.payment_transactions t JOIN auth.users u ON u.id = user_id_param
+      WHERE t.id::text = current_setting('sellf.paid_order', true) AND t.product_id = product_id_param
+        AND t.status IN ('completed', 'partially_refunded')
+        AND (t.amount = 0 OR coalesce(t.refunded_amount, 0) < t.amount)
+        AND (t.user_id = user_id_param OR (t.user_id IS NULL AND lower(t.customer_email) = lower(u.email)))
+    ));
 
     -- If product doesn't exist, return error
     IF NOT FOUND THEN
@@ -8297,15 +8304,18 @@ CREATE FUNCTION public.grant_product_and_bundle_components(user_id_param uuid, p
     SET search_path TO ''
     AS $$
 DECLARE
+  previous_paid_order text := current_setting('sellf.paid_order', true);
   is_bundle_var boolean;
   order_scoped boolean;
   comp_rec record;
   comp_result jsonb;
   granted integer := 0;
 BEGIN
+  PERFORM set_config('sellf.paid_order', coalesce(transaction_id_param::text, ''), true);
   PERFORM public.grant_product_access_service_role(
     user_id_param, product_id_param, override_duration_days_param => override_duration_days_param
   );
+  PERFORM set_config('sellf.paid_order', coalesce(previous_paid_order, ''), true);
   granted := granted + 1;
 
   SELECT is_bundle INTO is_bundle_var FROM public.products WHERE id = product_id_param;
