@@ -107,7 +107,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
     proceedWithSubmit,
     dismissWaitlistWarning,
     hasWaitlistWebhook,
-  } = useProductForm({ product, isOpen, onSubmit, defaultIsBundle, focusName: !isBlankNew });
+  } = useProductForm({ product, isOpen, onSubmit, defaultIsBundle });
 
   // Check if form has been touched (for exit confirmation)
   const isFormDirty = useCallback(() => {
@@ -185,7 +185,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
 
   return (
     <>
-      <BaseModal isOpen={isOpen} onClose={handleClose} size="xl" closeOnBackdropClick={false} labelledBy={titleId} initialFocusSelector={isBlankNew ? '[data-scenario]' : undefined}>
+      <BaseModal isOpen={isOpen} onClose={handleClose} size="xl" closeOnBackdropClick={false} labelledBy={titleId} initialFocusSelector={isBlankNew ? '[data-scenario]' : 'input#name'}>
         <ModalHeader
           title={
             <span className="flex flex-wrap items-center gap-x-3 gap-y-1">

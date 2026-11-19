@@ -248,7 +248,6 @@ describe('"What are you selling?" when creating', () => {
 
   it('opens on the question: focus goes to the first scenario, not to the name field below it', async () => {
     await openNew();
-    await act(async () => { await new Promise(resolve => setTimeout(resolve, 250)); });
     expect(document.activeElement).toBe(option('download'));
   });
 
@@ -361,7 +360,6 @@ async function save(onSubmit: ReturnType<typeof vi.fn>) {
 describe('"What are you selling?" when editing', () => {
   it.each(SIX_PRODUCTS)('a stored %s product shows its scenario with only "Change"', async (id, extra) => {
     await openStored(extra);
-    await act(async () => { await new Promise(resolve => setTimeout(resolve, 250)); });
     expect(document.activeElement?.id).toBe('name');
     expect(screen.queryByRole('group', { name: s('title') })).toBeNull();
     expect(bar().textContent).toContain(s(`options.${id}.name`));
@@ -427,4 +425,20 @@ describe('form tutorial', () => {
     }
     expect(document.querySelector('[data-tour="buyer-summary"] [data-buyer-summary]')).not.toBeNull();
   });
+});
+
+
+it.each([
+  ['editing', () => stored({}), false],
+  ['duplicating', () => ({ ...stored({}), id: undefined }) as unknown as Product, false],
+  ['new bundle', () => undefined, true],
+  ['blank new', () => undefined, false],
+] as const)('keeps button focus after opening %s', async (_mode, product, defaultIsBundle) => {
+  render(createElement(ProductCreationWizard, { isOpen: true, product: product(), defaultIsBundle, onSubmit: vi.fn(), onClose: vi.fn(), isSubmitting: false, error: null }));
+  await act(async () => {});
+  expect(document.activeElement).toBe(document.querySelector(defaultIsBundle || product() ? 'input#name' : '[data-scenario]'));
+  const button = screen.getByTestId('tutorial-help-product-form');
+  button.focus();
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 150)); });
+  expect(document.activeElement).toBe(button);
 });

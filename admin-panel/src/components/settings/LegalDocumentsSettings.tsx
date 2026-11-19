@@ -149,6 +149,7 @@ export default function LegalDocumentsSettings() {
   // refresh whenever config changes (after a manual save or a generate), so the
   // panel surfaces an env fallback instead of rendering an empty DB column.
   useEffect(() => {
+    if (loading) return;
     let cancelled = false;
     getMyLegalDocsSource()
       .then((src) => { if (!cancelled) setLegalSource(src); })
@@ -158,7 +159,7 @@ export default function LegalDocumentsSettings() {
     return () => {
       cancelled = true;
     };
-  }, [config]);
+  }, [config, loading]);
 
   // ---- Handler: save manual URL fields ----
   const handleUrlSubmit = async (e: React.FormEvent) => {
