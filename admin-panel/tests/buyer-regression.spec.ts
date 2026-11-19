@@ -8,6 +8,7 @@ import { extractMagicLink, waitForEmail } from './helpers/mailpit';
 import { useSupabaseBuyerEmails } from './helpers/buyer-email-setting-playwright';
 import { signTransferToken } from '@/lib/orders/transfer-token';
 import { revokeTransactionAccess } from '@/lib/services/access-revocation';
+import lost from './fixtures/stripe/charge_dispute_closed_lost.json';
 useSupabaseBuyerEmails();
 const products: string[] = [];
 async function checked<T>({ data, error }: { data: T; error: unknown }): Promise<T> { if (error) throw error; return data; }
@@ -70,6 +71,44 @@ test('one refund keeps another paid purchase visible until the last refund @J34'
     }
   } finally { await user.cleanup(); }
 });
+
+for (const source of ['timed', 'expired', 'disputed'] as const) {
+  test(`refund recalculates the buyer's ${source} access @J34`, async ({ page }) => {
+    const user = await createTestUser('period-buyer');
+    const p = await product({ allow_repeat_purchase: true, auto_grant_duration_days: 30 });
+    try {
+      async function paid(age = 0) {
+        return (await checked(await db.from('payment_transactions').insert({ product_id: p.id, user_id: user.userId, customer_email: user.email,
+          amount: 2000, currency: 'PLN', status: 'completed', session_id: `cs_${randomUUID().replaceAll('-', '')}`,
+          created_at: new Date(Date.now() - age * 86400000).toISOString() }).select('id,session_id').single()))!;
+      }
+      async function grant(id: string) {
+        expect((await checked(await db.rpc('grant_product_and_bundle_components', { user_id_param: user.userId, product_id_param: p.id, transaction_id_param: id }))).success).toBe(true);
+      }
+      const a = await paid(source === 'expired' ? 40 : 0);
+      if (source === 'expired') {
+        await checked(await db.from('user_product_access').insert({ user_id: user.userId, product_id: p.id,
+          access_granted_at: new Date(Date.now() - 40 * 86400000).toISOString(), access_expires_at: new Date(Date.now() - 10 * 86400000).toISOString(), access_duration_days: 30 }));
+      } else await grant(a.id);
+      const first = (await checked(await db.from('user_product_access').select('id,access_expires_at').eq('user_id', user.userId).eq('product_id', p.id).single()))!;
+      if (source === 'disputed') {
+        const d = lost.data.object;
+        await checked(await db.rpc('apply_payment_dispute', { p_transaction_id: a.id, p_dispute_id: `dp_${randomUUID()}`, p_status: d.status,
+          p_closed: true, p_reason: d.reason, p_amount: d.amount, p_currency: d.currency, p_created: new Date(d.created * 1000).toISOString() }));
+      }
+      const b = await paid(); await grant(b.id);
+      await acceptAllCookies(page); await setAuthSession(page, user.email, user.password);
+      await page.goto('/pl/my-products'); await expect(page.getByText(p.name, { exact: true })).toBeVisible();
+      await checked(await db.from('payment_transactions').update({ status: 'refunded', refunded_amount: 2000 }).eq('id', b.id));
+      expect((await revokeTransactionAccess(db, { transactionId: b.id, userId: user.userId, productId: p.id, sessionId: b.session_id })).success).toBe(true);
+      await page.reload();
+      if (source === 'timed') {
+        await expect(page.getByText(p.name, { exact: true })).toBeVisible();
+        expect(await checked(await db.from('user_product_access').select('id,access_expires_at').eq('user_id', user.userId).eq('product_id', p.id))).toEqual([first]);
+      } else await expect(page.getByText(p.name, { exact: true })).toHaveCount(0);
+    } finally { await user.cleanup(); }
+  });
+}
 
 for (const mode of ['inactive', 'archived'] as const) {
   test(`paid guest receipt, first mail and claim survive ${mode} offer @J185`, async ({ page }) => {

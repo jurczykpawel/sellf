@@ -3235,52 +3235,118 @@ REVOKE EXECUTE ON FUNCTION public.order_granted_components(uuid) FROM PUBLIC, an
 -- components the buyer still holds through a real entitlement: another paid order (or an unpaid
 -- bank-transfer order that granted access on placement) that includes the component, or another
 -- bundle the buyer has live access to.
+-- Each order retains its own grant dates independently of the combined access row.
+ALTER TABLE public.payment_transactions ADD COLUMN access_terms jsonb NOT NULL DEFAULT '{}'
+  CHECK (jsonb_typeof(access_terms) = 'object');
+
+CREATE FUNCTION public.record_order_access_term(p_user_id uuid, p_product_id uuid, p_duration integer) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+  txid uuid;
+  term_key text := p_user_id::text || ':' || p_product_id::text;
+  restored jsonb := nullif(current_setting('sellf.event_context', true), '')::jsonb->'guest_dispute_terms'->p_product_id::text;
+  term jsonb;
+BEGIN
+  SELECT t.id INTO txid FROM public.payment_transactions t
+  WHERE t.id::text IN (current_setting('sellf.paid_order', true), current_setting('sellf.transfer_order', true))
+    AND (t.user_id = p_user_id OR EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p_user_id AND lower(u.email) = lower(t.customer_email))
+      OR EXISTS (SELECT 1 FROM public.guest_purchases g WHERE g.transaction_id = t.id AND g.claimed_by_user_id = p_user_id))
+    AND (t.product_id = p_product_id OR EXISTS (SELECT 1 FROM public.payment_line_items l WHERE l.transaction_id = t.id AND l.product_id = p_product_id)
+      OR p_product_id IN (SELECT public.order_granted_components(t.id)))
+    AND EXISTS (SELECT 1 FROM public.user_product_access a WHERE a.user_id = p_user_id AND a.product_id = p_product_id)
+  ORDER BY t.id LIMIT 1;
+  IF txid IS NULL THEN RETURN; END IF;
+  term := coalesce(restored, jsonb_build_object('grantedAt', now(), 'expiresAt',
+    CASE WHEN p_duration IS NULL THEN NULL ELSE now() + make_interval(days => p_duration) END));
+  UPDATE public.payment_transactions SET access_terms = access_terms || jsonb_build_object(term_key, term)
+    WHERE id = txid AND NOT access_terms ? term_key;
+END $$;
+REVOKE EXECUTE ON FUNCTION public.record_order_access_term(uuid, uuid, integer) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.record_order_access_term(uuid, uuid, integer) TO service_role;
+
+CREATE FUNCTION public.order_access_expiry(p_transaction_id uuid, p_user_id uuid, p_product_id uuid) RETURNS timestamptz
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+  SELECT CASE WHEN t.access_terms ? (p_user_id::text || ':' || p_product_id::text)
+    THEN (t.access_terms->(p_user_id::text || ':' || p_product_id::text)->>'expiresAt')::timestamptz
+    ELSE CASE WHEN nullif(coalesce(l.access_duration_override, p.auto_grant_duration_days), 0) IS NULL THEN NULL
+      ELSE coalesce(g.claimed_at, CASE WHEN coalesce((t.metadata->>'access_on_placement')::boolean, false) THEN t.created_at ELSE t.paid_at END, t.created_at)
+        + make_interval(days => coalesce(l.access_duration_override, p.auto_grant_duration_days)) END END
+  FROM public.payment_transactions t JOIN public.products p ON p.id = p_product_id
+  LEFT JOIN LATERAL (SELECT li.access_duration_override FROM public.payment_line_items li
+    WHERE li.transaction_id = t.id AND li.product_id = p_product_id AND li.item_type = 'order_bump' LIMIT 1) l ON true
+  LEFT JOIN LATERAL (SELECT gp.claimed_at FROM public.guest_purchases gp
+    WHERE gp.claimed_by_user_id = p_user_id AND (gp.transaction_id = t.id OR (gp.transaction_id IS NULL AND gp.session_id = t.session_id))
+    ORDER BY gp.claimed_at LIMIT 1) g ON true
+  WHERE t.id = p_transaction_id;
+$$;
+REVOKE EXECUTE ON FUNCTION public.order_access_expiry(uuid, uuid, uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.order_access_expiry(uuid, uuid, uuid) TO service_role;
+
+DO $$
+DECLARE definition text; fn text; record_call text;
+BEGIN
+  FOR fn, record_call IN VALUES
+    ('public.grant_product_access_service_role(uuid,uuid,integer,integer)',
+      'PERFORM public.record_order_access_term(user_id_param, product_id_param, (SELECT CASE WHEN override_duration_days_param IS NULL THEN auto_grant_duration_days ELSE nullif(override_duration_days_param, 0) END FROM public.products WHERE id = product_id_param));'),
+    ('public.grant_bundle_component_access(uuid,uuid,integer)',
+      'PERFORM public.record_order_access_term(user_id_param, product_id_param, (SELECT auto_grant_duration_days FROM public.products WHERE id = product_id_param));')
+  LOOP
+    definition := pg_get_functiondef(fn::regprocedure);
+    IF strpos(definition, 'RETURN result;') = 0 THEN RAISE EXCEPTION 'Unexpected access wrapper'; END IF;
+    EXECUTE replace(definition, 'RETURN result;', 'IF (result->>''success'')::boolean THEN ' || record_call || ' END IF; RETURN result;');
+  END LOOP;
+END $$;
+
 CREATE FUNCTION public.revoke_order_product_access(p_transaction_id uuid, p_user_id uuid, p_product_id uuid) RETURNS boolean
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
-DECLARE t public.payment_transactions; removed integer;
+DECLARE t public.payment_transactions; remaining integer; permanent boolean; expires timestamptz; removed integer;
 BEGIN
   IF (select auth.role()) IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'Service role required' USING ERRCODE = '42501';
   END IF;
   SELECT * INTO t FROM public.payment_transactions WHERE id = p_transaction_id;
   IF NOT FOUND OR p_user_id IS NULL THEN RETURN false; END IF;
-  DELETE FROM public.user_product_access a
-  WHERE a.user_id = p_user_id AND a.product_id = p_product_id
-    AND NOT EXISTS (
-      SELECT 1 FROM public.subscriptions s WHERE s.user_id = p_user_id AND s.product_id = a.product_id
-        AND s.id IS DISTINCT FROM t.subscription_id AND s.status IN ('active', 'trialing', 'past_due')
-        AND (s.current_period_end IS NULL OR s.current_period_end > now())
-    )
-    AND NOT EXISTS (
-      SELECT 1 FROM public.payment_transactions o
-      WHERE o.id <> t.id
-        AND (o.status IN ('completed', 'partially_refunded')
-          OR (o.status = 'awaiting_payment' AND coalesce((o.metadata->>'access_on_placement')::boolean, false)))
-        AND (o.amount = 0 OR coalesce(o.refunded_amount, 0) < o.amount)
-        AND (o.user_id = p_user_id OR EXISTS (
-          SELECT 1 FROM public.guest_purchases g
-          WHERE g.claimed_by_user_id = p_user_id AND (g.transaction_id = o.id OR (g.transaction_id IS NULL AND g.session_id = o.session_id))))
-        AND (o.product_id = a.product_id
-          OR EXISTS (SELECT 1 FROM public.payment_line_items l WHERE l.transaction_id = o.id AND l.product_id = a.product_id)
-          OR a.product_id IN (SELECT public.order_granted_components(o.id)))
-    )
-    AND NOT EXISTS (
-      SELECT 1 FROM public.user_product_access other
-      JOIN public.bundle_items b ON b.bundle_product_id = other.product_id
-      WHERE other.user_id = p_user_id AND other.product_id IS DISTINCT FROM t.product_id
-        AND b.component_product_id = a.product_id
-        AND NOT EXISTS (
-          SELECT 1 FROM public.payment_transactions o
-          WHERE o.product_id = other.product_id
-            AND (o.status IN ('completed', 'partially_refunded')
-              OR (o.status = 'awaiting_payment' AND coalesce((o.metadata->>'access_on_placement')::boolean, false)))
-            AND (o.amount = 0 OR coalesce(o.refunded_amount, 0) < o.amount)
-            AND (o.user_id = p_user_id OR EXISTS (
-              SELECT 1 FROM public.guest_purchases g WHERE g.claimed_by_user_id = p_user_id
-                AND (g.transaction_id = o.id OR (g.transaction_id IS NULL AND g.session_id = o.session_id))))
-        )
-        AND (other.access_expires_at IS NULL OR other.access_expires_at > now())
-    );
+  PERFORM 1 FROM public.user_product_access WHERE user_id = p_user_id AND product_id = p_product_id FOR UPDATE;
+  IF NOT FOUND THEN RETURN false; END IF;
+  WITH sources AS (
+    SELECT public.order_access_expiry(o.id, p_user_id, p_product_id) AS ends_at
+    FROM public.payment_transactions o
+    WHERE o.id <> t.id AND o.subscription_id IS NULL
+      AND (o.status IN ('completed', 'partially_refunded')
+        OR (o.status = 'awaiting_payment' AND coalesce((o.metadata->>'access_on_placement')::boolean, false)))
+      AND (o.amount = 0 OR coalesce(o.refunded_amount, 0) < o.amount)
+      AND (o.user_id = p_user_id OR EXISTS (
+        SELECT 1 FROM public.guest_purchases g WHERE g.claimed_by_user_id = p_user_id
+          AND (g.transaction_id = o.id OR (g.transaction_id IS NULL AND g.session_id = o.session_id))))
+      AND (o.product_id = p_product_id
+        OR EXISTS (SELECT 1 FROM public.payment_line_items l WHERE l.transaction_id = o.id AND l.product_id = p_product_id)
+        OR p_product_id IN (SELECT public.order_granted_components(o.id)))
+    UNION ALL
+    SELECT CASE WHEN s.status = 'canceled' THEN s.paid_access_expires_at ELSE s.current_period_end END
+    FROM public.subscriptions s WHERE s.user_id = p_user_id AND s.product_id = p_product_id
+      AND s.id IS DISTINCT FROM t.subscription_id
+      AND (s.status IN ('active', 'trialing', 'past_due') OR (s.status = 'canceled' AND s.paid_access_expires_at > now()))
+    UNION ALL
+    SELECT other.access_expires_at FROM public.user_product_access other
+    JOIN public.bundle_items b ON b.bundle_product_id = other.product_id
+    WHERE other.user_id = p_user_id AND other.product_id IS DISTINCT FROM t.product_id
+      AND b.component_product_id = p_product_id
+      AND NOT EXISTS (
+        SELECT 1 FROM public.payment_transactions o WHERE o.product_id = other.product_id
+          AND (o.user_id = p_user_id OR EXISTS (
+            SELECT 1 FROM public.guest_purchases g WHERE g.claimed_by_user_id = p_user_id
+              AND (g.transaction_id = o.id OR (g.transaction_id IS NULL AND g.session_id = o.session_id)))))
+  )
+  SELECT count(*), bool_or(ends_at IS NULL), max(ends_at) INTO remaining, permanent, expires
+  FROM sources WHERE ends_at IS NULL OR ends_at > now();
+  IF remaining > 0 THEN
+    UPDATE public.user_product_access SET access_expires_at = CASE WHEN permanent THEN NULL ELSE expires END,
+      expiry_notified_at = NULL, version = version + 1
+    WHERE user_id = p_user_id AND product_id = p_product_id
+      AND access_expires_at IS DISTINCT FROM CASE WHEN permanent THEN NULL ELSE expires END;
+    RETURN false;
+  END IF;
+  DELETE FROM public.user_product_access WHERE user_id = p_user_id AND product_id = p_product_id;
   GET DIAGNOSTICS removed = ROW_COUNT;
   RETURN removed > 0;
 END $$;
@@ -3338,7 +3404,6 @@ BEGIN
   PERFORM public.grant_product_access_service_role(
     user_id_param, product_id_param, override_duration_days_param => override_duration_days_param
   );
-  PERFORM set_config('sellf.paid_order', coalesce(previous_paid_order, ''), true);
   granted := granted + 1;
 
   SELECT is_bundle INTO is_bundle_var FROM public.products WHERE id = product_id_param;
@@ -3388,6 +3453,7 @@ BEGIN
     END LOOP;
   END IF;
 
+  PERFORM set_config('sellf.paid_order', coalesce(previous_paid_order, ''), true);
   RETURN jsonb_build_object('success', true, 'granted', granted);
 END $$;
 REVOKE EXECUTE ON FUNCTION public.grant_product_and_bundle_components(uuid, uuid, integer, uuid) FROM PUBLIC, anon, authenticated;

@@ -2707,6 +2707,7 @@ export type Database = {
       payment_transactions: {
         Row: {
           abandoned_at: string | null
+          access_terms: Json
           amount: number
           bundle_components_recorded_at: string | null
           cancel_note: string | null
@@ -2770,6 +2771,7 @@ export type Database = {
         }
         Insert: {
           abandoned_at?: string | null
+          access_terms?: Json
           amount: number
           bundle_components_recorded_at?: string | null
           cancel_note?: string | null
@@ -2833,6 +2835,7 @@ export type Database = {
         }
         Update: {
           abandoned_at?: string | null
+          access_terms?: Json
           amount?: number
           bundle_components_recorded_at?: string | null
           cancel_note?: string | null
@@ -6953,6 +6956,14 @@ export type Database = {
         }
         Returns: Json
       }
+      order_access_expiry: {
+        Args: {
+          p_product_id: string
+          p_transaction_id: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       order_awaits_participants: {
         Args: { p_order_details: Json; p_profile: Json; p_status: string }
         Returns: boolean
@@ -7067,6 +7078,10 @@ export type Database = {
       record_invoice_correction: {
         Args: { p_actor: string; p_transaction: string }
         Returns: boolean
+      }
+      record_order_access_term: {
+        Args: { p_duration: number; p_product_id: string; p_user_id: string }
+        Returns: undefined
       }
       record_order_payment_refund: {
         Args: { p_attempt: string; p_refund_id: string }
@@ -7230,6 +7245,7 @@ export type Database = {
         Args: { p_include_identifiers?: boolean; p_search: string }
         Returns: {
           abandoned_at: string | null
+          access_terms: Json
           amount: number
           bundle_components_recorded_at: string | null
           cancel_note: string | null
