@@ -12,6 +12,21 @@ function sql(body: string): string {
     input: `SET request.jwt.claims='{"role":"service_role"}'; ${body}`, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'],
   }).trim().split('\n').at(-1)!;
 }
+const migration = readFileSync(new URL('../../../../supabase/migrations/20261118000000_release_2026_11_1.sql', import.meta.url), 'utf8');
+
+// Replay upgrade data changes on private copies; shared fixtures are never backfilled.
+function backfill(user: string) {
+  const schema = `upgrade_${randomUUID().replaceAll('-', '')}`;
+  const tables = ['user_product_access', 'payment_transactions', 'guest_purchases', 'payment_line_items', 'order_bundle_components', 'bundle_items'];
+  const block = migration.match(/-- Preserve known legacy periods\.([\s\S]*?)-- End legacy period preservation\./)![1];
+  const components = migration.match(/CREATE FUNCTION public.order_granted_components[\s\S]*?\$\$;/)![0];
+  sql(`CREATE SCHEMA ${schema}; ${tables.map(table => `CREATE TABLE ${schema}.${table} (LIKE public.${table}); INSERT INTO ${schema}.${table} SELECT * FROM public.${table};`).join('')}
+    ${components.replaceAll('public.', `${schema}.`)} ${block.replaceAll('public.', `${schema}.`)}
+    UPDATE public.user_product_access a SET independent_access=b.independent_access FROM ${schema}.user_product_access b WHERE a.id=b.id AND a.user_id='${user}';
+    UPDATE public.payment_transactions t SET access_terms=b.access_terms FROM ${schema}.payment_transactions b WHERE t.id=b.id
+      AND (t.user_id='${user}' OR EXISTS (SELECT 1 FROM public.guest_purchases g WHERE g.transaction_id=t.id AND g.claimed_by_user_id='${user}'));
+    DROP SCHEMA ${schema} CASCADE;`);
+}
 function fixture() {
   const user = randomUUID(), product = randomUUID(), bundle = randomUUID();
   sql(`INSERT INTO auth.users(id,email,email_confirmed_at) VALUES('${user}','${user}@example.com',now());
@@ -84,8 +99,7 @@ it.each([false,true])('preserves the known legacy period after reducing the prod
     sql(`UPDATE public.products SET auto_grant_duration_days=90 WHERE id='${f.product}';`);
     const a = f.buy(bundle ? f.bundle : f.product); const original = f.access();
     sql(`UPDATE public.payment_transactions SET access_terms='{}' WHERE id='${a}'; UPDATE public.products SET auto_grant_duration_days=7 WHERE id='${f.product}';`);
-    const migration = readFileSync(new URL('../../../../supabase/migrations/20261118000000_release_2026_11_1.sql', import.meta.url), 'utf8');
-    sql(migration.match(/-- Preserve known legacy periods\.([\s\S]*?)-- End legacy period preservation\./)?.[1] || 'SELECT 1;');
+    backfill(f.user);
     const b = f.buy(); f.refund(b);
     expect(f.access()?.access_expires_at).toBe(original.access_expires_at);
   } finally { f.cleanup(); }
@@ -158,8 +172,7 @@ it.each(['purchase','transfer','guest-transfer'])('respects transfer ownership a
       INSERT INTO public.guest_purchases(product_id,customer_email,transaction_id,transaction_amount,claimed_by_user_id,claimed_at)
       VALUES('${f.product}','${f.user}@example.com','${later}',4000,'${f.user}',now());`);
     const known = f.access();
-    const migration = readFileSync(new URL('../../../../supabase/migrations/20261118000000_release_2026_11_1.sql', import.meta.url),'utf8');
-    sql(migration.match(/-- Preserve known legacy periods\.([\s\S]*?)-- End legacy period preservation\./)![1]);
+    backfill(f.user);
     if (source === 'purchase') f.refund(later);
     else sql(`UPDATE public.payment_transactions SET status='cancelled' WHERE id='${later}';`);
     if (source === 'purchase') expect(f.access()?.access_expires_at).toBe(known.access_expires_at);
@@ -207,10 +220,25 @@ it.each([365,null])('preserves legacy access originally lasting %s days after a 
     sql(`UPDATE public.payment_transactions SET created_at=now()-interval '50 days',paid_at=now()-interval '50 days',access_terms='{}' WHERE id='${b}';
       UPDATE public.user_product_access SET access_granted_at=now()-interval '50 days' WHERE user_id='${f.user}' AND product_id='${f.product}';`);
     const known = f.access();
-    const migration = readFileSync(new URL('../../../../supabase/migrations/20261118000000_release_2026_11_1.sql',import.meta.url),'utf8');
-    sql(migration.match(/-- Preserve known legacy periods\.([\s\S]*?)-- End legacy period preservation\./)![1]);
+    backfill(f.user);
     f.refund(b);
     expect(f.access()).not.toBeNull();
     expect(f.access().access_expires_at).toBe(known.access_expires_at);
+  } finally { f.cleanup(); }
+});
+
+it.each(['bundle-refund', 'bundle-cancel', 'product-cancel', 'product-refund'])('retains a pre-upgrade unknown deadline after %s @J34', scenario => {
+  const f = fixture();
+  try {
+    sql(`INSERT INTO public.user_product_access(user_id,product_id,grant_source,access_granted_at,access_expires_at)
+      VALUES('${f.user}','${f.product}','unknown',now()-interval '200 days',now()+interval '165 days');`);
+    const original = f.access();
+    expect(original.independent_access).toBeNull();
+    backfill(f.user);
+    const isBundle = scenario.startsWith('bundle'), cancel = scenario.endsWith('cancel');
+    const order = f.buy(isBundle ? f.bundle : f.product, cancel ? 'bank_transfer' : 'stripe', cancel ? 'awaiting_payment' : 'completed');
+    if (cancel) sql(`UPDATE public.payment_transactions SET status='cancelled' WHERE id='${order}';`);
+    else f.refund(order, isBundle ? f.bundle : f.product);
+    expect(f.access()?.access_expires_at).toBe(original.access_expires_at);
   } finally { f.cleanup(); }
 });

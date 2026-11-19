@@ -3323,7 +3323,7 @@ GRANT EXECUTE ON FUNCTION public.order_access_expiry(uuid, uuid, uuid) TO servic
 
 -- Preserve known legacy periods.
 UPDATE public.user_product_access SET independent_access = jsonb_build_object('expiresAt', access_expires_at)
-WHERE grant_source IN ('manual', 'free');
+WHERE grant_source IN ('manual', 'free', 'unknown');
 WITH known AS (
   SELECT t.id, jsonb_object_agg(a.user_id::text || ':' || a.product_id::text,
     jsonb_build_object('grantedAt', a.access_granted_at, 'expiresAt', a.access_expires_at,
@@ -3520,7 +3520,7 @@ DECLARE buyer uuid; product uuid;
 BEGIN
   IF (NEW.status = 'cancelled' AND OLD.status = 'awaiting_payment')
     OR (NEW.status = 'refunded' AND NEW.status IS DISTINCT FROM OLD.status) THEN
-    IF NEW.status = 'refunded' OR coalesce((OLD.metadata->>'access_on_placement')::boolean, false)
+    IF NEW.status = 'refunded' OR OLD.access_terms <> '{}'::jsonb
       OR EXISTS (SELECT 1 FROM public.user_product_access WHERE transfer_transaction_id = NEW.id) THEN
     FOR buyer IN
       SELECT NEW.user_id WHERE NEW.user_id IS NOT NULL
@@ -3532,7 +3532,11 @@ BEGIN
         UNION SELECT product_id FROM public.payment_line_items WHERE transaction_id = NEW.id
         UNION SELECT public.order_granted_components(NEW.id)
       LOOP
-        PERFORM public.revoke_order_product_access(NEW.id, buyer, product);
+        IF NEW.status = 'refunded' OR OLD.access_terms ? (buyer::text || ':' || product::text)
+          OR EXISTS (SELECT 1 FROM public.user_product_access a WHERE a.user_id = buyer
+            AND a.product_id = product AND a.transfer_transaction_id = NEW.id) THEN
+          PERFORM public.revoke_order_product_access(NEW.id, buyer, product);
+        END IF;
       END LOOP;
     END LOOP;
     END IF;
