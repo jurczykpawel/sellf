@@ -94,10 +94,13 @@ for (const mode of ['inactive', 'archived'] as const) {
 
 test('open transfer expires without reload, and A4 print has one page @J182', async ({ page }, info) => {
   test.setTimeout(90000);
-  const p = await product(), id = randomUUID(), due = new Date(Date.now() + 30000).toISOString();
-  await checked(await db.from('payment_transactions').insert({ id, product_id: p.id, customer_email: `receipt-${id}@example.com`, amount: 2000, currency: 'PLN', status: 'awaiting_payment', payment_provider: 'bank_transfer', pricing_snapshot_version: 1, release_at: due, transfer_details: { account: 'PL61109010140000071219812874', title: 'Order', holder: 'Seller' } }));
+  const p = await product(), id = randomUUID();
+  await checked(await db.from('payment_transactions').insert({ id, product_id: p.id, customer_email: `receipt-${id}@example.com`, amount: 2000, currency: 'PLN', status: 'awaiting_payment', payment_provider: 'bank_transfer', pricing_snapshot_version: 1, transfer_details: { account: 'PL61109010140000071219812874', title: 'Order', holder: 'Seller' } }));
   await acceptAllCookies(page);
   await page.goto(`/pl/order/${id}/transfer?token=${signTransferToken(id)}`);
+  await expect(page.getByRole('region', { name: 'Dane do przelewu' })).toBeVisible();
+  await checked(await db.from('payment_transactions').update({ release_at: new Date(Date.now() + 15000).toISOString() }).eq('id', id));
+  await page.reload();
   await expect(page.getByRole('region', { name: 'Dane do przelewu' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Preferencje ciasteczek', exact: true })).toBeVisible();
   await page.emulateMedia({ media: 'print' });
