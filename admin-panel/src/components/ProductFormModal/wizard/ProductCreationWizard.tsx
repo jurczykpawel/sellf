@@ -185,7 +185,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
 
   return (
     <>
-      <BaseModal isOpen={isOpen} onClose={handleClose} size="xl" closeOnBackdropClick={false} labelledBy={titleId}>
+      <BaseModal isOpen={isOpen} onClose={handleClose} size="xl" closeOnBackdropClick={false} labelledBy={titleId} initialFocusSelector={isBlankNew ? '[data-scenario]' : undefined}>
         <ModalHeader
           title={
             <span className="flex flex-wrap items-center gap-x-3 gap-y-1">

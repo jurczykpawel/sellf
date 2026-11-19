@@ -1,7 +1,10 @@
 /** Order context shown to the seller on the real local stack. */
 import { randomUUID } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { test, expect } from '@playwright/test';
 import { loginAsAdmin, supabaseAdmin as db } from './helpers/admin-auth';
+import { getTestDatabaseContainer } from './helpers/database-container';
+import { deleteAuthUsers } from './helpers/db-cleanup';
 import pl from '@/messages/pl.json';
 
 async function checked<T>({ data, error }: { data: T; error: unknown }): Promise<NonNullable<T>> { if (error) throw error; return data!; }
@@ -24,14 +27,39 @@ test.beforeAll(async () => {
   await checked(await db.from('affiliate_ledger').insert({ member_id: member, commission_id: commission, kind: 'accrual', amount_minor: 1500, currency: 'PLN', economic_key: `details-${randomUUID()}` }).select());
 });
 test.afterAll(async () => {
-  if (commission) { await db.from('affiliate_ledger').delete().eq('commission_id',commission); await db.from('affiliate_commissions').delete().eq('id',commission); }
-  if (binding) await db.from('affiliate_coupon_bindings').delete().eq('id',binding);
-  if (rule) await db.from('affiliate_rules').delete().eq('id',rule);
-  if (member) { await db.from('affiliate_membership_events').delete().eq('member_id',member); await db.from('affiliate_memberships').delete().eq('id',member); }
-  if (partnerUser) await db.auth.admin.deleteUser(partnerUser);
-  if (coupon) await db.from('coupons').delete().eq('id',coupon);
-  if (txId) { await db.from('invoices').delete().eq('transaction_id',txId); await db.from('seat_reservations').delete().eq('transaction_id',txId); await db.from('payment_line_items').delete().eq('transaction_id',txId); await db.from('payment_transactions').delete().eq('id',txId); }
-  if (productId) await db.from('products').delete().eq('id',productId);
+  const ids = { commission, binding, rule, member, coupon, transaction: txId, product: productId };
+  try {
+    execFileSync('docker', ['exec', '-i', getTestDatabaseContainer(), 'psql', '-U', 'postgres', '-v', 'ON_ERROR_STOP=1',
+      ...Object.entries(ids).flatMap(([key, value]) => ['-v', `${key}=${value ?? ''}`]),
+    ], { input: `BEGIN;
+      ALTER TABLE public.affiliate_ledger DISABLE TRIGGER affiliate_ledger_guard;
+      ALTER TABLE public.affiliate_rules DISABLE TRIGGER affiliate_rules_guard;
+      ALTER TABLE public.affiliate_membership_events DISABLE TRIGGER affiliate_membership_events_guard;
+      DELETE FROM public.affiliate_ledger WHERE commission_id=NULLIF(:'commission','')::uuid;
+      DELETE FROM public.affiliate_commissions WHERE id=NULLIF(:'commission','')::uuid;
+      DELETE FROM public.affiliate_coupon_bindings WHERE id=NULLIF(:'binding','')::uuid;
+      DELETE FROM public.affiliate_rules WHERE id=NULLIF(:'rule','')::uuid;
+      DELETE FROM public.affiliate_membership_events WHERE member_id=NULLIF(:'member','')::uuid;
+      DELETE FROM public.affiliate_memberships WHERE id=NULLIF(:'member','')::uuid;
+      DELETE FROM public.coupons WHERE id=NULLIF(:'coupon','')::uuid;
+      DELETE FROM public.issued_licenses WHERE order_id=NULLIF(:'transaction','');
+      DELETE FROM public.invoices WHERE transaction_id=NULLIF(:'transaction','')::uuid;
+      DELETE FROM public.seat_reservations WHERE transaction_id=NULLIF(:'transaction','')::uuid;
+      DELETE FROM public.payment_line_items WHERE transaction_id=NULLIF(:'transaction','')::uuid;
+      DELETE FROM public.payment_transactions WHERE id=NULLIF(:'transaction','')::uuid;
+      DELETE FROM public.products WHERE id=NULLIF(:'product','')::uuid;
+      ALTER TABLE public.affiliate_ledger ENABLE TRIGGER affiliate_ledger_guard;
+      ALTER TABLE public.affiliate_rules ENABLE TRIGGER affiliate_rules_guard;
+      ALTER TABLE public.affiliate_membership_events ENABLE TRIGGER affiliate_membership_events_guard;
+      COMMIT;`, encoding: 'utf8' });
+    if (productId) {
+      const remaining = await db.from('products').select('id').eq('id', productId);
+      expect(remaining.error).toBeNull();
+      expect(remaining.data).toEqual([]);
+    }
+  } finally {
+    if (partnerUser) await deleteAuthUsers(db, [partnerUser]);
+  }
 });
 test('seller sees partner, reserved session, purchase time and manual correction @J191 @J185', async ({ page }) => {
   await loginAsAdmin(page,'demo@sellf.app','demo123');

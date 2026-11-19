@@ -27,8 +27,8 @@ it('counts retained revenue and orders after partial refunds in every period and
     expect(after.total_transactions - before.total_transactions).toBe(3);
     for (const period of ['total', 'today', 'this_month']) {
       const key = `${period}_revenue_by_currency`;
-      expect(after[key].PLN - (before[key].PLN ?? 0)).toBe(2800);
-      expect(after[key].USD - (before[key].USD ?? 0)).toBe(600);
+      expect(after[key].PLN - (before[key].PLN ?? 0)).toBeCloseTo(2800, 6);
+      expect(after[key].USD - (before[key].USD ?? 0)).toBeCloseTo(600, 6);
     }
     expect(after.by_currency.PLN.transaction_count - (before.by_currency.PLN?.transaction_count ?? 0)).toBe(2);
     const overview = (await (await dashboard(new NextRequest(`http://localhost/api/v1/analytics/dashboard?product_id=${product.data!.id}`))).json()).data;

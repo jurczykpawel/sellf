@@ -70,10 +70,7 @@ describe('order schema', () => {
     const sql = `BEGIN;
       ${historicalClaim}
       DROP TRIGGER IF EXISTS bank_transfer_access_release ON public.payment_transactions;
-      DELETE FROM public.invoices WHERE transaction_id IN (SELECT id FROM public.payment_transactions WHERE payment_provider='bank_transfer');
-      DELETE FROM public.payment_transactions WHERE payment_provider='bank_transfer';
-      DELETE FROM public.guest_purchases WHERE product_id='${productId}';
-      DELETE FROM public.payment_transactions WHERE product_id='${productId}';
+      TRUNCATE TABLE public.payment_transactions CASCADE;
       ALTER TABLE public.payment_transactions DROP COLUMN payment_provider, DROP COLUMN pricing_snapshot_version, DROP COLUMN coupon_id, DROP COLUMN livemode;
       ALTER TABLE public.payment_transactions ADD CONSTRAINT payment_transactions_session_id_check CHECK (session_id ~* '^(cs_|pi_|in_)[a-zA-Z0-9_]+$');
       ALTER TABLE public.payment_line_items DROP COLUMN discounted_total;
