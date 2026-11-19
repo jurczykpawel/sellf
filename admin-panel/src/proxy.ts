@@ -1,3 +1,5 @@
+import { stat } from 'node:fs/promises'
+import { resolve, sep } from 'node:path'
 import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 import createMiddleware from 'next-intl/middleware'
@@ -194,6 +196,17 @@ function addSecurityHeaders(
   return response;
 }
 
+async function isPublicFile(pathname: string): Promise<boolean> {
+  const publicRoot = resolve(process.cwd(), 'public')
+  try {
+    const filePath = resolve(publicRoot, `.${decodeURIComponent(pathname)}`)
+    if (!filePath.startsWith(`${publicRoot}${sep}`)) return false
+    return (await stat(filePath)).isFile()
+  } catch {
+    return false
+  }
+}
+
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isTemplateAuthorApi = pathname.startsWith('/api/v1/templates/') || /^\/api\/v1\/products\/[^/]+\/offer\//.test(pathname);
@@ -315,12 +328,11 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith('/api') ||
     pathname === '/sitemap.xml' ||
     pathname.startsWith('/sitemaps/') ||
-    pathname === '/robots.txt' ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/payment') ||
     pathname.startsWith('/test-pages') ||
     pathname.startsWith('/vendor/') ||
-    pathname.match(/\.(svg|png|jpg|jpeg|gif|webp|ico|js|css|html)$/)
+    await isPublicFile(pathname)
   ) {
     return applyHeaders(NextResponse.next({ request: { headers: requestHeaders } }));
   }
