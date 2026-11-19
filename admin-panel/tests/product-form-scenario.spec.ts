@@ -18,7 +18,7 @@ const S = pl.admin.products.form.scenario;
 const cleanups: Array<() => Promise<unknown>> = [];
 let admin: Awaited<ReturnType<typeof createTestAdmin>>;
 test.beforeAll(async () => { admin = await createTestAdmin('scenario'); });
-test.afterAll(async () => { while (cleanups.length) await cleanups.pop()!(); await admin.cleanup(); });
+test.afterAll(async () => { while (cleanups.length) { const result = await cleanups.pop()!() as { error?: unknown }; if (result.error) throw result.error; } await admin.cleanup(); });
 
 async function checked<T>({ data, error }: { data: T; error: unknown }): Promise<NonNullable<T>> { if (error) throw error; return data!; }
 const picker = (page: Page, title = S.title) => page.getByRole('dialog').getByRole('group', { name: title });
@@ -118,7 +118,7 @@ async function storedProduct(id: string, extra: Record<string, unknown>) {
     // A name the bundle search does not match, so the edited row is the bundle itself.
     const componentName = `Skladnik ${randomUUID().slice(0, 8)}`;
     const component = await checked(await db.from('products').insert({ name: componentName, slug: componentName.toLowerCase().replaceAll(' ', '-'), ...base, price: 50 }).select('id').single());
-    cleanups.push(() => db.from('products').delete().eq('id', component.id));
+    cleanups.splice(cleanups.length - 1, 0, () => db.from('products').delete().eq('id', component.id));
     await checked(await db.from('bundle_items').insert({ bundle_product_id: product.id, component_product_id: component.id, display_order: 0 }).select());
   }
   if (id === 'event') {

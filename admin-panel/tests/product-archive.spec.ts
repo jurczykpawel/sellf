@@ -5,6 +5,9 @@
  *
  * @see src/components/ProductRemoveDialog.tsx
  */
+import { archiveLegacyBundleComponent } from './helpers/legacy-bundle';
+import en from '../src/messages/en.json';
+import pl from '../src/messages/pl.json';
 import { test, expect, type Page } from '@playwright/test';
 import { insertTestApiKey } from './helpers/api-key';
 import { acceptAllCookies } from './helpers/consent';
@@ -62,7 +65,7 @@ test.beforeAll(async () => {
   apiKeyId = key.data.id;
 });
 test.afterAll(async () => {
-  for (const id of productIds) await supabaseAdmin.from('products').delete().eq('id', id);
+  for (const id of productIds) expect((await supabaseAdmin.from('products').delete().eq('id', id)).error).toBeNull();
   await supabaseAdmin.from('api_keys').delete().eq('id', apiKeyId);
   await admin.cleanup();
 });
@@ -163,13 +166,13 @@ for (const state of ['unsold', 'sold', 'archived']) {
       expect((await supabaseAdmin.from('issued_licenses').delete().eq('id', component.licenseId)).error).toBeNull();
       expect((await supabaseAdmin.from('payment_transactions').delete().eq('id', component.orderId)).error).toBeNull();
     }
-    if (state === 'archived') expect((await supabaseAdmin.from('products').update({ archived_at: new Date().toISOString(), is_active: false }).eq('id', component.id)).error).toBeNull();
     const { data: bundle, error } = await supabaseAdmin.from('products').insert({
       name: `Containing ${name}`, slug: `bundle-${component.id}`, price: 79, is_bundle: true, is_active: true,
     }).select('id,name').single();
     expect(error).toBeNull();
     productIds.unshift(bundle!.id);
     expect((await supabaseAdmin.from('bundle_items').insert({ bundle_product_id: bundle!.id, component_product_id: component.id })).error).toBeNull();
+    if (state === 'archived') archiveLegacyBundleComponent(component.id);
     const before = await supabaseAdmin.from('bundle_items').select('*').eq('bundle_product_id', bundle!.id);
     await openProducts(page, name);
     if (state === 'archived') await page.locator('#status-filter').selectOption('archived');
@@ -188,5 +191,37 @@ for (const state of ['unsold', 'sold', 'archived']) {
     expect(kept.error).toBeNull();
     expect(Boolean(kept.data!.archived_at)).toBe(state === 'archived');
     expect(kept.data!.is_active).toBe(state !== 'archived');
+  });
+}
+
+for (const locale of ['en', 'pl']) {
+  test(`archived components are refused on PATCH and legacy offers show the full contents in ${locale} @J602`, async ({ page }) => {
+    const component = await soldProduct(`Legacy component ${crypto.randomUUID()}`);
+    const { data: bundle, error } = await supabaseAdmin.from('products').insert({
+      name: `Legacy bundle ${crypto.randomUUID()}`, slug: `legacy-${component.id}`, price: 79,
+      is_bundle: true, is_active: true,
+    }).select('id,name,slug').single();
+    expect(error).toBeNull(); productIds.unshift(bundle!.id);
+    expect((await supabaseAdmin.from('bundle_items').insert({ bundle_product_id: bundle!.id, component_product_id: component.id })).error).toBeNull();
+    archiveLegacyBundleComponent(component.id);
+    const { data: original } = await supabaseAdmin.from('products').select('name').eq('id', component.id).single();
+    await page.goto(`/${locale}/checkout/${bundle!.slug}`);
+    await expect(page.getByTestId('bundle-contents-preview')).toContainText(original!.name);
+    await openProducts(page, bundle!.name);
+    for (const headers of [{ Origin: new URL(page.url()).origin }, { Origin: new URL(page.url()).origin, Authorization: `Bearer ${apiKey}` }]) {
+      const response = await page.request.patch(`/api/v1/products/${bundle!.id}`, { headers, data: { bundleItemIds: [component.id] } });
+      expect(response.status()).toBe(400);
+      expect((await response.json()).error.details.bundleItemIds).toEqual(['archived']);
+    }
+    expect((await supabaseAdmin.from('bundle_items').select('component_product_id').eq('bundle_product_id', bundle!.id)).data)
+      .toEqual([{ component_product_id: component.id }]);
+    await page.goto(`/${locale}/dashboard/products`);
+    await page.getByPlaceholder(locale === 'pl' ? /szukaj/i : /search/i).fill(bundle!.name);
+    const row = page.locator('tr').filter({ has: page.getByText(bundle!.name, { exact: true }) });
+    await row.getByRole('button', { name: (locale === 'pl' ? pl : en).admin.products.editLabel.replace('{name}', bundle!.name), exact: true }).click();
+    const { openFormSection } = await import('./helpers/product-form');
+    await openFormSection(page, (locale === 'pl' ? pl : en).admin.products.form.sections.delivery.title);
+    await expect(page.getByRole('dialog')).toContainText(locale === 'pl' ? 'Najpierw przywróć produkt' : 'Restore the product first');
+    await expect(page.getByRole('button', { name: `${locale === 'pl' ? 'Dodaj' : 'Add'} ${original!.name}`, exact: true })).toHaveCount(0);
   });
 }

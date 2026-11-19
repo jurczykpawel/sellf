@@ -593,7 +593,9 @@ and deletion (2BP01); `impact.bundleReferences` identifies the containing bundle
 (trialing, active, past_due, incomplete), upcoming reservations and partner commissions also block a permanent delete
 (55006); past reservations are detached, affiliate rules (append-only except during this delete,
 `sellf.deleting_product`) are removed after the seller explicitly unlinks any containing bundles.
-`restore_product_as` returns a product inactive.
+`restore_product_as` returns a product inactive. Archived products cannot become new bundle components;
+`validate_bundle_item` and `replace_bundle_items` lock product rows in UUID order, conflicting with archival updates.
+Existing bundle offers show every component through public membership plus restricted server-side metadata reads.
 An archived product is invisible to the public (RLS, waitlist included) but its buyers keep the content:
 RLS branch `owns_product_access`, `servesBuyerContent`, `/p/[slug]` reads it through the buyer session.
 `GET /api/v1/products` hides archived products unless `status=archived`, so every admin picker

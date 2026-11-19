@@ -18,6 +18,7 @@ const FIELD_SECTION: Record<string, FormSectionId> = {
   trial_days: 'basics',
   vat_rate: 'basics',
   content_url: 'delivery',
+  bundleItemIds: 'delivery',
   license_tier: 'delivery',
   license_duration_days: 'delivery',
   checkout_profile: 'cart',

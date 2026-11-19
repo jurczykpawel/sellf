@@ -8975,6 +8975,25 @@ $$;
 ALTER FUNCTION public.jsonschema_subset_walk(schema jsonb, instance jsonb, depth integer, budget integer) OWNER TO postgres;
 
 --
+-- Name: keep_bundle_component_available(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.keep_bundle_component_available() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO ''
+    AS $$
+BEGIN
+  IF OLD.archived_at IS NULL AND NEW.archived_at IS NOT NULL
+    AND EXISTS (SELECT 1 FROM public.bundle_items WHERE component_product_id = NEW.id) THEN
+    RAISE EXCEPTION 'Product belongs to bundles' USING ERRCODE = '2BP01';
+  END IF;
+  RETURN NEW;
+END $$;
+
+
+ALTER FUNCTION public.keep_bundle_component_available() OWNER TO postgres;
+
+--
 -- Name: keep_ended_subscription_ended(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -11890,7 +11909,7 @@ BEGIN
   IF (select auth.role()) IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'Service role required' USING ERRCODE = '42501';
   END IF;
-  PERFORM 1 FROM public.products WHERE id = p_bundle_id FOR UPDATE;
+  PERFORM 1 FROM public.products WHERE id = p_bundle_id OR id = ANY(p_component_ids) ORDER BY id FOR UPDATE;
   DELETE FROM public.bundle_items WHERE bundle_product_id = p_bundle_id;
   INSERT INTO public.bundle_items(bundle_product_id, component_product_id, display_order)
   SELECT p_bundle_id, component, ordinality - 1
@@ -13561,25 +13580,21 @@ CREATE FUNCTION public.validate_bundle_item() RETURNS trigger
     SET search_path TO ''
     AS $$
 DECLARE
-  parent_is_bundle BOOLEAN;
-  child_is_bundle  BOOLEAN;
-  child_type       TEXT;
+  parent public.products;
+  component public.products;
 BEGIN
-  SELECT is_bundle INTO parent_is_bundle FROM public.products WHERE id = NEW.bundle_product_id;
-  SELECT is_bundle, product_type INTO child_is_bundle, child_type FROM public.products WHERE id = NEW.component_product_id;
-
-  IF parent_is_bundle IS NOT TRUE THEN
-    RAISE EXCEPTION 'bundle_product_id % is not a bundle (is_bundle=true required)', NEW.bundle_product_id;
+  PERFORM 1 FROM public.products WHERE id IN (NEW.bundle_product_id, NEW.component_product_id) ORDER BY id FOR SHARE;
+  SELECT * INTO parent FROM public.products WHERE id = NEW.bundle_product_id;
+  SELECT * INTO component FROM public.products WHERE id = NEW.component_product_id;
+  IF parent.is_bundle IS NOT TRUE OR component.id IS NULL OR component.is_bundle
+    OR component.product_type <> 'one_time' THEN
+    RAISE EXCEPTION 'Invalid bundle component' USING ERRCODE = '23514';
   END IF;
-  IF child_is_bundle IS TRUE THEN
-    RAISE EXCEPTION 'nested bundles are not allowed: component % is itself a bundle', NEW.component_product_id;
-  END IF;
-  IF COALESCE(child_type, 'one_time') <> 'one_time' THEN
-    RAISE EXCEPTION 'subscription products cannot be bundle components (component %)', NEW.component_product_id;
+  IF component.archived_at IS NOT NULL THEN
+    RAISE EXCEPTION 'Archived products cannot be bundle components' USING ERRCODE = '23514', DETAIL = 'bundle_component_archived';
   END IF;
   RETURN NEW;
-END;
-$$;
+END $$;
 
 
 ALTER FUNCTION public.validate_bundle_item() OWNER TO postgres;
@@ -19353,6 +19368,13 @@ CREATE TRIGGER issued_licenses_stamp_original_seller_id BEFORE INSERT ON public.
 
 
 --
+-- Name: products keep_bundle_component_available; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER keep_bundle_component_available BEFORE UPDATE OF archived_at ON public.products FOR EACH ROW EXECUTE FUNCTION public.keep_bundle_component_available();
+
+
+--
 -- Name: subscriptions keep_ended_subscription_ended; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
@@ -23439,6 +23461,8 @@ function | public.jsonschema_subset_pattern(pattern text) | postgres | EXECUTE |
 function | public.jsonschema_subset_pattern(pattern text) | service_role | EXECUTE | postgres | -
 function | public.jsonschema_subset_walk(schema jsonb, instance jsonb, depth integer, budget integer) | postgres | EXECUTE | postgres | -
 function | public.jsonschema_subset_walk(schema jsonb, instance jsonb, depth integer, budget integer) | service_role | EXECUTE | postgres | -
+function | public.keep_bundle_component_available() | postgres | EXECUTE | postgres | -
+function | public.keep_bundle_component_available() | service_role | EXECUTE | postgres | -
 function | public.keep_ended_subscription_ended() | postgres | EXECUTE | postgres | -
 function | public.keep_ended_subscription_ended() | service_role | EXECUTE | postgres | -
 function | public.keep_refunded_subscription_access_ended() | postgres | EXECUTE | postgres | -
@@ -23682,7 +23706,6 @@ function | public.update_video_progress(product_id_param uuid, video_id_param te
 function | public.update_video_progress(product_id_param uuid, video_id_param text, position_param integer, duration_param integer, completed_param boolean) | postgres | EXECUTE | postgres | -
 function | public.update_video_progress(product_id_param uuid, video_id_param text, position_param integer, duration_param integer, completed_param boolean) | service_role | EXECUTE | postgres | -
 function | public.validate_bundle_item() | postgres | EXECUTE | postgres | -
-function | public.validate_bundle_item() | PUBLIC | EXECUTE | postgres | -
 function | public.validate_bundle_item() | service_role | EXECUTE | postgres | -
 function | public.validate_email_format(email_param text) | authenticated | EXECUTE | postgres | -
 function | public.validate_email_format(email_param text) | postgres | EXECUTE | postgres | -

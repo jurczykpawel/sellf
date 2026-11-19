@@ -181,10 +181,11 @@ for (const state of ['unsold', 'sold', 'archived']) {
         DELETE FROM public.payment_transactions WHERE id=(SELECT tx FROM p);
         DELETE FROM public.user_product_access WHERE product_id=(SELECT id FROM p);
       ` : ''}
-      ${state === 'archived' ? 'UPDATE public.products SET archived_at=now(),is_active=false WHERE id=(SELECT id FROM p);' : ''}
       CREATE TEMP TABLE b AS SELECT gen_random_uuid() AS id;
       INSERT INTO public.products(id,name,slug,price,is_bundle) SELECT id,'Complete bundle','bundle-'||id,99,true FROM b;
       INSERT INTO public.bundle_items(bundle_product_id,component_product_id) SELECT b.id,p.id FROM b,p;
+      ${state === 'archived' ? 'ALTER TABLE public.products DISABLE TRIGGER keep_bundle_component_available; UPDATE public.products SET archived_at=now(),is_active=false WHERE id=(SELECT id FROM p); ALTER TABLE public.products ENABLE TRIGGER keep_bundle_component_available;' : ''}
+      ${state === 'sold' ? 'UPDATE public.products SET archived_at=now(),is_active=false WHERE id=(SELECT id FROM b);' : ''}
       CREATE TEMP TABLE before_product AS SELECT products.* FROM public.products,p WHERE products.id=p.id;
       CREATE TEMP TABLE before_events AS SELECT count(*) AS n FROM public.business_events;
       DO $$ BEGIN

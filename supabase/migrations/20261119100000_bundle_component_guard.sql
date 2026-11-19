@@ -71,3 +71,53 @@ BEGIN
   PERFORM set_config('sellf.deleting_product', '', true);
   RETURN jsonb_build_object('result', 'deleted', 'impact', impact);
 END $$;
+
+CREATE OR REPLACE FUNCTION public.validate_bundle_item() RETURNS trigger
+LANGUAGE plpgsql SET search_path = '' AS $$
+DECLARE
+  parent public.products;
+  component public.products;
+BEGIN
+  PERFORM 1 FROM public.products WHERE id IN (NEW.bundle_product_id, NEW.component_product_id) ORDER BY id FOR SHARE;
+  SELECT * INTO parent FROM public.products WHERE id = NEW.bundle_product_id;
+  SELECT * INTO component FROM public.products WHERE id = NEW.component_product_id;
+  IF parent.is_bundle IS NOT TRUE OR component.id IS NULL OR component.is_bundle
+    OR component.product_type <> 'one_time' THEN
+    RAISE EXCEPTION 'Invalid bundle component' USING ERRCODE = '23514';
+  END IF;
+  IF component.archived_at IS NOT NULL THEN
+    RAISE EXCEPTION 'Archived products cannot be bundle components' USING ERRCODE = '23514', DETAIL = 'bundle_component_archived';
+  END IF;
+  RETURN NEW;
+END $$;
+REVOKE EXECUTE ON FUNCTION public.validate_bundle_item() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.validate_bundle_item() TO service_role;
+
+CREATE FUNCTION public.keep_bundle_component_available() RETURNS trigger
+LANGUAGE plpgsql SET search_path = '' AS $$
+BEGIN
+  IF OLD.archived_at IS NULL AND NEW.archived_at IS NOT NULL
+    AND EXISTS (SELECT 1 FROM public.bundle_items WHERE component_product_id = NEW.id) THEN
+    RAISE EXCEPTION 'Product belongs to bundles' USING ERRCODE = '2BP01';
+  END IF;
+  RETURN NEW;
+END $$;
+REVOKE EXECUTE ON FUNCTION public.keep_bundle_component_available() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.keep_bundle_component_available() TO service_role;
+CREATE TRIGGER keep_bundle_component_available BEFORE UPDATE OF archived_at ON public.products
+  FOR EACH ROW EXECUTE FUNCTION public.keep_bundle_component_available();
+
+CREATE OR REPLACE FUNCTION public.replace_bundle_items(p_bundle_id uuid, p_component_ids uuid[]) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+BEGIN
+  IF (select auth.role()) IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'Service role required' USING ERRCODE = '42501';
+  END IF;
+  PERFORM 1 FROM public.products WHERE id = p_bundle_id OR id = ANY(p_component_ids) ORDER BY id FOR UPDATE;
+  DELETE FROM public.bundle_items WHERE bundle_product_id = p_bundle_id;
+  INSERT INTO public.bundle_items(bundle_product_id, component_product_id, display_order)
+  SELECT p_bundle_id, component, ordinality - 1
+  FROM unnest(p_component_ids) WITH ORDINALITY AS c(component, ordinality);
+END $$;
+REVOKE EXECUTE ON FUNCTION public.replace_bundle_items(uuid, uuid[]) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.replace_bundle_items(uuid, uuid[]) TO service_role;

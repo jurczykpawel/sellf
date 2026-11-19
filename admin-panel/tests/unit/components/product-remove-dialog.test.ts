@@ -24,6 +24,8 @@ for (const [locale, messages] of [['en', en], ['pl', pl]] as const) {
         React.createElement(ProductRemoveDialog, { product, mode, onClose: vi.fn(), onDone: vi.fn() })));
       await waitFor(() => expect(view.getByTestId('product-remove-dialog').textContent).toContain('Complete course'));
       const label = mode === 'permanent' ? messages.admin.products.remove.permanentConfirm : messages.admin.products.remove.archiveConfirm;
+      expect(view.queryByText(messages.admin.products.remove.permanentLead)).toBeNull();
+      expect(view.getByTestId('product-remove-dialog').textContent).toContain(locale === 'pl' ? 'przywróć pakiet' : 'restore the bundle');
       expect((view.getByRole('button', { name: label }) as HTMLButtonElement).disabled).toBe(true);
     });
   }

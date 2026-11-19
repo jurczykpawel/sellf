@@ -72,6 +72,7 @@ describe('field errors', () => {
     expect(collectRequiredFieldErrors({ ...base, slug: 'a'.repeat(81) }, '10', 'stripe_tax').slug).toBe('invalid');
   });
   it('maps actual API _errors and direct fields', () => {
+    expect(serverFieldErrors({ bundleItemIds: ['archived'] })).toEqual({ bundleItemIds: 'invalid' });
     expect(serverFieldErrors({ _errors: ['name: Too big', 'Slug cannot end with hyphens', 'trial_days must be an integer between 0 and 730', 'license_tier: Too big'], price: ['too big'] }))
       .toMatchObject({ name: 'invalid', slug: 'invalid', trial_days: 'invalid', license_tier: 'invalid', price: expect.any(String) });
   });

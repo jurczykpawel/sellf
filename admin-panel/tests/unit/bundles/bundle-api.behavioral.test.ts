@@ -89,6 +89,20 @@ describe.skipIf(!db)('upsertBundleItems', () => {
     await expect(upsertBundleItems(db!, bundle, [inner])).rejects.toBeTruthy();
     expect(await components(bundle)).toEqual([original]);
   });
+  it('rejects archived components in direct writes and replacements without changing the set', async () => {
+    const bundle = await mkProduct({ is_bundle: true });
+    const original = await mkProduct();
+    const archived = await mkProduct({ archived_at: new Date().toISOString(), is_active: false });
+    await upsertBundleItems(db!, bundle, [original]);
+    const direct = await db!.from('bundle_items').insert({ bundle_product_id: bundle, component_product_id: archived });
+    expect(direct.error?.code).toBe('23514');
+    await expect(upsertBundleItems(db!, bundle, [archived])).rejects.toMatchObject({ details: { bundleItemIds: ['archived'] } });
+    expect(await components(bundle)).toEqual([original]);
+    const archive = await db!.from('products').update({ archived_at: new Date().toISOString(), is_active: false }).eq('id', original);
+    expect(archive.error?.code).toBe('2BP01');
+    expect((await db!.from('products').select('archived_at').eq('id', original).single()).data?.archived_at).toBeNull();
+  });
+
   it('requires a service client to replace the component set', async () => {
     const bundle = await mkProduct({ is_bundle: true });
     const original = await mkProduct();

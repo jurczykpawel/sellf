@@ -207,6 +207,7 @@ export interface TagsSectionProps extends SectionProps {
 }
 
 export interface BundleItemsSectionProps extends SectionProps {
+  fieldErrors?: Record<string, string>;
   /** Full product list to pick components from (eligible ones are filtered inside). */
   products: Product[];
   /** Id of the product being edited — excluded from the eligible list to prevent self-reference. */

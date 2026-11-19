@@ -1705,7 +1705,7 @@
         "permanentBlockedLead": "Nie można teraz usunąć produktu trwale, zostaje w archiwum.",
         "blockedSubscriptions": "Ma aktywne subskrypcje ({count}) — anuluj je lub poczekaj na ich koniec.",
         "blockedReservations": "Ma rezerwacje na nadchodzące terminy ({count}).",
-        "blockedBundles": "Produkt jest składnikiem pakietów: {names}. Usuń go najpierw ze składu tych pakietów, zanim przeniesiesz go do archiwum lub usuniesz. Skład pakietów pozostaje bez zmian.",
+        "blockedBundles": "Produkt jest składnikiem pakietów: {names}. Usuń go najpierw ze składu tych pakietów, zanim przeniesiesz go do archiwum lub usuniesz. Skład pakietów pozostaje bez zmian. Jeśli pakiet jest w archiwum, najpierw przywróć pakiet, aby zmienić jego skład.",
         "blockedCommissions": "Ma naliczone prowizje partnerów ({count}), które są historią wypłat.",
         "cancel": "Anuluj"
       },
@@ -1867,6 +1867,7 @@
         "bundle": {
           "title": "Składniki zestawu",
           "help": "Wybierz produkty wchodzące w skład zestawu. Kupujący otrzymują dostęp do wszystkich w jednym zakupie.",
+          "archivedHelp": "Nie można dodać produktu z archiwum do pakietu. Najpierw przywróć produkt.",
           "addLabel": "Dodaj składnik",
           "searchPlaceholder": "Szukaj produktów do dodania...",
           "noMatches": "Brak pasujących produktów.",

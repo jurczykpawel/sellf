@@ -16,6 +16,7 @@
  * Run: bunx vitest run tests/unit/bundles/bundle-completion.behavioral.test.ts
  */
 
+import { archiveLegacyBundleComponent } from '../../helpers/legacy-bundle';
 import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 import { deleteChecked, deleteBundleItemsFor, deleteAuthUsers } from '../../helpers/db-cleanup';
@@ -60,13 +61,21 @@ afterAll(async () => {
 });
 
 describe.skipIf(!db)('bundle completion + guest claim', () => {
-  it.each([false, true])('completing a bundle purchase grants all components (archived component: %s) and writes ONE main line item', async (archived) => {
+  it.each([false, true])('completing a bundle purchase grants all components (legacy archived: %s) and writes ONE main line item', async (archived) => {
     const bundle = await mkProduct({ is_bundle: true, price: 199 });
-    const a = await mkProduct(archived ? { archived_at: new Date().toISOString(), is_active: false } : {}); const b = await mkProduct();
+    const a = await mkProduct(); const b = await mkProduct();
     await db!.from('bundle_items').insert([
       { bundle_product_id: bundle, component_product_id: a },
       { bundle_product_id: bundle, component_product_id: b },
     ]);
+    if (archived) {
+      archiveLegacyBundleComponent(a);
+      const publicClient = createClient(URL, process.env.SUPABASE_ANON_KEY!);
+      const oldPreview = await publicClient.from('bundle_items')
+        .select('component:products!bundle_items_component_product_id_fkey(id)').eq('bundle_product_id', bundle).eq('component_product_id', a).single();
+      expect(oldPreview.error).toBeNull();
+      expect(oldPreview.data?.component).toBeNull();
+    }
     const { data: user } = await db!.auth.admin.createUser({ email: `bc-${crypto.randomUUID().slice(0,8)}@t.dev`, email_confirm: true });
     users.push(user!.user!.id);
     // Session id must match the RPC's format contract ^(cs_|pi_)[a-zA-Z0-9_]+$ — strip uuid hyphens.

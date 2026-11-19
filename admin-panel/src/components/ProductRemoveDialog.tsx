@@ -100,7 +100,7 @@ export default function ProductRemoveDialog({ product, mode, onClose, onDone }: 
               <p>{t('archiveBody')}</p>
             </>
           )}
-          {impact && mode === 'permanent' && counts && (
+          {impact && !blocked && mode === 'permanent' && counts && (
             <>
               <p className="font-semibold">{t('permanentLead')}</p>
               {impact.accesses > 0 && <Message type="warning" message={t('permanentAccess', counts)} />}
@@ -109,9 +109,9 @@ export default function ProductRemoveDialog({ product, mode, onClose, onDone }: 
                 {impact.affiliateRules > 0 && <li>{t('permanentRules', { count: impact.affiliateRules })}</li>}
                 <li>{t('permanentIrreversible')}</li>
               </ul>
-              {blockers.length > 0 && <Message type="warning" message={`${t('permanentBlockedLead')} ${blockers.join(' ')}`} />}
             </>
           )}
+          {!bundleBlocked && mode === 'permanent' && blockers.length > 0 && <Message type="warning" message={`${t('permanentBlockedLead')} ${blockers.join(' ')}`} />}
           {failed && <Message type="error" message={mode === 'permanent' ? t('permanentError') : t('error')} />}
         </div>
       </ModalBody>
