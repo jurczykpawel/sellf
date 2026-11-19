@@ -108,7 +108,7 @@ export function Tooltip({
       {isValidElement(children) &&
         cloneElement(children, {
           ref: setReference,
-          ...getReferenceProps(),
+          ...getReferenceProps(children.props as Record<string, unknown>),
         } as Record<string, unknown>)}
       {isOpen && (
         <FloatingPortal>
