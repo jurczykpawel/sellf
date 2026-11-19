@@ -58,7 +58,7 @@ for (const locale of ['en', 'pl']) {
     try {
       expect((await supabaseAdmin.from('invoicing_config').update({ provider: 'none', domain: '', token: null }).eq('id', true)).error).toBeNull();
       await loginAsAdmin(page, admin.email, admin.password);
-      await page.goto(locale === 'pl' ? '/pl/dashboard/settings' : '/dashboard/settings');
+      await page.goto(locale === 'pl' ? '/pl/dashboard/settings' : '/en/dashboard/settings');
       const settings = page.getByRole('region', { name: locale === 'pl' ? 'Faktury' : 'Invoicing', exact: true });
       const save = settings.getByRole('button', { name: locale === 'pl' ? 'Zapisz' : 'Save', exact: true });
       await expect(save).toBeEnabled();
@@ -106,9 +106,10 @@ test('shows company data backfilled from embedded Stripe Checkout in payment det
     // Previously stored embed data has the same fields but no type.
     const buyer = (saved.data!.order_details as { buyer: Record<string, unknown> }).buyer;
     delete buyer.type;
+    buyer.needs_invoice = false;
     expect((await supabaseAdmin.from('payment_transactions').update({ order_details: { buyer } }).eq('id', tx.data!.id)).error).toBeNull();
     await page.reload();
-    await row.getByRole('button', { name: /szczegóły/i }).click();
+    await expect(details).toBeVisible();
     for (const value of ['Embedded Company', '5260250274', 'Krótka 2']) await expect(details).toContainText(value);
   } finally {
     await supabaseAdmin.from('payment_transactions').delete().eq('session_id', sessionId);
