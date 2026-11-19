@@ -111,9 +111,10 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
   } = useProductForm({ product, isOpen, onSubmit, defaultIsBundle });
 
   const handleClose = useCallback(() => {
-    if (isDirty) setShowExitConfirm(true);
+    const unsaved = isEditMode ? isDirty : formData.name !== '' || formData.price > 0 || formData.description !== '';
+    if (unsaved) setShowExitConfirm(true);
     else onClose();
-  }, [isDirty, onClose]);
+  }, [isDirty, isEditMode, formData.name, formData.price, formData.description, onClose]);
 
   const handleContinue = useCallback(() => {
     // The "Dalej" button is disabled while shopConfigLoaded is false
