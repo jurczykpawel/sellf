@@ -3241,6 +3241,28 @@ ALTER TABLE public.payment_transactions ADD COLUMN access_terms jsonb NOT NULL D
 
 ALTER TABLE public.user_product_access ADD COLUMN independent_access jsonb;
 
+-- Preserve known legacy periods.
+UPDATE public.user_product_access SET independent_access = jsonb_build_object('expiresAt', access_expires_at)
+WHERE grant_source IN ('manual', 'free');
+WITH known AS (
+  SELECT t.id, jsonb_object_agg(a.user_id::text || ':' || a.product_id::text,
+    jsonb_build_object('grantedAt', a.access_granted_at, 'expiresAt', a.access_expires_at,
+      'grantVersion', a.version, 'grantExpiresAt', a.access_expires_at)) AS terms
+  FROM public.payment_transactions t
+  JOIN public.user_product_access a ON (a.user_id = t.user_id OR EXISTS (
+    SELECT 1 FROM public.guest_purchases g WHERE g.claimed_by_user_id = a.user_id
+      AND (g.transaction_id = t.id OR (g.transaction_id IS NULL AND g.session_id = t.session_id))))
+    AND (a.product_id = t.product_id
+      OR EXISTS (SELECT 1 FROM public.payment_line_items l WHERE l.transaction_id = t.id AND l.product_id = a.product_id)
+      OR a.product_id IN (SELECT public.order_granted_components(t.id)))
+  WHERE t.subscription_id IS NULL AND (t.status IN ('completed', 'partially_refunded')
+    OR (t.status = 'awaiting_payment' AND coalesce((t.metadata->>'access_on_placement')::boolean, false)))
+  GROUP BY t.id
+)
+UPDATE public.payment_transactions t SET access_terms = known.terms || t.access_terms
+FROM known WHERE t.id = known.id;
+-- End legacy period preservation.
+
 CREATE FUNCTION public.retain_independent_access() RETURNS trigger
 LANGUAGE plpgsql SET search_path = '' AS $$
 BEGIN

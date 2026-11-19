@@ -1,4 +1,5 @@
 /** Independent grants and order periods are reconciled through real committed purchases. */
+import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { expect, it } from 'vitest';
@@ -71,6 +72,19 @@ it.each([false,true])('retains manual access while removing a later purchased ex
     const id = f.buy(bundle ? f.bundle : f.product);
     expect(new Date(f.access().access_expires_at).getTime()).toBeGreaterThan(new Date(original.access_expires_at).getTime());
     f.refund(id,bundle ? f.bundle : f.product);
+    expect(f.access()?.access_expires_at).toBe(original.access_expires_at);
+  } finally { f.cleanup(); }
+});
+
+it.each([false,true])('preserves the known legacy period after reducing the product duration (bundle=%s) @J34', bundle => {
+  const f = fixture();
+  try {
+    sql(`UPDATE public.products SET auto_grant_duration_days=90 WHERE id='${f.product}';`);
+    const a = f.buy(bundle ? f.bundle : f.product); const original = f.access();
+    sql(`UPDATE public.payment_transactions SET access_terms='{}' WHERE id='${a}'; UPDATE public.products SET auto_grant_duration_days=7 WHERE id='${f.product}';`);
+    const migration = readFileSync(new URL('../../../../supabase/migrations/20261118000000_release_2026_11_1.sql', import.meta.url), 'utf8');
+    sql(migration.match(/-- Preserve known legacy periods\.([\s\S]*?)-- End legacy period preservation\./)?.[1] || 'SELECT 1;');
+    const b = f.buy(); f.refund(b);
     expect(f.access()?.access_expires_at).toBe(original.access_expires_at);
   } finally { f.cleanup(); }
 });
