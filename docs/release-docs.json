@@ -482,5 +482,32 @@
   ],
   "f3641dca135fff0f48451be09629a4ef4b2d9f6d": [
     "none \u2014 Migration placement change was reverted by dfe7e61ab5582b98fe374c52771b3e0b5097819e; the transfer mail policy remains in the single 11.1 migration and is documented by 2be973a49b3b5833c38ba398984526f2dd4fc833."
+  ],
+  "9e510f59420984aff210482ed84f4c0f978c3022": [
+    "bank-transfers.md"
+  ],
+  "4d49fa80a9a79db674352e43a88f52e0b0c2ad98": [
+    "custom-checkout.md"
+  ],
+  "c78f73cbb6060da068e831e62f43862a9b5c763d": [
+    "custom-checkout.md"
+  ],
+  "cf3c7b89b949a88c3e23f95dc0c8a18759929ce9": [
+    "custom-checkout.md"
+  ],
+  "d812416f270d2310e26a007514a0beaa8842492b": [
+    "none \u2014 Internal row-lock compatibility; bundle membership and archive rules are unchanged."
+  ],
+  "8758d8a135776a04e2e7cad9cc0d687c4fed428a": [
+    "license-integration.md"
+  ],
+  "1dc5ab747901cfe1b46574e0f7114b24c4a33ce9": [
+    "invoicing.md"
+  ],
+  "7e527b5bdcd6c6dace3d59424841cfeb311489a7": [
+    "invoicing.md"
+  ],
+  "8d4ed40f5f39890b09677c741cecea8d054f5045": [
+    "invoicing.md"
   ]
 }

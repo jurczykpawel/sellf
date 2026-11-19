@@ -54,3 +54,7 @@ KSeF authorization and automatic submission in Fakturownia itself.
 ## Tax ID and company details
 
 The standard checkout and product checkout profiles share one invoice section. A NIP or EU VAT number sets the company country; a Polish NIP can fetch details from GUS when the shop integration is configured. A company without a tax ID or outside the EU selects its country and enters its name and address manually. Street, postal code and city are separate fields. A separate recipient requires a Polish NIP. Online payment and traditional bank transfer use the same details. See [checkout data](/custom-checkout/).
+
+Saved buyer company details from embedded Stripe Checkout are visible in **Payments → Details**, including company name, tax ID and address, even without a checkout profile. A collected Stripe tax ID is treated as an invoice request.
+
+When saving invoice settings, invalid account domains, missing API tokens and invalid description templates are explained next to the corresponding field. Focus moves to the first invalid field; rejected settings are not saved. A blank token retains the saved token only for the same account.

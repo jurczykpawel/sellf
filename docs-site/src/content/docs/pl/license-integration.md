@@ -517,3 +517,5 @@ failed, must not erase it), a 200
 response with the wrong shape that must not replace the cache, and Sellf unreachable on a cold
 start. Then report what you changed and how to try it with a real key from Sellf.
 ```
+
+Lista wystawionych licencji i webhooki cyklu życia licencji pokazują poziom zapisany w wystawionym tokenie. Zmiana poziomu produktu lub usunięcie produktu nie zmienia poziomu tej licencji. Lista licencji nie zwraca tokenów; ich ujawnienie pozostaje osobną akcją administratora.

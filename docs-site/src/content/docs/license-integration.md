@@ -517,3 +517,5 @@ failed, must not erase it), a 200
 response with the wrong shape that must not replace the cache, and Sellf unreachable on a cold
 start. Then report what you changed and how to try it with a real key from Sellf.
 ```
+
+The issued-license list and license lifecycle webhooks report the tier saved in the issued token. Editing the product tier or deleting the product does not change that license tier. Listing licenses does not return their tokens; revealing a token remains a separate admin action.
