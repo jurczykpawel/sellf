@@ -66,6 +66,7 @@ describe('section model', () => {
     [{ name: 'required' }, 'basics'],
     [{ vat_rate: 'required' }, 'basics'],
     [{ content_url: 'invalid' }, 'delivery'],
+    [{ bundleItemIds: 'invalid' }, 'delivery'],
     [{ license_tier: 'invalid' }, 'delivery'],
     [{ license_duration_days: 'license_duration' }, 'delivery'],
     [{ description: 'required' }, 'offer'],

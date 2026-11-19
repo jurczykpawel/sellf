@@ -28,6 +28,7 @@ export interface ProductDeletionImpact {
   affiliateCommissions: number;
   /** Bundles that contain this product. */
   bundles: number;
+  bundleReferences: { id: string; name: string }[];
   hasHistory: boolean;
 }
 
@@ -62,7 +63,8 @@ export default function ProductRemoveDialog({ product, mode, onClose, onDone }: 
     impact.futureReservations > 0 && t('blockedReservations', { count: impact.futureReservations }),
     impact.affiliateCommissions > 0 && t('blockedCommissions', { count: impact.affiliateCommissions }),
   ].filter((text): text is string => Boolean(text)) : [];
-  const blocked = mode === 'permanent' && blockers.length > 0;
+  const bundleBlocked = (impact?.bundles ?? 0) > 0;
+  const blocked = bundleBlocked || (mode === 'permanent' && blockers.length > 0);
 
   const confirm = async () => {
     setSubmitting(true);
@@ -90,26 +92,26 @@ export default function ProductRemoveDialog({ product, mode, onClose, onDone }: 
         <div className="space-y-3 text-sm text-sf-body" data-testid="product-remove-dialog">
           {!impact && !loadFailed && <p>{t('loading')}</p>}
           {loadFailed && <Message type="error" message={t('loadError')} />}
-          {impact && mode === 'remove' && !archives && <p>{t('deleteBody', { name: product.name })}</p>}
-          {archives && counts && (
+          {impact && bundleBlocked && <Message type="warning" message={t('blockedBundles', { names: impact.bundleReferences.map(bundle => bundle.name).join(', ') })} />}
+          {impact && !bundleBlocked && mode === 'remove' && !archives && <p>{t('deleteBody', { name: product.name })}</p>}
+          {archives && !bundleBlocked && counts && (
             <>
               <p className="font-semibold">{t('archiveLead', counts)}</p>
               <p>{t('archiveBody')}</p>
             </>
           )}
-          {impact && mode === 'permanent' && counts && (
+          {impact && !blocked && mode === 'permanent' && counts && (
             <>
               <p className="font-semibold">{t('permanentLead')}</p>
               {impact.accesses > 0 && <Message type="warning" message={t('permanentAccess', counts)} />}
               <ul className="list-disc pl-5 space-y-1">
                 <li>{t('permanentKept', counts)}</li>
                 {impact.affiliateRules > 0 && <li>{t('permanentRules', { count: impact.affiliateRules })}</li>}
-                {impact.bundles > 0 && <li>{t('permanentBundles', { count: impact.bundles })}</li>}
                 <li>{t('permanentIrreversible')}</li>
               </ul>
-              {blocked && <Message type="warning" message={`${t('permanentBlockedLead')} ${blockers.join(' ')}`} />}
             </>
           )}
+          {!bundleBlocked && mode === 'permanent' && blockers.length > 0 && <Message type="warning" message={`${t('permanentBlockedLead')} ${blockers.join(' ')}`} />}
           {failed && <Message type="error" message={mode === 'permanent' ? t('permanentError') : t('error')} />}
         </div>
       </ModalBody>

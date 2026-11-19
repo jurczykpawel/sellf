@@ -78,7 +78,7 @@ describe.each(['session', 'api_key'])('%s product mutations', (method) => {
   });
 
   it.each([
-    ['POST', '23505', 409], ['PATCH', '23505', 409], ['DELETE', '23503', 409],
+    ['DELETE', '2BP01', 409], ['POST', '23505', 409], ['PATCH', '23505', 409], ['DELETE', '23503', 409],
     ['PATCH', '23503', 409], ['PATCH', 'P0002', 404], ['DELETE', 'P0002', 404],
   ] as const)('maps %s transaction error %s to %s', async (method, code, status) => {
     const failure = { data: null, error: { code } };

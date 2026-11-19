@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { PaymentElement, useCheckoutElements } from '@stripe/react-stripe-js/checkout';
 import { storedCheckoutProfileSchema } from '@/lib/checkout-modules/profile';
@@ -39,8 +39,10 @@ interface CustomPaymentFormProps {
   onChangeAccount?: () => void;
   customAmountError?: string | null;
   quantityInvalid?: boolean;
+  cartSignature?: string;
   clientSecret?: string;
   bindingToken?: string;
+  sessionDeadline?: number;
   onConfirmationChange?: (pending: boolean) => void;
   onProcessingChange?: (processing: boolean) => void;
   pricing: PricingResult;
@@ -59,6 +61,8 @@ interface CustomPaymentFormProps {
   customFieldErrors?: Record<string, string>;
   /** The applied discount code was used up before payment; the parent drops it and re-prices. */
   onCouponUnavailable?: () => void;
+  onSessionExpired?: () => void;
+  onRegisterServerUpdate?: (runner: ((update: () => Promise<unknown>) => Promise<void>) | null) => void;
 }
 
 type EmailValidationResponse = {
@@ -70,6 +74,7 @@ type EmailValidationResponse = {
   };
   error?: {
     message: string;
+    code?: string;
   };
 };
 
@@ -80,9 +85,9 @@ export default function CustomPaymentForm({
   bumpProducts = [],
   selectedBumpIds = new Set(),
   onChangeAccount,
-  customAmountError, quantityInvalid = false,
+  customAmountError, quantityInvalid = false, cartSignature,
   clientSecret,
-  bindingToken,
+  bindingToken, sessionDeadline,
   onConfirmationChange, onProcessingChange,
   pricing,
   paymentMethodOrder,
@@ -97,12 +102,21 @@ export default function CustomPaymentForm({
   customFieldValues = {},
   onCustomFieldValuesChange,
   customFieldErrors,
-  onCouponUnavailable,
+  onCouponUnavailable, onSessionExpired, onRegisterServerUpdate,
 }: CustomPaymentFormProps) {
   const t = useTranslations('checkout');
   const locale = useLocale();
   const checkoutResult = useCheckoutElements();
   const { track } = useTracking();
+  const checkout = checkoutResult.type === 'success' ? checkoutResult.checkout : null;
+  useEffect(() => {
+    if (!checkout || !onRegisterServerUpdate) return;
+    onRegisterServerUpdate(async update => {
+      const result = await checkout.runServerUpdate(update);
+      if (result.type === 'error') throw new Error(t('createSessionError'));
+    });
+    return () => onRegisterServerUpdate(null);
+  }, [checkout, onRegisterServerUpdate, t]);
 
   const isSubscription = product.product_type === 'subscription';
   const trialDays = getTrialDays(product);
@@ -125,6 +139,17 @@ export default function CustomPaymentForm({
   useEffect(() => () => onProcessingChange?.(false), [onProcessingChange]);
   const [paymentElementReady, setPaymentElementReady] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const currentCart = useRef({ cartSignature, quantityInvalid });
+  const submitting = useRef(false);
+  useLayoutEffect(() => { currentCart.current = { cartSignature, quantityInvalid }; }, [cartSignature, quantityInvalid]);
+  useEffect(() => {
+    if (sessionDeadline === undefined || isProcessing) return;
+    const remaining = sessionDeadline - performance.now();
+    const timer = setTimeout(() => setSessionExpired(true), Math.max(0, remaining));
+    return () => clearTimeout(timer);
+  }, [sessionDeadline, isProcessing]);
 
   // Invoice / NIP logic
   const parsedProfile = storedCheckoutProfileSchema.safeParse(product.checkout_profile);
@@ -171,7 +196,7 @@ export default function CustomPaymentForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (quantityInvalid || !profileForm.validate()) return;
+    if (submitting.current || sessionExpired || quantityInvalid || !profileForm.validate()) return;
 
     if (checkoutResult.type !== 'success' || !paymentElementReady) return;
     const checkout = checkoutResult.checkout;
@@ -202,8 +227,10 @@ export default function CustomPaymentForm({
       return;
     }
 
+    submitting.current = true;
     setIsProcessing(true);
     setErrorMessage('');
+    setEmailError('');
 
     try {
       const validationResponse = await fetch('/api/validate-email', {
@@ -215,6 +242,13 @@ export default function CustomPaymentForm({
         .json()
         .catch(() => null)) as EmailValidationResponse | null;
       if (!validationResponse.ok || !validation?.success || !validation.data?.isValid) {
+        const code = validation?.error?.code;
+        if (code === 'EMAIL_TOO_LONG' || code === 'INVALID_EMAIL_FORMAT') {
+          setEmailError(t(code === 'EMAIL_TOO_LONG' ? 'emailTooLong' : 'emailInvalidFormat'));
+          document.getElementById('checkoutEmail')?.focus();
+          setIsProcessing(false);
+          return;
+        }
         setErrorMessage(
           getCheckoutRequestError(validationResponse.status, validation?.data?.error || validation?.error?.message,
             'Invalid or disposable email address not allowed', t('emailValidationRateLimit'))
@@ -259,6 +293,11 @@ export default function CustomPaymentForm({
                 defaultValue: 'Please fill the required information fields.',
               }),
             );
+            setIsProcessing(false);
+            return;
+          }
+          if (errorBody?.code === 'checkout_session_expired') {
+            setSessionExpired(true);
             setIsProcessing(false);
             return;
           }
@@ -333,6 +372,10 @@ export default function CustomPaymentForm({
         return;
       }
 
+      if (currentCart.current.quantityInvalid || currentCart.current.cartSignature !== cartSignature) {
+        setIsProcessing(false);
+        return;
+      }
       onConfirmationChange?.(true);
       const result = await checkout.confirm();
 
@@ -345,8 +388,17 @@ export default function CustomPaymentForm({
       onConfirmationChange?.(false);
       setErrorMessage(err instanceof Error ? err.message : t('unexpectedError'));
       setIsProcessing(false);
+    } finally {
+      submitting.current = false;
     }
   };
+
+  if (sessionExpired) {
+    return <div role="alert" className="space-y-3">
+      <p>{t('sessionExpired')}</p>
+      <button type="button" className="rounded-full bg-sf-accent-bg px-6 py-3 text-white" onClick={onSessionExpired}>{t('restartCheckout')}</button>
+    </div>;
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -372,17 +424,18 @@ export default function CustomPaymentForm({
         <input
           type="email"
           id="checkoutEmail"
-          aria-invalid={moduleErrors.some(error => error.field === 'buyer.email')}
-          aria-describedby={moduleErrors.some(error => error.field === 'buyer.email') ? 'buyer.email-error' : undefined}
+          aria-invalid={!!emailError || moduleErrors.some(error => error.field === 'buyer.email')}
+          aria-describedby={emailError ? 'checkout-email-error' : moduleErrors.some(error => error.field === 'buyer.email') ? 'buyer.email-error' : undefined}
           value={linkEmail}
-          onChange={(e) => { setLinkEmail(e.target.value); onEmailChange(e.target.value); }}
+          onChange={(e) => { setEmailError(''); setLinkEmail(e.target.value); onEmailChange(e.target.value); }}
           placeholder="you@example.com"
           required
-          className={`w-full px-3 py-2.5 bg-sf-input border ${moduleErrors.some(error => error.field === 'buyer.email') ? 'border-sf-danger' : 'border-sf-border'} rounded-lg text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent`}
+          className={`w-full px-3 py-2.5 bg-sf-input border ${emailError || moduleErrors.some(error => error.field === 'buyer.email') ? 'border-sf-danger' : 'border-sf-border'} rounded-lg text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent`}
         />
         </>}
       </div>
 
+      {emailError && <p id="checkout-email-error" role="alert" className="text-sm text-sf-danger">{emailError}</p>}
       {moduleErrors.filter(error => error.field === 'buyer.email').map(error => <p id="buyer.email-error" key={error.field} role="alert" className="text-sm text-sf-danger">{t('profile.errors.invalid')}</p>)}
 
       {/* Email mismatch warning */}

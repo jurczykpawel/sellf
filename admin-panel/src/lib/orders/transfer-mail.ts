@@ -47,7 +47,7 @@ export async function sendOrderNotice(db: SupabaseClient<Database>, id: string, 
           : 'Please do not send the transfer; if it is already on its way, contact the seller.'}`
         : undefined;
     const data: Record<string, string | Record<string, string>> = notice === 'paid' ? { locale, purchase_product: product.name, purchase_amount: amount, payment_received: 'true' }
-      : { locale, mail_kind: spec.kind!, purchase_product: product.name, purchase_amount: amount,
+      : { locale, mail_kind: spec.kind!, ...(notice === 'placed' ? { access_on_placement: meta?.access_on_placement === true ? 'true' : 'false' } : {}), purchase_product: product.name, purchase_amount: amount,
         pay_url: buildOrderPayLink(tx.id, locale, base).url, ...(transferDetails ? { transfer: transferDetails } : {}), ...(releaseText ? { release_text: releaseText } : {}), ...(notice === 'cancelled' && tx.cancel_note ? { cancel_reason_text: tx.cancel_note } : {}) };
     if (notice === 'paid') {
       const orderIds = [tx.id, tx.session_id, tx.stripe_payment_intent_id, tx.stripe_invoice_id].filter((value): value is string => Boolean(value));

@@ -70,3 +70,17 @@ See [Webhooks](/webhooks/) for endpoint configuration and delivery settings.
 ## Changes during Stripe payment
 
 For an eligible open on-site Stripe Checkout Session, changing the cart updates its items in the same session. Changes to language, return URL or buyer email require a replacement session; payments already in progress are left to complete. Sellf records cart versions and fulfills the version Stripe actually charged, including its saved prices and entitlements. This does not add a multi-product shopping cart.
+
+Applying or removing a discount code also keeps the same eligible session and the card details already entered. Sellf applies its codes to the item prices, rather than changing Stripe discounts. While the code is being checked or the cart is being updated, payment is disabled. After the buyer submits payment, cart controls stay disabled until confirmation finishes; the cart is checked again immediately before confirmation. Server updates share a 15-second request budget, shorter than Stripe’s 20-second `runServerUpdate` timeout. The payment form stays mounted and refreshes through Stripe's `runServerUpdate`. Session reuse applies to one-time, non-event payments with at least two minutes left; other checkouts may require a new session.
+
+## Checkout recovery and validation
+
+The server returns the remaining session lifetime in seconds. The page counts from receipt of the response, independently of the buyer’s system clock; an API `409 checkout_session_expired` response is authoritative. Local expiry does not interrupt an ongoing payment authentication such as 3DS.
+
+An expired payment session shows **Your payment session has expired** and **Start a new checkout**, instead of inviting the buyer to retry saving details. The new checkout checks current availability and prices again; an event seat is reserved again only if still available. Buyer values held by the page remain available, but the new Stripe form needs payment details again.
+
+Email format and length errors appear beside the email field in the page language. An email address can have at most 254 characters. Correcting the field clears its error.
+
+After a full refund, reopening the original payment-status link shows **Payment refunded**. Verification returns the terminal `payment_status: "refunded"` state without another fulfillment or access grant. It does not report a payment-processing failure or ask the buyer to check order details.
+
+A partial refund preserves the completed-payment verification path and any remaining access. An open payment dispute shows **Payment disputed**, returns `payment_status: "disputed"`, and grants no access or new fulfillment.

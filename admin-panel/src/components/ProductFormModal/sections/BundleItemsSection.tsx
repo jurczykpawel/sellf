@@ -26,6 +26,7 @@ export function BundleItemsSection({
   t,
   products,
   currentProductId,
+  fieldErrors,
 }: BundleItemsSectionProps) {
   const locale = useLocale();
 
@@ -47,6 +48,7 @@ export function BundleItemsSection({
       products.filter(
         (p) =>
           !p.is_bundle &&
+          !p.archived_at &&
           p.product_type !== 'subscription' &&
           p.id !== currentProductId,
       ),
@@ -79,6 +81,7 @@ export function BundleItemsSection({
       <div>
         <h4 className="text-sm font-medium text-sf-heading">{t('bundle.title')}</h4>
         <p className="mt-1 text-xs text-sf-muted">{t('bundle.help')}</p>
+        <p className="mt-1 text-xs text-sf-muted">{t('bundle.archivedHelp')}</p>
       </div>
 
       <OrderedItemPicker
@@ -88,6 +91,8 @@ export function BundleItemsSection({
         selectedIds={selectedIds}
         onChange={setSelected}
       />
+
+      {fieldErrors?.bundleItemIds && <p role="alert" className="text-sm text-sf-danger">{t('bundle.archivedHelp')}</p>}
 
       {/* Live anchor */}
       {selectedComponents.length > 0 && (

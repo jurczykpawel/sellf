@@ -15,6 +15,7 @@
  * @see ../../app/api/v1/products/[id]/route.ts (update wiring)
  */
 
+import { ApiValidationError } from '@/lib/api/errors';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 /**
@@ -30,5 +31,10 @@ export async function upsertBundleItems(
     p_bundle_id: bundleId,
     p_component_ids: componentIds,
   });
-  if (error) throw error;
+  if (error) {
+    if (error.details === 'bundle_component_archived') {
+      throw new ApiValidationError(error.message, { bundleItemIds: ['archived'] });
+    }
+    throw error;
+  }
 }

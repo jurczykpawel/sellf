@@ -142,7 +142,10 @@ const embeddedTerm = z.object({ id: z.uuid(), name: z.string(), slug: z.string()
 /** GET /api/v1/products/:id/deletion-impact (SQL product_deletion_impact). */
 export const ProductDeletionImpactDTO = z.object({
   orders: z.number().int(), invoices: z.number().int(), licenses: z.number().int(), accesses: z.number().int(), subscriptions: z.number().int(),
-  hasHistory: z.boolean().describe('true: DELETE archives the product instead of deleting it'),
+  activeSubscriptions: z.number().int(), futureReservations: z.number().int(),
+  affiliateRules: z.number().int(), affiliateCommissions: z.number().int(), bundles: z.number().int(),
+  bundleReferences: z.array(z.object({ id: z.uuid(), name: z.string() })).describe('Bundles that block archiving and deletion'),
+  hasHistory: z.boolean().describe('true: DELETE archives unless bundle membership blocks it'),
 });
 
 /** DELETE /api/v1/products/:id of a product with history: archived, not deleted (200). */

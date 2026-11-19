@@ -59,3 +59,18 @@ it('explains the environment switch', async () => {
   expect(screen.getByTestId('maintenance-status').textContent).toBe('statusOn.env');
   expect(screen.getByTestId('maintenance-env').textContent).toBe('env');
 });
+
+it('points to a past end time without changing maintenance mode', async () => {
+  h.get.mockResolvedValue({ success: true, data: off });
+  render(createElement(MaintenanceSettings));
+  await act(async () => {});
+  const field = screen.getByLabelText(/^expectedEnd/);
+  fireEvent.change(field, { target: { value: '2020-01-01T10:00' } });
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'turnOn' })); });
+  expect(field.getAttribute('aria-invalid')).toBe('true');
+  expect(document.getElementById(field.getAttribute('aria-describedby')!)?.textContent).toBe('expectedEndInvalid');
+  expect(document.activeElement).toBe(field);
+  expect(h.set).not.toHaveBeenCalled();
+  fireEvent.change(field, { target: { value: '2030-01-01T10:00' } });
+  expect(field.getAttribute('aria-invalid')).toBeNull();
+});

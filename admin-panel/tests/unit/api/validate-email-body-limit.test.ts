@@ -52,3 +52,14 @@ describe('POST /api/validate-email — body size limit', () => {
     expect(res.status).toBe(413);
   });
 });
+
+it.each([
+  ['a'.repeat(255) + '@example.com', 'EMAIL_TOO_LONG'],
+  ['invalid', 'INVALID_EMAIL_FORMAT'],
+])('returns a stable field validation code for %s', async (email, code) => {
+  const response = await POST(new NextRequest('http://localhost/api/validate-email', {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email }),
+  }));
+  expect(response.status).toBe(400);
+  expect((await response.json()).error.code).toBe(code);
+});

@@ -32,7 +32,7 @@ export const DeliveryPanel: React.FC<DeliveryPanelProps> = ({
     <>
       {/* A bundle may still carry its own bonus content via the content section below. */}
       {formData.is_bundle && (
-        <BundleItemsSection formData={formData} setFormData={setFormData} t={t} products={products} currentProductId={currentProductId} />
+        <BundleItemsSection formData={formData} setFormData={setFormData} t={t} products={products} currentProductId={currentProductId} fieldErrors={fieldErrors} />
       )}
       {!isTipJar && (
         <ContentDeliverySection

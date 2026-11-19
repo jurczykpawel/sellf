@@ -32,6 +32,7 @@ function makeClient() {
       const query = {
         select: vi.fn((columns: string) => { selected = columns; return query; }),
         eq: vi.fn(() => query),
+        in: vi.fn(() => query),
         update: vi.fn((values: Record<string, unknown>) => { Object.assign(transaction, values); return query; }),
         single: vi.fn(async () => ({ data: transaction, error: null })),
         maybeSingle: vi.fn(async () => ({

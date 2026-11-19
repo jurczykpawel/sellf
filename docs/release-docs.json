@@ -413,5 +413,74 @@
   ],
   "fe824d8de7a440af726e59441a2ec1842de21517": [
     "none \u2014 Defence in depth inside the public-file check: encoded traversal paths keep normal routing; public URLs and documented behaviour are unchanged."
+  ],
+  "86d5329b060084d92c05e43f48f3be2bc014573c": [
+    "api.md"
+  ],
+  "6b63df9aeeffe29690f093f0de2d2a299fc915ee": [
+    "api.md"
+  ],
+  "4eb71291bff2e81358f901522d38d0128450a11a": [
+    "api.md"
+  ],
+  "60f02cdb2e02d0299f2552d9cb1fff85ece20778": [
+    "api.md"
+  ],
+  "b06f33f34f3376007d93724debf0e4d323840d3e": [
+    "maintenance.md"
+  ],
+  "2be973a49b3b5833c38ba398984526f2dd4fc833": [
+    "bank-transfers.md"
+  ],
+  "e3ea888f2e1b35252463447e4c2baa3dd1cf5bfa": [
+    "bank-transfers.md"
+  ],
+  "0a7f0cd938540234d3d4e666c69ecda2644cb219": [
+    "custom-checkout.md"
+  ],
+  "eef3a3bd712e92414234d2526608de64b17ae5c7": [
+    "custom-checkout.md"
+  ],
+  "7ddc46c9f79c5d3d91011765c9d0d8a8dc1f9601": [
+    "custom-checkout.md"
+  ],
+  "6cae6a10ef1a9d6367a262fb3dec6d78773526cb": [
+    "custom-checkout.md"
+  ],
+  "0ef3739bd67499460855f946e2ae0f7ebbe5aa18": [
+    "custom-checkout.md"
+  ],
+  "c5f4ad2b950b2a75d4cc4271ad3753c037ee99d8": [
+    "custom-checkout.md"
+  ],
+  "0aa7bf5d82572b260b2d0f071550d6236c7035a5": [
+    "custom-checkout.md"
+  ],
+  "6c6329860f6dbc10053a68832366adc71353b284": [
+    "custom-checkout.md"
+  ],
+  "5ed44e2b37b4f77896e1440e1d8580df0e2652e9": [
+    "custom-checkout.md"
+  ],
+  "d495be0bd4e16db4f917335433917bd5adfce141": [
+    "custom-checkout.md"
+  ],
+  "bd4e83703dd233c726645bcadd5132dd8e1bbd57": [
+    "custom-checkout.md"
+  ],
+  "ea933caf50c12b3afbc2bd381821a4989331ac24": [
+    "custom-checkout.md"
+  ],
+  "e09f36a98236d1d7647af0b85393515b5d783924": [
+    "custom-checkout.md"
+  ],
+  "0a4081d57d2d6640fac4625ebec8d7a1d75a5848": [
+    "custom-checkout.md"
+  ],
+  "c23f9e321419b486d79f23364ca6927ba482c3bf": [
+    "custom-checkout.md"
+  ],
+  "f3641dca135fff0f48451be09629a4ef4b2d9f6d": [
+    "none \u2014 Migration placement change was reverted by dfe7e61ab5582b98fe374c52771b3e0b5097819e; the transfer mail policy remains in the single 11.1 migration and is documented by 2be973a49b3b5833c38ba398984526f2dd4fc833."
   ]
 }

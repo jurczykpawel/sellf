@@ -124,7 +124,7 @@ function serverFieldCode(field: string, messages: string[]): string {
 }
 export function serverFieldErrors(details: Record<string, string[]> | undefined): Record<string, string> {
   const errors: Record<string, string> = {};
-  const fields = ['name', 'slug', 'price', 'recurring_price', 'trial_days', 'license_tier', 'license_duration_days', 'custom_price_presets'];
+  const fields = ['name', 'slug', 'price', 'recurring_price', 'trial_days', 'license_tier', 'license_duration_days', 'custom_price_presets', 'bundleItemIds'];
   for (const key of fields) if (details?.[key]) errors[key] = serverFieldCode(key, details[key]);
   for (const message of details?._errors ?? []) {
     const field = fields.find(key => message.toLowerCase().startsWith(key));

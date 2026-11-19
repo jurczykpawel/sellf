@@ -2172,7 +2172,7 @@
       },
       "end_state": {
         "buyer": "Not exercised: no customer state change in this probe.",
-        "seller": "Payment configuration selection is saved.",
+        "seller": "Payment configuration selection is saved; a permitted 200-character transfer reference wraps without horizontal overflow",
         "integrator": "Not exercised: no outgoing integration contract asserted."
       },
       "status": "automated",
@@ -3305,7 +3305,7 @@
         "browser"
       ],
       "end_state": {
-        "buyer": "First message identifies the product, amount due and account; its delivered link confirms the buyer and opens early access.",
+        "buyer": "First message identifies the product, amount due and account; its delivered link confirms the buyer and opens early access. First transfer mail follows the saved early/deferred access policy; the delivered token grants access only when that policy permits it.",
         "seller": "Order remains awaiting_payment; early-access setting is enabled.",
         "integrator": "Not exercised; this journey checks buyer mail and access."
       }
@@ -5035,7 +5035,7 @@
       "status": "automated",
       "end_state": {
         "buyer": "Order, license and access stay; the buyer keeps the content of the archived product (J603)",
-        "seller": "Dialog 'Produkt ma 1 zamówienie — zostanie przeniesiony do archiwum.'; product leaves the list, appears under the Archiwum filter and Przywróć returns it as inactive",
+        "seller": "Dialog 'Produkt ma 1 zamówienie — zostanie przeniesiony do archiwum.'; product leaves the list, appears under the Archiwum filter and Przywróć returns it as inactive; the restored inactive button activates by click and Enter",
         "integrator": "Not exercised in the browser; archive state is covered by J602"
       },
       "layers": [
@@ -5058,7 +5058,7 @@
       "end_state": {
         "buyer": "Loses product access (the dialog says so); the order and license stay with the purchase-time product name",
         "seller": "Dialog lists kept orders, invoices and licenses, lost buyer access and that it cannot be undone; product disappears",
-        "integrator": "Not exercised in the browser; deletion events are covered by J602"
+        "integrator": "License list and detail keep the issuance-time tier after editing or deleting the product; lists omit tokens. Deletion events are covered by J602."
       },
       "layers": [
         "browser",
@@ -5080,7 +5080,7 @@
       "end_state": {
         "buyer": "Order and license survive both archive and permanent delete",
         "seller": "DELETE returns status archived with the impact counts; permanent=true is refused until archived",
-        "integrator": "Archive emits one product.updated with archivedAt; permanent delete of an archived product emits exactly one product.deleted; active subscriptions or upcoming reservations refuse it with 409"
+        "integrator": "Archive emits one product.updated with archivedAt; permanent delete of an archived product emits exactly one product.deleted; active subscriptions or upcoming reservations refuse it with 409; bundle membership refuses archive and deletion with bundle names, preserving composition"
       },
       "layers": [
         "api",
@@ -5417,7 +5417,7 @@
       "status": "automated",
       "end_state": {
         "buyer": "Shop, product page and checkout show “Down for maintenance, we’ll be back soon” (503, PL/EN, optional note and expected end); embedded checkout shows the same notice; no payment can be started.",
-        "seller": "Settings > System > Maintenance mode shows it is on and from which source; the admin panel keeps working; turning it off reopens the shop; both changes are in audit_log.",
+        "seller": "Settings > System > Maintenance mode shows it is on and from which source; the admin panel keeps working; turning it off reopens the shop; both changes are in audit_log; a past expected end has a field-linked error and focus, with no mutation",
         "integrator": "Checkout APIs (create-payment-intent, embed checkout-session, order pay) answer 503 with code MAINTENANCE and Retry-After; API v1 keeps working."
       },
       "layers": [
@@ -5532,6 +5532,78 @@
         "e2e",
         "integration",
         "unit"
+      ]
+    },
+    {
+      "id": "J710",
+      "title": "Expired event checkout restarts with current availability",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "event",
+        "payment": "abandoned",
+        "moment": "after_expiry",
+        "operation": "purchase"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Sees an expired-session message and can start a new checkout retaining buyer details.",
+        "seller": "A new session reserves an available seat again; no expired session is charged.",
+        "integrator": "Receives no purchase event for the expired attempt."
+      },
+      "layers": [
+        "unit",
+        "database",
+        "browser",
+        "sandbox"
+      ]
+    },
+    {
+      "id": "J711",
+      "title": "Email length validation is localized beside the checkout field",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "paid",
+        "payment": "none",
+        "moment": "after_edit",
+        "operation": "read"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Sees the localized email length error at the email field and clears it by editing.",
+        "seller": "No payment is attempted with an invalid email.",
+        "integrator": "No purchase event is emitted for failed email validation."
+      },
+      "layers": [
+        "unit",
+        "database",
+        "browser",
+        "sandbox"
+      ]
+    },
+    {
+      "id": "J712",
+      "title": "Reopening a paid session after a full refund shows a terminal refund",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "coupon_bump",
+        "payment": "refund",
+        "moment": "after_payment",
+        "operation": "read"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Sees Payment refunded in either locale.",
+        "seller": "Order remains refunded and no access is granted again.",
+        "integrator": "Verification returns refunded with HTTP 200 and does not repeat fulfillment."
+      },
+      "layers": [
+        "unit",
+        "database",
+        "browser",
+        "sandbox"
       ]
     }
   ],

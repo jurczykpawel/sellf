@@ -26,7 +26,7 @@ function makeAdminClientNoCache() {
     from: vi.fn().mockReturnValue({
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
+          in: vi.fn().mockReturnValue({
             maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
           }),
           maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
@@ -109,7 +109,7 @@ describe('verifyPaymentSession — IDOR guard for guest sessions', () => {
           return {
             select: vi.fn().mockReturnValue({
               eq: vi.fn().mockReturnValue({
-                eq: vi.fn().mockReturnValue({
+                in: vi.fn().mockReturnValue({
                   maybeSingle: vi.fn().mockResolvedValue({ data: cachedTx, error: null }),
                 }),
               }),

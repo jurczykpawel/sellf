@@ -733,7 +733,7 @@ CREATE TRIGGER affiliate_rules_guard BEFORE UPDATE OR DELETE ON public.affiliate
 ALTER TABLE public.affiliate_rules DROP CONSTRAINT affiliate_rules_product_id_fkey,
   ADD CONSTRAINT affiliate_rules_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE;
 ALTER TABLE public.bundle_items DROP CONSTRAINT bundle_items_component_product_id_fkey,
-  ADD CONSTRAINT bundle_items_component_product_id_fkey FOREIGN KEY (component_product_id) REFERENCES public.products(id) ON DELETE CASCADE;
+  ADD CONSTRAINT bundle_items_component_product_id_fkey FOREIGN KEY (component_product_id) REFERENCES public.products(id) ON DELETE RESTRICT;
 
 -- ===== DELETION IMPACT =====
 -- activeSubscriptions: statuses in which Stripe is charging or about to charge (as for account deletion).
@@ -779,6 +779,11 @@ BEGIN
   SELECT * INTO current_row FROM public.products WHERE id = p_product_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'Product not found' USING ERRCODE = 'P0002'; END IF;
   impact := public.product_deletion_impact(p_product_id);
+  IF (impact->>'bundles')::int > 0 THEN
+    RAISE EXCEPTION 'Product belongs to bundles' USING ERRCODE = '2BP01',
+      DETAIL = (SELECT string_agg(r->>'name', ', ' ORDER BY r->>'name')
+        FROM jsonb_array_elements(impact->'bundleReferences') r);
+  END IF;
   IF (impact->>'hasHistory')::boolean AND NOT p_permanent THEN
     IF current_row.archived_at IS NULL THEN
       PERFORM public.mutate_product_as(event_actor, 'UPDATE',
@@ -1207,6 +1212,55 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.declare_transfer(uuid,text,timestamptz) FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION public.declare_transfer(uuid,text,timestamptz) TO service_role;
+
+-- ===== Order mail policy =====
+
+CREATE OR REPLACE FUNCTION public.prepare_event_mail(p_email text, p_data jsonb) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+BEGIN
+  IF length(p_data->>'event_date')>500 OR length(p_data->>'event_online_url')>2048
+    OR (p_data->>'event_online_url') !~ '^https://[^[:space:]]+$'
+    OR length(p_data->>'transfer_text')>2000 OR length(p_data->>'purchase_product')>500
+    OR length(p_data->>'purchase_amount')>100 OR (p_data->>'locale') NOT IN ('pl','en')
+    OR (p_data->>'mail_kind') NOT IN ('transfer_placed','payment_reminder','order_cancelled','participants_needed')
+    OR length(p_data->>'pay_url')>2048
+    OR (p_data->>'pay_url') !~ '^https?://[^/[:space:]]+/(pl|en)/order/[0-9a-f-]{36}/transfer\?token=[0-9]{1,12}\.[A-Za-z0-9_-]{43}$'
+    OR length(p_data->>'participants_url')>2048
+    OR (p_data->>'participants_url') !~ '^https?://[^/[:space:]]+/(pl|en)/order/[0-9a-f-]{36}/participants\?token=[0-9]{1,12}\.[A-Za-z0-9_-]{43}$'
+    OR (p_data ? 'access_on_placement' AND p_data->>'access_on_placement' NOT IN ('true','false'))
+    OR length(p_data->>'release_text')>500
+    OR length(p_data->>'cancel_reason_text')>2000 OR length(p_data->>'license_expires_text')>100
+    OR length(p_data->>'license_expires_at')>50
+    OR (p_data ? 'license_keys' AND (jsonb_typeof(p_data->'license_keys') <> 'object'
+      OR octet_length((p_data->'license_keys')::text)>65536
+      OR EXISTS (SELECT 1 FROM jsonb_each_text(p_data->'license_keys') e
+        WHERE length(e.key)>500 OR length(e.value)>4096 OR e.value !~ '^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$')))
+    OR length(p_data->>'license_key')>4096 OR (p_data->>'license_key') !~ '^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$'
+    OR (p_data ? 'payment_received' AND (p_data->>'payment_received') <> 'true')
+    OR (p_data ? 'transfer' AND (jsonb_typeof(p_data->'transfer') <> 'object'
+      OR octet_length((p_data->'transfer')::text)>2000
+      OR EXISTS (SELECT 1 FROM jsonb_each(p_data->'transfer') e
+        WHERE jsonb_typeof(e.value) <> 'string' OR e.key NOT IN ('holder','account','bank','title','amount','due'))))
+    THEN RAISE EXCEPTION 'Invalid mail data' USING ERRCODE='22023'; END IF;
+  UPDATE auth.users SET raw_user_meta_data=(coalesce(raw_user_meta_data,'{}')
+    -'event_date'-'event_online_url'-'transfer_text'-'transfer'-'purchase_product'-'purchase_amount'-'locale'
+    -'cancel_reason_text'-'license_expires_at'-'license_expires_text'
+    -'access_on_placement'-'mail_kind'-'pay_url'-'release_text'-'participants_url'-'license_keys'-'license_key'-'payment_received')
+    ||jsonb_strip_nulls(jsonb_build_object('event_date',p_data->>'event_date',
+      'event_online_url',p_data->>'event_online_url','transfer_text',p_data->>'transfer_text','transfer',p_data->'transfer',
+      'purchase_product',p_data->>'purchase_product','purchase_amount',p_data->>'purchase_amount',
+      'access_on_placement',p_data->>'access_on_placement',
+      'mail_kind',p_data->>'mail_kind','pay_url',p_data->>'pay_url','release_text',p_data->>'release_text',
+      'license_keys',p_data->'license_keys','participants_url',p_data->>'participants_url','license_key',p_data->>'license_key',
+      'payment_received',p_data->>'payment_received',
+      'cancel_reason_text',p_data->>'cancel_reason_text','license_expires_at',p_data->>'license_expires_at',
+      'license_expires_text',p_data->>'license_expires_text',
+      'locale',coalesce(p_data->>'locale','en')))
+    WHERE lower(email)=lower(p_email);
+END $$;
+REVOKE ALL ON FUNCTION public.prepare_event_mail(text,jsonb) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.prepare_event_mail(text,jsonb) TO service_role;
+
 
 -- ===== Stripe reconciliation =====
 -- ===== Source: 20261115120000_stripe_marker_reconciliation.sql =====
@@ -2547,6 +2601,8 @@ LANGUAGE sql STABLE SET search_path = '' AS $$
   SELECT jsonb_build_object('orders', orders, 'invoices', invoices, 'licenses', licenses, 'accesses', accesses,
     'subscriptions', subscriptions, 'activeSubscriptions', active_subscriptions, 'futureReservations', future_reservations,
     'affiliateRules', affiliate_rules, 'affiliateCommissions', affiliate_commissions, 'bundles', bundles,
+    'bundleReferences', (SELECT coalesce(jsonb_agg(jsonb_build_object('id',p.id,'name',p.name) ORDER BY p.name,p.id),'[]'::jsonb)
+      FROM public.bundle_items bi JOIN public.products p ON p.id=bi.bundle_product_id WHERE bi.component_product_id=p_product_id),
     'hasHistory', orders > 0 OR licenses > 0 OR accesses > 0 OR subscriptions > 0 OR affiliate_rules > 0)
   FROM counts;
 $$;
@@ -3687,14 +3743,49 @@ CREATE TRIGGER refuse_access_from_ended_subscription BEFORE INSERT OR UPDATE OF 
   ON public.user_product_access FOR EACH ROW EXECUTE FUNCTION public.refuse_access_from_ended_subscription();
 
 
--- Replace the ordered component set as a single write; invalid replacements retain the previous set.
+-- ===== Bundle composition =====
+CREATE OR REPLACE FUNCTION public.validate_bundle_item() RETURNS trigger
+LANGUAGE plpgsql SET search_path = '' AS $$
+DECLARE
+  parent public.products;
+  component public.products;
+BEGIN
+  PERFORM 1 FROM public.products WHERE id IN (NEW.bundle_product_id, NEW.component_product_id) ORDER BY id FOR SHARE;
+  SELECT * INTO parent FROM public.products WHERE id = NEW.bundle_product_id;
+  SELECT * INTO component FROM public.products WHERE id = NEW.component_product_id;
+  IF parent.is_bundle IS NOT TRUE OR component.id IS NULL OR component.is_bundle
+    OR component.product_type <> 'one_time' THEN
+    RAISE EXCEPTION 'Invalid bundle component' USING ERRCODE = '23514';
+  END IF;
+  IF component.archived_at IS NOT NULL THEN
+    RAISE EXCEPTION 'Archived products cannot be bundle components' USING ERRCODE = '23514', DETAIL = 'bundle_component_archived';
+  END IF;
+  RETURN NEW;
+END $$;
+REVOKE EXECUTE ON FUNCTION public.validate_bundle_item() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.validate_bundle_item() TO service_role;
+
+CREATE FUNCTION public.keep_bundle_component_available() RETURNS trigger
+LANGUAGE plpgsql SET search_path = '' AS $$
+BEGIN
+  IF OLD.archived_at IS NULL AND NEW.archived_at IS NOT NULL
+    AND EXISTS (SELECT 1 FROM public.bundle_items WHERE component_product_id = NEW.id) THEN
+    RAISE EXCEPTION 'Product belongs to bundles' USING ERRCODE = '2BP01';
+  END IF;
+  RETURN NEW;
+END $$;
+REVOKE EXECUTE ON FUNCTION public.keep_bundle_component_available() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.keep_bundle_component_available() TO service_role;
+CREATE TRIGGER keep_bundle_component_available BEFORE UPDATE OF archived_at ON public.products
+  FOR EACH ROW EXECUTE FUNCTION public.keep_bundle_component_available();
+
 CREATE FUNCTION public.replace_bundle_items(p_bundle_id uuid, p_component_ids uuid[]) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 BEGIN
   IF (select auth.role()) IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'Service role required' USING ERRCODE = '42501';
   END IF;
-  PERFORM 1 FROM public.products WHERE id = p_bundle_id FOR UPDATE;
+  PERFORM 1 FROM public.products WHERE id = p_bundle_id OR id = ANY(p_component_ids) ORDER BY id FOR UPDATE;
   DELETE FROM public.bundle_items WHERE bundle_product_id = p_bundle_id;
   INSERT INTO public.bundle_items(bundle_product_id, component_product_id, display_order)
   SELECT p_bundle_id, component, ordinality - 1

@@ -155,3 +155,29 @@ it('expires a quote returned after a paused checkout was left', async () => {
   await vi.waitFor(() => expect(expire).toHaveBeenCalledExactlyOnceWith({ clientSecret: 'quote-a' }));
   expect(apply).not.toHaveBeenCalled();
 });
+
+it('lets checkout recovery wait for expiration before checking inventory again', async () => {
+  const expiration = deferred<void>();
+  const applied = vi.fn();
+  const queue = createCheckoutSessionQueue(() => expiration.promise);
+  queue.update({ key: 'event', run: async () => identity('cs_test_event'), apply: applied, fail: vi.fn() });
+  await vi.waitFor(() => expect(applied).toHaveBeenCalledOnce());
+  let refreshed = false;
+  const recover = async () => { await queue.update(null); refreshed = true; };
+  const pending = recover();
+  await Promise.resolve();
+  expect(refreshed).toBe(false);
+  expiration.resolve();
+  await pending;
+  expect(refreshed).toBe(true);
+});
+
+it('keeps response timing out of the identity sent when leaving checkout', async () => {
+  const expire = vi.fn(), apply = vi.fn();
+  const response = { clientSecret: 'cs_test_open_secret_value', checkoutSessionId: 'cs_test_open', bindingToken: 'binding', receivedAt: 1000, expiresInSeconds: 1800 };
+  const queue = createCheckoutSessionQueue<typeof response>(expire);
+  await queue.update({ key: 'cart', run: async () => response, apply, fail: vi.fn() });
+  expect(apply).toHaveBeenCalledWith(response);
+  await queue.update(null);
+  expect(expire).toHaveBeenCalledExactlyOnceWith({ clientSecret: response.clientSecret, checkoutSessionId: response.checkoutSessionId, bindingToken: response.bindingToken });
+});

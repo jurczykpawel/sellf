@@ -102,9 +102,16 @@ To nie są aliasy: v1 nie mapuje ich na alternatywne pola, nie zapisuje ich ani 
 
 ## Usuwanie produktów i archiwum
 
-W panelu otwórz **Produkty**, a potem wybierz filtr **Archiwum**, aby zobaczyć zakończone oferty. Usunięcie produktu z historią przenosi go do archiwum. Przywrócenie pozostawia go nieaktywnym; sprawdź ustawienia i włącz sprzedaż osobno. Kupujący zachowują nadany dostęp.
+W panelu otwórz **Produkty**, a potem wybierz filtr **Archiwum**, aby zobaczyć zakończone oferty. Usunięcie produktu z historią przenosi go do archiwum. Przywrócenie pozostawia go nieaktywnym; sprawdź ustawienia i włącz sprzedaż osobno. Kupujący zachowują nadany dostęp. Aby włączyć przywrócony produkt, kliknij **Nieaktywny** na liście produktów albo ustaw fokus na tym przycisku i naciśnij Enter.
 
 Zamówienia, faktury i licencje nigdy nie są usuwane razem z produktem.
+
+Produktu będącego **składnikiem pakietu** nie można przenieść do archiwum ani usunąć, również trwale z archiwum.
+Panel pokazuje nazwy powiązanych pakietów i blokuje potwierdzenie; API DELETE zwraca **409 CONFLICT** z ich nazwami.
+Najpierw jawnie usuń składnik z tych pakietów. Odmowa pozostawia produkt i skład pakietów bez zmian.
+Produktu z archiwum nie można dodać do pakietu (także przez `bundleItemIds`); najpierw przywróć składnik. Odrzucona zmiana pozostawia dotychczasowy skład bez zmian. Jeśli powiązany pakiet jest w archiwum, najpierw przywróć pakiet, aby zmienić jego skład.
+
+Istniejący aktywny pakiet ze składnikiem już w archiwum nadal można kupić — kupujący otrzymuje dostęp także do tego składnika. Strona zakupu pokazuje wszystkie składniki, również archiwalne. Archiwizacja samodzielnej oferty nie odbiera uprawnień wynikających z pakietu.
 
 - `DELETE /products/{id}` produktu **bez** zamówień, licencji, dostępów kupujących i subskrypcji usuwa go: **204**.
 - To samo wywołanie dla produktu **z** taką historią przenosi go do **archiwum**: **200** z
@@ -117,12 +124,13 @@ Zamówienia, faktury i licencje nigdy nie są usuwane razem z produktem.
   Włączenie produktu w archiwum zwraca **409**.
 - `DELETE /products/{id}?permanent=true` usuwa produkt z archiwum trwale: **204**. Zamówienia, faktury, licencje, zakończone
   subskrypcje i rezerwacje minionych terminów zostają z `product_id: null` i nazwą produktu z chwili zakupu (`product_name`);
-  kupujący tracą dostęp; reguły prowizji partnerów i miejsce produktu w pakietach są usuwane.
+  kupujący tracą dostęp; reguły prowizji partnerów są usuwane.
   Produkt z historią, który nie jest w archiwum, zwraca **409** (najpierw archiwizacja). **409** i pozostanie w archiwum
   dostaje też produkt z **aktywną subskrypcją** (status Stripe `trialing`, `active`, `past_due` lub `incomplete`),
   **rezerwacją na nadchodzący termin** (potwierdzoną lub jeszcze trzymaną, termin się nie skończył) albo naliczonymi prowizjami partnerów.
 - `GET /products/{id}/deletion-impact` zwraca obiekt `impact` bez żadnej zmiany, z polami `activeSubscriptions`,
-  `futureReservations`, `affiliateRules`, `affiliateCommissions` i `bundles`.
+  `futureReservations`, `affiliateRules`, `affiliateCommissions`, `bundles` (liczba) i `bundleReferences`
+  (tablica `{ "id": "…", "name": "…" }` wskazująca wszystkie powiązane pakiety, także nieaktywne i archiwalne).
 - Licencje (`GET /licenses`, `/licenses/{id}`) i płatności trwale usuniętego produktu zwracają `product.name` z chwili zakupu.
 
 Webhooki: archiwizacja i przywrócenie wysyłają `product.updated` (`changedFields` zawiera `archivedAt`; archiwizacja aktywnego
@@ -173,6 +181,8 @@ najniższej ceny Omnibus. Typ dostępny dla wszystkich sprzedawców.
 Z uprawnieniem `payments:write`: `POST /payments/{id}/mark-paid` (zaksięgowanie przelewu: `amount`, `paidAt`), `POST /payments/{id}/cancel` (`reason`) i `POST /payments/{id}/invoice-issued`. Przelew, który doszedł po anulowaniu, przyjmujesz przez `mark-paid` z `acceptCancelled: true` i `reason`. Najpierw sprawdź `GET /payments/{id}/late-transfer-preview` (`payments:read`): gdy `seats.oversold` jest prawdą, przyjęcie przekroczy limit miejsc w terminie albo w progu cenowym i wymaga `acceptOversold: true`. Bez tego odpowiedź to **409** `CONFLICT` z `error.details.code: ["oversold_confirmation_required"]` (inne odmowy, np. zła kwota, zostają 400 `VALIDATION_ERROR`). Szczegóły: [Przelewy tradycyjne](/pl/bank-transfers/).
 
 ## Licencje (Pro)
+
+Pole `tier` w liście i szczegółach licencji pochodzi z zapisanego tokenu wystawionej licencji. Zachowuje wartość z chwili wystawienia także po zmianie poziomu produktu lub jego trwałym usunięciu; brak poziomu w licencji daje `null`. Lista nie zwraca tokenów; odczyt jednej licencji je zawiera.
 
 Klucz API z uprawnieniem `licenses:write` wydaje licencję przez `POST /api/v1/licenses`
 (`{ productId, email, domain?, customFieldValues?, sendEmail? = true, locale? }`) i odwołuje ją
