@@ -145,3 +145,22 @@ it('reads a dispute again only after its refund snapshot update commits @J34', a
     holder.stdin.end('ROLLBACK;\n'); await ended; f.cleanup();
   }
 });
+
+it.each(['purchase','transfer','guest-transfer'])('does not assign a later %s period to an expired legacy order during upgrade @J34', source => {
+  const f = fixture();
+  try {
+    const old = f.buy();
+    sql(`UPDATE public.payment_transactions SET created_at=now()-interval '100 days',paid_at=now()-interval '100 days',access_terms='{}' WHERE id='${old}';
+      UPDATE public.user_product_access SET access_granted_at=now()-interval '100 days',access_expires_at=now()-interval '70 days' WHERE user_id='${f.user}' AND product_id='${f.product}';`);
+    const later = f.buy(f.product,source === 'purchase' ? 'stripe' : 'bank_transfer',source === 'purchase' ? 'completed' : 'awaiting_payment');
+    sql(`UPDATE public.payment_transactions SET access_terms='{}' WHERE id='${later}';`);
+    if (source === 'guest-transfer') sql(`UPDATE public.payment_transactions SET user_id=NULL WHERE id='${later}';
+      INSERT INTO public.guest_purchases(product_id,customer_email,transaction_id,transaction_amount,claimed_by_user_id,claimed_at)
+      VALUES('${f.product}','${f.user}@example.com','${later}',4000,'${f.user}',now());`);
+    const migration = readFileSync(new URL('../../../../supabase/migrations/20261118000000_release_2026_11_1.sql', import.meta.url),'utf8');
+    sql(migration.match(/-- Preserve known legacy periods\.([\s\S]*?)-- End legacy period preservation\./)![1]);
+    if (source === 'purchase') f.refund(later);
+    else sql(`UPDATE public.payment_transactions SET status='cancelled' WHERE id='${later}';`);
+    expect(f.access()).toBeNull();
+  } finally { f.cleanup(); }
+});
