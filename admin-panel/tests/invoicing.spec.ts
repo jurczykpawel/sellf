@@ -1,3 +1,6 @@
+import { randomUUID } from 'node:crypto';
+import { backfillBuyerDetails } from '@/lib/payment/buyer-details';
+import embeddedCompany from './fixtures/stripe/embedded-company-customer.json';
 import { test, expect } from '@playwright/test';
 import { createTestAdmin, loginAsAdmin, supabaseAdmin } from './helpers/admin-auth';
 
@@ -43,6 +46,73 @@ test('admin configures and checks provider, issues invoice and reads it in order
     await supabaseAdmin.from('invoices').delete().eq('transaction_id', transactionId);
     if (originalInvoice) await supabaseAdmin.from('invoices').insert(originalInvoice);
     if (originalConfig) await supabaseAdmin.from('invoicing_config').upsert(originalConfig);
+    await admin.cleanup();
+  }
+});
+
+for (const locale of ['en', 'pl']) {
+  test(`invoice validation names and focuses the invalid field in ${locale} @J55`, async ({ page }) => {
+    const admin = await createTestAdmin('invoice-validation');
+    const original = await supabaseAdmin.from('invoicing_config').select('*').single();
+    expect(original.error).toBeNull();
+    try {
+      expect((await supabaseAdmin.from('invoicing_config').update({ provider: 'none', domain: '', token: null }).eq('id', true)).error).toBeNull();
+      await loginAsAdmin(page, admin.email, admin.password);
+      await page.goto(locale === 'pl' ? '/pl/dashboard/settings' : '/dashboard/settings');
+      const settings = page.getByRole('region', { name: locale === 'pl' ? 'Faktury' : 'Invoicing', exact: true });
+      const save = settings.getByRole('button', { name: locale === 'pl' ? 'Zapisz' : 'Save', exact: true });
+      await expect(save).toBeEnabled();
+      await settings.getByRole('combobox', { name: locale === 'pl' ? 'Dostawca' : 'Provider', exact: true }).selectOption('fakturownia');
+      const domain = settings.locator('[name=domain]'), token = settings.locator('[name=token]'), template = settings.locator('[name=template]');
+      await save.click();
+      await expect(domain).toBeFocused();
+      await expect(domain).toHaveAttribute('aria-invalid', 'true');
+      await expect(settings.getByRole('alert')).toContainText(locale === 'pl' ? 'Podaj domenę' : 'Enter your Fakturownia');
+      await domain.fill('example.fakturownia.pl');
+      await save.click();
+      await expect(token).toBeFocused();
+      await expect(settings.getByRole('alert')).toContainText(locale === 'pl' ? 'Podaj token API' : 'Enter an API token');
+      await template.fill('Invalid template');
+      await save.click();
+      await expect(template).toBeFocused();
+      await expect(settings.getByRole('alert')).toContainText(locale === 'pl' ? 'znacznik produktu' : 'product placeholder');
+      const unchanged = await supabaseAdmin.from('invoicing_config').select('provider,domain,token').single();
+      expect(unchanged.data).toEqual({ provider: 'none', domain: '', token: null });
+    } finally {
+      if (original.data) expect((await supabaseAdmin.from('invoicing_config').upsert(original.data)).error).toBeNull();
+      await admin.cleanup();
+    }
+  });
+}
+
+test('shows company data backfilled from embedded Stripe Checkout in payment details @J55', async ({ page }) => {
+  const admin = await createTestAdmin('embed-company');
+  const sessionId = `cs_company_${randomUUID().replaceAll('-', '')}`;
+  const email = `company-${randomUUID()}@example.com`;
+  const product = await supabaseAdmin.from('products').insert({ name: 'Embedded company order', slug: `company-${randomUUID()}`, price: 50, currency: 'PLN' }).select('id').single();
+  expect(product.error).toBeNull();
+  try {
+    const tx = await supabaseAdmin.from('payment_transactions').insert({ product_id: product.data!.id, session_id: sessionId, customer_email: email, amount: 5000, currency: 'PLN', status: 'completed', payment_provider: 'stripe' }).select('id').single();
+    expect(tx.error).toBeNull();
+    await backfillBuyerDetails(supabaseAdmin, { sessionId, metadata: {}, customerDetails: { ...embeddedCompany, email } as never });
+    const saved = await supabaseAdmin.from('payment_transactions').select('order_details').eq('id', tx.data!.id).single();
+    expect(saved.data?.order_details).toMatchObject({ buyer: { company_name: 'Embedded Company', nip: '5260250274', needs_invoice: true } });
+    await loginAsAdmin(page, admin.email, admin.password);
+    await page.goto('/pl/dashboard/payments');
+    const row = page.getByRole('row').filter({ hasText: email });
+    await row.getByRole('button', { name: /szczegóły/i }).click();
+    const details = page.getByRole('region', { name: 'Dane z koszyka' });
+    for (const value of ['Embedded Company', '5260250274', 'Krótka 2', 'Kraków']) await expect(details).toContainText(value);
+    // Previously stored embed data has the same fields but no type.
+    const buyer = (saved.data!.order_details as { buyer: Record<string, unknown> }).buyer;
+    delete buyer.type;
+    expect((await supabaseAdmin.from('payment_transactions').update({ order_details: { buyer } }).eq('id', tx.data!.id)).error).toBeNull();
+    await page.reload();
+    await row.getByRole('button', { name: /szczegóły/i }).click();
+    for (const value of ['Embedded Company', '5260250274', 'Krótka 2']) await expect(details).toContainText(value);
+  } finally {
+    await supabaseAdmin.from('payment_transactions').delete().eq('session_id', sessionId);
+    await supabaseAdmin.from('products').delete().eq('id', product.data!.id);
     await admin.cleanup();
   }
 });

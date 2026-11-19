@@ -43,7 +43,7 @@ for (const archiveFirst of [true, false]) {
   });
 }
 
-it('replaces membership while payment holds pricing and access-reference locks', async () => {
+for (const bundleLock of ['KEY SHARE', 'SHARE']) it(`serializes membership with payment ${bundleLock} locks`, async () => {
   const component = crypto.randomUUID(), bundle = crypto.randomUUID();
   sql(`INSERT INTO public.products(id,name,slug,price,is_bundle) VALUES
     ('${bundle}','Bundle','${bundle}',50,true),('${component}','Component','${component}',20,false);`);
@@ -57,12 +57,18 @@ it('replaces membership while payment holds pricing and access-reference locks',
   });
   try {
     payment.stdin.write(`BEGIN; SELECT id FROM public.products WHERE id='${component}' FOR SHARE;
-      SELECT id FROM public.products WHERE id='${bundle}' FOR KEY SHARE;\n\\echo payment_ready\n`);
+      SELECT id FROM public.products WHERE id='${bundle}' FOR ${bundleLock};\n\\echo payment_ready\n`);
     await ready;
-    await promisify(execFile)('docker', [...connection(), '-c', `${claims} SET statement_timeout='2s'; SELECT public.replace_bundle_items('${bundle}',ARRAY['${component}']::uuid[]);`]);
+    const application = `replace_${bundle.replaceAll('-', '')}`;
+    const replacement = promisify(execFile)('docker', [...connection(), '-c', `${claims} SET application_name='${application}'; SET statement_timeout='5s'; SELECT public.replace_bundle_items('${bundle}',ARRAY['${component}']::uuid[]);`]);
+    if (bundleLock === 'SHARE') {
+      await expect.poll(() => sql(`SELECT count(*) FROM pg_stat_activity WHERE application_name='${application}' AND wait_event_type='Lock';`)).toBe('1');
+      payment.stdin.end('COMMIT;\n');
+    }
+    await replacement;
     expect(sql(`SELECT count(*) FROM public.bundle_items WHERE bundle_product_id='${bundle}';`)).toBe('1');
   } finally {
-    payment.stdin.end('ROLLBACK;\n'); await exited;
+    if (!payment.stdin.writableEnded) payment.stdin.end('ROLLBACK;\n'); await exited;
     sql(`DELETE FROM public.bundle_items WHERE bundle_product_id='${bundle}'; DELETE FROM public.products WHERE id IN ('${bundle}','${component}');`);
   }
 });

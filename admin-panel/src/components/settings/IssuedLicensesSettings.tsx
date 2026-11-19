@@ -42,7 +42,7 @@ interface LicenseRow {
   /** Purchase-time name, kept after the product is permanently deleted. */
   product_name: string | null;
   tier: string | null;
-  products: { name: string; slug: string; license_tier: string | null } | null;
+  products: { name: string; slug: string } | null;
 }
 
 const DOMAIN_FIELD = '_sellf_license_domain';

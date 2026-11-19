@@ -15,7 +15,7 @@ export async function getInvoiceSettings() {
 }
 export async function saveInvoiceSettings(input: unknown) {
   const parsed = settingsSchema.safeParse(input);
-  if (!parsed.success) return { success: false, error: 'Invalid invoice settings', fieldErrors: Object.fromEntries(parsed.error.issues.map(issue => [String(issue.path[0]), 'invalidField'])) }; 
+  if (!parsed.success) return { success: false, error: 'Invalid invoice settings', fieldErrors: Object.fromEntries(parsed.error.issues.filter(issue => issue.path.length > 0).map(issue => [String(issue.path[0]), 'invalidField'])) };
   return withAdminClient(async ({ dataClient, user }) => {
     const { token, ...settings } = parsed.data;
     const previous = await readInvoiceConfig(dataClient);

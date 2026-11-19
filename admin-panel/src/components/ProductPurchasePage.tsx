@@ -28,10 +28,9 @@ const getBundleComponents = cache(async (bundleProductId: string): Promise<Bundl
     console.error('[ProductPurchasePage] Bundle component missing'); return [];
   }
   return items.map(item => {
-    const component = components!.find(row => row.id === item.component_product_id);
-    if (!component) return null;
+    const component = components!.find(row => row.id === item.component_product_id)!;
     return { ...component, icon: component.icon ?? '📦' };
-  }).filter((component): component is BundleComponentSummary => component !== null);
+  });
 });
 
 export default async function ProductPurchasePage({ product }: { product: Product }) {

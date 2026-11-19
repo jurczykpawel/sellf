@@ -9159,7 +9159,7 @@ BEGIN
     ORDER BY (t.product_id=p_license.product_id) DESC,t.created_at LIMIT 1;
   RETURN jsonb_build_object('id',p_license.id,'product_id',p_license.product_id,'email',p_license.email,'user_id',p_license.user_id,
     'order_id',p_license.order_id,'seller_id',p_license.seller_id,'original_seller_id',p_license.original_seller_id,
-    'license_domain',p_license.license_domain,'issuance_source',p_license.issuance_source,
+    'tier',tier,'license_domain',p_license.license_domain,'issuance_source',p_license.issuance_source,
     'issued_at',p_license.issued_at,'expires_at',p_license.expires_at,'revoked_at',p_license.revoked_at,'products',product,
     'customer_locale',p_license.customer_locale,'sellf_order_id',tx.id,'order_number',tx.order_number,
     'revocation_reason',CASE WHEN p_license.revoked_at IS NULL THEN NULL
@@ -11911,7 +11911,8 @@ BEGIN
   IF (select auth.role()) IS DISTINCT FROM 'service_role' THEN
     RAISE EXCEPTION 'Service role required' USING ERRCODE = '42501';
   END IF;
-  PERFORM 1 FROM public.products WHERE id = p_bundle_id OR id = ANY(p_component_ids) ORDER BY id FOR UPDATE;
+  PERFORM 1 FROM public.products WHERE id = p_bundle_id FOR NO KEY UPDATE;
+  PERFORM 1 FROM public.products WHERE id = ANY(p_component_ids) ORDER BY id FOR SHARE;
   DELETE FROM public.bundle_items WHERE bundle_product_id = p_bundle_id;
   INSERT INTO public.bundle_items(bundle_product_id, component_product_id, display_order)
   SELECT p_bundle_id, component, ordinality - 1
