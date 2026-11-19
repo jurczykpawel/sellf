@@ -45,4 +45,4 @@ An open unpaid receipt refreshes at the reservation deadline, every 15 seconds a
 
 Each validated order link has its own refresh allowance, so buyers of different orders do not share one refresh budget.
 
-Cancellation removes the access period granted by that transfer, including when another purchase later extended the same product. Other paid periods, free grants and administrator access remain. Refunding a paid transfer follows the same rule; repeated notifications preserve later manual changes.
+Cancellation removes the access period granted by that transfer, including when another purchase later extended the same product. Other paid periods, free grants and administrator access remain. Refunding a paid transfer follows the same rule; repeated notifications preserve later manual changes. Cancelling a transfer that did not grant access on placement leaves pre-existing access unchanged.
