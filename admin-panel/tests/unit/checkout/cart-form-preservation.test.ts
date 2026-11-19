@@ -73,6 +73,41 @@ it('locks cart controls and pauses updates throughout payment processing', async
   expect(fetch).toHaveBeenCalledTimes(1);
 });
 
+it('bounds retries and stalled responses within the Stripe update timeout', async () => {
+  let updateSignal: AbortSignal | undefined;
+  let attempts = 0;
+  const fetch = vi.fn(async (_url: string, init: RequestInit) => {
+    const body = JSON.parse(init.body as string);
+    if (body.expireOnly) return Response.json({ success: true });
+    if (!body.clientSecret) return Response.json({ clientSecret: 'cs_test_open_secret_value', checkoutSessionId: 'cs_test_open' });
+    updateSignal = init.signal as AbortSignal;
+    if (++attempts === 1) return Response.json({ code: 'CHECKOUT_UPDATE_IN_PROGRESS' }, { status: 409 });
+    return new Promise<Response>((_resolve, reject) => updateSignal?.addEventListener('abort', () => reject(updateSignal!.reason), { once: true }));
+  });
+  vi.stubGlobal('fetch', fetch);
+  const product = { id: 'product', slug: 'product', name: 'Product', price: 100, currency: 'PLN', is_active: true };
+  const tree = () => React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(PaidProductForm, { product, collectTermsOfService: false } as unknown as React.ComponentProps<typeof PaidProductForm>));
+  const view = render(tree());
+  await screen.findByLabelText('Card');
+  vi.useFakeTimers();
+  const timeout = vi.spyOn(AbortSignal, 'timeout').mockImplementation(ms => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(new DOMException('Update timed out', 'TimeoutError')), ms);
+    return controller.signal;
+  });
+  try {
+    state.coupon = { code: 'QUARTER', discount_type: 'percentage', discount_value: 25 };
+    view.rerender(tree());
+    await act(async () => { await Promise.resolve(); });
+    expect(updateSignal).toBeInstanceOf(AbortSignal);
+    expect(timeout.mock.calls[0][0]).toBeLessThan(20000);
+    await act(async () => { await vi.advanceTimersByTimeAsync(15000); });
+    expect(updateSignal?.aborted).toBe(true);
+    expect(attempts).toBe(2);
+    expect(timeout).toHaveBeenCalledOnce();
+  } finally { vi.useRealTimers(); timeout.mockRestore(); }
+});
+
 it('counts remaining lifetime from response receipt while Stripe refresh is pending', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => Response.json({ clientSecret: 'cs_test_open_secret_value', checkoutSessionId: 'cs_test_open', expiresInSeconds: 1800 })));
   const product = { id: 'product', slug: 'product', name: 'Product', price: 100, currency: 'PLN', is_active: true };
@@ -90,3 +125,21 @@ it('counts remaining lifetime from response receipt while Stripe refresh is pend
   } finally { clock.mockRestore(); }
 });
 
+it('retires a fresh unpaid session on pagehide after restarting an earlier confirmation', async () => {
+  const calls: Array<Record<string, unknown>> = [];
+  let opened = 0;
+  vi.stubGlobal('fetch', vi.fn(async (_url: string, init: RequestInit) => {
+    const body = JSON.parse(init.body as string); calls.push(body);
+    if (body.expireOnly) return Response.json({ success: true });
+    opened++;
+    return Response.json({ clientSecret: `cs_test_${opened}_secret_value`, checkoutSessionId: `cs_test_${opened}` });
+  }));
+  const product = { id: 'product', slug: 'product', name: 'Product', price: 100, currency: 'PLN', is_active: true };
+  render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(PaidProductForm, { product, collectTermsOfService: false } as unknown as React.ComponentProps<typeof PaidProductForm>)));
+  await screen.findByLabelText('Card');
+  act(() => state.confirm!(true));
+  await act(async () => { await state.restart!(); });
+  await waitFor(() => expect(opened).toBe(2));
+  act(() => window.dispatchEvent(new Event('pagehide')));
+  await waitFor(() => expect(calls.some(body => body.expireOnly && body.clientSecret === 'cs_test_2_secret_value')).toBe(true));
+});

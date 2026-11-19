@@ -470,7 +470,9 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       key: checkoutSessionSignature,
       run: async previous => {
         const update = async () => {
+          const signal = AbortSignal.timeout(15000);
           const send = () => fetch('/api/create-payment-intent', {
+            signal,
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
