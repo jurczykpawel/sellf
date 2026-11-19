@@ -109,7 +109,7 @@ it('does not send a session deadline in buyer details', async () => {
   const fetch = vi.fn(async () => Response.json({ success: true, data: { isValid: true } }));
   vi.stubGlobal('fetch', fetch);
   stripe.confirm.mockResolvedValueOnce({ type: 'error', error: { message: 'Declined' } });
-  const view = form('en', { sessionDeadline: performance.now() + 10000 });
+  const view = form('en', { expiresAt: Math.floor(Date.now() / 1000) + 1800, sessionDeadline: performance.now() + 10000 });
   fireEvent.submit(view.container.querySelector('form')!);
   await waitFor(() => expect(stripe.confirm).toHaveBeenCalled());
   const [, init] = fetch.mock.calls.find(([url]) => url === '/api/update-payment-metadata')! as unknown as [string, RequestInit];

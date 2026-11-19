@@ -119,7 +119,17 @@ test('entered coupon, quantity, add-on and coupon removal keep one Stripe sessio
   await card.locator('input[name="number"]').fill('4242424242424242');
   await card.locator('input[name="expiry"]').fill('1234');
   await card.locator('input[name="cvc"]').fill('123');
-  await page.locator('button[type="submit"]').click();
+  let resumeValidation!: () => void;
+  const validationPaused = new Promise<void>(resolve => { resumeValidation = resolve; });
+  await page.route('**/api/validate-email', async route => { await validationPaused; await route.continue(); });
+  const validationStarted = page.waitForRequest('**/api/validate-email');
+  try {
+    await page.locator('button[type="submit"]').click();
+    await validationStarted;
+    await expect(page.getByLabel('Quantity', { exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Added', exact: true })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Apply', exact: true })).toBeDisabled();
+  } finally { resumeValidation(); }
   await page.waitForURL(/payment\/success|payment-status/, { timeout: 120000 });
 
   const event = await recordedEvent('checkout.session.completed', item => (item.data.object as Stripe.Checkout.Session).id === first, since);
@@ -140,7 +150,15 @@ test('entered coupon, quantity, add-on and coupon removal keep one Stripe sessio
   expect(intent.metadata).toMatchObject({ product_id: productIds[0], has_coupon: 'false', sellf_instance: session.metadata?.sellf_instance });
   expect(intent.metadata.coupon_id).toBeUndefined();
 
-  const refunded = await refundEvent(intent.id, 32000, 32000);
+  const partial = await refundEvent(intent.id, 1000, 1000);
+  expect((await sendStripeEvent(request, partial.event)).status()).toBe(200);
+  const partialVerification = await request.post('/api/verify-payment', { data: { session_id: first } });
+  expect(partialVerification.status()).toBe(200);
+  expect(await partialVerification.json()).toMatchObject({ payment_status: 'paid' });
+  const { data: partiallyRefunded } = await supabaseAdmin.from('payment_transactions').select('status,refunded_amount').eq('session_id', first).single();
+  expect(partiallyRefunded).toEqual({ status: 'partially_refunded', refunded_amount: 1000 });
+
+  const refunded = await refundEvent(intent.id, 31000, 32000);
   expect((await sendStripeEvent(request, refunded.event)).status()).toBe(200);
   const verified = await request.post('/api/verify-payment', { data: { session_id: first } });
   expect(verified.status()).toBe(200);

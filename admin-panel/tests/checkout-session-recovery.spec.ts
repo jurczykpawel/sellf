@@ -89,3 +89,25 @@ for (const locale of ['en', 'pl']) {
     expect((await testStripe().checkout.sessions.retrieve(opened.checkoutSessionId)).payment_status).toBe('unpaid');
   });
 }
+
+for (const eventMode of [false, true]) {
+  test(`checkout tolerates a client clock two hours ahead, event=${eventMode} @J710`, async ({ page }) => {
+    test.setTimeout(180000);
+    if (eventMode) {
+      const { data: event, error } = await supabaseAdmin.from('product_sessions').insert({ product_id: product.id, starts_at: '2099-06-01T12:00:00Z', timezone: 'Europe/Warsaw', capacity: 1 }).select('id').single();
+      expect(error).toBeNull();
+      expect((await supabaseAdmin.from('product_price_tiers').insert({ session_id: event!.id, price: 19, sort: 0 })).error).toBeNull();
+      expect((await supabaseAdmin.from('products').update({ event_mode: true }).eq('id', product.id)).error).toBeNull();
+    }
+    await page.clock.setFixedTime(new Date(Date.now() + 7200_000));
+    await acceptAllCookies(page);
+    await page.goto(`/en/checkout/${product.slug}?email=clock-${randomUUID()}@example.com`);
+    const response = await startNativeCheckout(page);
+    expect(response.status()).toBe(200);
+    const opened = await response.json(); sessions.add(opened.checkoutSessionId);
+    expect(opened.expiresInSeconds).toBeGreaterThan(120);
+    expect(opened).not.toHaveProperty('expiresAt');
+    await expect(page.locator('button[type=submit]')).toBeEnabled({ timeout: 60000 });
+    await expect(page.getByText('Your payment session has expired.')).toHaveCount(0);
+  });
+}
