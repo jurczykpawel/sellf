@@ -6,6 +6,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, expect, it, vi } from 'vitest';
 import CouponFormModal from '@/components/CouponFormModal';
 import en from '@/messages/en.json';
+import pl from '@/messages/pl.json';
+import type { Coupon } from '@/types/coupon';
 vi.mock('@/lib/actions/shop-config', () => ({ getMyShopConfig: async () => ({ default_currency: 'PLN' }) }));
 vi.mock('@/components/affiliates/products/Settings', () => ({ AffiliateCouponEditor: () => null }));
 afterEach(cleanup);
@@ -42,4 +44,22 @@ it('submits a set-price coupon with zero and shop currency', async () => {
   fireEvent.change(view.container.querySelector('input[type=text]')!, { target: { value: 'SAVE' } });
   fireEvent.submit(view.container.querySelector('form')!);
   await waitFor(() => expect(submit).toHaveBeenCalledWith(expect.objectContaining({ discount_type: 'set_price', discount_value: 0, currency: 'PLN' })));
+});
+
+it.each([['en', en], ['pl', pl]] as const)('marks the saved invalid address in %s and clears the error after removal', async (locale, messages) => {
+  const submit = vi.fn();
+  const coupon = { id: 'saved', code: 'SAVE', name: 'Saved coupon', discount_type: 'percentage', discount_value: 10, currency: null, is_active: true, allowed_emails: ['invalid-address', 'buyer@example.com'] } as Coupon;
+  const view = render(React.createElement(NextIntlClientProvider, { locale, messages }, React.createElement(CouponFormModal, { products: [], editingCoupon: coupon, onSubmit: submit, onClose: vi.fn(), isSubmitting: false })));
+  await screen.findByText(`${messages.admin.coupons.fixed} (PLN)`);
+  fireEvent.submit(view.container.querySelector('form')!);
+  const invalid = screen.getByText('invalid-address'), valid = screen.getByText('buyer@example.com');
+  expect(invalid.getAttribute('aria-invalid')).toBe('true');
+  expect(invalid.getAttribute('aria-describedby')).toBe('coupon-email-error');
+  expect(invalid.className).toContain('border-sf-danger');
+  expect(valid.getAttribute('aria-invalid')).not.toBe('true');
+  expect(submit).not.toHaveBeenCalled();
+  fireEvent.click(invalid.querySelector('button')!);
+  expect(screen.queryByText(messages.admin.coupons.form.emailInvalid)).toBeNull();
+  fireEvent.submit(view.container.querySelector('form')!);
+  await waitFor(() => expect(submit).toHaveBeenCalledWith(expect.objectContaining({ allowed_emails: ['buyer@example.com'] })));
 });

@@ -443,7 +443,10 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({
               <div className="flex flex-wrap gap-2 min-h-[32px]">
                 {formData.allowed_emails && formData.allowed_emails.length > 0 ? (
                   formData.allowed_emails.map(email => (
-                    <span key={email} className="inline-flex items-center px-3 py-1 text-xs font-medium bg-sf-accent-soft text-sf-accent border border-sf-accent/30">
+                    <span key={email}
+                      aria-invalid={!isValidEmailFormat(email)}
+                      aria-describedby={emailError && !isValidEmailFormat(email) ? 'coupon-email-error' : undefined}
+                      className={`inline-flex items-center px-3 py-1 text-xs font-medium border ${!isValidEmailFormat(email) ? 'bg-sf-danger-soft text-sf-danger border-sf-danger' : 'bg-sf-accent-soft text-sf-accent border-sf-accent/30'}`}>
                       {email}
                       <button
                         type="button"

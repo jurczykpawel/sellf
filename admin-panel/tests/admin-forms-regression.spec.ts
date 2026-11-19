@@ -120,6 +120,21 @@ for (const locale of ['pl', 'en'] as const) {
       await expect(label).toHaveAttribute('title', 'R'.repeat(200));
       const bounds = await row.evaluate(el => el.getBoundingClientRect().right);
       expect(bounds).toBeLessThanOrEqual(page.viewportSize()!.width);
+      expect((await db.from('coupons').update({ allowed_emails: ['invalid-address', 'buyer@example.test'] }).eq('code', code)).error).toBeNull();
+      await page.reload();
+      await page.getByPlaceholder(t.searchPlaceholder).fill(code);
+      await row.getByRole('button', { name: t.edit, exact: true }).click();
+      const invalidChip = form.getByText('invalid-address', { exact: true });
+      await form.getByRole('button', { name: t.form.update, exact: true }).click();
+      await expect(invalidChip).toHaveAttribute('aria-invalid', 'true');
+      await expect(invalidChip).toHaveClass(/border-sf-danger/);
+      await expect(form.getByText(t.form.emailInvalid)).toBeVisible();
+      await expect(form.getByText('buyer@example.test', { exact: true })).toHaveAttribute('aria-invalid', 'false');
+      await invalidChip.getByRole('button').click();
+      await expect(form.getByText(t.form.emailInvalid)).toHaveCount(0);
+      const updated = page.waitForResponse(r => r.url().includes('/api/v1/coupons') && r.request().method() === 'PATCH');
+      await form.getByRole('button', { name: t.form.update, exact: true }).click();
+      expect((await updated).status()).toBe(200);
     } finally { await db.from('coupons').delete().eq('code', code); await admin.cleanup(); }
   });
 
