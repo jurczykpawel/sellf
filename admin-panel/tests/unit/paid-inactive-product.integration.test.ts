@@ -4,10 +4,11 @@ import { createClient } from '@supabase/supabase-js';
 import { expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({ buyer: null as unknown, result: {} as Record<string, unknown> }));
 vi.mock('@/lib/supabase/server', () => ({ createClient: async () => state.buyer }));
-vi.mock('next/navigation', () => ({ redirect: (path: string) => { throw new Error(`redirect:${path}`); } }));
+vi.mock('next/navigation', () => ({ redirect: (path: string) => { throw new Error(`NEXT_REDIRECT:${path}`); } }));
 vi.mock('next-intl/server', () => ({ getTranslations: async () => (key: string) => key }));
 vi.mock('@/lib/payment/verify-payment', async original => ({ ...await original<typeof import('@/lib/payment/verify-payment')>(), verifyPaymentSession: async () => state.result }));
 vi.mock('@/app/[locale]/p/[slug]/payment-status/components/PaymentStatusView', () => ({ default: () => null }));
+import { GET as productAccessCallback } from '@/app/[locale]/auth/product-access/route';
 import PaymentStatusPage from '@/app/[locale]/p/[slug]/payment-status/page';
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 async function checked<T>({ data, error }: { data: T; error: unknown }): Promise<T> { if (error) throw error; return data; }
@@ -29,6 +30,8 @@ it.each(['inactive', 'archived'] as const)('finishes the guest receipt and claim
     const owner = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
     await checked(await owner.auth.signInWithPassword({ email, password: `Password-${id}!` }));
     expect(await checked(await owner.from('products').select('id').eq('id', product.id))).toEqual([{ id: product.id }]);
+    state.buyer = owner;
+    if (mode === 'inactive') await expect(productAccessCallback(new Request(`http://localhost:3973/pl/auth/product-access?product=${product.slug}`))).rejects.toThrow('NEXT_REDIRECT:/pl/my-products');
     expect(await checked(await anonymous.from('products').select('id').eq('id', product.id))).toEqual([]);
   } finally {
     await db.from('guest_purchases').delete().eq('product_id', product.id);

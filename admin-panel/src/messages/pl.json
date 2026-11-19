@@ -1437,6 +1437,7 @@
     }
   },
   "myProducts": {
+    "accessPaused": "Sprzedawca wstrzymał dostęp do tego produktu. Twój zakup pozostaje zapisany.",
     "title": "Moje produkty",
     "subtitle": "Twoje produkty i oferta dostępna w sklepie.",
     "loadingProducts": "Ładowanie Twoich produktów...",

@@ -1437,6 +1437,7 @@
     }
   },
   "myProducts": {
+    "accessPaused": "The seller has paused access to this product. Your purchase remains saved.",
     "title": "My Products",
     "subtitle": "Your products and what's available in the store.",
     "loadingProducts": "Loading your products...",
