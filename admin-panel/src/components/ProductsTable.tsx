@@ -85,7 +85,7 @@ interface DropdownItem {
   separator?: boolean;
 }
 
-function ActionsDropdown({ items, onClose }: { items: DropdownItem[]; onClose: () => void }) {
+function ActionsDropdown({ items, onClose, opener }: { items: DropdownItem[]; onClose: () => void; opener: HTMLButtonElement | null }) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -104,7 +104,7 @@ function ActionsDropdown({ items, onClose }: { items: DropdownItem[]; onClose: (
           {item.separator && i > 0 && <div className="my-1 border-t border-sf-border" />}
           <button
             disabled={item.disabled}
-            onClick={() => { item.onClick(); onClose(); }}
+            onClick={() => { opener?.focus(); item.onClick(); onClose(); }}
             className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors
               ${ item.disabled
                 ? 'text-sf-muted cursor-not-allowed opacity-50'
@@ -158,6 +158,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
   // ---------------------------------------------------------------------------
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  const [dropdownTrigger, setDropdownTrigger] = useState<HTMLButtonElement | null>(null);
   const dropdownAnchor = useRef<DOMRect | null>(null);
   const dropdownPanel = useRef<HTMLDivElement>(null);
 
@@ -167,6 +168,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
       setOpenDropdownId(null);
       return;
     }
+    setDropdownTrigger(e.currentTarget);
     dropdownAnchor.current = e.currentTarget.getBoundingClientRect();
     setDropdownStyle({ position: 'fixed', visibility: 'hidden', zIndex: 9999 });
     setOpenDropdownId(productId);
@@ -472,6 +474,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                               className="bg-sf-raised border border-sf-border rounded-lg shadow-[var(--sf-shadow-accent)] overflow-y-auto"
                             >
                               <ActionsDropdown
+                                opener={dropdownTrigger}
                                 onClose={() => setOpenDropdownId(null)}
                                 items={product.archived_at ? [
                                   {
