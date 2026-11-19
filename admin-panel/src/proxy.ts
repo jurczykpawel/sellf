@@ -1,3 +1,5 @@
+import { stat } from 'node:fs/promises'
+import { posix, resolve, sep } from 'node:path'
 import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 import createMiddleware from 'next-intl/middleware'
@@ -194,6 +196,20 @@ function addSecurityHeaders(
   return response;
 }
 
+async function isPublicFile(pathname: string): Promise<boolean> {
+  const publicRoot = resolve(process.cwd(), 'public')
+  try {
+    const decoded = decodeURIComponent(pathname)
+    // Only canonical paths count: an encoded `..%2F` or `\` must not turn a protected path into a public file.
+    if (decoded.includes('\\') || posix.normalize(decoded) !== decoded) return false
+    const filePath = resolve(publicRoot, `.${decoded}`)
+    if (!filePath.startsWith(`${publicRoot}${sep}`)) return false
+    return (await stat(filePath)).isFile()
+  } catch {
+    return false
+  }
+}
+
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isTemplateAuthorApi = pathname.startsWith('/api/v1/templates/') || /^\/api\/v1\/products\/[^/]+\/offer\//.test(pathname);
@@ -313,14 +329,14 @@ export async function proxy(request: NextRequest) {
   // Skip proxy processing for API routes, static files, and payment success page
   if (
     pathname.startsWith('/api') ||
+    pathname === '/embed/v1/checkout.js' ||
     pathname === '/sitemap.xml' ||
     pathname.startsWith('/sitemaps/') ||
-    pathname === '/robots.txt' ||
     pathname.startsWith('/_next') ||
     pathname.startsWith('/payment') ||
     pathname.startsWith('/test-pages') ||
     pathname.startsWith('/vendor/') ||
-    pathname.match(/\.(svg|png|jpg|jpeg|gif|webp|ico|js|css|html)$/)
+    await isPublicFile(pathname)
   ) {
     return applyHeaders(NextResponse.next({ request: { headers: requestHeaders } }));
   }
