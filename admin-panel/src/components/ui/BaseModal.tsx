@@ -8,6 +8,7 @@ interface BaseModalProps {
   isOpen: boolean;
   labelledBy?: string;
   initialFocusSelector?: string;
+  returnFocusTo?: HTMLElement | null;
   onClose: () => void;
   children: React.ReactNode;
   className?: string;
@@ -21,6 +22,7 @@ const BaseModal: React.FC<BaseModalProps> = ({
   isOpen,
   labelledBy,
   initialFocusSelector,
+  returnFocusTo,
   onClose,
   children,
   className = '',
@@ -37,10 +39,10 @@ const BaseModal: React.FC<BaseModalProps> = ({
   // Capture before React commits descendants' autoFocus, including on a reopened modal.
   const [focusSession, setFocusSession] = useState(() => ({
     isOpen,
-    opener: typeof document === 'undefined' ? null : document.activeElement,
+    opener: returnFocusTo ?? (typeof document === 'undefined' ? null : document.activeElement),
   }));
   if (focusSession.isOpen !== isOpen) {
-    setFocusSession({ isOpen, opener: isOpen ? document.activeElement : null });
+    setFocusSession({ isOpen, opener: isOpen ? returnFocusTo ?? document.activeElement : null });
   }
   useLayoutEffect(() => { initialFocusRef.current = initialFocusSelector; }, [initialFocusSelector]);
   useLayoutEffect(() => {
