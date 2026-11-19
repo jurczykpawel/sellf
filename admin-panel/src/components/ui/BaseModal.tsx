@@ -118,7 +118,11 @@ const BaseModal: React.FC<BaseModalProps> = ({
     return () => {
       modal.removeEventListener('keydown', handleTabKey);
       // StrictMode replays effects while the dialog is still mounted.
-      if (!modal.isConnected && previousFocusRef.current instanceof HTMLElement) previousFocusRef.current.focus();
+      if (!modal.isConnected && previousFocusRef.current instanceof HTMLElement) {
+        const opener = previousFocusRef.current;
+        const target = opener.isConnected ? opener : opener.id ? document.getElementById(opener.id) : null;
+        target?.focus();
+      }
     };
   }, [isOpen]);
 

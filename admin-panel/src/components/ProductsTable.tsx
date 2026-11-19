@@ -425,6 +425,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
 
                         {/* ── Primary action 2: Edit ───────────────────────── */}
                         <button
+                          id={`product-edit-${product.id}`}
                           onClick={() => onEditProduct(product)}
                           className="p-1.5 rounded text-sf-muted hover:text-sf-heading hover:bg-sf-raised transition-colors"
                           title={t('edit')}
@@ -450,6 +451,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                         {/* ── More actions ⋯ ──────────────────────────────── */}
                         <div className="relative">
                           <button
+                            id={`product-more-${product.id}`}
                             onClick={(e) => handleToggleDropdown(product.id, e)}
                             className={`p-1.5 rounded transition-colors ${
                               openDropdownId === product.id
