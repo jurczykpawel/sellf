@@ -428,8 +428,5 @@
   ],
   "e3ea888f2e1b35252463447e4c2baa3dd1cf5bfa": [
     "bank-transfers.md"
-  ],
-  "f3641dca135fff0f48451be09629a4ef4b2d9f6d": [
-    "none \u2014 Moves an unreleased database change into its own migration file; behaviour and documented mail texts are unchanged."
   ]
 }
