@@ -155,3 +155,19 @@ it('expires a quote returned after a paused checkout was left', async () => {
   await vi.waitFor(() => expect(expire).toHaveBeenCalledExactlyOnceWith({ clientSecret: 'quote-a' }));
   expect(apply).not.toHaveBeenCalled();
 });
+
+it('lets checkout recovery wait for expiration before checking inventory again', async () => {
+  const expiration = deferred<void>();
+  const applied = vi.fn();
+  const queue = createCheckoutSessionQueue(() => expiration.promise);
+  queue.update({ key: 'event', run: async () => identity('cs_test_event'), apply: applied, fail: vi.fn() });
+  await vi.waitFor(() => expect(applied).toHaveBeenCalledOnce());
+  let refreshed = false;
+  const recover = async () => { await queue.update(null); refreshed = true; };
+  const pending = recover();
+  await Promise.resolve();
+  expect(refreshed).toBe(false);
+  expiration.resolve();
+  await pending;
+  expect(refreshed).toBe(true);
+});

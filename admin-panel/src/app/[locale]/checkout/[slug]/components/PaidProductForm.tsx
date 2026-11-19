@@ -831,14 +831,14 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 isGuest={!user}
                 collectTermsOfService={collectTermsOfService}
                 collectInvoiceRecipient={collectInvoiceRecipient}
-                onSessionExpired={() => {
-                  sessionQueue.update(null);
+                onSessionExpired={async () => {
+                  await sessionQueue.update(null);
+                  if (product.event_mode) await refreshEvents();
                   setClientSecret(null);
                   setBindingToken(null);
                   setCheckoutSessionId(null);
                   setLastCheckoutSessionSignature(null);
                   setCheckoutVisit(value => value + 1);
-                  if (product.event_mode) void refreshEvents();
                 }}
                 onCouponUnavailable={coupon.invalidateCoupon}
               />
