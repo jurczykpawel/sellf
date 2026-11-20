@@ -239,14 +239,14 @@ test('pausing an owned product pauses the wall and gates; archiving retains acce
   const checked = async (result: { error: unknown }) => { expect(result.error).toBeNull(); };
   await checked(await supabaseAdmin.from('user_product_access').upsert({ user_id: testUser.id, product_id: testProduct.id, access_expires_at: null }, { onConflict: 'user_id,product_id' }));
   try {
-    const gateUrl = `/en/loginwall/gate?products=${testProduct.slug}&redirect=${encodeURIComponent(CUSTOMER_PAGE)}`;
+    const gateUrl = `/loginwall/gate?products=${testProduct.slug}&redirect=${encodeURIComponent(CUSTOMER_PAGE)}`;
     const initial = await page.request.get(gateUrl, { maxRedirects: 0 });
     expect(initial.status()).toBe(307);
     const token = new URL(initial.headers().location).hash.split('_sf_token=')[1];
     expect(verifyGateToken(token, { secret: process.env.LOGINWALL_SECRET! })).toMatchObject({ valid: true, owned: [testProduct.slug] });
     for (const archived of [false, true]) {
       await checked(await supabaseAdmin.from('products').update({ is_active: false, archived_at: archived ? new Date().toISOString() : null }).eq('id', testProduct.id));
-      const wall = await page.request.get(`/en/loginwall/protect?id=${testProduct.id}&redirect=${encodeURIComponent(CUSTOMER_PAGE)}`, { maxRedirects: 0 });
+      const wall = await page.request.get(`/loginwall/protect?id=${testProduct.id}&redirect=${encodeURIComponent(CUSTOMER_PAGE)}`, { maxRedirects: 0 });
       expect(wall.status()).toBe(307);
       expect(wall.headers().location).toContain(archived ? CUSTOMER_PAGE : `/p/${testProduct.slug}`);
       const gate = await page.request.get(gateUrl, { maxRedirects: 0 });
