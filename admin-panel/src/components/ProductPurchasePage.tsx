@@ -17,16 +17,18 @@ import type { BundleComponentSummary } from '@/app/[locale]/checkout/[slug]/comp
 const getBundleComponents = cache(async (bundleProductId: string): Promise<BundleComponentSummary[]> => {
   const { data: items, error } = await createPublicClient()
     .from('bundle_items').select('component_product_id').eq('bundle_product_id', bundleProductId).order('display_order');
-  if (error) throw error;
+  if (error) { console.error('[ProductPurchasePage] Bundle membership unavailable'); return []; }
   if (!items?.length) return [];
   // Public mappings authorize the offer metadata, including previously archived components.
   const { data: components, error: componentError } = await createAdminClient().from('products')
-    .select('id,name,icon,price,sale_price,sale_price_until,sale_quantity_limit,sale_quantity_sold,allow_custom_price,custom_price_min,slug')
+    .select('id,name,icon,price,sale_price,sale_price_until,sale_quantity_limit,sale_quantity_sold,allow_custom_price,custom_price_min')
     .in('id', items.map(item => item.component_product_id));
-  if (componentError) throw componentError;
+  if (componentError) { console.error('[ProductPurchasePage] Bundle components unavailable'); return []; }
+  if (items.some(item => !components?.some(row => row.id === item.component_product_id))) {
+    console.error('[ProductPurchasePage] Bundle component missing'); return [];
+  }
   return items.map(item => {
-    const component = components!.find(row => row.id === item.component_product_id);
-    if (!component) throw new Error('Bundle component unavailable');
+    const component = components!.find(row => row.id === item.component_product_id)!;
     return { ...component, icon: component.icon ?? '📦' };
   });
 });

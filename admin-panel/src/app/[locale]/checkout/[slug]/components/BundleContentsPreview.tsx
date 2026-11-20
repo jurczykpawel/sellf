@@ -15,7 +15,6 @@ export interface BundleComponentSummary extends BundleComponentPrice {
   id: string;
   name: string;
   icon: string;
-  slug: string;
 }
 
 interface BundleContentsPreviewProps {

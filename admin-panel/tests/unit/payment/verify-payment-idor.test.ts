@@ -163,3 +163,17 @@ it('returns the session error code for an unavailable Stripe session', async () 
   mocks.stripeSessionsRetrieve.mockRejectedValue({ type: 'StripeInvalidRequestError' });
   expect(await verifyPaymentSession('cs_test_unknown', null)).toMatchObject({ error_code: 'INVALID_SESSION' });
 });
+
+it.each(['completed', 'partially_refunded'])('offers OTO only for completed purchases: %s', async status => {
+  const rpc = vi.fn().mockResolvedValue({ data: { has_oto: true }, error: null });
+  const tx = { id: 'tx', session_id: 'cs_saved', status, product_id: 'product', customer_email: 'buyer@example.com', user_id: 'buyer', amount: 1000, currency: 'PLN', created_at: '2026-01-01' };
+  mocks.createAdminClient.mockReturnValue({ rpc, from: (table: string) => {
+    const chain = { select: () => chain, eq: () => chain, in: () => chain, maybeSingle: async () => ({ data: table === 'payment_transactions' ? tx : { id: 'access', access_expires_at: null }, error: null }) };
+    return chain;
+  } });
+  const result = await verifyPaymentSession('cs_saved', makeUser('buyer', 'buyer@example.com'));
+  expect(result.error).toBeUndefined();
+  expect(result.access_granted).toBe(true);
+  expect(result.oto_info?.has_oto).toBe(status === 'completed');
+  expect(rpc).toHaveBeenCalledTimes(status === 'completed' ? 1 : 0);
+});

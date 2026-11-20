@@ -40,7 +40,7 @@ export default async function LocaleLayout({
       <SessionExpiryNotice />
       <AuthProvider>
         <WhitelabelProvider theme={theme} licenseValid={licenseValid}>
-          <div className="min-h-screen bg-sf-deep">
+          <div className="min-h-screen bg-sf-deep print:min-h-0">
             {children}
           </div>
         </WhitelabelProvider>

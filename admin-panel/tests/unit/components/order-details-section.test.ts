@@ -51,3 +51,8 @@ it('names each missing module and explains deferred participants', () => {
   expect(screen.getByRole('alert').textContent).toContain('Uczestnicy: do uzupełnienia przez kupującego');
   expect(screen.getByRole('alert').textContent).toContain('Telefon: brak danych');
 });
+
+it.each(['en', 'pl'])('shows saved embed company data without a buyer type in %s', locale => {
+  show({ buyer: { v: 1, company_name: 'Embedded Company', nip: '5252248481', address: 'Krótka 2', city: 'Kraków' } }, locale);
+  for (const value of ['Embedded Company', '5252248481', 'Krótka 2', 'Kraków']) expect(screen.getByText(value)).toBeTruthy();
+});

@@ -373,6 +373,7 @@ export default function CustomPaymentForm({
       }
 
       if (currentCart.current.quantityInvalid || currentCart.current.cartSignature !== cartSignature) {
+        setErrorMessage(t('cartChanged'));
         setIsProcessing(false);
         return;
       }
@@ -508,7 +509,7 @@ export default function CustomPaymentForm({
 
       {/* Error Message */}
       {errorMessage && (
-        <div className="p-4 bg-sf-danger-soft border border-sf-danger/20 rounded-lg">
+        <div role="alert" className="p-4 bg-sf-danger-soft border border-sf-danger/20 rounded-lg">
           <p className="text-sf-danger text-sm">{errorMessage}</p>
         </div>
       )}

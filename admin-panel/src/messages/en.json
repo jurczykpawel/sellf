@@ -1,5 +1,9 @@
 {
   "affiliateCocreator": {
+    "emailInvalid": "Enter a valid email address.",
+    "percentageInvalid": "Enter 0.01–100%, with at most two decimal places.",
+    "fixedInvalid": "Enter an amount greater than 0 and no greater than",
+    "precisionHint": "Use the decimal places allowed by the selected currency.",
     "title": "Co-creator share",
     "policy": "One person earns a share of every purchase of this product, with or without a coupon. The share is added to the partner commission, also when it is the same person. Only purchases made after saving earn it.",
     "email": "Co-creator's e-mail",
@@ -61,6 +65,12 @@
     "description": "This return address is not allowed. Return to the seller’s page and contact them if the problem persists."
   },
   "invoicing": {
+    "validation": {
+      "domain": "Enter your Fakturownia account domain, for example shop.fakturownia.pl.",
+      "token": "Enter an API token for this account. Leave blank only to keep the saved token for the same account.",
+      "template": "Use 1–300 characters and include the product placeholder shown below.",
+      "exemption": "Use at most 1000 characters."
+    },
     "manualCorrectionHelp": "The invoice was marked as issued outside Sellf. Issue a correction in your invoicing system, then record it here.",
     "title": "Invoicing",
     "column": "Invoice",
@@ -252,6 +262,7 @@
       "publishVersion": "Publish this version"
   },
   "checkout": {
+    "cartChanged": "Your cart has changed. Review it before paying again.",
     "invoiceSection": {
       "wantInvoice": "I want a company invoice",
       "taxIdLabel": "NIP or EU VAT number",
@@ -1304,6 +1315,8 @@
     }
   },
   "productView": {
+    "videoLoading": "Loading video…",
+    "videoUnavailable": "Video unavailable",
     "emailTooLong": "Email address must be at most 254 characters.",
     "loading": "Loading...",
     "checkingAccess": "Checking your access to this product...",
@@ -1435,6 +1448,7 @@
     }
   },
   "myProducts": {
+    "accessPaused": "The seller has paused access to this product. Your purchase remains saved.",
     "title": "My Products",
     "subtitle": "Your products and what's available in the store.",
     "loadingProducts": "Loading your products...",
@@ -2088,7 +2102,7 @@
           "cancel": "Cancel",
           "earlyCreateHint": "You can create your product now with just the essentials, or continue to configure content delivery, pricing promotions, and more.",
           "exitTitle": "Discard changes?",
-          "exitMessage": "You have unsaved product data. Close without creating?",
+          "exitMessage": "You have unsaved product data. Close without saving?",
           "exitDiscard": "Discard",
           "exitKeepEditing": "Keep Editing"
         },
@@ -2192,6 +2206,7 @@
             "bundle": "access to {count, plural, one {# product} other {# products}} in the bundle"
           },
           "payment": {
+            "invalid": "after you enter a valid price",
             "oneTime": "after a one-time payment",
             "subscription": "for as long as the subscription is paid",
             "customPrice": "after paying an amount of their choice",
@@ -2947,6 +2962,9 @@
       "deleteExpiredSuccess": "Successfully deleted {count} expired coupons",
       "deleteExpiredPartial": "Deleted {deleted} expired coupons, {failed} failed",
       "form": {
+        "limitInvalid": "Enter a whole number from 1 to {max}, or leave empty for no limit.",
+        "nameInvalid": "Name must be 200 characters or less.",
+        "emailInvalid": "Enter a valid email address.",
         "codeInvalid": "Use letters, numbers, hyphens or underscores, without spaces.",
         "percentageInvalid": "Enter a discount greater than 0 and no more than 100%.",
         "valueInvalid": "Enter a valid discount value.",
@@ -4460,6 +4478,8 @@
     "saleQuantityRemaining": "Only {count} left at this price!"
   },
   "myPurchases": {
+    "statusCancelled": "Cancelled — do not pay this order",
+    "statusAwaitingPayment": "Awaiting bank transfer",
     "title": "My Purchases",
     "subtitle": "View your purchase history and manage refunds",
     "loading": "Loading purchases...",

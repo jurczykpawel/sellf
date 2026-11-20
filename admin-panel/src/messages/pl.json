@@ -1,5 +1,9 @@
 {
   "affiliateCocreator": {
+    "emailInvalid": "Wpisz poprawny adres e-mail.",
+    "percentageInvalid": "Wpisz 0,01–100%, z najwyżej dwoma miejscami po przecinku.",
+    "fixedInvalid": "Wpisz kwotę większą od 0 i nie większą niż",
+    "precisionHint": "Użyj liczby miejsc po przecinku dozwolonej dla wybranej waluty.",
     "title": "Udział współtwórcy",
     "policy": "Jedna osoba dostaje udział w każdej sprzedaży tego produktu, z kuponem lub bez. Udział dolicza się do prowizji partnera, także gdy to ta sama osoba. Naliczamy go tylko od zakupów po zapisaniu.",
     "email": "E-mail współtwórcy",
@@ -61,6 +65,12 @@
     "description": "Adres powrotu nie jest dozwolony. Wróć na stronę sprzedawcy i skontaktuj się z nim, jeśli problem się powtarza."
   },
   "invoicing": {
+    "validation": {
+      "domain": "Podaj domenę konta Fakturowni, np. sklep.fakturownia.pl.",
+      "token": "Podaj token API tego konta. Puste pole zachowuje zapisany token tylko dla tego samego konta.",
+      "template": "Wpisz od 1 do 300 znaków i uwzględnij pokazany poniżej znacznik produktu.",
+      "exemption": "Wpisz maksymalnie 1000 znaków."
+    },
     "manualCorrectionHelp": "Faktura została oznaczona jako wystawiona poza Sellf. Wystaw korektę w swoim systemie fakturowym, a następnie odnotuj ją tutaj.",
     "title": "Faktury",
     "column": "Faktura",
@@ -252,6 +262,7 @@
       "publishVersion": "Opublikuj tę wersję"
   },
   "checkout": {
+    "cartChanged": "Koszyk się zmienił. Sprawdź go przed ponowną próbą płatności.",
     "invoiceSection": {
       "wantInvoice": "Chcę fakturę na firmę",
       "taxIdLabel": "NIP lub numer VAT UE",
@@ -1304,6 +1315,8 @@
     }
   },
   "productView": {
+    "videoLoading": "Ładowanie filmu…",
+    "videoUnavailable": "Film jest niedostępny",
     "emailTooLong": "Adres e-mail może mieć maksymalnie 254 znaki.",
     "loading": "Ładowanie...",
     "checkingAccess": "Sprawdzanie Twojego dostępu do tego produktu...",
@@ -1435,6 +1448,7 @@
     }
   },
   "myProducts": {
+    "accessPaused": "Sprzedawca wstrzymał dostęp do tego produktu. Twój zakup pozostaje zapisany.",
     "title": "Moje produkty",
     "subtitle": "Twoje produkty i oferta dostępna w sklepie.",
     "loadingProducts": "Ładowanie Twoich produktów...",
@@ -2088,7 +2102,7 @@
           "cancel": "Anuluj",
           "earlyCreateHint": "Możesz utworzyć produkt teraz z samymi podstawami lub kontynuować konfigurację dostawy treści, promocji cenowych i więcej.",
           "exitTitle": "Odrzucić zmiany?",
-          "exitMessage": "Masz niezapisane dane produktu. Zamknąć bez tworzenia?",
+          "exitMessage": "Masz niezapisane dane produktu. Zamknąć bez zapisywania?",
           "exitDiscard": "Odrzuć",
           "exitKeepEditing": "Kontynuuj edycję"
         },
@@ -2192,6 +2206,7 @@
             "bundle": "dostęp do {count, plural, one {# produktu} other {# produktów}} z pakietu"
           },
           "payment": {
+            "invalid": "po wpisaniu poprawnej ceny",
             "oneTime": "po jednorazowej płatności",
             "subscription": "na czas opłacania abonamentu",
             "customPrice": "po wpłacie wybranej przez siebie kwoty",
@@ -2947,6 +2962,9 @@
       "deleteExpiredSuccess": "Pomyślnie usunięto {count} wygasłych kuponów",
       "deleteExpiredPartial": "Usunięto {deleted} wygasłych kuponów, {failed} nie powiodło się",
       "form": {
+        "limitInvalid": "Wpisz liczbę całkowitą od 1 do {max} lub zostaw puste pole dla braku limitu.",
+        "nameInvalid": "Nazwa może mieć najwyżej 200 znaków.",
+        "emailInvalid": "Wpisz poprawny adres e-mail.",
         "codeInvalid": "Użyj liter, cyfr, myślnika lub podkreślenia, bez spacji.",
         "percentageInvalid": "Podaj rabat większy od 0 i nie większy niż 100%.",
         "valueInvalid": "Podaj poprawną wartość zniżki.",
@@ -4460,6 +4478,8 @@
     "saleQuantityRemaining": "Tylko {count} szt. w tej cenie!"
   },
   "myPurchases": {
+    "statusCancelled": "Anulowane — nie opłacaj tego zamówienia",
+    "statusAwaitingPayment": "Oczekuje na przelew",
     "title": "Moje Zakupy",
     "subtitle": "Przeglądaj historię zakupów i zarządzaj zwrotami",
     "loading": "Ładowanie zakupów...",

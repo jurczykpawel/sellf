@@ -482,5 +482,262 @@
   ],
   "f3641dca135fff0f48451be09629a4ef4b2d9f6d": [
     "none \u2014 Migration placement change was reverted by dfe7e61ab5582b98fe374c52771b3e0b5097819e; the transfer mail policy remains in the single 11.1 migration and is documented by 2be973a49b3b5833c38ba398984526f2dd4fc833."
+  ],
+  "9e510f59420984aff210482ed84f4c0f978c3022": [
+    "bank-transfers.md"
+  ],
+  "4d49fa80a9a79db674352e43a88f52e0b0c2ad98": [
+    "custom-checkout.md"
+  ],
+  "c78f73cbb6060da068e831e62f43862a9b5c763d": [
+    "custom-checkout.md"
+  ],
+  "cf3c7b89b949a88c3e23f95dc0c8a18759929ce9": [
+    "custom-checkout.md"
+  ],
+  "d812416f270d2310e26a007514a0beaa8842492b": [
+    "none \u2014 Internal row-lock compatibility; bundle membership and archive rules are unchanged."
+  ],
+  "8758d8a135776a04e2e7cad9cc0d687c4fed428a": [
+    "license-integration.md"
+  ],
+  "1dc5ab747901cfe1b46574e0f7114b24c4a33ce9": [
+    "invoicing.md"
+  ],
+  "7e527b5bdcd6c6dace3d59424841cfeb311489a7": [
+    "invoicing.md"
+  ],
+  "8d4ed40f5f39890b09677c741cecea8d054f5045": [
+    "invoicing.md"
+  ],
+  "c2f0c42c40d8d0cf09854c2dcc998e50e41ef899": [
+    "bank-transfers.md"
+  ],
+  "e408b6b0f2a182f883ed879ff07bb336f1a36c9a": [
+    "buyer-emails.md"
+  ],
+  "daa7942e0669a6748fb72ecd5331ad956ec3976c": [
+    "buyer-emails.md"
+  ],
+  "dc615003047929b6f0424bff037a3fec2da784f3": [
+    "bank-transfers.md"
+  ],
+  "52d991f16972c9c3c87ddd143f3df15371e4c82d": [
+    "bank-transfers.md"
+  ],
+  "d993388daac1be797c216bc9ab4726f7c3e7d216": [
+    "custom-checkout.md",
+    "webhooks.md"
+  ],
+  "88804533ae102e9540260ff7de50a109716024f0": [
+    "custom-checkout.md"
+  ],
+  "7276a5d2afb4f45ed0c935f888a1ee51e697b545": [
+    "buyer-emails.md"
+  ],
+  "c22bb01201910edb25b8838351d3c3bfdf302fcd": [
+    "buyer-emails.md"
+  ],
+  "5d118e2f9ca70b32176919e7e664bacc0e3997fb": [
+    "buyer-emails.md"
+  ],
+  "494c62016d4efbe19ecf8b08aea99d5d099256db": [
+    "buyer-emails.md"
+  ],
+  "6206f2093fcad1da7631f3dd9a84bc6c6c68a738": [
+    "buyer-emails.md"
+  ],
+  "35660233e3c858f60cee546ac99d16d67890c28d": [
+    "bank-transfers.md"
+  ],
+  "41882a5a3d66df7ed23de688179390cde198221c": [
+    "buyer-emails.md"
+  ],
+  "2ebaf90fe5482afdb7d77342c2494d2782d93909": [
+    "none \u2014 Internal tooltip reference composition; existing click, focus and pointer behavior remains unchanged."
+  ],
+  "676d3f0b8701829ef7a2749a74291561155eb97e": [
+    "guided-tutorials.md"
+  ],
+  "2363de52b31c5cb2d20e7d4b8a1fa578d5353bd6": [
+    "guided-tutorials.md"
+  ],
+  "4789f40f264b1b6444cfcc2b564b673be2c31952": [
+    "guided-tutorials.md"
+  ],
+  "aaaafa8c04607dc31d26f14b3cef4521d251e40e": [
+    "configuration.md"
+  ],
+  "8be39d349bb213d503dc626a50d469fb7ee0e96c": [
+    "configuration.md"
+  ],
+  "2a73eb57e012a81d5f6926189bc4c5d7e98ba253": [
+    "configuration.md"
+  ],
+  "311d1aa1cebed99c21035704835a3f6381fa715e": [
+    "configuration.md"
+  ],
+  "e7971e8ac57b140fdc8052d08722903da29f6b55": [
+    "configuration.md"
+  ],
+  "537eaba4e90457d0d120bbe9a29af31bc776123a": [
+    "guided-tutorials.md"
+  ],
+  "5d2a67091d89dc9a3f2dd294beaa25b8374c032c": [
+    "guided-tutorials.md"
+  ],
+  "a07449be5c8a3196291fa3c323580ce277172118": [
+    "guided-tutorials.md"
+  ],
+  "500755e300eea7b7bb32ce0afdf546ee20aeae79": [
+    "guided-tutorials.md"
+  ],
+  "11664fee0575b6517c5a8deced2748329e1f6127": [
+    "none \u2014 Internal row update ordering; sale quantities, pricing and public behavior are unchanged."
+  ],
+  "e4a62a60e98bd8bfbb184a50ef22a5aedef234c6": [
+    "configuration.md"
+  ],
+  "64634f51f51afbe57946d81ee614350dc329e132": [
+    "custom-checkout.md"
+  ],
+  "23eaa5530115748574dc4b8e47f9ce44fd965bd8": [
+    "none \u2014 Internal notification builder cleanup; committed event tiers and public payload fields are unchanged."
+  ],
+  "a7be48a64ff6c6ccde6692123ee91522959ce86e": [
+    "custom-checkout.md"
+  ],
+  "4e5df2e6161bc529f99cc3932d1d0839225056f1": [
+    "none \u2014 Test-only signing configuration isolation; application behavior is unchanged."
+  ],
+  "459ef6c802573a0874c5ea7e9ce7cc1d082dd049": [
+    "none \u2014 Test-only local database availability guard; application behavior is unchanged."
+  ],
+  "b77bae2b87895615466f61c0727c45a3641655f7": [
+    "custom-checkout.md"
+  ],
+  "82add10087003647bd6c5e2915f236088b1ae65b": [
+    "custom-checkout.md"
+  ],
+  "0b24d3ee412ca55bda4c945535e62199bb8912ed": [
+    "custom-checkout.md",
+    "configuration.md",
+    "bank-transfers.md"
+  ],
+  "6bb0168be389a23642f913ec56da94fae3df5603": [
+    "custom-checkout.md",
+    "configuration.md",
+    "bank-transfers.md",
+    "webhooks.md"
+  ],
+  "6bd5f69c8da9c6954c6eed8d7d8d74ca7de313ec": [
+    "custom-checkout.md",
+    "configuration.md",
+    "bank-transfers.md"
+  ],
+  "35db8bbca79a68430496a5b253ad4bdedc4d0eab": [
+    "custom-checkout.md",
+    "configuration.md",
+    "bank-transfers.md"
+  ],
+  "2588489ccef48cb727f38c2a5d9ce3b4fd688794": [
+    "custom-checkout.md",
+    "configuration.md",
+    "bank-transfers.md"
+  ],
+  "c101b000cf72d1283d0d7d05c449dd9b1ad2203d": [
+    "custom-checkout.md",
+    "configuration.md",
+    "bank-transfers.md"
+  ],
+  "454b255b5cfaa819962adb220929cb2b89e1e5fe": [
+    "custom-checkout.md",
+    "configuration.md",
+    "bank-transfers.md",
+    "webhooks.md"
+  ],
+  "7f02769555810e8bd9986add33a0786f7c7592d5": [
+    "custom-checkout.md",
+    "configuration.md",
+    "bank-transfers.md"
+  ],
+  "a6d502ac7f3739dec1d396f490f3d5e07c3a1c55": [
+    "custom-checkout.md",
+    "configuration.md",
+    "bank-transfers.md"
+  ],
+  "071bd1df543f9d4cd248bcd6277a89ae25a63daf": [
+    "custom-checkout.md",
+    "configuration.md",
+    "bank-transfers.md"
+  ],
+  "57f494e14148daba3c22630aaf26716809aa91c3": [
+    "custom-checkout.md"
+  ],
+  "5363868da931d0e52442aab39c044e665aeb5880": [
+    "bank-transfers.md"
+  ],
+  "5f2f8452f5565464068add36a6a73a6ca09bdf4c": [
+    "custom-checkout.md"
+  ],
+  "1419594c23f6ad9535ed16b6a67bb417383b881d": [
+    "none \u2014 Internal deterministic lock ordering; access entitlement semantics are unchanged."
+  ],
+  "bdb4ef69397c046f09242cda80a023afc57b0ac4": [
+    "bank-transfers.md",
+    "custom-checkout.md"
+  ],
+  "bace86afa5c95e5e29d2a42cebcfc05ce682a629": [
+    "none \u2014 Equality-join implementation of the same upgrade backfill; no customer-facing contract change."
+  ],
+  "e774ffc6299beb7c476f06c242e4bfd3fe14a2d1": [
+    "custom-checkout.md"
+  ],
+  "d31f2a63d4a9f78116e5a56cb65cfc96c2b4ea62": [
+    "custom-checkout.md"
+  ],
+  "0d9f64c1dbe57bd2821bf3d1cffed038014a88b1": [
+    "custom-checkout.md"
+  ],
+  "048db72538e3a97b2ab48a9a3e86ee412bb48ae2": [
+    "bank-transfers.md"
+  ],
+  "03e5924750bcd2acf474bf47f54bfaeb83a01ff6": [
+    "custom-checkout.md"
+  ],
+  "b29216f70206847f7e3303c77969580c3eda0253": [
+    "bank-transfers.md"
+  ],
+  "1484acfacdcf5ce8162e97ee76b9c106c22ff52f": [
+    "bank-transfers.md"
+  ],
+  "3facaac675224c17653ef4ed5828af1f29e4095f": [
+    "bank-transfers.md",
+    "custom-checkout.md"
+  ],
+  "13f2828d5154fdea5eb267dafd90e8fea199461b": [
+    "custom-checkout.md"
+  ],
+  "13bd4ad23aca2d6e54226b665c0d8313fdfafd5c": [
+    "custom-checkout.md"
+  ],
+  "2c38d15e162a258837f72735a6ea81a2ff0bf7e2": [
+    "custom-checkout.md"
+  ],
+  "a5446479bb7af1dc3ce727de616085a6874c7353": [
+    "bank-transfers.md",
+    "custom-checkout.md"
+  ],
+  "a31ca97b4773958726dc09d5762e0a2a0d1de716": [
+    "bank-transfers.md"
+  ],
+  "5f37f2318fffa3a4ed8df3131232a342acd4238f": [
+    "none \u2014 Internal bundle component lock ordering; entitlement periods and documented checkout behaviour are unchanged."
+  ],
+  "29beefd9c12a3583ec834d7c5924421ad0aebc7c": [
+    "bank-transfers.md"
+  ],
+  "4a87974810af80454a202a9067fa142c0cdda4f3": [
+    "none \u2014 Historical-upgrade test tooling only: pinned CLI selection and diagnostics; customer-facing behaviour is unchanged."
   ]
 }

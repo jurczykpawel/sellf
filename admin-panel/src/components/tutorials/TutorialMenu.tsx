@@ -74,7 +74,7 @@ export default function TutorialMenu() {
               <ul>
                 {elsewhere.map(id => (
                   <li key={id}>
-                    <Link href={link(id)} className={itemClass} data-testid={`tutorial-link-${id}`} onClick={() => setOpen(false)}>
+                    <Link href={link(id)} className={itemClass} data-testid={`tutorial-link-${id}`} onClick={() => { button.current?.focus(); setOpen(false); }}>
                       {t(`${id}.name`)}
                       {'needsOpenForm' in TUTORIALS[id] && <span className="mt-0.5 block text-xs text-sf-muted">{t(`${id}.where`)}</span>}
                     </Link>

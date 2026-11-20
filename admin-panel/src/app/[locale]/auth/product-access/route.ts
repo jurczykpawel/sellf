@@ -68,7 +68,7 @@ export async function GET(request: Request) {
     // the unified grant RPC, so this route only needs product + access state.
     const { data: product } = await supabase
       .from('products')
-      .select('id, is_active, content_delivery_type')
+      .select('id, is_active, archived_at, content_delivery_type')
       .eq('slug', slug)
       .single();
 
@@ -120,6 +120,11 @@ export async function GET(request: Request) {
         ? `${statusUrl.includes('?') ? '&' : '?'}success_url=${encodeURIComponent(propagatedSuccessUrl)}`
         : '';
       safeRedirect(`${statusUrl}${qs}`, returnUrl);
+      return;
+    }
+
+    if (!product.is_active && !product.archived_at) {
+      safeRedirect(`${prefix}/my-products`);
       return;
     }
 

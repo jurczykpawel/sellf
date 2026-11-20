@@ -17,7 +17,7 @@ const url = process.env.SUPABASE_URL!;
 const db = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 const run = crypto.randomUUID().slice(0, 8);
 const email = `l10n-${run}@example.com`;
-const ids = { visible: crypto.randomUUID(), future: crypto.randomUUID(), ended: crypto.randomUUID(), inactiveOwned: crypto.randomUUID(), archivedOwned: crypto.randomUUID() };
+const ids = { visible: crypto.randomUUID(), future: crypto.randomUUID(), ended: crypto.randomUUID(), inactiveOwned: crypto.randomUUID(), archivedOwned: crypto.randomUUID(), inactiveOther: crypto.randomUUID() };
 let userId = '';
 
 const localized = (name: string) => ({ localized: { pl: { name, description: `${name} opis`, image_alt: `${name} okładka` } } });
@@ -33,6 +33,7 @@ beforeAll(async () => {
     product(ids.future, 'Future', { is_active: true, available_from: '2099-01-01T00:00:00Z' }),
     product(ids.ended, 'Ended', { is_active: true, available_until: '2001-01-01T00:00:00Z' }),
     product(ids.inactiveOwned, 'Inactive', { is_active: false }),
+    product(ids.inactiveOther, 'Other-inactive', { is_active: false }),
     product(ids.archivedOwned, 'Archived', { is_active: false }),
   ]);
   if (insert.error) throw insert.error;
@@ -58,6 +59,7 @@ it('returns translations only for products the buyer may read (publication windo
   expect(result[ids.archivedOwned]?.name).toBe('Archived');
   expect(result[ids.future]).toBeUndefined();
   expect(result[ids.ended]).toBeUndefined();
-  expect(result[ids.inactiveOwned]).toBeUndefined();
-  expect(Object.keys(result).sort()).toEqual([ids.visible, ids.archivedOwned].sort());
+  expect(result[ids.inactiveOwned]?.name).toBe('Inactive');
+  expect(result[ids.inactiveOther]).toBeUndefined();
+  expect(Object.keys(result).sort()).toEqual([ids.visible, ids.archivedOwned, ids.inactiveOwned].sort());
 });

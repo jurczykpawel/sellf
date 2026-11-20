@@ -173,3 +173,13 @@ Deploying the app alone does not install the affiliate scheduler.
 ## Maintenance mode
 
 Before an update or shop maintenance, enable a break from the panel or a server file. See [sources, paused operations and ending the break](/maintenance/).
+
+## Coupon and co-creator form validation
+
+Coupon forms show errors beside the fields and scroll to and focus the first error on save. An empty usage limit means unlimited; a supplied limit must be a whole number from 1 to 10,000,000 globally or 1 to 10,000 per buyer. Zero stays visible and must be corrected or cleared. Names allow up to 200 characters; long names are shortened in the list, with the full name available on hover. Email restrictions accept valid addresses only; an invalid address is explained before adding it to the list. A saved invalid address is marked on its chip as well; remove it to clear the error and save.
+
+Co-creator fields validate email and share separately. Percentage shares must be 0.01–100% with at most two decimal places. Fixed shares must be positive, use the currency’s precision and stay within the maximum shown next to the invalid field. Invalid fields prevent saving; account-status errors appear only after the server responds.
+
+## Access after refunds
+
+Refunds remove only the refunded order's period. Administrator grants and manual extensions (including unlimited access) remain, also after repeated refund notifications. Independent purchases, free access and placement access from other unpaid transfers keep their own valid periods. Cancelling a placement-access transfer removes its period even after a later purchase; refunding a subscription invoice keeps separately purchased periods. See [access from several purchases](/custom-checkout/#access-from-several-purchases), including the conservative treatment of older orders during the 2026.11.1 upgrade.

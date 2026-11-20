@@ -1116,3 +1116,27 @@ describe.skipIf(!hasSupabase)('settled order verification', () => {
     expect((await verifyPaymentSession(cs, asUser('different-user', 'different@example.com'))).error).toBe('Session does not belong to current user');
   });
 });
+
+describe.skipIf(!hasSupabase)('paid offer withdrawn before the webhook @J185', () => {
+  it.each(['session', 'intent'] as const)('%s verification completes the saved order and its withdrawn bump', async path => {
+    const recordedSession = (await import('../../fixtures/stripe/checkout_completed_receiver.json')).default.data.object;
+    const recordedIntent = (await import('../../fixtures/stripe/dispute_payment_intent_won.json')).default;
+    const { stripeInstanceMetadata } = await import('@/lib/stripe/instance-marker');
+    const product = await createProduct(), bump = await createBump(product.id);
+    const cs = uniq('cs'), pi = uniq('pi'), email = `${uniq('withdrawn')}@example.com`;
+    createdEmails.push(email);
+    const buyer = await createAuthUser(email);
+    await seedPendingTx({ sessionId: cs, productId: product.id, email, pi, userId: buyer });
+    const metadata = { ...await stripeInstanceMetadata(), product_id: product.id, bump_product_ids: bump.id, user_id: buyer };
+    const session = { ...recordedSession, id: cs, status: 'complete', payment_status: 'paid', mode: 'payment', currency: 'usd', amount_total: 1000, amount_subtotal: 1000, payment_intent: pi, customer_details: { email }, customer_email: email, metadata };
+    const intent = { ...recordedIntent, id: pi, amount: 1000, currency: 'usd', status: 'succeeded', receipt_email: email, metadata };
+    h.stripe = makeStripeShim({ session, paymentIntent: intent, sessionsByPI: [session] });
+    expect((await db!.from('products').update({ is_active: false }).in('id', [product.id, bump.id])).error).toBeNull();
+    const result = path === 'session' ? await verifyPaymentSession(cs, asUser(buyer, email)) : await verifyPaymentIntent(pi, asUser(buyer, email));
+    expect(result.error).toBeUndefined();
+    expect(result.access_granted).toBe(true);
+    expect(await hasAccess(buyer, product.id)).toBe(true);
+    expect(await hasAccess(buyer, bump.id)).toBe(true);
+    expect(purchaseCalls()).toHaveLength(1);
+  });
+});

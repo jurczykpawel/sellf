@@ -23,7 +23,7 @@ import { revokeLicensesForOrder } from '@/lib/license-keys/revoke';
 import type { LicenseRevocationReason } from '@/lib/license-keys/revoke';
 import { backfillBuyerDetails } from '@/lib/payment/buyer-details';
 import { captureAndPersistInvoiceTax } from '@/lib/services/tax-snapshot';
-import { minimumChargeAmount, toMinorUnits } from '@/lib/currency/minor-units';
+import { fromMinorUnits, minimumChargeAmount, toMinorUnits } from '@/lib/currency/minor-units';
 import {
   getPaidInvoicePeriod,
   buildSubscriptionCreatedPayload,
@@ -421,6 +421,14 @@ async function upsertSubscriptionRow(
         product_id: ctx.productId,
         stripe_customer_id: ctx.stripeCustomerId,
         stripe_subscription_id: sub.id,
+        product_summary: {
+          id: ctx.product.id, name: ctx.product.name, slug: ctx.product.slug,
+          currency: ctx.product.currency,
+          recurring_price: itemPrice(sub)?.unit_amount != null
+            ? fromMinorUnits(itemPrice(sub)!.unit_amount!, ctx.product.currency) : ctx.product.recurring_price ?? null,
+          billing_interval: ctx.product.billing_interval ?? null,
+          billing_interval_count: ctx.product.billing_interval_count ?? null,
+        },
         // per-sub binding survives product-level price rollover.
         stripe_price_id: subPriceId,
         status: sub.status,

@@ -196,3 +196,13 @@ tworzenia sesji.
 ## Przerwa techniczna
 
 Przed aktualizacją lub pracami w sklepie możesz włączyć przerwę z panelu albo pliku serwera. Zobacz [źródła, zatrzymywane operacje i zakończenie przerwy](/pl/maintenance/).
+
+## Walidacja formularzy kuponu i współtwórcy
+
+Formularz kuponu pokazuje błędy przy polach, a po próbie zapisu przewija do pierwszego błędu i ustawia na nim fokus. Pusty limit użyć oznacza brak limitu; wpisany limit musi być liczbą całkowitą od 1 do 10 000 000 globalnie lub od 1 do 10 000 na kupującego. Zero pozostaje widoczne i wymaga poprawienia albo usunięcia. Nazwa kuponu może mieć do 200 znaków; długie nazwy na liście są skracane, a pełna nazwa jest dostępna po najechaniu. Ograniczenie adresów e-mail przyjmuje tylko poprawne adresy; błąd pojawia się przed dodaniem adresu do listy. Błędny adres zapisany wcześniej jest oznaczony również na swoim znaczniku; usuń go, aby wyczyścić błąd i zapisać formularz.
+
+Pola współtwórcy sprawdzają osobno e-mail i udział. Udział procentowy musi mieścić się w zakresie 0,01–100%, z najwyżej dwoma miejscami po przecinku. Udział kwotowy musi być dodatni, zachowywać dokładność wybranej waluty i nie przekraczać maksymalnej wartości podanej przy błędnym polu. Błędne pola blokują zapis; komunikaty o stanie konta pojawiają się wyłącznie po odpowiedzi serwera.
+
+## Dostęp po zwrotach
+
+Zwrot usuwa tylko okres zwróconego zamówienia. Nadania administratora i ręczne przedłużenia, także bezterminowe, zostają również po powtórzeniu powiadomienia o zwrocie. Niezależne zakupy, darmowy dostęp i wczesny dostęp z innych oczekujących przelewów zachowują własne ważne okresy. Anulowanie przelewu z dostępem od złożenia usuwa jego okres także po późniejszym zakupie; zwrot faktury subskrypcji zachowuje okresy kupione osobno. Zobacz [dostęp z kilku zakupów](/pl/custom-checkout/#dostęp-z-kilku-zakupów) oraz opis ostrożnego zachowania starych terminów podczas aktualizacji do 2026.11.1.

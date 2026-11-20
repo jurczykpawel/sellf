@@ -1271,13 +1271,33 @@ in the same transaction. Sellers see waiting orders in the payments page panel (
 
 Products can have:
 - `available_from`, `available_until`: Publication windows
-- `auto_grant_duration_days`: Automatic expiration for free products
+- `auto_grant_duration_days`: Default duration for granted access
 
 User access can have:
 - `access_expires_at`: Individual expiration
 - `access_duration_days`: Track access duration
 
 All enforced at database level in RLS policies and access check functions.
+
+`payment_transactions.access_terms` records each buyer/product grant's own start and end,
+independently of the combined `user_product_access` deadline. `record_order_access_term`
+captures successful grants, including add-on overrides and bundle components. Refunds use
+`revoke_order_product_access` to retain the latest valid remaining period; active subscriptions
+keep their subscription-managed open access. Order and dispute snapshots also retain the grant
+version and dates needed to reconcile a later dispute outcome after a refund while preserving
+subsequent manual changes. `user_product_access.independent_access` retains the deadline of
+manual and order-independent grants. New free extensions retain only their added duration, anchored at the free grant date, without inheriting a paid period. No-op placement transfers record no term and are not remaining access sources. On payment, settle_transfer_product_access grants missing buyer/product terms through the existing grant primitives; transfer_payment context preserves terms already granted on placement. Legacy manual/free rows, and unknown rows without a current subscription/transfer owner, conservatively retain the entire existing deadline as independent access. Legacy placement transfers whose original effect is no longer identifiable retain conservative backfilled terms. Unpaid legacy transfers contribute terms only when the access row belongs to that transfer or its last grant is at or after placement; older unlinked access is not a placement grant. The access trigger captures manual changes through
+`mutate_access` for panel/API operations, including unlimited access. Refund reconciliation uses
+those independent periods alongside remaining order periods; repeating a refund cannot shorten
+a later manual grant. Cancelling placement-access transfers and refunding subscription invoices
+use the same reconciliation instead of deleting a shared access row. Retained subscription access
+is detached from the refunded subscription. Dispute rows are locked before access rows.
+The 11.1 migration backfills missing legacy order terms from known access deadlines, including
+claimed guest purchases and bundle components. Access owned by another placement transfer or
+a subscription is excluded; the current product default cannot disprove historical purchase terms. Historical contributions to a combined deadline
+cannot be split, so a matching legacy order conservatively retains the whole known deadline.
+Orders without a matching row use the date/duration fallback in EN/PL `custom-checkout.md`.
+Grant wrappers preserve the requested unlimited independent grant in a scoped `sellf.independent_permanent` context; finite grants that add no days to permanent paid access create no extra period. New independent grants store their own grantedAt, so later paid grants cannot move the component-period start. Order terms also capture actually granted bundle-add-on components, and revocation includes saved buyer/product keys or transfer-owned rows. Reopening a cancelled transfer clears obsolete terms before its new paid grant.
 
 ### Login Wall (content gating snippet)
 
@@ -1677,7 +1697,7 @@ action `lib/actions/maintenance.ts`, API `GET/PATCH /api/v1/system/maintenance`,
 
 ### Stable Versions & Known Issues
 
-- **Supabase CLI**: 2.101.0 (run via `npx supabase`) — pin via `npx supabase@2.101.0` if needed
+- **Supabase CLI**: 2.109.1 (pinned in `admin-panel/scripts/schema-snapshot.ts`) — use `npx supabase@2.109.1`; set `SUPABASE_BIN` to the pinned binary for schema and historical-upgrade tests. The historical-upgrade test also accepts the release gate's `SUPABASE_CLI_BINARY_OVERRIDE`.
 
 ## Troubleshooting
 

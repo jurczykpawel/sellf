@@ -8,6 +8,7 @@ interface BaseModalProps {
   isOpen: boolean;
   labelledBy?: string;
   initialFocusSelector?: string;
+  returnFocusTo?: HTMLElement | null;
   onClose: () => void;
   children: React.ReactNode;
   className?: string;
@@ -21,6 +22,7 @@ const BaseModal: React.FC<BaseModalProps> = ({
   isOpen,
   labelledBy,
   initialFocusSelector,
+  returnFocusTo,
   onClose,
   children,
   className = '',
@@ -37,10 +39,10 @@ const BaseModal: React.FC<BaseModalProps> = ({
   // Capture before React commits descendants' autoFocus, including on a reopened modal.
   const [focusSession, setFocusSession] = useState(() => ({
     isOpen,
-    opener: typeof document === 'undefined' ? null : document.activeElement,
+    opener: returnFocusTo ?? (typeof document === 'undefined' ? null : document.activeElement),
   }));
   if (focusSession.isOpen !== isOpen) {
-    setFocusSession({ isOpen, opener: isOpen ? document.activeElement : null });
+    setFocusSession({ isOpen, opener: isOpen ? returnFocusTo ?? document.activeElement : null });
   }
   useLayoutEffect(() => { initialFocusRef.current = initialFocusSelector; }, [initialFocusSelector]);
   useLayoutEffect(() => {
@@ -116,7 +118,11 @@ const BaseModal: React.FC<BaseModalProps> = ({
     return () => {
       modal.removeEventListener('keydown', handleTabKey);
       // StrictMode replays effects while the dialog is still mounted.
-      if (!modal.isConnected && previousFocusRef.current instanceof HTMLElement) previousFocusRef.current.focus();
+      if (!modal.isConnected && previousFocusRef.current instanceof HTMLElement) {
+        const opener = previousFocusRef.current;
+        const target = opener.isConnected ? opener : opener.id ? document.getElementById(opener.id) : null;
+        target?.focus();
+      }
     };
   }, [isOpen]);
 

@@ -78,3 +78,18 @@ describe('W152 contract additions', () => {
 it('includes the customer identity in expiry update data', () => {
   expect(buildLicenseRevokeWebhookData({ ...row, user_id: 'buyer-id' }, 'https://sellf.example')).toMatchObject({ customer: { email: row.email, userId: 'buyer-id' } });
 });
+
+it.each([null, { name: 'Changed', slug: 'changed', license_tier: 'basic' }])('keeps the committed tier in lifecycle data with product %j', products => {
+  const license_key = `${Buffer.from(JSON.stringify({ v: 1, kid: 'key', product: 'product', email: 'buyer@example.com', order: 'order', tier: 'pro', iat: 1, exp: null })).toString('base64url')}.signature`;
+  const data = buildLicenseRevokeWebhookData({ ...row, products, tier: 'pro' }, 'https://sellf.example');
+  expect(data.license.tier).toBe('pro');
+  expect(JSON.stringify(data)).not.toContain(license_key);
+});
+it('keeps the event tier when the product has been removed', () => {
+  expect(buildLicenseRevokeWebhookData({ ...row, products: null, tier: 'pro' } as RevokedLicenseRow, 'https://sellf.example').license.tier).toBe('pro');
+});
+
+it('uses the committed tier even when input contains an extra token field', () => {
+  const input = { ...row, tier: 'pro', license_key: 'unused.signature' };
+  expect(buildLicenseRevokeWebhookData(input, 'https://sellf.example').license.tier).toBe('pro');
+});

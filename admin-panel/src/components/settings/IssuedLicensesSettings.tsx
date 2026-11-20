@@ -41,7 +41,8 @@ interface LicenseRow {
   license_domain: string | null;
   /** Purchase-time name, kept after the product is permanently deleted. */
   product_name: string | null;
-  products: { name: string; slug: string; license_tier: string | null } | null;
+  tier: string | null;
+  products: { name: string; slug: string } | null;
 }
 
 const DOMAIN_FIELD = '_sellf_license_domain';
@@ -224,7 +225,7 @@ export default function IssuedLicensesSettings({ enabled, initialEmail = '', ini
           {licenseId && <button type="button" className="mb-3 underline text-sf-accent" onClick={() => { setLicenseId(''); setPage(1); }}>{t('showAllLicenses')}</button>}
           <table className="w-full text-sm"><thead><tr className="border-b border-sf-border text-left text-sf-muted">{['product','email','domain','tier','source','issued','expires','status','actions'].map((key) => <th key={key} className="p-2">{t(key)}</th>)}</tr></thead>
             <tbody>{licenses.map((license) => <tr key={license.id} className="border-b border-sf-border align-top">
-              <td className="p-2 text-sf-heading">{license.products?.name ?? license.product_name ?? '—'}</td><td className="p-2">{license.email ?? '—'}</td><td className="p-2 font-mono text-xs">{license.license_domain ?? '—'}</td><td className="p-2">{license.products?.license_tier ?? '—'}</td><td className="p-2">{t(license.issuance_source)}</td><td className="p-2 whitespace-nowrap">{formatAdminDate(license.issued_at, locale, false)}</td><td className="p-2 whitespace-nowrap">{license.expires_at ? formatAdminDate(license.expires_at, locale, false) : t('unlimited')}</td><td className="p-2">{license.revoked_at ? t(license.revoked_by_dispute_id ? 'disputeRevokedStatus' : 'revokedStatus') : license.expires_at && new Date(license.expires_at) < new Date() ? t('expired') : t('active')}</td>
+              <td className="p-2 text-sf-heading">{license.products?.name ?? license.product_name ?? '—'}</td><td className="p-2">{license.email ?? '—'}</td><td className="p-2 font-mono text-xs">{license.license_domain ?? '—'}</td><td className="p-2">{license.tier ?? '—'}</td><td className="p-2">{t(license.issuance_source)}</td><td className="p-2 whitespace-nowrap">{formatAdminDate(license.issued_at, locale, false)}</td><td className="p-2 whitespace-nowrap">{license.expires_at ? formatAdminDate(license.expires_at, locale, false) : t('unlimited')}</td><td className="p-2">{license.revoked_at ? t(license.revoked_by_dispute_id ? 'disputeRevokedStatus' : 'revokedStatus') : license.expires_at && new Date(license.expires_at) < new Date() ? t('expired') : t('active')}</td>
               <td className="p-2"><div className="flex gap-2"><button type="button" title={t('reveal')} onClick={() => void reveal(license.id)}><Eye className="w-4 h-4" /></button><button type="button" title={t('copy')} onClick={() => void copy(license.id)}>{copied === license.id ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}</button>{(!license.revoked_at || license.revoked_by_dispute_id) && <button type="button" title={t(license.revoked_by_dispute_id ? 'keepRevoked' : 'revoke')} onClick={() => void revoke(license.id, Boolean(license.revoked_by_dispute_id))}><ShieldX className="w-4 h-4 text-sf-danger" /></button>}</div>{revealed[license.id] && <code className="block mt-2 max-w-56 truncate text-xs">{revealed[license.id]}</code>}</td>
             </tr>)}{!loading && licenses.length === 0 && <tr><td colSpan={9} className="p-6 text-center text-sf-muted">{t('empty')}</td></tr>}</tbody>
           </table>

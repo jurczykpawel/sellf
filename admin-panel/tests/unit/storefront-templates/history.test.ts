@@ -139,3 +139,22 @@ it.each([['en', 'Offer-led storefront'], ['pl', 'Sklep z główną ofertą']])('
   await waitFor(() => expect(document.body.textContent).toContain(name));
   expect(document.body.textContent).not.toContain('templatePreview.');
 });
+it('restores the exact history button after an asynchronous comparison is dismissed', async () => {
+  const rows = [4, 3, 2].map(revision => ({ revision, draft: null, published: DEFAULT_CONFIG, created_at: '2026-10-17T10:00:00Z' }));
+  let resolveDiff!: (result: unknown) => void;
+  mocks.action.mockImplementation(({ operation }: { operation: string }) => operation === 'read'
+    ? Promise.resolve({ success: true, data: { revision: 4, draft: null, published: DEFAULT_CONFIG } })
+    : operation === 'history' ? Promise.resolve({ success: true, data: rows })
+    : new Promise(resolve => { resolveDiff = resolve; }));
+  render(historyView());
+  const opener = (await screen.findAllByRole('button', { name: en.templatePreview.rollback }))[1];
+  opener.focus(); fireEvent.click(opener);
+  document.body.tabIndex = -1;
+  document.body.focus();
+  expect(document.activeElement).toBe(document.body);
+  await act(async () => resolveDiff({ success: true, data: { fromRevision: 4, toRevision: 2, changes: [] } }));
+  expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true);
+  fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(document.activeElement).toBe(opener);
+});

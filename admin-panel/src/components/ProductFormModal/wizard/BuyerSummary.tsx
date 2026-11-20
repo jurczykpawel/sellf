@@ -10,18 +10,19 @@ import type { ProductFormData, TranslationFunction } from '../types';
 interface BuyerSummaryProps {
   formData: ProductFormData;
   t: TranslationFunction;
+  priceDisplayValue?: string;
 }
 
 /**
  * "Buyer gets" line under every section of the product form.
  * On a phone it starts as one line with a "show more" toggle; on wider screens it is always shown in full.
  */
-export function BuyerSummary({ formData, t }: BuyerSummaryProps) {
+export function BuyerSummary({ formData, t, priceDisplayValue }: BuyerSummaryProps) {
   const locale = useLocale();
   const id = useId();
   const [expanded, setExpanded] = useState(false);
   const transfer = useShopTransfer(summaryNeedsTransfer(formData));
-  const { access, extras, noDatesOrParticipants } = buyerSummaryParts(formData, transfer);
+  const { access, extras, noDatesOrParticipants } = buyerSummaryParts(formData, transfer, priceDisplayValue, locale);
   const what = t(`summary.what.${access.what.key}`, access.what.values);
   const accessText = t('summary.access', {
     what: access.days ? t('summary.forDays', { what, days: access.days }) : what,

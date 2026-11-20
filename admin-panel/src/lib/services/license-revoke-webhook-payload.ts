@@ -19,6 +19,7 @@ export interface RevokedLicenseRow {
   issued_at: string | null;
   expires_at: string | null;
   revoked_at: string | null;
+  tier?: string | null;
   products: { name: string | null; slug: string | null; license_tier: string | null } | null;
   /** Sellf order behind `order_id` (absent on rows recorded before licenses stored their order). */
   sellf_order_id?: string | null;
@@ -62,7 +63,7 @@ export function buildLicenseRevokeWebhookData(
       id: row.id,
       order: row.order_id,
       email: row.email,
-      tier: row.products?.license_tier ?? null,
+      tier: row.tier !== undefined ? row.tier : row.products?.license_tier ?? null,
       domain: row.license_domain,
       issuanceSource: row.issuance_source,
       issuedAt: row.issued_at,

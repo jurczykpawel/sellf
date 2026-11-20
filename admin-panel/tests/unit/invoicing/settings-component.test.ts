@@ -2,9 +2,9 @@
 import { StrictMode, createElement } from 'react';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-const mock = vi.hoisted(() => ({ get: vi.fn(), translate: (key: string) => key }));
+const mock = vi.hoisted(() => ({ get: vi.fn(), save: vi.fn(), translate: (key: string) => key }));
 vi.mock('next-intl', () => ({ useTranslations: () => mock.translate }));
-vi.mock('@/lib/actions/invoicing', () => ({ getInvoiceSettings: mock.get, checkInvoiceConnection: vi.fn(), saveInvoiceSettings: vi.fn() }));
+vi.mock('@/lib/actions/invoicing', () => ({ getInvoiceSettings: mock.get, checkInvoiceConnection: vi.fn(), saveInvoiceSettings: mock.save }));
 import InvoicingSettings from '@/components/settings/InvoicingSettings';
 
 afterEach(cleanup);
@@ -38,4 +38,16 @@ it('hides the Fakturownia fields and the connection check while the provider is 
   expect((screen.getByLabelText('domain') as HTMLInputElement).value).toBe('kept.fakturownia.pl');
   expect(screen.getByRole('button', { name: 'check' })).toBeTruthy();
   expect(screen.queryByText('disabledHelp')).toBeNull();
+});
+
+it.each(['domain', 'token', 'template'])('shows the %s validation error and focuses the field', async field => {
+  mock.get.mockResolvedValue({ success: true, data: { provider: 'fakturownia', domain: '', mode: 'manual', exemption: '', template: '{product}' } });
+  mock.save.mockResolvedValue({ success: false, fieldErrors: { [field]: field === 'token' ? 'tokenRequired' : 'invalidField' } });
+  render(createElement(InvoicingSettings));
+  await act(async () => {});
+  await act(async () => fireEvent.click(screen.getByRole('button', { name: 'save' })));
+  const input = screen.getByLabelText(field);
+  expect(input.getAttribute('aria-invalid')).toBe('true');
+  expect(document.activeElement).toBe(input);
+  expect(document.getElementById(input.getAttribute('aria-describedby')!)).toBeTruthy();
 });

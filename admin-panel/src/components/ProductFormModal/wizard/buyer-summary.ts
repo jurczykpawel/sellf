@@ -3,6 +3,7 @@
  * Message keys live under `admin.products.form.summary`.
  * @see ./BuyerSummary.tsx
  */
+import { parseMoneyInput } from '@/lib/currency/parse-money-input';
 import { canUseBankTransfer, productAllowsTransfer } from '@/lib/orders/bank-transfer-config';
 import type { TransferAvailability } from '@/lib/orders/transfer-public';
 import type { ProductFormData } from '../types';
@@ -28,7 +29,7 @@ export interface BuyerSummaryParts {
 
 type SummaryInput = Pick<ProductFormData,
   'is_bundle' | 'bundleItemIds' | 'content_delivery_type' | 'content_config' | 'auto_grant_duration_days' | 'product_type'
-  | 'allow_custom_price' | 'price' | 'issue_license_on_purchase' | 'event_mode' | 'checkout_profile'>;
+  | 'currency' | 'allow_custom_price' | 'price' | 'issue_license_on_purchase' | 'event_mode' | 'checkout_profile'>;
 
 /** True when the product's own settings ask for a transfer; checkout then also needs the shop switch (`SummaryTransfer`). */
 export function summaryNeedsTransfer(formData: SummaryInput): boolean {
@@ -59,7 +60,7 @@ function payment(formData: SummaryInput): string {
   return formData.price > 0 ? 'oneTime' : 'free';
 }
 
-export function buyerSummaryParts(formData: SummaryInput, transfer: SummaryTransfer): BuyerSummaryParts {
+export function buyerSummaryParts(formData: SummaryInput, transfer: SummaryTransfer, priceDisplayValue?: string, locale = 'en'): BuyerSummaryParts {
   const modules = formData.checkout_profile?.modules ?? [];
   const extras: SummaryPart[] = [];
   if (formData.issue_license_on_purchase) extras.push({ key: 'license' });
@@ -76,7 +77,7 @@ export function buyerSummaryParts(formData: SummaryInput, transfer: SummaryTrans
   // A subscription grants access for as long as it is paid; the one-off access length does not apply (catalogue.ts).
   const days = formData.product_type !== 'subscription' && formData.auto_grant_duration_days && formData.auto_grant_duration_days > 0 ? formData.auto_grant_duration_days : null;
   return {
-    access: { what: accessWhat(formData), days, payment: payment(formData) },
+    access: { what: accessWhat(formData), days, payment: formData.product_type !== 'subscription' && priceDisplayValue !== undefined && parseMoneyInput(priceDisplayValue, formData.currency, locale).error ? 'invalid' : payment(formData) },
     extras,
     noDatesOrParticipants: !formData.event_mode && !participants,
   };

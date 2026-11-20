@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, cloneElement, isValidElement } from 'react';
-import type { ReactNode, ReactElement } from 'react';
+import type { ReactNode, ReactElement, Ref } from 'react';
 import {
   useFloating,
+  useMergeRefs,
   useHover,
   useFocus,
   useClick,
@@ -99,6 +100,9 @@ export function Tooltip({
     role,
   ]);
 
+  const { ref: childRef, ...childProps } = children.props as Record<string, unknown> & { ref?: Ref<HTMLElement> };
+  const referenceRef = useMergeRefs([setReference, childRef]);
+
   if (!content) return children;
 
   const effectiveMaxWidth = maxWidth !== undefined ? maxWidth : (className ? undefined : 240);
@@ -107,8 +111,8 @@ export function Tooltip({
     <>
       {isValidElement(children) &&
         cloneElement(children, {
-          ref: setReference,
-          ...getReferenceProps(children.props as Record<string, unknown>),
+          ...getReferenceProps(childProps),
+          ref: referenceRef,
         } as Record<string, unknown>)}
       {isOpen && (
         <FloatingPortal>

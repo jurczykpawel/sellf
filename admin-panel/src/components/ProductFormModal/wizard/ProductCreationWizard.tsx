@@ -72,6 +72,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
 
   const {
     formData,
+    isDirty,
     setFormData,
     priceDisplayValue,
     setPriceDisplayValue,
@@ -109,22 +110,11 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
     hasWaitlistWebhook,
   } = useProductForm({ product, isOpen, onSubmit, defaultIsBundle });
 
-  // Check if form has been touched (for exit confirmation)
-  const isFormDirty = useCallback(() => {
-    if (isEditMode) {
-      // In edit mode, form is always considered dirty (pre-filled)
-      return true;
-    }
-    return formData.name !== '' || formData.price > 0 || formData.description !== '';
-  }, [formData.name, formData.price, formData.description, isEditMode]);
-
   const handleClose = useCallback(() => {
-    if (isFormDirty()) {
-      setShowExitConfirm(true);
-    } else {
-      onClose();
-    }
-  }, [isFormDirty, onClose]);
+    const unsaved = isEditMode ? isDirty : formData.name !== '' || formData.price > 0 || formData.description !== '';
+    if (unsaved) setShowExitConfirm(true);
+    else onClose();
+  }, [isDirty, isEditMode, formData.name, formData.price, formData.description, onClose]);
 
   const handleContinue = useCallback(() => {
     // The "Dalej" button is disabled while shopConfigLoaded is false
@@ -317,7 +307,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
           </form>
         </ModalBody>
 
-        <BuyerSummary formData={formData} t={t} />
+        <BuyerSummary priceDisplayValue={priceDisplayValue} formData={formData} t={t} />
 
         <WizardFooter
           isFirstSection={sectionIndex === 0}

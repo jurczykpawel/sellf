@@ -24,6 +24,7 @@ export default function TemplateHistory({ productId }: { productId?: string }) {
   const [current, setCurrent] = useState<TemplateReadResult | OfferReadResult | null>(null);
   const [history, setHistory] = useState<(StorefrontHistorySnapshot | OfferHistorySnapshot)[]>([]);
   const [visibleCount, setVisibleCount] = useState(3);
+  const [restoreOpener, setRestoreOpener] = useState<HTMLButtonElement | null>(null);
   const comparisonRef = useRef<HTMLElement>(null);
   const [diff, setDiff] = useState<TemplateDiffResult | null>(null);
   const [pending, setPending] = useState<{ revision: number; expectedRevision: number; operation: 'publish' | 'rollback' } | null>(null);
@@ -116,7 +117,7 @@ export default function TemplateHistory({ productId }: { productId?: string }) {
             <div className={styles.meta}><time dateTime={row.created_at}>{formatAdminDate(row.created_at, locale)}</time><span>· #{row.revision}</span></div>
           </div>
           <div className={styles.actions}>{row.revision !== current.revision && <button type="button" disabled={busy} className={styles.textButton} onClick={() => void act('diff', row.revision)}>{t('compare')}</button>}
-          {row.revision !== publishedRevision && <button type="button" disabled={busy} className={styles.secondary} onClick={() => void act(row.draft ? 'publish' : 'rollback', row.revision)}>{t(row.draft ? 'publishVersion' : 'rollback')}</button>}</div>
+          {row.revision !== publishedRevision && <button type="button" disabled={busy} className={styles.secondary} onClick={event => { setRestoreOpener(event.currentTarget); void act(row.draft ? 'publish' : 'rollback', row.revision); }}>{t(row.draft ? 'publishVersion' : 'rollback')}</button>}</div>
         </li>)}</ol>
         {(visibleCount < history.length || history.length > 0 && history.length % 20 === 0) && <button type="button" disabled={busy} className={styles.textButton} onClick={() => { setVisibleCount(count => count + 3); if (visibleCount + 3 > history.length && history.length % 20 === 0) void reload(history.at(-1)!.revision); }}>{t('more')}</button>}
       </section>
@@ -128,7 +129,7 @@ export default function TemplateHistory({ productId }: { productId?: string }) {
           {change.path === '/templateId' && <p>{productId ? offerT('standard') : templateName(change.before)} → {productId ? offerT('standard') : templateName(change.after)}</p>}
           {change.path.startsWith('/content/') && typeof change.after === 'string' && <p>{change.after}</p>}
         </div>)}
-        {pending && <BaseModal isOpen onClose={() => { if (!busy) { setPending(null); setDiff(null); } }}><div role="region" className={styles.dialog} aria-label={t(pending.operation === 'rollback' ? 'rollbackTitle' : 'confirmTitle')}>
+        {pending && <BaseModal isOpen returnFocusTo={restoreOpener} onClose={() => { if (!busy) { setPending(null); setDiff(null); } }}><div role="region" className={styles.dialog} aria-label={t(pending.operation === 'rollback' ? 'rollbackTitle' : 'confirmTitle')}>
           <h3 className={styles.heading}>{t(pending.operation === 'rollback' ? 'rollbackTitle' : 'confirmTitle')}</h3><p className={styles.help}>{t(pending.operation === 'rollback' ? 'rollbackHelp' : 'confirmHelp')}</p>
           <div className={styles.actions}>
             <button type="button" className={styles.primary} disabled={busy} onClick={() => void act(pending.operation, pending.revision, true)}>{t(pending.operation === 'rollback' ? 'rollbackConfirm' : 'confirmPublish')}</button>

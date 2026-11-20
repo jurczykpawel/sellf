@@ -73,3 +73,13 @@ it.each([false, true])('restores the opener even with autoFocus content (initial
   expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Automatic focus' }));
   view.unmount(); expect(document.activeElement).toBe(secondTrigger); trigger.remove(); secondTrigger.remove();
 });
+
+it('returns to a remounted opener with the same stable id', () => {
+  const first = document.createElement('button'); first.id = 'row-edit'; document.body.append(first); first.focus();
+  const view = render(createElement(BaseModal, { isOpen: true, onClose: vi.fn() }, 'Details'));
+  first.remove();
+  const replacement = document.createElement('button'); replacement.id = 'row-edit'; document.body.append(replacement);
+  view.unmount();
+  expect(document.activeElement).toBe(replacement);
+  replacement.remove();
+});

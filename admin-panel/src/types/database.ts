@@ -2707,6 +2707,7 @@ export type Database = {
       payment_transactions: {
         Row: {
           abandoned_at: string | null
+          access_terms: Json
           amount: number
           bundle_components_recorded_at: string | null
           cancel_note: string | null
@@ -2770,6 +2771,7 @@ export type Database = {
         }
         Insert: {
           abandoned_at?: string | null
+          access_terms?: Json
           amount: number
           bundle_components_recorded_at?: string | null
           cancel_note?: string | null
@@ -2833,6 +2835,7 @@ export type Database = {
         }
         Update: {
           abandoned_at?: string | null
+          access_terms?: Json
           amount?: number
           bundle_components_recorded_at?: string | null
           cancel_note?: string | null
@@ -4443,6 +4446,7 @@ export type Database = {
           paid_access_invoice_id: string | null
           product_id: string | null
           product_name: string | null
+          product_summary: Json | null
           renewal_notice_at: string | null
           renewal_notice_payload: Json | null
           status: string
@@ -4466,6 +4470,7 @@ export type Database = {
           paid_access_invoice_id?: string | null
           product_id?: string | null
           product_name?: string | null
+          product_summary?: Json | null
           renewal_notice_at?: string | null
           renewal_notice_payload?: Json | null
           status: string
@@ -4489,6 +4494,7 @@ export type Database = {
           paid_access_invoice_id?: string | null
           product_id?: string | null
           product_name?: string | null
+          product_summary?: Json | null
           renewal_notice_at?: string | null
           renewal_notice_payload?: Json | null
           status?: string
@@ -4707,6 +4713,7 @@ export type Database = {
           expiry_notified_at: string | null
           grant_source: string
           id: string
+          independent_access: Json | null
           license_requested: boolean
           product_id: string
           subscription_id: string | null
@@ -4723,6 +4730,7 @@ export type Database = {
           expiry_notified_at?: string | null
           grant_source: string
           id?: string
+          independent_access?: Json | null
           license_requested?: boolean
           product_id: string
           subscription_id?: string | null
@@ -4739,6 +4747,7 @@ export type Database = {
           expiry_notified_at?: string | null
           grant_source?: string
           id?: string
+          independent_access?: Json | null
           license_requested?: boolean
           product_id?: string
           subscription_id?: string | null
@@ -6650,6 +6659,7 @@ export type Database = {
           expiry_notified_at: string | null
           grant_source: string
           id: string
+          independent_access: Json | null
           license_requested: boolean
           product_id: string
           subscription_id: string | null
@@ -6683,6 +6693,7 @@ export type Database = {
           expiry_notified_at: string | null
           grant_source: string
           id: string
+          independent_access: Json | null
           license_requested: boolean
           product_id: string
           subscription_id: string | null
@@ -6715,6 +6726,7 @@ export type Database = {
           expiry_notified_at: string | null
           grant_source: string
           id: string
+          independent_access: Json | null
           license_requested: boolean
           product_id: string
           subscription_id: string | null
@@ -6950,6 +6962,14 @@ export type Database = {
         }
         Returns: Json
       }
+      order_access_expiry: {
+        Args: {
+          p_product_id: string
+          p_transaction_id: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       order_awaits_participants: {
         Args: { p_order_details: Json; p_profile: Json; p_status: string }
         Returns: boolean
@@ -7044,6 +7064,10 @@ export type Database = {
         Args: { p_email: string; p_product_slug: string }
         Returns: boolean
       }
+      reconcile_refunded_subscription_access: {
+        Args: { p_transaction_id: string }
+        Returns: undefined
+      }
       record_business_event: {
         Args: {
           p_event: string
@@ -7064,6 +7088,10 @@ export type Database = {
       record_invoice_correction: {
         Args: { p_actor: string; p_transaction: string }
         Returns: boolean
+      }
+      record_order_access_term: {
+        Args: { p_duration: number; p_product_id: string; p_user_id: string }
+        Returns: undefined
       }
       record_order_payment_refund: {
         Args: { p_attempt: string; p_refund_id: string }
@@ -7132,6 +7160,14 @@ export type Database = {
           id: string
         }[]
       }
+      revoke_order_product_access: {
+        Args: {
+          p_product_id: string
+          p_transaction_id: string
+          p_user_id: string
+        }
+        Returns: boolean
+      }
       rotate_webhook_secret: {
         Args: {
           p_actor_id: string
@@ -7176,6 +7212,7 @@ export type Database = {
           expiry_notified_at: string | null
           grant_source: string
           id: string
+          independent_access: Json | null
           license_requested: boolean
           product_id: string
           subscription_id: string | null
@@ -7219,6 +7256,7 @@ export type Database = {
         Args: { p_include_identifiers?: boolean; p_search: string }
         Returns: {
           abandoned_at: string | null
+          access_terms: Json
           amount: number
           bundle_components_recorded_at: string | null
           cancel_note: string | null
@@ -7351,6 +7389,10 @@ export type Database = {
       }
       set_webhook_endpoint_scoping: {
         Args: { p_endpoint_id: string; p_mode: string; p_product_ids: string[] }
+        Returns: undefined
+      }
+      settle_transfer_product_access: {
+        Args: { p_transaction_id: string }
         Returns: undefined
       }
       snapshot_order_bundle_components: {

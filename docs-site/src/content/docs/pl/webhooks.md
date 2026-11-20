@@ -7,7 +7,7 @@ Sellf wysyła zdarzenia do skonfigurowanych endpointów HTTPS. Każda dostawa je
 zapisywana przed wysłaniem żądania HTTP. Nieudane próby trafiają do kolejki ponowień.
 
 
-Pełny zwrot płatności za subskrypcję kończy ją od razu i odbiera dostęp. Kolejny płatny okres wymaga nowego zakupu. Wygrany spór przywraca pierwotne uprawnienie, także gdy gość potwierdził adres email w trakcie sporu.
+Pełny zwrot płatności za subskrypcję kończy ją od razu. Inne aktywne subskrypcje, osobne zakupy jednorazowe oraz niezależne darmowe nadania i nadania administratora tego samego produktu zachowują swój dostęp. Nowy płatny okres zakończonej subskrypcji wymaga nowego zakupu. Wygrany spór przywraca pierwotne uprawnienie, także gdy gość potwierdził adres email w trakcie sporu.
 
 ## Rotacja sekretu podpisującego
 
@@ -164,7 +164,7 @@ Gdy subskrypcja kończy się **bez zwrotu**, istniejący dostęp i licencje jej 
 z końcem opłaconego okresu, emitując `access.expired` i `license.expired`. Zmiana terminu
 licencji emituje `license.updated`. Wydane tokeny zachowują podpis: odbiorca musi odświeżać
 CRL, która uwzględnia zamówienia po upływie terminu z rejestru. Pełny lub częściowy zwrot
-po anulowaniu odbiera dostęp i odwołuje licencje od razu, również gdy zwrot przychodzi później.
+po anulowaniu kończy dostęp z tej subskrypcji i odwołuje licencje jej faktur od razu, również gdy zwrot przychodzi później. Dostęp kupiony osobno i nadania administratora zostają.
 Saldo kredytowe lub oczekujące rozliczenie proporcjonalne samo nie potwierdza zwrotu pieniędzy;
 rejestr zwrotów aktualizują webhooki Stripe. Spór nadal zawiesza dostęp od razu.
 Subskrypcje zakończone **bez zapłaty** (`unpaid` albo `incomplete_expired`) zachowują
@@ -468,7 +468,7 @@ Pola główne `accessGrantedAt/accessExpiresAt` zawierają te same zapisane daty
 `access.granted` i `access.updated` podają też `accessEndsAt`: zapisany koniec dostępu, a dla
 subskrypcji koniec bieżącego opłaconego okresu (null przy dostępie bezterminowym). Subskrypcja wysyła
 `access.updated` (`reason: "subscription_renewed"`) **raz na odnowiony okres**; powtórzone zdarzenia
-Stripe dla tego samego okresu nie dają kolejnych aktualizacji.
+Stripe dla tego samego okresu nie dają kolejnych aktualizacji. Gdy zwrot lub anulowanie przelewu zmienia zachowany dostęp, jedno `access.updated` zawiera końcowy termin i pozostałe powiązanie z subskrypcją lub przelewem; nie ma pośredniego zdarzenia samego odpięcia.
 `access.revoked` i `access.expired` podają `revocationReason`: `refund`, `dispute`, `manual`,
 `subscription_cancelled` albo `expired` (subskrypcja zakończona bez zapłaty lub naturalny koniec).
 `reason` zachowuje dotychczasowe znaczenie (skąd był dostęp: `purchase`, `subscription`…).

@@ -82,7 +82,7 @@ it('claim retains another completed order for the same product @J185', async () 
   }
 });
 
-it.each(['unchanged', 'metadata', 'admin', 'replacement'] as const)('full online refund releases placement access after %s changes @J185', (kind) => {
+it.each((['unchanged', 'metadata', 'admin', 'replacement'] as const).flatMap(kind => [30, null].map(duration => ({ kind, duration }))))('full online refund reconciles placement access after $kind changes (duration=$duration) @J185', ({ kind, duration }) => {
   const sql = `BEGIN;
     SET LOCAL request.jwt.claims='{"role":"service_role"}';
     DO $test$ DECLARE buyer uuid:=gen_random_uuid(); participant uuid:=gen_random_uuid();
@@ -91,7 +91,7 @@ it.each(['unchanged', 'metadata', 'admin', 'replacement'] as const)('full online
         (buyer,'placement-buyer@example.com',now()),(participant,'placement-participant@example.com',now());
       INSERT INTO public.products(name,slug,price,currency,checkout_profile) VALUES('Placement','placement-refund',100,'PLN',
         '{"v":1,"modules":[{"id":"buyer","types":["organization"],"gus":false,"bank_transfer_for":["organization"]}]}') RETURNING id INTO p;
-      INSERT INTO public.products(name,slug,price,currency) VALUES('Recording','placement-recording',20,'PLN') RETURNING id INTO recording;
+      INSERT INTO public.products(name,slug,price,currency,auto_grant_duration_days) VALUES('Recording','placement-recording',20,'PLN',${duration ?? 'NULL'}) RETURNING id INTO recording;
       INSERT INTO public.order_bumps(main_product_id,bump_product_id,bump_title) VALUES(p,recording,'Recording') RETURNING id INTO bump;
       UPDATE public.bank_transfer_config SET bank_transfer_enabled=true,bank_transfer_grant_access_on_placement=true;
       tx:=public.bank_transfer_order(jsonb_build_object('product_id',p,'currency','PLN','customer_email','placement-buyer@example.com','order_details',
@@ -107,7 +107,8 @@ it.each(['unchanged', 'metadata', 'admin', 'replacement'] as const)('full online
       ${kind === 'admin' ? `PERFORM public.mutate_access('update',participant,NULL,(SELECT id FROM public.user_product_access WHERE user_id=participant AND product_id=recording),jsonb_build_object('access_expires_at',now()+interval '30 days'),jsonb_build_object('type','user','id',buyer));` : ''}
       ${kind === 'replacement' ? `PERFORM public.grant_product_access_service_role(participant,recording);` : ''}
       UPDATE public.payment_transactions SET status='refunded',refunded_amount=amount WHERE id=txid;
-      ASSERT NOT EXISTS(SELECT 1 FROM public.user_product_access WHERE user_id IN(${kind === 'replacement' ? 'buyer' : 'buyer,participant'}) AND product_id IN(p,recording)), 'Placement access remains after refund';
+      ASSERT NOT EXISTS(SELECT 1 FROM public.user_product_access WHERE user_id IN(${kind === 'replacement' || kind === 'admin' ? 'buyer' : 'buyer,participant'}) AND product_id IN(p,recording)), 'Placement access remains after refund';
+      ${kind === 'admin' ? `ASSERT EXISTS(SELECT 1 FROM public.user_product_access WHERE user_id=participant AND product_id=recording AND access_expires_at=now()+interval '30 days' AND grant_source='manual'), 'Manual access must remain';` : ''}
       ${kind === 'replacement' ? `ASSERT EXISTS(SELECT 1 FROM public.user_product_access WHERE user_id=participant AND product_id=recording AND transfer_transaction_id IS NULL), 'Replacement access must remain';` : ''}
       ASSERT NOT EXISTS(SELECT 1 FROM public.guest_purchases WHERE transaction_id=txid), 'Placement guest claims remain after refund';
     END $test$;
