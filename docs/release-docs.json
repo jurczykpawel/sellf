@@ -723,5 +723,15 @@
   ],
   "2c38d15e162a258837f72735a6ea81a2ff0bf7e2": [
     "custom-checkout.md"
+  ],
+  "a5446479bb7af1dc3ce727de616085a6874c7353": [
+    "bank-transfers.md",
+    "custom-checkout.md"
+  ],
+  "a31ca97b4773958726dc09d5762e0a2a0d1de716": [
+    "bank-transfers.md"
+  ],
+  "5f37f2318fffa3a4ed8df3131232a342acd4238f": [
+    "none \u2014 Internal bundle component lock ordering; entitlement periods and documented checkout behaviour are unchanged."
   ]
 }
