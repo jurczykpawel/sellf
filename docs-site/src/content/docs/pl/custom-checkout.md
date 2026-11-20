@@ -74,19 +74,25 @@ Zmiana koszyka aktualizuje pozycje w tej samej otwartej sesji Stripe Checkout na
 
 Zastosowanie lub usunięcie kodu rabatowego również zachowuje tę samą sesję spełniającą warunki aktualizacji oraz wpisane dane karty. Sellf uwzględnia rabat w cenach pozycji, zamiast zmieniać rabaty Stripe. Podczas sprawdzania kodu i aktualizacji koszyka płatność jest zablokowana. Po kliknięciu przycisku płatności kontrolki koszyka pozostają zablokowane do zakończenia potwierdzania; tuż przed potwierdzeniem formularz ponownie sprawdza koszyk. Aktualizacja ma wspólny limit 15 sekund na żądania, krótszy niż 20-sekundowy limit `runServerUpdate` Stripe. Formularz pozostaje na stronie i odświeża się przez `runServerUpdate` Stripe. Ponowne użycie sesji dotyczy płatności jednorazowych poza wydarzeniami, z co najmniej dwiema minutami do wygaśnięcia; pozostałe koszyki mogą wymagać nowej sesji.
 
+Zmiany koszyka wykonane podczas ładowania pól karty czekają na gotowość formularza płatności. Płatność staje się dostępna po odświeżeniu kwoty, z zachowaniem wpisanych danych karty.
+
 ## Wznowienie koszyka i walidacja
 
 Serwer zwraca pozostały czas sesji w sekundach. Strona odlicza go od odebrania odpowiedzi, niezależnie od zegara urządzenia kupującego; odpowiedź API `409 checkout_session_expired` rozstrzyga o wygaśnięciu. Lokalny upływ czasu nie przerywa trwającej autoryzacji płatności, np. 3DS.
 
 Po wygaśnięciu sesji pojawia się komunikat **Sesja płatności wygasła** i przycisk **Rozpocznij nowy koszyk**, zamiast zachęty do ponownego zapisywania danych. Nowy koszyk ponownie sprawdza dostępność i ceny; miejsce na wydarzeniu zostanie ponownie zarezerwowane tylko wtedy, gdy jest nadal dostępne. Dane kupującego przechowywane przez stronę pozostają dostępne, ale nowy formularz Stripe wymaga ponownego wpisania danych płatności.
 
-Błędy formatu i długości adresu e-mail pojawiają się przy polu w języku strony. Adres może mieć maksymalnie 254 znaki. Poprawienie pola usuwa jego komunikat błędu.
+Błędy formatu i długości adresu e-mail pojawiają się przy polu w języku strony. Adres może mieć maksymalnie 254 znaki. Poprawienie pola usuwa jego komunikat błędu. `POST /api/validate-email` zachowuje HTTP 400 i `error.code: "VALIDATION_ERROR"` dla błędnego formatu lub przekroczonej długości. Dodatkowe `error.detail` (`INVALID_EMAIL_FORMAT` albo `EMAIL_TOO_LONG`) pozwala checkoutowi dobrać lokalny komunikat.
 
 Po pełnym zwrocie otwarcie pierwotnego linku statusu płatności pokazuje **Płatność zwrócona**. Weryfikacja zwraca końcowy stan `payment_status: "refunded"`, bez ponownej realizacji zamówienia ani przyznania dostępu. Nie zgłasza awarii przetwarzania płatności ani potrzeby sprawdzania danych zamówienia.
 
 Częściowy zwrot zachowuje ścieżkę weryfikacji zakończonej płatności i pozostały dostęp. Otwarty spór płatniczy pokazuje **Płatność zakwestionowana**, zwraca `payment_status: "disputed"` i nie przyznaje dostępu ani nie realizuje zamówienia ponownie.
 
 Jeśli koszyk zmieni się podczas przygotowywania płatności, Sellf zatrzymuje się przed potwierdzeniem i prosi o sprawdzenie koszyka przed ponowną próbą. Gdy nie da się odczytać podglądu pakietu, checkout pozostaje dostępny bez listy składników i informacji o oszczędności. Powrót na stronę potwierdzenia płatności po częściowym zwrocie zachowuje dostęp zgodnie z zamówieniem, ale nie generuje kuponu oferty po zakupie.
+
+## Wstrzymane i zarchiwizowane produkty
+
+Wyłączenie produktu zachowuje zakup w **Moich produktach**, ale wstrzymuje dostęp do treści, login wall i bramek elementów. Zalogowany posiadacz dostępu otrzymuje HTTP 200 z `hasAccess: false` i `reason: "inactive"` z `/api/public/products/{slug}/access`; odpowiedź opisuje zapisany zakup i nie przyznaje dostępu. Endpoint treści zwraca HTTP 403. Nieaktywny produkt bez posiadanego dostępu pozostaje niedostępny. Archiwizacja zachowuje treści dla dotychczasowych kupujących, dopóki ich dostęp jest ważny. Weryfikacja bramki przez ważny token działa także bez ciasteczek Sellf, po archiwizacji lub zakończeniu okna sprzedaży; nadal sprawdza bieżące uprawnienie kupującego.
 
 ## Dostęp z kilku zakupów
 

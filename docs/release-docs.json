@@ -739,5 +739,14 @@
   ],
   "4a87974810af80454a202a9067fa142c0cdda4f3": [
     "none \u2014 Historical-upgrade test tooling only: pinned CLI selection and diagnostics; customer-facing behaviour is unchanged."
+  ],
+  "d005dbdc8e1663ad01f42f1f9e1c51b95c12e872": [
+    "custom-checkout.md"
+  ],
+  "7a6fbc977558f90c3ee57b24802fa32cd91bd50b": [
+    "custom-checkout.md"
+  ],
+  "ceb060a369ba2d7432b7bdd22cd83811737adf9a": [
+    "custom-checkout.md"
   ]
 }

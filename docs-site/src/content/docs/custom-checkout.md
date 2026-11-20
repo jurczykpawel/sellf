@@ -73,19 +73,25 @@ For an eligible open on-site Stripe Checkout Session, changing the cart updates 
 
 Applying or removing a discount code also keeps the same eligible session and the card details already entered. Sellf applies its codes to the item prices, rather than changing Stripe discounts. While the code is being checked or the cart is being updated, payment is disabled. After the buyer submits payment, cart controls stay disabled until confirmation finishes; the cart is checked again immediately before confirmation. Server updates share a 15-second request budget, shorter than Stripe’s 20-second `runServerUpdate` timeout. The payment form stays mounted and refreshes through Stripe's `runServerUpdate`. Session reuse applies to one-time, non-event payments with at least two minutes left; other checkouts may require a new session.
 
+Cart changes made while the card fields are loading wait for the payment form to become ready. Payment becomes available after the updated total has synchronized, keeping the entered card details.
+
 ## Checkout recovery and validation
 
 The server returns the remaining session lifetime in seconds. The page counts from receipt of the response, independently of the buyer’s system clock; an API `409 checkout_session_expired` response is authoritative. Local expiry does not interrupt an ongoing payment authentication such as 3DS.
 
 An expired payment session shows **Your payment session has expired** and **Start a new checkout**, instead of inviting the buyer to retry saving details. The new checkout checks current availability and prices again; an event seat is reserved again only if still available. Buyer values held by the page remain available, but the new Stripe form needs payment details again.
 
-Email format and length errors appear beside the email field in the page language. An email address can have at most 254 characters. Correcting the field clears its error.
+Email format and length errors appear beside the email field in the page language. An email address can have at most 254 characters. Correcting the field clears its error. `POST /api/validate-email` preserves HTTP 400 and `error.code: "VALIDATION_ERROR"` for invalid formats and excessive length. The additional `error.detail` (`INVALID_EMAIL_FORMAT` or `EMAIL_TOO_LONG`) selects the localized checkout message.
 
 After a full refund, reopening the original payment-status link shows **Payment refunded**. Verification returns the terminal `payment_status: "refunded"` state without another fulfillment or access grant. It does not report a payment-processing failure or ask the buyer to check order details.
 
 A partial refund preserves the completed-payment verification path and any remaining access. An open payment dispute shows **Payment disputed**, returns `payment_status: "disputed"`, and grants no access or new fulfillment.
 
 If the cart changes during payment preparation, Sellf stops before confirmation and asks the buyer to review the cart before trying again. If the bundle preview cannot be read, checkout stays available without the component preview or savings claim. Returning to the payment confirmation page after a partial refund preserves access according to the order, but does not generate a post-purchase offer coupon.
+
+## Paused and archived products
+
+Pausing a product keeps the buyer's purchase in **My products**, but stops access to its content, login wall and element gates. An authenticated owner receives HTTP 200 with `hasAccess: false` and `reason: "inactive"` from `/api/public/products/{slug}/access`; this response describes the saved purchase and does not grant access. The content endpoint returns HTTP 403. An inactive product without ownership remains unavailable. Archiving a product keeps existing buyers' content available while their access is valid. Gate verification with a valid token also works without Sellf cookies after archiving or the end of the sale window; it still checks the buyer’s current entitlement.
 
 ## Access from several purchases
 
