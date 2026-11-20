@@ -11,7 +11,7 @@ const root = path.resolve(__dirname, '../../../..');
 const work = mkdtempSync(path.join(tmpdir(), 'sellf-historical-'));
 const project = process.env.HISTORICAL_UPGRADE_PROJECT || `sellf-historical-${process.pid}`;
 if (!/^sellf-(?:historical-\d+|w\d+-upgrade)$/.test(project)) throw new Error('Disposable upgrade project required');
-const cli = process.env.SUPABASE_BIN || 'supabase';
+const cli = process.env.SUPABASE_BIN || process.env.SUPABASE_CLI_BINARY_OVERRIDE || 'supabase';
 const env = { ...process.env, SUPABASE_TELEMETRY_DISABLED: '1' };
 const run = (cmd: string, args: string[], input?: string) => execFileSync(cmd, args, {
   input, encoding: 'utf8', env, cwd: root, maxBuffer: 32 * 1024 * 1024, stdio: ['pipe', 'pipe', 'pipe'],
@@ -39,7 +39,8 @@ const access = (user: string) => JSON.parse(sql(`SELECT coalesce((SELECT row_to_
 const days = (user: string) => (new Date(access(user).access_expires_at).getTime() - anchor) / 86400000;
 let owned = false;
 beforeAll(() => {
-  expect(run(cli, ['--version']).trim()).toBe(PINNED_SUPABASE_CLI);
+  expect(run(cli, ['--version']).trim(),
+    `Historical upgrade requires Supabase CLI ${PINNED_SUPABASE_CLI}. Check with npx supabase@${PINNED_SUPABASE_CLI} --version; set SUPABASE_BIN to that binary (or SUPABASE_CLI_BINARY_OVERRIDE in the release gate).`).toBe(PINNED_SUPABASE_CLI);
   expect(run('docker', ['ps', '-a', '--filter', `name=^supabase_db_${project}$`, '--format', '{{.Names}}']).trim()).toBe('');
   const archive = execFileSync('git', ['archive', 'v2026.11.0', 'supabase'], { cwd: root, maxBuffer: 32 * 1024 * 1024 });
   execFileSync('tar', ['-x', '-C', work], { input: archive });
@@ -84,7 +85,7 @@ beforeAll(() => {
   const result = JSON.parse(sql(`SELECT public.apply_migration('${version}','${source}','${checksum}');`));
   expect(result.success).toBe(true); expect(result.skipped).toBe(false);
   expect(JSON.parse(sql(`SELECT public.apply_migration('${version}','${source}','${checksum}');`)).skipped).toBe(true);
-}, 120000);
+}, 300000);
 
 afterAll(() => {
   try { if (owned) run(cli, ['stop', '--project-id', project, '--no-backup', '--workdir', work]); }

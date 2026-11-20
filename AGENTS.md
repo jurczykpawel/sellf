@@ -1697,7 +1697,7 @@ action `lib/actions/maintenance.ts`, API `GET/PATCH /api/v1/system/maintenance`,
 
 ### Stable Versions & Known Issues
 
-- **Supabase CLI**: 2.101.0 (run via `npx supabase`) — pin via `npx supabase@2.101.0` if needed
+- **Supabase CLI**: 2.109.1 (pinned in `admin-panel/scripts/schema-snapshot.ts`) — use `npx supabase@2.109.1`; set `SUPABASE_BIN` to the pinned binary for schema and historical-upgrade tests. The historical-upgrade test also accepts the release gate's `SUPABASE_CLI_BINARY_OVERRIDE`.
 
 ## Troubleshooting
 
