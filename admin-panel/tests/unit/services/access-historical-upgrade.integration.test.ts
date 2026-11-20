@@ -25,11 +25,11 @@ const unknown = ['bundle-refund', 'bundle-cancel', 'product-refund', 'product-ca
 const transfers = ['payment', 'cancel', 'effective', 'later-purchase'].map(action => ({ user: randomUUID(), order: randomUUID(), action, later: randomUUID() }));
 const grant = (user: string, product: string, order: string, placement = false) => sql(`BEGIN;
   SELECT set_config('sellf.transfer_order','${placement ? order : ''}',true);
-  SELECT public.grant_product_and_bundle_components('${user}','${product}',NULL,'${order}'); COMMIT;`);
+  DO $grant$ BEGIN ASSERT (public.grant_product_and_bundle_components('${user}','${product}',NULL,'${order}')->>'success')::boolean; END $grant$; COMMIT;`);
 // The released signature has three arguments; its trigger decides whether placement changed access.
 const oldGrant = (user: string, product: string, order = '') => sql(`BEGIN;
   SELECT set_config('sellf.transfer_order','${order}',true);
-  SELECT public.grant_product_and_bundle_components('${user}','${product}'); COMMIT;`);
+  DO $grant$ BEGIN ASSERT (public.grant_product_and_bundle_components('${user}','${product}')->>'success')::boolean; END $grant$; COMMIT;`);
 function order(user: string, product: string, status: string, id = randomUUID(), age = 0) {
   sql(`INSERT INTO public.payment_transactions(id,product_id,user_id,customer_email,amount,currency,status,payment_provider,pricing_snapshot_version,created_at,metadata)
     VALUES('${id}','${product}','${user}','${user}@example.com',4000,'PLN','${status}','bank_transfer',1,'${day(age)}','{"access_on_placement":true}');`);
@@ -64,7 +64,11 @@ beforeAll(() => {
     order(f.user, course, 'awaiting_payment', f.order, -5);
     const before = access(f.user); oldGrant(f.user, course, f.order);
     if (before) expect(access(f.user)).toEqual(before);
-    else sql(`UPDATE public.user_product_access SET access_granted_at='${day(-5)}',access_expires_at='${day(360)}' WHERE user_id='${f.user}';`);
+    else {
+      sql(`UPDATE public.user_product_access SET access_granted_at='${day(-5)}',access_expires_at='${day(360)}' WHERE user_id='${f.user}';
+        UPDATE public.user_product_access SET transfer_transaction_id='${f.order}' WHERE user_id='${f.user}';`);
+      expect(access(f.user).transfer_transaction_id).toBe(f.order);
+    }
     if (f.action === 'later-purchase') {
       order(f.user, course, 'completed', f.later, -2); oldGrant(f.user, course);
       sql(`UPDATE public.user_product_access SET access_granted_at='${day(-2)}' WHERE user_id='${f.user}';`);
@@ -99,6 +103,7 @@ it.each(unknown)('retains legacy unknown access across $action (unlimited=$unlim
 });
 it.each(transfers)('settles an upgraded placement transfer: $action @J182', f => {
   if (f.action === 'payment') {
+    sql(`UPDATE public.payment_transactions SET paid_at='${day(1)}' WHERE id='${f.order}';`);
     expect(JSON.parse(sql(`SELECT public.complete_offline_order('${f.order}',4000);`)).success).toBe(true);
     expect(days(f.user)).toBeCloseTo(680, 3);
   } else if (f.action === 'cancel') {
@@ -107,8 +112,9 @@ it.each(transfers)('settles an upgraded placement transfer: $action @J182', f =>
   } else if (f.action === 'effective') {
     const paid = order(f.user, course, 'completed'); grant(f.user, course, paid);
     expect(days(f.user)).toBeCloseTo(725, 3);
+    const paidExpiry = sql(`SELECT access_terms->'${f.user}:${course}'->>'expiresAt' FROM public.payment_transactions WHERE id='${paid}';`);
     sql(`UPDATE public.payment_transactions SET status='cancelled' WHERE id='${f.order}';`);
-    expect(days(f.user)).toBeCloseTo(365, 3);
+    expect(new Date(access(f.user).access_expires_at).getTime()).toBe(new Date(paidExpiry).getTime());
   } else {
     expect(access(f.user).transfer_transaction_id).toBeNull();
     sql(`UPDATE public.payment_transactions SET status='refunded',refunded_amount=amount WHERE id='${f.later}';
