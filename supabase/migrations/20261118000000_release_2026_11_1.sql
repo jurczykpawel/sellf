@@ -3393,7 +3393,9 @@ BEGIN
     IF strpos(definition, 'RETURN result;') = 0 THEN RAISE EXCEPTION 'Unexpected access wrapper'; END IF;
     definition := replace(definition, 'result jsonb;', 'result jsonb; previous_permanent text := current_setting(''sellf.independent_permanent'', true);');
     definition := regexp_replace(definition, E'BEGIN\n', E'BEGIN\n' || $guard$  IF EXISTS (SELECT 1 FROM public.payment_transactions t
-    WHERE t.id::text = nullif(current_setting('sellf.transfer_payment', true), '')
+    WHERE (t.id::text = nullif(current_setting('sellf.transfer_payment', true), '')
+      OR (t.id::text = nullif(current_setting('sellf.transfer_order', true), '')
+        AND t.payment_provider = 'bank_transfer' AND t.status IN ('completed', 'partially_refunded')))
       AND t.access_terms ? (user_id_param::text || ':' || product_id_param::text)) THEN
     RETURN jsonb_build_object('success', true, 'operation', 'existing_transfer');
   END IF;

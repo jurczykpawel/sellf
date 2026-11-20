@@ -484,3 +484,39 @@ it('preserves the known legacy add-on component period after a later add-on refu
     expect(f.access()?.access_expires_at).toBe(original);
   } finally { later?.cleanup(); old?.cleanup(); f.cleanup(); }
 });
+
+
+it('claims a guest placement transfer once after account confirmation deferred its claim @J182', async () => {
+  const f = fixture(), guest = randomUUID();
+  const config = JSON.parse(sql('SELECT row_to_json(c) FROM public.bank_transfer_config c;'));
+  const holder = spawn('docker', ['exec','-i',getTestDatabaseContainer(),'psql','-XqAt','-U','postgres','-v','ON_ERROR_STOP=1']);
+  const ended = once(holder, 'exit');
+  try {
+    sql(`UPDATE public.bank_transfer_config SET bank_transfer_enabled=true,bank_transfer_grant_access_on_placement=true;
+      UPDATE public.products SET checkout_profile='{"v":1,"modules":[{"id":"buyer","types":["organization"],"bank_transfer_for":["organization"]}]}' WHERE id='${f.product}';`);
+    const placed = JSON.parse(sql(`SELECT public.bank_transfer_order(jsonb_build_object('product_id','${f.product}','currency','PLN','customer_email','${guest}@example.com',
+      'order_details','{"v":1,"buyer":{"type":"organization","terms_accepted":true}}'::jsonb),
+      jsonb_build_array(jsonb_build_object('product_id','${f.product}','item_type','main_product','quantity',1,'unit_price',40,'total_price',40,'discounted_total',40,'currency','PLN')));`));
+    expect(placed.transaction_id).toBeTruthy();
+    sql(`INSERT INTO auth.users(id,email) VALUES('${guest}','${guest}@example.com');`);
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Guest lock was not acquired')),5000);
+      holder.stdout.on('data', chunk => { if (String(chunk).includes('held')) { clearTimeout(timer); resolve(); } });
+      holder.once('error', error => { clearTimeout(timer); reject(error); });
+      holder.stdin.write(`BEGIN; SELECT id FROM public.guest_purchases WHERE transaction_id='${placed.transaction_id}' FOR UPDATE; SELECT 'held';\n`);
+    });
+    sql(`UPDATE auth.users SET email_confirmed_at=now() WHERE id='${guest}';`);
+    expect(sql(`SELECT count(*) FROM public.guest_purchases WHERE transaction_id='${placed.transaction_id}' AND claimed_by_user_id IS NULL;`)).toBe('1');
+    expect(JSON.parse(sql(`SELECT public.complete_offline_order('${placed.transaction_id}',4000);`)).success).toBe(true);
+    const deadline = sql(`SELECT access_expires_at FROM public.user_product_access WHERE user_id='${guest}' AND product_id='${f.product}';`);
+    expect(new Date(deadline).getTime()).toBeGreaterThan(Date.now()+29*86400000);
+    holder.stdin.end('COMMIT;\n'); await ended;
+    expect(JSON.parse(sql(`SELECT public.claim_guest_purchases_for_user('${guest}');`)).claimed_count).toBe(1);
+    expect(sql(`SELECT access_expires_at FROM public.user_product_access WHERE user_id='${guest}' AND product_id='${f.product}';`)).toBe(deadline);
+    expect(JSON.parse(sql(`SELECT public.claim_guest_purchases_for_user('${guest}');`)).claimed_count).toBe(0);
+  } finally {
+    if (!holder.stdin.writableEnded) { holder.stdin.end('ROLLBACK;\n'); await ended; }
+    sql(`DELETE FROM auth.users WHERE id='${guest}'; UPDATE public.bank_transfer_config SET bank_transfer_enabled=${config.bank_transfer_enabled},bank_transfer_grant_access_on_placement=${config.bank_transfer_grant_access_on_placement};`);
+    f.cleanup();
+  }
+});

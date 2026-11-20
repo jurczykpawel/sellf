@@ -7667,7 +7667,9 @@ CREATE FUNCTION public.grant_bundle_component_access(user_id_param uuid, product
 DECLARE previous text := current_setting('sellf.grant_source', true); result jsonb; previous_permanent text := current_setting('sellf.independent_permanent', true);
 BEGIN
   IF EXISTS (SELECT 1 FROM public.payment_transactions t
-    WHERE t.id::text = nullif(current_setting('sellf.transfer_payment', true), '')
+    WHERE (t.id::text = nullif(current_setting('sellf.transfer_payment', true), '')
+      OR (t.id::text = nullif(current_setting('sellf.transfer_order', true), '')
+        AND t.payment_provider = 'bank_transfer' AND t.status IN ('completed', 'partially_refunded')))
       AND t.access_terms ? (user_id_param::text || ':' || product_id_param::text)) THEN
     RETURN jsonb_build_object('success', true, 'operation', 'existing_transfer');
   END IF;
@@ -8019,7 +8021,9 @@ CREATE FUNCTION public.grant_product_access_service_role(user_id_param uuid, pro
 DECLARE previous text := current_setting('sellf.grant_source', true); result jsonb; previous_permanent text := current_setting('sellf.independent_permanent', true);
 BEGIN
   IF EXISTS (SELECT 1 FROM public.payment_transactions t
-    WHERE t.id::text = nullif(current_setting('sellf.transfer_payment', true), '')
+    WHERE (t.id::text = nullif(current_setting('sellf.transfer_payment', true), '')
+      OR (t.id::text = nullif(current_setting('sellf.transfer_order', true), '')
+        AND t.payment_provider = 'bank_transfer' AND t.status IN ('completed', 'partially_refunded')))
       AND t.access_terms ? (user_id_param::text || ':' || product_id_param::text)) THEN
     RETURN jsonb_build_object('success', true, 'operation', 'existing_transfer');
   END IF;
