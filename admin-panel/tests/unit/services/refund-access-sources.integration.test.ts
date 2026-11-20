@@ -309,20 +309,33 @@ it.each(['bump', 'bundle-component', 'twice'])('retains only days added by an or
   } finally { f.cleanup(); }
 });
 
-it.each(['revoke_order_bundle_components', 'release_transfer_access'])('orders the product lock loop in %s @J34', fn => {
-  const definition = sql(`SELECT replace(pg_get_functiondef(('public.${fn}()')::regprocedure),E'\\n',' ');`.replace('revoke_order_bundle_components()', 'revoke_order_bundle_components(uuid,uuid)'));
-  if (fn === 'revoke_order_bundle_components') expect(definition).toMatch(/ORDER BY a\.product_id\s+LOOP/);
-  else {
-    expect(definition).toMatch(/ORDER BY 1\s+LOOP/g);
-    expect(definition.match(/ORDER BY 1\s+LOOP/g)).toHaveLength(2);
+it.each(['grant', 'refund', 'cancel'])('writes bundle components in product order during %s @J34', action => {
+  const [first, second] = [randomUUID(), randomUUID()].sort(), f = fixture(first);
+  try {
+    sql(`INSERT INTO public.products(id,name,slug,price,currency,auto_grant_duration_days) VALUES('${second}','Second','${second}',40,'PLN',30);
+      INSERT INTO public.bundle_items(bundle_product_id,component_product_id,display_order) VALUES('${f.bundle}','${second}',0);
+      UPDATE public.bundle_items SET display_order=1 WHERE bundle_product_id='${f.bundle}' AND component_product_id='${first}';`);
+    const id = action === 'grant' ? null : f.buy(f.bundle, action === 'cancel' ? 'bank_transfer' : 'stripe', action === 'cancel' ? 'awaiting_payment' : 'completed');
+    sql(`BEGIN; CREATE TEMP TABLE component_writes(seq bigint GENERATED ALWAYS AS IDENTITY, product uuid);
+      CREATE FUNCTION pg_temp.capture_component_write() RETURNS trigger LANGUAGE plpgsql AS $fn$ BEGIN
+        INSERT INTO component_writes(product) SELECT coalesce(NEW.product_id,OLD.product_id)
+          WHERE coalesce(NEW.product_id,OLD.product_id) IN ('${first}','${second}'); RETURN NULL; END $fn$;
+      CREATE TRIGGER observe_component_writes AFTER INSERT OR UPDATE OR DELETE ON public.user_product_access FOR EACH ROW EXECUTE FUNCTION pg_temp.capture_component_write();
+      ${action === 'grant' ? `SELECT public.grant_product_and_bundle_components('${f.user}','${f.bundle}');` : `UPDATE public.payment_transactions SET status='${action === 'cancel' ? 'cancelled' : 'refunded'}',refunded_amount=${action === 'cancel' ? 0 : 4000} WHERE id='${id}';`}
+      ${action === 'refund' ? `SELECT public.revoke_order_product_access('${id}','${f.user}','${f.bundle}'); SELECT public.revoke_order_bundle_components('${id}','${f.user}');` : ''}
+      DO $assert$ BEGIN ASSERT (SELECT array_agg(product ORDER BY seq) FROM component_writes)=ARRAY['${first}'::uuid,'${second}'::uuid], format('Component write order differs: %s', (SELECT array_agg(product ORDER BY seq) FROM component_writes)); END $assert$; ROLLBACK;`);
+  } finally {
+    f.cleanup(); sql(`DELETE FROM public.products WHERE id='${second}';`);
   }
 });
 
-it('backfills legacy periods through equality joins @J34', () => {
+it('plans the legacy period backfill without correlated subplans @J34', () => {
   const block = migration.match(/-- Preserve known legacy periods\.([\s\S]*?)-- End legacy period preservation\./)![1];
-  expect(block).not.toMatch(/EXISTS\s*\(|order_granted_components\(/);
-  expect(block).toMatch(/a\.user_id = .*\.user_id/);
-  expect(block).toMatch(/a\.product_id = .*\.product_id/);
+  const query = block.slice(block.indexOf('WITH eligible'));
+  sql(`DO $assert$ DECLARE plan json; BEGIN
+    EXECUTE $query$EXPLAIN (FORMAT JSON) ${query}$query$ INTO plan;
+    ASSERT NOT jsonb_path_exists(plan::jsonb, '$.**."Subplan Name" ? (@ like_regex "^SubPlan ")'), 'Backfill contains correlated subplans';
+  END $assert$;`);
 });
 
 it('keeps another buyer fixture byte-identical while backfilling an upgrade @J34', () => {
@@ -484,7 +497,6 @@ it('preserves the known legacy add-on component period after a later add-on refu
     expect(f.access()?.access_expires_at).toBe(original);
   } finally { later?.cleanup(); old?.cleanup(); f.cleanup(); }
 });
-
 
 it('claims a guest placement transfer once after account confirmation deferred its claim @J182', async () => {
   const f = fixture(), guest = randomUUID();

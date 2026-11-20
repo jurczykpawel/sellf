@@ -8353,8 +8353,7 @@ BEGIN
         UNION ALL
         SELECT b.component_product_id FROM public.bundle_items b WHERE NOT order_scoped AND b.bundle_product_id = product_id_param
       ) c
-      LEFT JOIN public.bundle_items d ON d.bundle_product_id = product_id_param AND d.component_product_id = c.component_product_id
-      ORDER BY d.display_order NULLS LAST
+      ORDER BY c.component_product_id
     LOOP
       BEGIN
         -- Grants the component regardless of is_active (an inactive component is a SUCCESS).
