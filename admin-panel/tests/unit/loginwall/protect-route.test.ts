@@ -38,7 +38,7 @@ interface MockChain {
 
 function makeSupabaseMock(opts: {
   user: { id: string } | null;
-  product?: { id: string; slug: string; is_active: boolean; seller_id: string | null } | null;
+  product?: { id: string; slug: string; is_active: boolean; archived_at?: string | null; seller_id: string | null } | null;
   access?: { access_expires_at: string | null } | null;
 }) {
   const auth = { getUser: vi.fn().mockResolvedValue({ data: { user: opts.user }, error: null }) };
@@ -201,4 +201,14 @@ it('redirects to /p/{slug} when the access has expired', async () => {
     const res = await GET(makeRequest(`/loginwall/protect?id=${PRODUCT_ID}&redirect=` + encodeURIComponent(CUSTOMER_PAGE)));
     expect(res.status).toBe(429);
   });
+});
+
+it.each([false, true])('honours paused and archived products at the login wall (archived=%s)', async archived => {
+  vi.mocked(createClient).mockResolvedValue(makeSupabaseMock({
+    user: { id: USER_ID }, product: { id: PRODUCT_ID, slug: 'demo-product', is_active: false, archived_at: archived ? new Date().toISOString() : null, seller_id: SELLER_ID },
+    access: { access_expires_at: null },
+  }) as never);
+  const res = await GET(makeRequest(`/loginwall/protect?id=${PRODUCT_ID}&redirect=` + encodeURIComponent(CUSTOMER_PAGE)));
+  expect(res.status).toBe(307);
+  expect(res.headers.get('location')).toContain(archived ? CUSTOMER_PAGE : '/p/demo-product');
 });

@@ -23,7 +23,7 @@ const SITE_URL = 'http://localhost:3000';
 const CUSTOMER_PAGE = 'https://customer.example/page';
 const CUSTOMER_ORIGIN = 'https://customer.example';
 
-interface Product { id: string; slug: string; is_active: boolean; seller_id: string | null }
+interface Product { id: string; slug: string; is_active: boolean; archived_at?: string | null; seller_id: string | null }
 interface AccessRow { product_id: string; access_expires_at: string | null }
 
 function makeSupabaseMock(opts: {
@@ -183,4 +183,15 @@ describe('GET /loginwall/gate', () => {
     }) as never);
     expect((await GET(req(q('a')))).status).toBe(500);
   });
+});
+
+it.each([false, true])('honours paused and archived products in element states (archived=%s)', async archived => {
+  vi.mocked(createClient).mockResolvedValue(makeSupabaseMock({
+    user: { id: USER_ID }, products: [{ id: 'p1', slug: 'a', is_active: false, archived_at: archived ? new Date().toISOString() : null, seller_id: SELLER_ID }],
+    access: [{ product_id: 'p1', access_expires_at: null }],
+  }) as never);
+  const res = await GET(req(q('a')));
+  const result = tokenFrom(res);
+  expect(result.valid).toBe(true);
+  if (result.valid) expect(result.owned).toEqual(archived ? ['a'] : []);
 });

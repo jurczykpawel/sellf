@@ -10,6 +10,7 @@ import {
 } from '@/lib/loginwall/request';
 import { invalidRedirectPage } from '@/lib/loginwall/error-page';
 import { signGateToken } from '@/lib/loginwall/token';
+import { servesBuyerContent } from '@/lib/payment/product-access-decision';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
@@ -26,6 +27,8 @@ const querySchema = z.object({
 });
 
 interface ProductRow {
+  is_active: boolean;
+  archived_at: string | null;
   id: string;
   slug: string;
   seller_id: string | null;
@@ -68,7 +71,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const productsResult = await supabase
     .from('products')
-    .select('id, slug, seller_id')
+    .select('id, slug, seller_id, is_active, archived_at')
     .in('slug', requested);
   const products = (productsResult.data ?? []) as ProductRow[];
 
@@ -110,7 +113,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         .filter((a) => !a.access_expires_at || new Date(a.access_expires_at).getTime() > now)
         .map((a) => a.product_id),
     );
-    owned = products.filter((p) => ownedIds.has(p.id)).map((p) => p.slug);
+    owned = products.filter((p) => ownedIds.has(p.id) && servesBuyerContent(p)).map((p) => p.slug);
   }
 
   const { token } = signGateToken({

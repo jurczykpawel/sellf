@@ -13,6 +13,7 @@
 import { test, expect } from '@playwright/test';
 import { setAuthSession, supabaseAdmin } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
+import { verifyGateToken } from '@/lib/loginwall/token';
 import { extractMagicLink, waitForEmail } from './helpers/mailpit';
 
 test.describe.configure({ mode: 'serial' });
@@ -231,4 +232,33 @@ test.describe('Loginwall flow', () => {
     const res = await request.get(url, { maxRedirects: 0 });
     expect(res.status()).toBe(400);
   });
+});
+
+test('pausing an owned product pauses the wall and gates; archiving retains access @J61', async ({ page, request }) => {
+  await setAuthSession(page, testUser.email, testUser.password);
+  const checked = async (result: { error: unknown }) => { expect(result.error).toBeNull(); };
+  await checked(await supabaseAdmin.from('user_product_access').upsert({ user_id: testUser.id, product_id: testProduct.id, access_expires_at: null }, { onConflict: 'user_id,product_id' }));
+  try {
+    const gateUrl = `/en/loginwall/gate?products=${testProduct.slug}&redirect=${encodeURIComponent(CUSTOMER_PAGE)}`;
+    const initial = await page.request.get(gateUrl, { maxRedirects: 0 });
+    expect(initial.status()).toBe(307);
+    const token = new URL(initial.headers().location).hash.split('_sf_token=')[1];
+    expect(verifyGateToken(token, { secret: process.env.LOGINWALL_SECRET! })).toMatchObject({ valid: true, owned: [testProduct.slug] });
+    for (const archived of [false, true]) {
+      await checked(await supabaseAdmin.from('products').update({ is_active: false, archived_at: archived ? new Date().toISOString() : null }).eq('id', testProduct.id));
+      const wall = await page.request.get(`/en/loginwall/protect?id=${testProduct.id}&redirect=${encodeURIComponent(CUSTOMER_PAGE)}`, { maxRedirects: 0 });
+      expect(wall.status()).toBe(307);
+      expect(wall.headers().location).toContain(archived ? CUSTOMER_PAGE : `/p/${testProduct.slug}`);
+      const gate = await page.request.get(gateUrl, { maxRedirects: 0 });
+      expect(gate.status()).toBe(307);
+      const nextToken = new URL(gate.headers().location).hash.split('_sf_token=')[1];
+      expect(verifyGateToken(nextToken, { secret: process.env.LOGINWALL_SECRET! })).toMatchObject({ valid: true, owned: archived ? [testProduct.slug] : [] });
+      const verify = await request.post('/api/loginwall/verify', { headers: { Authorization: `Bearer ${token}` }, data: { product: testProduct.slug } });
+      expect(verify.status()).toBe(200);
+      expect(await verify.json()).toEqual({ access: archived });
+    }
+  } finally {
+    await checked(await supabaseAdmin.from('products').update({ is_active: true, archived_at: null }).eq('id', testProduct.id));
+    await checked(await supabaseAdmin.from('user_product_access').delete().eq('user_id', testUser.id).eq('product_id', testProduct.id));
+  }
 });

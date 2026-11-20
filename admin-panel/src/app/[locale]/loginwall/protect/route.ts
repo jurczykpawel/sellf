@@ -10,6 +10,7 @@ import {
 } from '@/lib/loginwall/request';
 import { invalidRedirectPage } from '@/lib/loginwall/error-page';
 import { signLoginwallToken } from '@/lib/loginwall/token';
+import { servesBuyerContent } from '@/lib/payment/product-access-decision';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { getCanonicalOriginOrNull } from '@/lib/utils/canonical-url';
@@ -57,11 +58,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const productResult = await supabase
     .from('products')
-    .select('id, slug, seller_id')
+    .select('id, slug, seller_id, is_active, archived_at')
     .eq('id', parsed.data.id)
     .maybeSingle();
   const product = (productResult.data ?? null) as
-    | { id: string; slug: string; seller_id: string | null }
+    | { id: string; slug: string; seller_id: string | null; is_active: boolean; archived_at: string | null }
     | null;
   if (!product) {
     return jsonError('Not found', 404);
@@ -82,7 +83,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const hasActiveAccess =
     !!access && (!access.access_expires_at || new Date(access.access_expires_at) > new Date());
 
-  if (!hasActiveAccess) {
+  if (!hasActiveAccess || !servesBuyerContent(product)) {
     return NextResponse.redirect(new URL(`/p/${product.slug}`, origin), 307);
   }
 

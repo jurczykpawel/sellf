@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
-vi.mock('@/lib/supabase/server', () => ({ createClient: vi.fn() }));
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: vi.fn() }));
 vi.mock('@/lib/embed/checkout-embed', async () => {
   const actual = await vi.importActual<typeof import('@/lib/embed/checkout-embed')>('@/lib/embed/checkout-embed');
@@ -9,7 +8,6 @@ vi.mock('@/lib/embed/checkout-embed', async () => {
 });
 vi.mock('@/lib/rate-limiting', () => ({ checkRateLimit: vi.fn() }));
 
-import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { loadAllowedOriginsForProduct } from '@/lib/embed/checkout-embed';
 import { checkRateLimit } from '@/lib/rate-limiting';
@@ -36,13 +34,9 @@ function chainReturning(data: unknown) {
   return chain;
 }
 
-// createClient → products lookup (slug → id/seller_id)
-function serverClient() {
-  return { from: () => chainReturning({ id: 'p1', slug: SLUG, seller_id: SELLER_ID }) };
-}
-// createAdminClient → user_product_access lookup (live ownership)
+let liveProduct: { id: string; slug: string; is_active: boolean; archived_at: string | null; seller_id: string } | null;
 function adminClient() {
-  return { from: () => chainReturning(liveAccess) };
+  return { from: (table: string) => chainReturning(table === 'products' ? liveProduct : liveAccess) };
 }
 
 function token(opts: { authenticated: boolean; owned: string[] }): string {
@@ -73,8 +67,7 @@ function post(opts: {
 
 beforeEach(() => {
   liveAccess = { access_expires_at: null }; // default: user currently owns the product
-  vi.mocked(createClient).mockReset();
-  vi.mocked(createClient).mockResolvedValue(serverClient() as never);
+  liveProduct = { id: 'p1', slug: SLUG, is_active: true, archived_at: null, seller_id: SELLER_ID };
   vi.mocked(createAdminClient).mockReset();
   vi.mocked(createAdminClient).mockReturnValue(adminClient() as never);
   vi.mocked(loadAllowedOriginsForProduct).mockReset();
@@ -218,7 +211,7 @@ describe('OPTIONS /api/loginwall/verify', () => {
   });
 
   it('does not reflect when the product is unknown', async () => {
-    vi.mocked(createClient).mockResolvedValueOnce({ from: () => chainReturning(null) } as never);
+    liveProduct = null;
     const res = await OPTIONS(options({ origin: CUSTOMER_ORIGIN, product: SLUG }));
     expect(res.status).toBe(204);
     expect(res.headers.get('Access-Control-Allow-Origin')).toBeNull();
@@ -235,4 +228,10 @@ describe('OPTIONS /api/loginwall/verify', () => {
     expect(res.status).toBe(429);
     expect(res.headers.get('Access-Control-Allow-Origin')).toBeNull();
   });
+});
+
+it.each([false, true])('honours the current product state during verification (archived=%s)', async archived => {
+  liveProduct = { id: 'p1', slug: SLUG, is_active: false, archived_at: archived ? new Date().toISOString() : null, seller_id: SELLER_ID };
+  const res = await POST(post({ token: token({ authenticated: true, owned: [SLUG] }) }));
+  expect(await res.json()).toEqual({ access: archived });
 });
