@@ -4,8 +4,8 @@ import { z } from 'zod';
 import { loadAllowedOriginsForProduct } from '@/lib/embed/checkout-embed';
 import { rateLimitGuard, validateRedirectAgainstAllowlist } from '@/lib/loginwall/request';
 import { verifyGateToken } from '@/lib/loginwall/token';
+import { servesBuyerContent } from '@/lib/payment/product-access-decision';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { createClient } from '@/lib/supabase/server';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 const SLUG_RE = /^[a-z0-9-]{1,96}$/;
@@ -24,13 +24,15 @@ const BASE_CORS: Record<string, string> = {
 };
 
 interface VerifyProduct {
+  is_active: boolean;
+  archived_at: string | null;
   id: string;
   seller_id: string | null;
 }
 
 async function loadProductBySlug(slug: string): Promise<VerifyProduct | null> {
-  const supabase = await createClient();
-  const result = await supabase.from('products').select('id, seller_id').eq('slug', slug).maybeSingle();
+  const supabase = createAdminClient();
+  const result = await supabase.from('products').select('id, seller_id, is_active, archived_at').eq('slug', slug).maybeSingle();
   return (result.data ?? null) as VerifyProduct | null;
 }
 
@@ -145,6 +147,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     verified.auth &&
     verified.req.includes(slug) &&
     !!product &&
+    servesBuyerContent(product) &&
     (await hasLiveAccess(verified.uid, product.id));
 
   return NextResponse.json({ access }, { status: 200, headers: corsHeaders(reflected) });

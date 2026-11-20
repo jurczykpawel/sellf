@@ -133,8 +133,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const trackingFired = useRef(false);
   const checkoutTrackingFired = useRef(false);
   const confirmationPending = useRef(false);
-  const serverUpdate = useRef<((update: () => Promise<unknown>) => Promise<void>) | null>(null);
-  const registerServerUpdate = useCallback((runner: typeof serverUpdate.current) => { serverUpdate.current = runner; }, []);
+  const departed = useRef(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [checkoutVisit, setCheckoutVisit] = useState(0);
@@ -149,6 +148,12 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const [error, setError] = useState<string | null>(null);
   const [eventNotice, setEventNotice] = useState<{ key: string; message: string } | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const serverUpdate = useRef<((update: () => Promise<unknown>) => Promise<void>) | null>(null);
+  const [serverUpdateSession, setServerUpdateSession] = useState<string | null>(null);
+  const registerServerUpdate = useCallback((runner: typeof serverUpdate.current) => {
+    serverUpdate.current = runner;
+    setServerUpdateSession(runner ? clientSecret : null);
+  }, [clientSecret]);
   const [sessionDeadline, setSessionDeadline] = useState<number | undefined>(undefined);
   const [bindingToken, setBindingToken] = useState<string | null>(null);
   const [checkoutSessionId, setCheckoutSessionId] = useState<string | null>(null);
@@ -167,10 +172,12 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
   useEffect(() => {
     const handlePageHide = () => {
+      departed.current = true;
       if (!confirmationPending.current) sessionQueue.update(null, true);
     };
     const handlePageShow = (event: PageTransitionEvent) => {
       if (event.persisted) {
+        departed.current = false;
         sessionQueue.update(null, true);
         setCheckoutVisit(value => value + 1);
         confirmationPending.current = false;
@@ -456,7 +463,8 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
 
   // One request at a time; superseded responses remain available for replacement.
   useEffect(() => {
-    if (paymentProcessing || activeMethod !== 'online' || coupon.isVerifyingCoupon) {
+    if (departed.current) return;
+    if (paymentProcessing || activeMethod !== 'online' || coupon.isVerifyingCoupon || (clientSecret && serverUpdateSession !== clientSecret)) {
       sessionQueue.pause();
       return;
     }
@@ -560,7 +568,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     eventReady, eventEmailReady, eventSessionId, refreshEvents, eventText, purchaseStarted, hasAccess, error, authLoading,
     product, email, locale, quantity, selectedBumpIds, coupon.appliedCoupon, searchParams, t,
     customAmount, customAmountError, isFunnelTest, isFreeAccess, grantAccess,
-    checkoutSessionSignature, explicitRepurchase, sessionQueue, customFieldDefs, customFieldValues, clientSecret,
+    checkoutSessionSignature, explicitRepurchase, sessionQueue, customFieldDefs, customFieldValues, clientSecret, serverUpdateSession,
   ]);
 
   const handleSignOutAndCheckout = async () => {

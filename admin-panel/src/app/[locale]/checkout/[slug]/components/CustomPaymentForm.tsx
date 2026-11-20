@@ -74,7 +74,7 @@ type EmailValidationResponse = {
   };
   error?: {
     message: string;
-    code?: string;
+    detail?: string;
   };
 };
 
@@ -242,7 +242,7 @@ export default function CustomPaymentForm({
         .json()
         .catch(() => null)) as EmailValidationResponse | null;
       if (!validationResponse.ok || !validation?.success || !validation.data?.isValid) {
-        const code = validation?.error?.code;
+        const code = validation?.error?.detail;
         if (code === 'EMAIL_TOO_LONG' || code === 'INVALID_EMAIL_FORMAT') {
           setEmailError(t(code === 'EMAIL_TOO_LONG' ? 'emailTooLong' : 'emailInvalidFormat'));
           document.getElementById('checkoutEmail')?.focus();

@@ -14,6 +14,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { signGateToken } from '@/lib/loginwall/token';
 
 const API_URL = process.env.TEST_API_URL || 'http://localhost:3777';
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
@@ -193,12 +194,22 @@ describe('Public product endpoints — expiry semantics', () => {
       expect(data.hasAccess).toBe(true);
     });
 
-    it('inactive product is hidden from regular user (RLS) — endpoint returns 404', async () => {
-      // The reason='inactive' branch in the route only fires when the product
-      // is visible (admin preview). For regular users RLS hides inactive
-      // products, so the slug lookup short-circuits to 404.
-      const { status } = await publicGet(`/api/public/products/${pInactive.slug}/access`, userCookie);
-      expect(status).toBe(404);
+    it('reports paused access for an owned inactive product without returning content', async () => {
+      const { status, data } = await publicGet(`/api/public/products/${pInactive.slug}/access`, userCookie);
+      expect(status).toBe(200);
+      expect(data).toMatchObject({ hasAccess: false, reason: 'inactive', product: { slug: pInactive.slug } });
+      expect(JSON.stringify(data)).not.toContain('https://files.example/secret.pdf');
+    });
+
+    it('keeps an inactive product hidden from a buyer without ownership', async () => {
+      const changed = await supabaseAdmin.from('products').update({ is_active: false }).eq('id', pNoAccess.id);
+      expect(changed.error).toBeNull();
+      try {
+        const { status } = await publicGet(`/api/public/products/${pNoAccess.slug}/access`, userCookie);
+        expect(status).toBe(404);
+      } finally {
+        expect((await supabaseAdmin.from('products').update({ is_active: true }).eq('id', pNoAccess.id)).error).toBeNull();
+      }
     });
 
     it('product past available_until is hidden from regular user (RLS) — endpoint returns 404', async () => {
@@ -258,10 +269,7 @@ describe('Public product endpoints — expiry semantics', () => {
       expect(status).toBe(200);
     });
 
-    it('403 when product is inactive (RLS-hidden), even if user holds access record', async () => {
-      // Same as the /access counterpart: RLS hides the product from the user's
-      // session client, so the route's first lookup fails → 403 "Access denied".
-      // The route's later "Product not available" branch is unreachable here.
+    it('403 when the owned product is inactive', async () => {
       const { status, data } = await publicGet(`/api/public/products/${pInactive.slug}/content`, userCookie);
       expect(status).toBe(403);
       expect(data.error).toMatch(/access denied|not available/i);
@@ -286,6 +294,28 @@ describe('Public product endpoints — expiry semantics', () => {
       const { status: s2 } = await publicGet(`/api/public/products/${pNoAccess.slug}/content`, userCookie);
       expect(s1).toBe(403);
       expect(s2).toBe(403);
+    });
+  });
+
+  describe('gate verification with a bearer token and no session cookie', () => {
+    async function verify(product: CreatedProduct) {
+      const { token } = signGateToken({ userId, authenticated: true, requested: [product.slug], owned: [product.slug], secret: process.env.LOGINWALL_SECRET! });
+      const response = await fetch(`${API_URL}/api/loginwall/verify`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ product: product.slug }) });
+      expect(response.status).toBe(200);
+      return response.json();
+    }
+
+    it('denies a paused purchase and retains an archived purchase without cookies', async () => {
+      expect(await verify(pInactive)).toEqual({ access: false });
+      expect((await supabaseAdmin.from('products').update({ archived_at: new Date().toISOString() }).eq('id', pInactive.id)).error).toBeNull();
+      try { expect(await verify(pInactive)).toEqual({ access: true }); }
+      finally { expect((await supabaseAdmin.from('products').update({ archived_at: null }).eq('id', pInactive.id)).error).toBeNull(); }
+    });
+
+    it('retains a valid purchase after its sale window ends without cookies', async () => {
+      expect((await supabaseAdmin.from('products').update({ available_until: new Date(Date.now() - 60000).toISOString() }).eq('id', pActive.id)).error).toBeNull();
+      try { expect(await verify(pActive)).toEqual({ access: true }); }
+      finally { expect((await supabaseAdmin.from('products').update({ available_until: null }).eq('id', pActive.id)).error).toBeNull(); }
     });
   });
 

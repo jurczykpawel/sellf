@@ -61,5 +61,5 @@ it.each([
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email }),
   }));
   expect(response.status).toBe(400);
-  expect((await response.json()).error.code).toBe(code);
+  expect((await response.json()).error).toMatchObject({ code: 'VALIDATION_ERROR', detail: code });
 });

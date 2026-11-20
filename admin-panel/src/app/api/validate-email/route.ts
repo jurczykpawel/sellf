@@ -26,6 +26,7 @@ interface EmailValidationResponse {
   error?: {
     message: string;
     code: string;
+    detail?: string;
   };
   meta: {
     timestamp: string;
@@ -115,7 +116,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<EmailVali
         success: false,
         error: {
           message: 'Invalid email format',
-          code: email.length > MAX_EMAIL_LENGTH ? 'EMAIL_TOO_LONG' : 'INVALID_EMAIL_FORMAT'
+          code: 'VALIDATION_ERROR',
+          detail: email.length > MAX_EMAIL_LENGTH ? 'EMAIL_TOO_LONG' : 'INVALID_EMAIL_FORMAT'
         },
         meta: {
           timestamp: new Date().toISOString(),

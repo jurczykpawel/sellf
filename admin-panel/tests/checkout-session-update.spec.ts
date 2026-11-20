@@ -171,3 +171,52 @@ test('entered coupon, quantity, add-on and coupon removal keep one Stripe sessio
   const { data: accesses } = await supabaseAdmin.from('user_product_access').select('id').in('product_id', productIds);
   expect(accesses).toEqual([]);
 });
+
+test('cart selected during Stripe initialization pays the updated total @J660', async ({ page }) => {
+  test.setTimeout(180000);
+  const startupSlug = `startup-${randomUUID().slice(0, 8)}`;
+  const main = await insert<{ id: string }>('products', { slug: startupSlug, name: 'Startup checkout', price: 10, currency: 'USD', is_active: true, vat_exempt: true });
+  const bump = await insert<{ id: string }>('products', { slug: `${startupSlug}-bonus`, name: 'Startup bonus', price: 2, currency: 'USD', is_active: true, vat_exempt: true });
+  productIds.push(main.id, bump.id);
+  await insert('order_bumps', { main_product_id: main.id, bump_product_id: bump.id, bump_title: 'Startup bonus', bump_price: 2, is_active: true });
+  let release!: () => void;
+  let captured!: () => void;
+  const paused = new Promise<void>(resolve => { release = resolve; });
+  const initialized = new Promise<void>(resolve => { captured = resolve; });
+  let held = false;
+  await page.route('https://api.stripe.com/v1/payment_pages/**/init', async route => {
+    if (held) { await route.continue(); return; }
+    held = true;
+    const response = await route.fetch();
+    expect(response.ok()).toBe(true);
+    captured();
+    await paused;
+    await route.fulfill({ response });
+  });
+  await acceptAllCookies(page);
+  await page.goto(`/en/checkout/${startupSlug}?email=${encodeURIComponent(email)}`);
+  const initial = await (await startNativeCheckout(page)).json();
+  sessionIds.add(initial.checkoutSessionId);
+  try {
+    await initialized;
+    const changed = page.waitForResponse(r => r.url().endsWith('/api/create-payment-intent') && !r.request().postDataJSON()?.expireOnly);
+    await page.getByRole('button', { name: /Add to order/i }).click();
+    release();
+    const updated = await (await changed).json();
+    sessionIds.add(updated.checkoutSessionId);
+    await expect(page.locator('button[type=submit]')).toBeEnabled();
+    await page.locator('#fullName').fill('Startup Buyer');
+    for (const checkbox of await page.locator('input[type=checkbox][required]').all()) if (await checkbox.isVisible() && !await checkbox.isChecked()) await checkbox.check();
+    const card = page.frameLocator('iframe[title="Secure payment input frame"][src*="elements-inner-payment"]');
+    await card.locator('input[name=number]').fill('4242424242424242');
+    await card.locator('input[name=expiry]').fill('1234');
+    await card.locator('input[name=cvc]').fill('123');
+    const confirmation = page.waitForRequest('https://api.stripe.com/v1/payment_pages/**/confirm');
+    await page.locator('button[type=submit]').click();
+    expect(new URLSearchParams((await confirmation).postData() ?? '').get('expected_amount')).toBe('1200');
+    await page.waitForURL(/payment-status.*session_id=/);
+    const paid = await testStripe().checkout.sessions.retrieve(updated.checkoutSessionId);
+    expect(paid.status).toBe('complete');
+    expect(paid.amount_total).toBe(1200);
+  } finally { release(); }
+});

@@ -6,7 +6,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import PaidProductForm from '@/app/[locale]/checkout/[slug]/components/PaidProductForm';
 import en from '@/messages/en.json';
 
-const state = vi.hoisted(() => ({ verifying: false, coupon: null as null | { code: string; discount_type: string; discount_value: number }, mounts: 0, updates: 0, process: null as null | ((value: boolean) => void), deadline: undefined as number | undefined, delayRefresh: false, finishRefresh: null as null | (() => void), confirm: null as null | ((value: boolean) => void), restart: null as null | (() => Promise<void>) }));
+const state = vi.hoisted(() => ({ ready: true, verifying: false, coupon: null as null | { code: string; discount_type: string; discount_value: number }, mounts: 0, updates: 0, process: null as null | ((value: boolean) => void), deadline: undefined as number | undefined, delayRefresh: false, finishRefresh: null as null | (() => void), confirm: null as null | ((value: boolean) => void), restart: null as null | (() => Promise<void>) }));
 const params = new URLSearchParams('email=buyer@example.com');
 vi.mock('next/navigation', () => ({ useSearchParams: () => params, useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: null, isAdmin: false, loading: false }) }));
@@ -26,14 +26,14 @@ vi.mock('@stripe/react-stripe-js/checkout', () => ({ CheckoutElementsProvider: (
   React.useEffect(() => { state.mounts++; }, []); return children;
 } }));
 vi.mock('@/app/[locale]/checkout/[slug]/components/CustomPaymentForm', () => ({ default: ({ quantityInvalid, onRegisterServerUpdate, onProcessingChange, sessionDeadline, onConfirmationChange, onSessionExpired }: { quantityInvalid: boolean; onConfirmationChange(value: boolean): void; onSessionExpired(): Promise<void>; sessionDeadline?: number; onProcessingChange(value: boolean): void; onRegisterServerUpdate(runner: (update: () => Promise<unknown>) => Promise<void>): void }) => {
-  React.useEffect(() => { onRegisterServerUpdate(async update => { state.updates++; await update(); if (state.delayRefresh) await new Promise<void>(resolve => { state.finishRefresh = resolve; }); }); }, [onRegisterServerUpdate]);
+  React.useEffect(() => { if (!state.ready) return; onRegisterServerUpdate(async update => { state.updates++; await update(); if (state.delayRefresh) await new Promise<void>(resolve => { state.finishRefresh = resolve; }); }); }, [onRegisterServerUpdate, state.ready]);
   state.process = onProcessingChange;
   state.deadline = sessionDeadline;
   state.confirm = onConfirmationChange;
   state.restart = onSessionExpired;
   return React.createElement('input', { 'aria-label': 'Card', disabled: quantityInvalid });
 } }));
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); state.verifying = false; state.coupon = null; state.mounts = 0; state.updates = 0; state.delayRefresh = false; state.finishRefresh = null; });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); state.ready = true; state.verifying = false; state.coupon = null; state.mounts = 0; state.updates = 0; state.delayRefresh = false; state.finishRefresh = null; });
 
 it('preserves the active session and entered card while checking and applying a coupon', async () => {
   const calls: Array<Record<string, unknown>> = [];
@@ -50,7 +50,7 @@ it('preserves the active session and entered card while checking and applying a 
   await waitFor(() => expect(calls.some(call => call.expireOnly)).toBe(false));
   expect(screen.getByLabelText('Card')).toBe(card);
   expect((card as HTMLInputElement).disabled).toBe(true);
-  state.verifying = false; state.coupon = { code: 'QUARTER', discount_type: 'percentage', discount_value: 25 }; view.rerender(tree());
+  state.ready = true; state.verifying = false; state.coupon = { code: 'QUARTER', discount_type: 'percentage', discount_value: 25 }; view.rerender(tree());
   await waitFor(() => expect(calls.some(call => call.couponCode === 'QUARTER')).toBe(true));
   expect(calls.at(-1)?.clientSecret).toBe('cs_test_open_secret_value');
   expect(screen.getByLabelText('Card')).toBe(card);
@@ -142,4 +142,43 @@ it('retires a fresh unpaid session on pagehide after restarting an earlier confi
   await waitFor(() => expect(opened).toBe(2));
   act(() => window.dispatchEvent(new Event('pagehide')));
   await waitFor(() => expect(calls.some(body => body.expireOnly && body.clientSecret === 'cs_test_2_secret_value')).toBe(true));
+});
+
+it('waits for the mounted Stripe form before applying a cart update', async () => {
+  state.ready = false;
+  const fetch = vi.fn(async () => Response.json({ clientSecret: 'cs_test_open_secret_value', checkoutSessionId: 'cs_test_open', bindingToken: 'binding' }));
+  vi.stubGlobal('fetch', fetch);
+  const product = { id: 'product', slug: 'product', name: 'Product', price: 100, currency: 'PLN', is_active: true };
+  const tree = () => React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(PaidProductForm, { product, collectTermsOfService: false } as unknown as React.ComponentProps<typeof PaidProductForm>));
+  const view = render(tree());
+  await screen.findByLabelText('Card');
+  expect(fetch).toHaveBeenCalledOnce();
+  state.coupon = { code: 'QUARTER', discount_type: 'percentage', discount_value: 25 };
+  view.rerender(tree());
+  await act(async () => {});
+  expect(fetch).toHaveBeenCalledOnce();
+  expect((screen.getByLabelText('Card') as HTMLInputElement).disabled).toBe(true);
+  state.ready = true;
+  view.rerender(tree());
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+  expect(state.updates).toBe(1);
+  await waitFor(() => expect((screen.getByLabelText('Card') as HTMLInputElement).disabled).toBe(false));
+  expect(state.mounts).toBe(1);
+});
+
+it('keeps a departed checkout retired when Stripe finishes loading', async () => {
+  state.ready = false;
+  const fetch = vi.fn(async (_url: string, _options: RequestInit) => Response.json({ clientSecret: 'cs_test_open_secret_value', checkoutSessionId: 'cs_test_open', bindingToken: 'binding' }));
+  vi.stubGlobal('fetch', fetch);
+  const product = { id: 'product', slug: 'product', name: 'Product', price: 100, currency: 'PLN', is_active: true };
+  const tree = () => React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(PaidProductForm, { product, collectTermsOfService: false } as unknown as React.ComponentProps<typeof PaidProductForm>));
+  const view = render(tree());
+  await screen.findByLabelText('Card');
+  act(() => window.dispatchEvent(new Event('pagehide')));
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+  state.ready = true;
+  view.rerender(tree());
+  await act(async () => {});
+  expect(fetch).toHaveBeenCalledTimes(2);
+  expect(JSON.parse(fetch.mock.calls[1][1].body as string)).toMatchObject({ expireOnly: true });
 });
