@@ -92,7 +92,7 @@ Jeśli koszyk zmieni się podczas przygotowywania płatności, Sellf zatrzymuje 
 
 ## Wstrzymane i zarchiwizowane produkty
 
-Wyłączenie produktu zachowuje zakup w **Moich produktach**, ale wstrzymuje dostęp do treści, login wall i bramek elementów. Zalogowany posiadacz dostępu otrzymuje HTTP 200 z `hasAccess: false` i `reason: "inactive"` z `/api/public/products/{slug}/access`; odpowiedź opisuje zapisany zakup i nie przyznaje dostępu. Endpoint treści zwraca HTTP 403. Nieaktywny produkt bez posiadanego dostępu pozostaje niedostępny. Archiwizacja zachowuje treści dla dotychczasowych kupujących, dopóki ich dostęp jest ważny. Weryfikacja bramki przez ważny token działa także bez ciasteczek Sellf, po archiwizacji lub zakończeniu okna sprzedaży; nadal sprawdza bieżące uprawnienie kupującego.
+Wyłączenie produktu zachowuje zakup w **Moich produktach**, ale wstrzymuje dostęp do treści, login wall i bramek elementów. Zalogowany posiadacz dostępu otrzymuje HTTP 200 z `hasAccess: false` i `reason: "inactive"` z `/api/public/products/{slug}/access`; odpowiedź opisuje zapisany zakup i nie przyznaje dostępu. Endpoint treści zwraca HTTP 403. Nieaktywny produkt bez posiadanego dostępu pozostaje niedostępny. Archiwizacja zachowuje treści dla dotychczasowych kupujących, dopóki ich dostęp jest ważny. Weryfikacja bramki przez ważny token działa także bez ciasteczek Sellf, również po archiwizacji; nadal sprawdza bieżące uprawnienie kupującego.
 
 ## Dostęp z kilku zakupów
 

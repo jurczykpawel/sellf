@@ -91,7 +91,7 @@ If the cart changes during payment preparation, Sellf stops before confirmation 
 
 ## Paused and archived products
 
-Pausing a product keeps the buyer's purchase in **My products**, but stops access to its content, login wall and element gates. An authenticated owner receives HTTP 200 with `hasAccess: false` and `reason: "inactive"` from `/api/public/products/{slug}/access`; this response describes the saved purchase and does not grant access. The content endpoint returns HTTP 403. An inactive product without ownership remains unavailable. Archiving a product keeps existing buyers' content available while their access is valid. Gate verification with a valid token also works without Sellf cookies after archiving or the end of the sale window; it still checks the buyer’s current entitlement.
+Pausing a product keeps the buyer's purchase in **My products**, but stops access to its content, login wall and element gates. An authenticated owner receives HTTP 200 with `hasAccess: false` and `reason: "inactive"` from `/api/public/products/{slug}/access`; this response describes the saved purchase and does not grant access. The content endpoint returns HTTP 403. An inactive product without ownership remains unavailable. Archiving a product keeps existing buyers' content available while their access is valid. Gate verification with a valid token also works without Sellf cookies after archiving; it still checks the buyer’s current entitlement.
 
 ## Access from several purchases
 
