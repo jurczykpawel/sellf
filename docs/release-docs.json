@@ -733,5 +733,11 @@
   ],
   "5f37f2318fffa3a4ed8df3131232a342acd4238f": [
     "none \u2014 Internal bundle component lock ordering; entitlement periods and documented checkout behaviour are unchanged."
+  ],
+  "29beefd9c12a3583ec834d7c5924421ad0aebc7c": [
+    "bank-transfers.md"
+  ],
+  "4a87974810af80454a202a9067fa142c0cdda4f3": [
+    "none \u2014 Historical-upgrade test tooling only: pinned CLI selection and diagnostics; customer-facing behaviour is unchanged."
   ]
 }
