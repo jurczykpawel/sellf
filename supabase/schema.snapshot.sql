@@ -124,7 +124,7 @@ BEGIN
       OR (gp.transaction_id IS NULL AND pt.session_id=gp.session_id)
     WHERE gp.customer_email=email AND gp.claimed_by_user_id IS NULL
       AND (pt.id IS NULL OR (pt.status NOT IN ('refunded','disputed','cancelled')
-        AND (pt.amount=0 OR coalesce(pt.refunded_amount,0)<pt.amount))) FOR UPDATE OF gp SKIP LOCKED LOOP
+        AND (pt.amount=0 OR coalesce(pt.refunded_amount,0)<pt.amount))) ORDER BY gp.transaction_id, (gp.product_id = pt.product_id) DESC, gp.id FOR UPDATE OF gp SKIP LOCKED LOOP
     BEGIN
       PERFORM set_config('sellf.transfer_order',coalesce(claim.transaction_id::text,''),true);
       UPDATE public.guest_purchases SET claimed_by_user_id=p_user_id,claimed_at=now() WHERE id=claim.id;

@@ -3719,6 +3719,9 @@ BEGIN
     ('public._claim_guest_purchases_before_disputes(uuid)',
       'grant_product_and_bundle_components(p_user_id,claim.product_id);',
       'grant_product_and_bundle_components(p_user_id,claim.product_id,NULL,claim.transaction_id);'),
+    ('public._claim_guest_purchases_before_disputes(uuid)',
+      'FOR UPDATE OF gp SKIP LOCKED LOOP',
+      'ORDER BY gp.transaction_id, (gp.product_id = pt.product_id) DESC, gp.id FOR UPDATE OF gp SKIP LOCKED LOOP'),
     ('public._process_stripe_payment_completion_with_bump_impl(text,uuid,text,numeric,text,text,uuid,uuid[],uuid,numeric,boolean)',
       'grant_product_and_bundle_components(current_user_id, product_id_param);',
       E'grant_product_and_bundle_components(current_user_id, product_id_param, NULL, existing_transaction_id);\n            PERFORM set_config(\'sellf.paid_order\',existing_transaction_id::text,true);')

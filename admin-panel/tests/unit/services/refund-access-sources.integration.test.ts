@@ -532,3 +532,33 @@ it('claims a guest placement transfer once after account confirmation deferred i
     f.cleanup();
   }
 });
+
+it('keeps an unlimited add-on when its guest receipt precedes the main receipt @J182', () => {
+  const f = fixture(), guest = randomUUID();
+  const config = JSON.parse(sql('SELECT row_to_json(c) FROM public.bank_transfer_config c;'));
+  try {
+    sql(`UPDATE public.bank_transfer_config SET bank_transfer_enabled=true,bank_transfer_grant_access_on_placement=true;
+      UPDATE public.products SET checkout_profile='{"v":1,"modules":[{"id":"buyer","types":["organization"],"bank_transfer_for":["organization"]}]}' WHERE id='${f.product}';
+      INSERT INTO public.order_bumps(main_product_id,bump_product_id,bump_title,access_duration_days) VALUES('${f.product}','${f.bundle}','Unlimited extra',0);`);
+    const placed = JSON.parse(sql(`SELECT public.bank_transfer_order(jsonb_build_object('product_id','${f.product}','currency','PLN','customer_email','${guest}@example.com',
+      'order_details','{"v":1,"buyer":{"type":"organization","terms_accepted":true}}'::jsonb),
+      jsonb_build_array(jsonb_build_object('product_id','${f.product}','item_type','main_product','quantity',1,'unit_price',40,'total_price',40,'discounted_total',40,'currency','PLN'),
+        jsonb_build_object('product_id','${f.bundle}','item_type','order_bump','order_bump_id',(SELECT id FROM public.order_bumps WHERE main_product_id='${f.product}'),'quantity',1,'unit_price',60,'total_price',60,'discounted_total',60,'currency','PLN','access_duration_override',0)));`));
+    expect(placed.transaction_id).toBeTruthy();
+    expect(JSON.parse(sql(`SELECT public.complete_offline_order('${placed.transaction_id}',10000);`)).success).toBe(true);
+    sql(`WITH main AS (DELETE FROM public.guest_purchases WHERE transaction_id='${placed.transaction_id}' AND product_id='${f.product}' RETURNING *)
+      INSERT INTO public.guest_purchases SELECT * FROM main;`);
+    expect(JSON.parse(sql(`SET enable_indexscan=off; SET enable_bitmapscan=off; SELECT json_agg(product_id) FROM public.guest_purchases WHERE transaction_id='${placed.transaction_id}';`))).toEqual([f.bundle,f.product]);
+    sql(`INSERT INTO auth.users(id,email) VALUES('${guest}','${guest}@example.com');
+      SET enable_indexscan=off; SET enable_bitmapscan=off;
+      UPDATE auth.users SET email_confirmed_at=now() WHERE id='${guest}';`);
+    const access = JSON.parse(sql(`SELECT json_object_agg(product_id,jsonb_build_object('expires',access_expires_at)) FROM public.user_product_access WHERE user_id='${guest}';`));
+    expect(access[f.bundle]?.expires).toBeNull();
+    expect(new Date(access[f.product].expires).getTime()).toBeGreaterThan(Date.now()+29*86400000);
+    expect(sql(`SELECT count(*) FROM public.guest_purchases WHERE transaction_id='${placed.transaction_id}' AND claimed_by_user_id='${guest}';`)).toBe('2');
+    expect(JSON.parse(sql(`SELECT public.claim_guest_purchases_for_user('${guest}');`)).claimed_count).toBe(0);
+  } finally {
+    sql(`DELETE FROM auth.users WHERE id='${guest}'; UPDATE public.bank_transfer_config SET bank_transfer_enabled=${config.bank_transfer_enabled},bank_transfer_grant_access_on_placement=${config.bank_transfer_grant_access_on_placement};`);
+    f.cleanup();
+  }
+});
