@@ -53,13 +53,14 @@ it('retires the pay button when the session deadline passes without a submit', a
   expect(fetch).not.toHaveBeenCalled();
 });
 
-it.each(['en', 'pl'] as const)('localizes an overlong email beside the email field in %s and clears it on edit', async locale => {
-  const fetch = vi.fn(async () => Response.json({ success: false, error: { code: 'EMAIL_TOO_LONG', message: 'Invalid email format' } }, { status: 400 }));
+it.each([['en', 'EMAIL_TOO_LONG'], ['pl', 'EMAIL_TOO_LONG'], ['en', 'INVALID_EMAIL_FORMAT'], ['pl', 'INVALID_EMAIL_FORMAT']] as const)('localizes %s email feedback for %s beside the field and clears it on edit', async (locale, detail) => {
+  const fetch = vi.fn(async () => Response.json({ success: false, error: { code: 'VALIDATION_ERROR', detail, message: 'Invalid email format' } }, { status: 400 }));
   vi.stubGlobal('fetch', fetch);
   const view = form(locale);
   await waitFor(() => expect(view.container.querySelector('button[type=submit]')?.hasAttribute('disabled')).toBe(false));
   fireEvent.submit(view.container.querySelector('form')!);
-  const error = await screen.findByText(locale === 'pl' ? 'Adres e-mail może mieć maksymalnie 254 znaki.' : 'Email addresses can have at most 254 characters.');
+  const messages = locale === 'pl' ? pl.checkout : en.checkout;
+  const error = await screen.findByText(detail === 'EMAIL_TOO_LONG' ? messages.emailTooLong : messages.emailInvalidFormat);
   const email = view.container.querySelector('input[type=email]')!;
   expect(email.getAttribute('aria-invalid')).toBe('true');
   expect(email.getAttribute('aria-describedby')).toBe(error.id);
