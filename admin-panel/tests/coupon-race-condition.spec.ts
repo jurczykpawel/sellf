@@ -15,6 +15,22 @@ function createFreshAdminClient(): SupabaseClient {
   return createClient(supabaseUrl, serviceRoleKey);
 }
 
+// Owned, purchasable-now product: borrowing "any active product" picked a seed product
+// whose sale starts tomorrow, and coupon checks rightly answered 404 for it.
+async function createOwnedProduct(admin: SupabaseClient): Promise<string> {
+  const { data, error } = await admin.from('products').insert({
+    name: 'Coupon Race Test Product', slug: `coupon-race-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    price: 100, currency: 'USD', is_active: true, vat_rate: 23, price_includes_vat: true,
+  }).select('id').single();
+  if (error || !data) throw new Error(`Owned product insert failed: ${error?.message}`);
+  return data.id;
+}
+
+async function deleteOwnedProduct(admin: SupabaseClient, id: string): Promise<void> {
+  await admin.from('payment_transactions').delete().eq('product_id', id);
+  await admin.from('products').delete().eq('id', id);
+}
+
 test.describe('Coupon Race Condition Security', () => {
   let couponId: string;
   let couponCode: string;
@@ -24,19 +40,7 @@ test.describe('Coupon Race Condition Security', () => {
   test.beforeAll(async () => {
     supabaseAdmin = createFreshAdminClient();
 
-    // Get an existing active product from database
-    const { data: products } = await supabaseAdmin
-      .from('products')
-      .select('id, name')
-      .eq('is_active', true)
-      .limit(1);
-
-    if (!products || products.length === 0) {
-      throw new Error('No active products found. Run seed.sql first.');
-    }
-
-    productId = products[0].id;
-    console.log(`Using product: ${products[0].name} (${productId})`);
+    productId = await createOwnedProduct(supabaseAdmin);
 
     // Create a coupon with usage_limit_global = 1
     // Note: Add random suffix to avoid duplicate key errors with parallel workers
@@ -76,16 +80,8 @@ test.describe('Coupon Race Condition Security', () => {
       await supabaseAdmin.from('coupon_redemptions').delete().eq('coupon_id', couponId);
       await supabaseAdmin.from('coupons').delete().eq('id', couponId);
     }
-    // Whichever concurrent request "won" the race created a real payment_transaction
-    // via /api/create-payment-intent against the borrowed active product — clean it up
-    // without touching that product's own (unrelated) history.
-    if (productId) {
-      await supabaseAdmin
-        .from('payment_transactions')
-        .delete()
-        .eq('product_id', productId)
-        .like('customer_email', 'user%@example.com');
-    }
+    // The race winner creates a real payment_transaction on the owned product.
+    if (productId) await deleteOwnedProduct(supabaseAdmin, productId);
   });
 
   test('SECURITY: Prevent race condition in coupon usage limit', async ({ request }) => {
@@ -326,12 +322,11 @@ test.describe('Coupon Race Condition - Edge Cases', () => {
   test.beforeAll(async () => {
     supabaseAdmin = createFreshAdminClient();
 
-    const { data: products } = await supabaseAdmin
-      .from('products')
-      .select('id')
-      .eq('is_active', true)
-      .limit(1);
-    productId = products?.[0]?.id;
+    productId = await createOwnedProduct(supabaseAdmin);
+  });
+
+  test.afterAll(async () => {
+    if (productId) await deleteOwnedProduct(supabaseAdmin, productId);
   });
 
   test.beforeEach(async () => {
