@@ -48,7 +48,12 @@ for (const path of ['/en/about', '/pl/about'] as const) {
         .locator('[data-landing-section="features"] button[aria-expanded]')
         .first();
       await card.scrollIntoViewIfNeeded();
-      await card.click();
+      await expect(card).toHaveAttribute('aria-expanded', 'false');
+      // Retry the click only while unflipped: it can land before hydration attaches the handler.
+      await expect(async () => {
+        if ((await card.getAttribute('aria-expanded')) !== 'true') await card.click();
+        await expect(card).toHaveAttribute('aria-expanded', 'true', { timeout: 2000 });
+      }).toPass({ timeout: 20000 });
 
       const flippedInner = card.locator('span[data-flipped="true"]').first();
       const transform = await flippedInner.evaluate(
