@@ -1,5 +1,8 @@
+import { lookup } from 'node:dns/promises';
 import { test, expect } from '@playwright/test';
 import { supabaseAdmin, createTestAdmin, loginAsAdmin } from './helpers/admin-auth';
+import { webhookReceiver } from './helpers/webhook-receiver';
+import { webhookTunnel } from './helpers/webhook-tunnel';
 
 test.describe('Webhook DLQ replay (UI + API)', () => {
   test.describe.configure({ mode: 'serial' });
@@ -335,16 +338,22 @@ test.describe('Webhook DLQ batch — pending_retry → Force retry batch path', 
 test('order delivery retry retains metadata in the logs panel @J71', async ({ page, request }) => {
   const { storeBuyerPayload } = await import('@/lib/webhooks/buyer-payload-storage');
   const admin = await createTestAdmin('order-delivery-retry');
-  const url = 'https://httpbingo.org/anything';
+  test.setTimeout(180_000);
+  const receiver = await webhookReceiver('whsec_fixture');
+  let tunnel: Awaited<ReturnType<typeof webhookTunnel>> | undefined;
   const marker = `order-link-${Date.now()}`;
   const payload = { event: 'order.placed', data: { order: { payUrl: `https://shop.example/pay?token=${marker}` } } };
   let endpointId: string | undefined;
   try {
-    const echo = await request.post(url, { data: payload });
-    expect(echo.status()).toBe(200);
-    expect((await echo.json()).json).toEqual(payload);
+    tunnel = await webhookTunnel(receiver.url);
+    await expect.poll(async () => {
+      try {
+        await lookup(new URL(tunnel!.url).hostname, { all: true });
+        return (await request.get(tunnel!.url, { timeout: 5000 })).status();
+      } catch { return 0; }
+    }, { timeout: 90_000 }).toBe(401);
     const endpoint = await supabaseAdmin.from('webhook_endpoints').insert({
-      url, events: ['order.placed'], is_active: true, secret: 'whsec_fixture',
+      url: tunnel.url, events: ['order.placed'], is_active: true, secret: 'whsec_fixture',
       description: marker, product_filter_mode: 'all',
     }).select('id').single();
     expect(endpoint.error).toBeNull();
@@ -364,18 +373,22 @@ test('order delivery retry retains metadata in the logs panel @J71', async ({ pa
     const response = await retryResponse;
     expect(response.status()).toBe(200);
     expect((await response.json()).data).toMatchObject({ success: true, http_status: 200 });
+    expect(receiver.received).toHaveLength(1);
+    expect(receiver.received[0]).toMatchObject(payload);
     const stored = await supabaseAdmin.from('webhook_logs').select('*').eq('id', logId).single();
     expect(stored.error).toBeNull();
     expect(stored.data).toMatchObject({ status: 'success', http_status: 200, attempt_count: 2, response_body: null });
-    expect(JSON.stringify(stored.data)).not.toContain(`token=${marker}`);
+    expect(JSON.stringify(stored.data)).not.toContain('token=');
     const logs = await page.request.get(`/api/v1/webhooks/logs?endpoint_id=${endpointId}`);
     expect(logs.status()).toBe(200);
-    expect(await logs.text()).not.toContain(`token=${marker}`);
+    expect(await logs.text()).not.toContain('token=');
   } finally {
     if (endpointId) {
       await supabaseAdmin.from('webhook_logs').delete().eq('endpoint_id', endpointId);
       await supabaseAdmin.from('webhook_endpoints').delete().eq('id', endpointId);
     }
+    await tunnel?.close();
+    await receiver.close();
     await admin.cleanup();
   }
 });
