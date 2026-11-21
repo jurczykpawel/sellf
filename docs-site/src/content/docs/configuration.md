@@ -112,6 +112,10 @@ for a shared demo installation. `DEMO_MODE` alone does not restrict direct Supab
 requests. Disable sign-up and configure account-change restrictions there before
 making a shared demo available.
 
+## Temporary connection failures
+
+A temporary network failure or rate-limit response during the browser session check does not sign the buyer or administrator out. Invalid sessions and deleted accounts still require signing in again.
+
 ## Abandoned checkout funnel
 
 The admin dashboard shows recorded payment attempts for the last 7, 30 or 90 days,
