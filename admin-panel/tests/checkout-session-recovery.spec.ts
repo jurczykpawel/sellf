@@ -1,7 +1,7 @@
 /** Real local checkout recovery and localized email feedback. */
 import { randomUUID } from 'node:crypto';
 import { expect } from '@playwright/test';
-import { test, startNativeCheckout } from './helpers/checkout-intent';
+import { test, startNativeCheckout, waitForNativeCheckoutReady } from './helpers/checkout-intent';
 import { supabaseAdmin } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
 import { clearPaidCheckout, testStripe } from './helpers/stripe-test-events';
@@ -41,6 +41,7 @@ for (const locale of ['en', 'pl']) {
     await page.locator('#fullName').fill('Recovery Buyer');
     for (const checkbox of await page.locator('input[type=checkbox][required]').all()) if (await checkbox.isVisible() && !await checkbox.isChecked()) await checkbox.check();
     const stripe = testStripe();
+    await waitForNativeCheckoutReady(page);
     await stripe.checkout.sessions.expire(opened.checkoutSessionId);
     const numberLabel = locale === 'pl' ? 'Numer karty' : 'Card number';
     let card: ReturnType<typeof page.frames>[number] | undefined;

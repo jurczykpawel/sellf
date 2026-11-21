@@ -1,4 +1,3 @@
-import { useAuthCheck } from './useAuthCheck';
 import { useCountdown } from './useCountdown';
 import { useWindowDimensions } from './useWindowDimensions';
 import { useMagicLink } from './useMagicLink';
@@ -31,11 +30,6 @@ export function usePaymentStatus({
   const terms = useTerms();
   const turnstile = useTurnstile();
 
-  const auth = useAuthCheck({
-    paymentStatus,
-    accessGranted
-  });
-
   const magicLink = useMagicLink({
     paymentStatus,
     customerEmail,
@@ -51,7 +45,6 @@ export function usePaymentStatus({
   const countdown = useCountdown({
     paymentStatus,
     accessGranted,
-    isUserAuthenticated: auth.isAuthenticated,
     productSlug: product.slug,
     redirectUrl,
     disableAutoRedirect,
@@ -61,7 +54,6 @@ export function usePaymentStatus({
   const windowDimensions = useWindowDimensions();
 
   return {
-    auth,
     countdown,
     windowDimensions,
     terms,

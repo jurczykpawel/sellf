@@ -1,11 +1,12 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react'
-import { User, Session, AuthChangeEvent } from '@supabase/supabase-js'
+import { isAuthRetryableFetchError } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import { isLeavingPage } from '@/lib/page-lifecycle'
 import { resolveUserRole } from '@/lib/auth/resolve-role'
-import { AuthContextType, UserRole } from '@/types/auth'
+import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js'
+import type { AuthContextType, UserRole } from '@/types/auth'
 
 // Create context with default values
 const AuthContext = createContext<AuthContextType>({
@@ -140,7 +141,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Handles stale sessions after DB reset (e.g. demo mode hourly reset)
       if (session) {
         const { error: userError } = await supabase.auth.getUser()
-        if (userError) {
+        if (!isMountedRef.current) return
+        if (userError && !isAuthRetryableFetchError(userError) && userError.status !== 429) {
           // Session is stale — user was deleted from DB
           await supabase.auth.signOut()
           if (!isMountedRef.current) return

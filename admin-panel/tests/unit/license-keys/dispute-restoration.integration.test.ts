@@ -1,7 +1,7 @@
 /** License decisions through recorded Stripe outcomes, real tokens, CRL and signed delivery. */
 import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, afterAll, beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest } from 'next/server';
 import created from '../../fixtures/stripe/charge_dispute_created_needs_response.json';
@@ -11,6 +11,7 @@ import wonCharge from '../../fixtures/stripe/dispute_charge_won.json';
 import refundedCharge from '../../fixtures/stripe/charge_full_current.json';
 import lostCharge from '../../fixtures/stripe/dispute_charge_lost.json';
 import { getTestDatabaseContainer } from '../../helpers/database-container';
+import { deferPendingBusinessEvents } from '../../helpers/db-cleanup';
 import type Stripe from 'stripe';
 
 const h=vi.hoisted(()=>({pro:true,seller:'',requests:[] as Array<{body:string;headers:Record<string,string>}>}));
@@ -38,6 +39,20 @@ let product:string,buyer:string,transaction:string,license:string,endpoint:strin
 let pair:ReturnType<typeof generateSellerKeypair>;
 let expiration:string,email:string;
 let additionalProducts:string[]=[];
+let restoreBusinessEvents=()=>{};
+const historyProduct=randomUUID();
+beforeAll(async()=>{
+ expect((await db.from('products').insert({id:historyProduct,name:'Earlier notifications',slug:'license-history-'+historyProduct,price:1,currency:'PLN'})).error).toBeNull();
+ sql(`INSERT INTO public.business_events(event_type,product_id,payload,deduplication_key,created_at,next_attempt_at)
+   SELECT e.event_type,e.product_id,e.payload,'license-history-${historyProduct}-'||n,now()-interval '2 days',now()-interval '2 days'
+   FROM public.business_events e CROSS JOIN generate_series(1,3100) n
+   WHERE e.product_id='${historyProduct}' AND e.event_type='product.created';`);
+ expect((await db.from('business_events').select('id',{count:'exact',head:true}).like('deduplication_key','license-history-'+historyProduct+'-%')).count).toBe(3100);
+});
+afterAll(async()=>{
+ expect((await db.from('products').delete().eq('id',historyProduct)).error).toBeNull();
+ sql(`DELETE FROM public.business_events WHERE product_id='${historyProduct}' OR payload#>>'{product,id}'='${historyProduct}' OR deduplication_key LIKE 'license-history-${historyProduct}-%';`);
+});
 function sql(query:string):void{
  execFileSync('docker',['exec','-i',getTestDatabaseContainer(),'psql','-U','postgres','-v','ON_ERROR_STOP=1'],{input:query,stdio:['pipe','pipe','pipe']});
 }
@@ -82,6 +97,7 @@ async function drain():Promise<void>{
 }
 function received(kind:string){return h.requests.map(x=>JSON.parse(x.body)).filter(x=>x.event===kind);}
 beforeEach(async()=>{
+ restoreBusinessEvents=deferPendingBusinessEvents();
  h.pro=true;h.requests=[];additionalProducts=[];product=randomUUID();transaction=randomUUID();license=randomUUID();endpoint=randomUUID();order=String(wonCharge.payment_intent);pair=generateSellerKeypair();
  const owner=await db.auth.admin.createUser({email:'license-owner-'+product+'@example.com',email_confirm:true});expect(owner.error).toBeNull();h.seller=owner.data.user!.id;
  const customer=await db.auth.admin.createUser({email:'license-buyer-'+product+'@example.com',email_confirm:true});expect(customer.error).toBeNull();buyer=customer.data.user!.id;email=customer.data.user!.email!;
@@ -94,6 +110,7 @@ beforeEach(async()=>{
  expect((await db.from('webhook_endpoint_products').insert({webhook_endpoint_id:endpoint,product_id:product})).error).toBeNull();
 });
 afterEach(async()=>{
+ try{
  vi.restoreAllMocks();
  await db.from('webhook_endpoints').delete().eq('id',endpoint);
  await db.from('payment_transactions').delete().eq('id',transaction);
@@ -103,6 +120,7 @@ afterEach(async()=>{
  await db.from('seller_license_keys').delete().eq('original_seller_id',h.seller);
  if(buyer)await db.auth.admin.deleteUser(buyer);if(h.seller)await db.auth.admin.deleteUser(h.seller);
  sql(`DELETE FROM public.business_events WHERE product_id='${product}';`);
+ }finally{restoreBusinessEvents();}
 });
 describe('license restoration consumer contract',()=>{
  it.each(['intent','quick-pay'])('records delayed main and bump licenses as revoked during a %s dispute',async kind=>{

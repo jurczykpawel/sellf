@@ -400,6 +400,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     sessionId: product.event_mode ? eventSessionId : undefined,
     repurchase: explicitRepurchase,
   });
+  const cartReady = !quantityInvalid && !coupon.isVerifyingCoupon && lastCheckoutSessionSignature === checkoutSessionSignature;
 
   // Free-access flow (shared by PWYW=0 and full-discount coupons)
   const pwyw = useFreeAccess({
@@ -793,7 +794,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
           {!isFunnelTest && !error && !hasAccess && !isFreeAccess && activeMethod === 'online' && purchaseStarted && !quantityInvalid && !customAmountError && !clientSecret && <PaymentFormSkeleton />}
 
           {!isFunnelTest && !error && !hasAccess && !isFreeAccess && stripePromise && clientSecret && (
-            <div hidden={activeMethod !== 'online'}><CheckoutElementsProvider
+            <div hidden={activeMethod !== 'online'} data-checkout-session-id={cartReady ? checkoutSessionId : undefined}><CheckoutElementsProvider
               key={`${product.id}-${checkoutSessionId || clientSecret}-${resolvedTheme}`}
               stripe={stripePromise}
               options={{
@@ -819,7 +820,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 termsAccepted={termsAccepted}
                 onTermsAcceptedChange={setTermsAccepted}
                 cartSignature={checkoutSessionSignature}
-                quantityInvalid={quantityInvalid || coupon.isVerifyingCoupon || lastCheckoutSessionSignature !== checkoutSessionSignature}
+                quantityInvalid={!cartReady}
                 onRegisterServerUpdate={registerServerUpdate}
                 product={product}
                 email={user?.email ?? formEmail ?? email}

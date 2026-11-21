@@ -1,4 +1,3 @@
-export { useAuthCheck } from './useAuthCheck';
 export { useCountdown } from './useCountdown';
 export { useWindowDimensions } from './useWindowDimensions';
 export { useMagicLink } from './useMagicLink';

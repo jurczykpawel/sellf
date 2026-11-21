@@ -138,6 +138,7 @@ export default function CustomPaymentForm({
   useEffect(() => { onProcessingChange?.(isProcessing); }, [isProcessing, onProcessingChange]);
   useEffect(() => () => onProcessingChange?.(false), [onProcessingChange]);
   const [paymentElementReady, setPaymentElementReady] = useState(false);
+  const paymentInputPending = !paymentElementReady || quantityInvalid;
   const [errorMessage, setErrorMessage] = useState('');
   const [emailError, setEmailError] = useState('');
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -502,9 +503,9 @@ export default function CustomPaymentForm({
       )}
 
       {/* Payment Element */}
-      <div className="relative min-h-48">
-        {!paymentElementReady && <div className="absolute inset-0 z-10 bg-sf-raised"><PaymentFormSkeleton /></div>}
-        <PaymentElement options={paymentElementOptions} onReady={() => setPaymentElementReady(true)} />
+      <div className="relative min-h-48" aria-busy={paymentInputPending}>
+        {paymentInputPending && <div className="absolute inset-0 z-10 bg-sf-raised"><PaymentFormSkeleton /></div>}
+        <div inert={paymentInputPending}><PaymentElement options={paymentElementOptions} onReady={() => setPaymentElementReady(true)} /></div>
       </div>
 
       {/* Error Message */}

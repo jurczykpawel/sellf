@@ -109,10 +109,13 @@ test.describe('Funnel Mechanics (Redirects & OTO)', () => {
     const magicLink = extractMagicLink(message.Text!);
     
     // 5. Verify Redirect
+    let failedAuthReads = 0;
+    await page.route('**/auth/v1/user', route => { failedAuthReads++; return route.fulfill({ status: 503, body: 'Temporarily unavailable' }); });
     await page.goto(magicLink!);
     
     // Should pass through payment-status and land on OTO Checkout
     await expect(page).toHaveURL(new RegExp(`/checkout/${otoSlug}`), { timeout: 30000 });
+    expect(failedAuthReads).toBeGreaterThan(0);
   });
 
   test('Scenario 2: URL Override Redirect (Free Product -> Custom OTO)', async ({ page }) => {

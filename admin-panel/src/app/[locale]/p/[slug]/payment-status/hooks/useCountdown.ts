@@ -8,7 +8,6 @@ import { productUrl } from '@/lib/utils/product-urls';
 interface UseCountdownParams {
   paymentStatus: PaymentStatus;
   accessGranted: boolean;
-  isUserAuthenticated: boolean | null;
   productSlug: string;
   redirectUrl?: string;
   /** When true, countdown runs but doesn't auto-redirect (used when OTO is shown) */
@@ -20,7 +19,6 @@ interface UseCountdownParams {
 export function useCountdown({
   paymentStatus,
   accessGranted,
-  isUserAuthenticated,
   productSlug,
   redirectUrl,
   disableAutoRedirect = false,
@@ -39,7 +37,7 @@ export function useCountdown({
     // Determine if auto-redirect should happen:
     // 1. Authenticated user with completed payment
     // 2. Guest purchase (magic_link_sent) with redirect URL AND magic link already sent
-    const isAuthenticatedSuccess = paymentStatus === 'completed' && accessGranted && isUserAuthenticated;
+    const isAuthenticatedSuccess = paymentStatus === 'completed' && accessGranted;
     const isGuestSuccessWithRedirect = paymentStatus === 'magic_link_sent' && redirectUrl && magicLinkSent;
 
     if (isAuthenticatedSuccess || isGuestSuccessWithRedirect) {
@@ -58,7 +56,7 @@ export function useCountdown({
 
       return () => clearTimeout(timer);
     }
-  }, [countdown, router, locale, productSlug, paymentStatus, accessGranted, isUserAuthenticated, redirectUrl, disableAutoRedirect, magicLinkSent]);
+  }, [countdown, router, locale, productSlug, paymentStatus, accessGranted, redirectUrl, disableAutoRedirect, magicLinkSent]);
 
   return countdown;
 }
