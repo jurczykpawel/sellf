@@ -17,6 +17,9 @@ realizacji zamówienia. Lista płatności i szczegóły pokazują numer z linkie
 Fakturowni. **Wystaw ponownie** pojawia się tylko dla błędu. Ponowienia zachowują
 zewnętrzny identyfikator, również po wcześniejszym przyjęciu faktury przez dostawcę.
 
+Na stronie **Płatności** wyszukaj zamówienie po adresie e-mail kupującego lub numerze
+zamówienia, a potem otwórz **Szczegóły**. Wyszukiwarka obejmuje całą historię płatności.
+
 Automatyczne wystawianie obejmuje zamówienia złożone od chwili włączenia.
 
 Dla produktów zwolnionych wpisz podstawę zwolnienia z VAT i włącz wybór podstawy
