@@ -17,6 +17,9 @@ Invoices appear in the payment list and order details with a link to Fakturownia
 Only failed invoices offer **Retry invoice**. The same order keeps its external
 reference across retries, including when the provider accepted a previous attempt.
 
+In **Payments**, use **Search** to find an order by buyer email or order number,
+then open **Details**. Search covers the full payment history, including older orders.
+
 Automatic invoicing applies to orders placed from the moment it is enabled.
 
 Set the VAT exemption basis when selling exempt products, and enable the exemption

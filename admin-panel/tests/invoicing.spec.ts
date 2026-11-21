@@ -8,9 +8,15 @@ test('admin configures and checks provider, issues invoice and reads it in order
   test.setTimeout(120000);
   const admin = await createTestAdmin('invoicing');
   const transactionId = 'e1000000-0000-4000-8000-000000000010';
+  const history = Array.from({ length: 101 }, () => ({
+    id: randomUUID(), product_id: 'e1000000-0000-4000-8000-000000000001',
+    session_id: `cs_invoice_history_${randomUUID().replaceAll('-', '')}`, customer_email: 'recent-invoice@example.com',
+    amount: 100, currency: 'PLN', status: 'completed',
+  }));
   const { data: originalInvoice } = await supabaseAdmin.from('invoices').select('*').eq('transaction_id', transactionId).single();
   const { data: originalConfig } = await supabaseAdmin.from('invoicing_config').select('*').single();
   try {
+    expect((await supabaseAdmin.from('payment_transactions').insert(history)).error).toBeNull();
     await loginAsAdmin(page, admin.email, admin.password);
     await page.goto('/pl/dashboard/settings');
     const settings = page.getByRole('region', { name: 'Faktury', exact: true });
@@ -30,6 +36,7 @@ test('admin configures and checks provider, issues invoice and reads it in order
     await expect(settings.getByLabel('Token API', { exact: true })).toHaveValue('');
     await supabaseAdmin.from('invoices').delete().eq('transaction_id', transactionId);
     await page.goto('/pl/dashboard/payments');
+    await page.locator('#payment-search-filter').fill('office@example.com');
     const row = page.getByRole('row').filter({ hasText: 'office@example.com' });
     await row.getByRole('button', { name: /szczegóły/i }).click();
     await page.getByRole('button', { name: 'Wystaw fakturę', exact: true }).click();
@@ -42,10 +49,12 @@ test('admin configures and checks provider, issues invoice and reads it in order
     const { count } = await supabaseAdmin.from('invoices').select('*', { count: 'exact', head: true }).eq('transaction_id', transactionId);
     expect(count).toBe(1);
     await page.screenshot({ path: test.info().outputPath('invoice.png'), fullPage: true });
+    await page.close();
   } finally {
     await supabaseAdmin.from('invoices').delete().eq('transaction_id', transactionId);
     if (originalInvoice) await supabaseAdmin.from('invoices').insert(originalInvoice);
     if (originalConfig) await supabaseAdmin.from('invoicing_config').upsert(originalConfig);
+    expect((await supabaseAdmin.from('payment_transactions').delete().in('id', history.map(row => row.id))).error).toBeNull();
     await admin.cleanup();
   }
 });
@@ -78,6 +87,7 @@ for (const locale of ['en', 'pl']) {
       await expect(settings.getByRole('alert')).toContainText(locale === 'pl' ? 'znacznik produktu' : 'product placeholder');
       const unchanged = await supabaseAdmin.from('invoicing_config').select('provider,domain,token').single();
       expect(unchanged.data).toEqual({ provider: 'none', domain: '', token: null });
+      await page.close();
     } finally {
       if (original.data) expect((await supabaseAdmin.from('invoicing_config').upsert(original.data)).error).toBeNull();
       await admin.cleanup();
@@ -111,6 +121,7 @@ test('shows company data backfilled from embedded Stripe Checkout in payment det
     await page.reload();
     await expect(details).toBeVisible();
     for (const value of ['Embedded Company', '5260250274', 'Krótka 2']) await expect(details).toContainText(value);
+    await page.close();
   } finally {
     await supabaseAdmin.from('payment_transactions').delete().eq('session_id', sessionId);
     await supabaseAdmin.from('products').delete().eq('id', product.data!.id);
