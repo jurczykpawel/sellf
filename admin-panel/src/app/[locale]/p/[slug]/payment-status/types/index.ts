@@ -39,11 +39,6 @@ export interface PaymentStatusViewProps {
   redirectUrl?: string;
 }
 
-export interface AuthStatus {
-  isAuthenticated: boolean | null;
-  isChecking: boolean;
-}
-
 export interface MagicLinkState {
   sent: boolean;
   sending: boolean;

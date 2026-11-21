@@ -751,5 +751,9 @@
   ],
   "5d236a6dd833f50428c3cae43ff3b5e3f1e27a4c": [
     "invoicing.md"
+  ],
+  "df0034f300b456d438090e35c17dba9f5f9ddfa0": [
+    "configuration.md",
+    "custom-checkout.md"
   ]
 }

@@ -71,9 +71,11 @@ See [Webhooks](/webhooks/) for endpoint configuration and delivery settings.
 
 For an eligible open on-site Stripe Checkout Session, changing the cart updates its items in the same session. Changes to language, return URL or buyer email require a replacement session; payments already in progress are left to complete. Sellf records cart versions and fulfills the version Stripe actually charged, including its saved prices and entitlements. This does not add a multi-product shopping cart.
 
-Applying or removing a discount code also keeps the same eligible session and the card details already entered. Sellf applies its codes to the item prices, rather than changing Stripe discounts. While the code is being checked or the cart is being updated, payment is disabled. After the buyer submits payment, cart controls stay disabled until confirmation finishes; the cart is checked again immediately before confirmation. Server updates share a 15-second request budget, shorter than Stripe’s 20-second `runServerUpdate` timeout. The payment form stays mounted and refreshes through Stripe's `runServerUpdate`. Session reuse applies to one-time, non-event payments with at least two minutes left; other checkouts may require a new session.
+Applying or removing a discount code also keeps the same eligible session and the card details already entered. Sellf applies its codes to the item prices, rather than changing Stripe discounts. While the code is being checked or the cart is being updated, the payment button and card fields are temporarily unavailable. After the buyer submits payment, cart controls stay disabled until confirmation finishes; the cart is checked again immediately before confirmation. Server updates share a 15-second request budget, shorter than Stripe’s 20-second `runServerUpdate` timeout. The payment form stays mounted and refreshes through Stripe's `runServerUpdate`. Session reuse applies to one-time, non-event payments with at least two minutes left; other checkouts may require a new session.
 
 Cart changes made while the card fields are loading wait for the payment form to become ready. Payment becomes available after the updated total has synchronized, keeping the entered card details.
+
+A server-confirmed receipt follows the configured success URL even if the browser's session check is temporarily unavailable.
 
 ## Checkout recovery and validation
 

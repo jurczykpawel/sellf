@@ -114,6 +114,10 @@ konfiguracji dla współdzielonego demo. Samo `DEMO_MODE` nie ogranicza bezpośr
 żądań do Supabase. Przed udostępnieniem demo wyłącz tam rejestrację i skonfiguruj
 ograniczenia zmian konta.
 
+## Chwilowe problemy z połączeniem
+
+Chwilowy błąd sieci lub przekroczenie limitu zapytań przy sprawdzaniu sesji w przeglądarce nie wylogowuje kupującego ani administratora. Nieprawidłowa sesja lub usunięte konto nadal wymagają ponownego zalogowania.
+
 ## Lejek porzuconych płatności
 
 Dashboard admina pokazuje zapisane próby płatności z ostatnich 7, 30 lub 90 dni

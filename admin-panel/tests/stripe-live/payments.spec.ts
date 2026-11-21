@@ -1,6 +1,6 @@
 import { useSupabaseBuyerEmails as registerSupabaseBuyerEmails } from '../helpers/buyer-email-setting-playwright';
 registerSupabaseBuyerEmails();
-import { test, startNativeCheckout } from '../helpers/checkout-intent';
+import { test, startNativeCheckout, waitForNativeCheckoutReady } from '../helpers/checkout-intent';
 /** Real Stripe test-mode checkout, fulfillment, and delivery checks. @see README.md */
 import { readFileSync, appendFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { randomUUID, createHash } from 'node:crypto';
@@ -134,7 +134,7 @@ async function cleanup(s: Scenario): Promise<void> {
   }
   for (const id of s.sessionIds) {
     const session = await stripe.checkout.sessions.retrieve(id);
-    if (session.status === 'open') await stripe.checkout.sessions.expire(id);
+    if (session.status === 'open') await stripe.checkout.sessions.expire(id).catch(async error => { if ((await stripe.checkout.sessions.retrieve(id)).status !== 'expired') throw error; });
   }
   if (s.endpointId) {
     await remove('webhook_logs', 'endpoint_id', [s.endpointId]);
@@ -163,6 +163,7 @@ async function cleanup(s: Scenario): Promise<void> {
 }
 
 async function fillCard(page: Page, card: string): Promise<void> {
+  await waitForNativeCheckoutReady(page);
   // Stripe owns this iframe: no mocked Stripe script, API, or webhook.
   // Stripe also renders an auxiliary frame with the same title.
   const frame = page.frameLocator('iframe[title="Secure payment input frame"][src*="elements-inner-payment"]');
@@ -255,7 +256,31 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
     if (desiredQuantity !== null) {
       const quantity = page.getByLabel('Quantity', { exact: true });
       if ((await quantity.inputValue()) !== String(desiredQuantity)) {
+        let releaseUpdate = () => {};
+        let pendingUpdate: Promise<void> = Promise.resolve();
+        if (options.event) {
+          await waitForNativeCheckoutReady(page);
+          const gate = new Promise<void>(resolve => { releaseUpdate = resolve; });
+          let noteUpdate = () => {};
+          pendingUpdate = new Promise<void>(resolve => { noteUpdate = resolve; });
+          await page.route('**/api/create-payment-intent', async route => {
+            if (route.request().postDataJSON().quantity !== desiredQuantity) return route.continue();
+            noteUpdate(); await gate;
+            const response = await route.fetch(); await route.fulfill({ response });
+          });
+        }
         await quantity.fill(String(desiredQuantity));
+        if (options.event) {
+          await pendingUpdate;
+          try {
+            await quantity.focus();
+            for (let tab = 0; tab < 24; tab++) {
+              await page.keyboard.press('Tab');
+              const cardFocused = await page.evaluate(() => document.activeElement instanceof HTMLIFrameElement && document.activeElement.src.includes('elements-inner-payment'));
+              expect(cardFocused, 'Keyboard input must skip card fields while the cart update is pending').toBe(false);
+            }
+          } finally { releaseUpdate(); }
+        }
         await startNativeCheckout(page);
       }
     }

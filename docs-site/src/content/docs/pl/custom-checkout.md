@@ -72,9 +72,11 @@ Konfigurację adresów i dostarczania opisuje strona [Webhooki](/pl/webhooks/).
 
 Zmiana koszyka aktualizuje pozycje w tej samej otwartej sesji Stripe Checkout na stronie sklepu, jeśli sesja spełnia warunki ponownego użycia. Zmiana języka, adresu powrotu lub maila kupującego wymaga nowej sesji. Rozpoczęta płatność może się zakończyć. Sellf zapisuje wersje koszyka i realizuje tę, którą Stripe faktycznie obciążył, z zapisanymi cenami i uprawnieniami. Ta funkcja nie wprowadza koszyka wielu produktów.
 
-Zastosowanie lub usunięcie kodu rabatowego również zachowuje tę samą sesję spełniającą warunki aktualizacji oraz wpisane dane karty. Sellf uwzględnia rabat w cenach pozycji, zamiast zmieniać rabaty Stripe. Podczas sprawdzania kodu i aktualizacji koszyka płatność jest zablokowana. Po kliknięciu przycisku płatności kontrolki koszyka pozostają zablokowane do zakończenia potwierdzania; tuż przed potwierdzeniem formularz ponownie sprawdza koszyk. Aktualizacja ma wspólny limit 15 sekund na żądania, krótszy niż 20-sekundowy limit `runServerUpdate` Stripe. Formularz pozostaje na stronie i odświeża się przez `runServerUpdate` Stripe. Ponowne użycie sesji dotyczy płatności jednorazowych poza wydarzeniami, z co najmniej dwiema minutami do wygaśnięcia; pozostałe koszyki mogą wymagać nowej sesji.
+Zastosowanie lub usunięcie kodu rabatowego również zachowuje tę samą sesję spełniającą warunki aktualizacji oraz wpisane dane karty. Sellf uwzględnia rabat w cenach pozycji, zamiast zmieniać rabaty Stripe. Podczas sprawdzania kodu i aktualizacji koszyka przycisk płatności i pola karty są chwilowo nieaktywne. Po kliknięciu przycisku płatności kontrolki koszyka pozostają zablokowane do zakończenia potwierdzania; tuż przed potwierdzeniem formularz ponownie sprawdza koszyk. Aktualizacja ma wspólny limit 15 sekund na żądania, krótszy niż 20-sekundowy limit `runServerUpdate` Stripe. Formularz pozostaje na stronie i odświeża się przez `runServerUpdate` Stripe. Ponowne użycie sesji dotyczy płatności jednorazowych poza wydarzeniami, z co najmniej dwiema minutami do wygaśnięcia; pozostałe koszyki mogą wymagać nowej sesji.
 
 Zmiany koszyka wykonane podczas ładowania pól karty czekają na gotowość formularza płatności. Płatność staje się dostępna po odświeżeniu kwoty, z zachowaniem wpisanych danych karty.
+
+Po potwierdzeniu zakupu przez serwer przekierowanie pod ustawiony adres działa także wtedy, gdy przeglądarka chwilowo nie może sprawdzić sesji.
 
 ## Wznowienie koszyka i walidacja
 

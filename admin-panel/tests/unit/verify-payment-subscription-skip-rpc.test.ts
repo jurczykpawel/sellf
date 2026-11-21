@@ -54,20 +54,3 @@ describe('verifyPaymentSession subscription branch', () => {
     expect(subBranch![0]).toMatch(/requires_login:\s*true/);
   });
 });
-
-describe('useAuthCheck does not redirect on missing client-side session', () => {
-  const hookSource = readFileSync(
-    resolve(__dirname, '../../src/app/[locale]/p/[slug]/payment-status/hooks/useAuthCheck.ts'),
-    'utf-8',
-  );
-
-  it('never calls router.push for /login', () => {
-    expect(hookSource).not.toMatch(/router\.push\(/);
-    expect(hookSource).not.toContain('payment_completed_login_required');
-  });
-
-  it('only resolves the auth flag (no redirects or imperative navigation)', () => {
-    expect(hookSource).toContain('setIsAuthenticated(!!user)');
-    expect(hookSource).not.toMatch(/useRouter/);
-  });
-});

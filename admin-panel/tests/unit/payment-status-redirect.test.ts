@@ -70,12 +70,6 @@ describe('useCountdown — source verification', () => {
     expect(earlyReturnMatch).not.toBeNull();
   });
 
-  it('authenticated success requires completed + accessGranted + isUserAuthenticated (conjunctive)', () => {
-    expect(countdownSource).toMatch(
-      /isAuthenticatedSuccess\s*=\s*paymentStatus\s*===\s*'completed'\s*&&\s*accessGranted\s*&&\s*isUserAuthenticated/,
-    );
-  });
-
   it('guest success requires magic_link_sent + redirectUrl + magicLinkSent (conjunctive)', () => {
     expect(countdownSource).toMatch(
       /isGuestSuccessWithRedirect\s*=\s*paymentStatus\s*===\s*'magic_link_sent'\s*&&\s*redirectUrl\s*&&\s*magicLinkSent/,

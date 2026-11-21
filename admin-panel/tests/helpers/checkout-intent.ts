@@ -37,6 +37,7 @@ export async function startNativeCheckout(page: Page): Promise<Response> {
     await start.click();
     await expect.poll(() => captured.get(page)?.length ?? 0, { timeout: 90000 }).toBeGreaterThan(0);
   }
+  expect(captured.get(page)!.at(-1)!.status()).toBe(200);
   await expect(page.locator('[data-test-email]')).toBeVisible({ timeout: 90000 });
   const response = captured.get(page)!.at(-1)!;
   captured.set(page, []);
@@ -45,4 +46,13 @@ export async function startNativeCheckout(page: Page): Promise<Response> {
   expect(typeof body.clientSecret).toBe('string');
   expect(body.clientSecret.length).toBeGreaterThan(0);
   return response;
+}
+
+/** Wait for the current native cart before typing into its Stripe fields. */
+export async function waitForNativeCheckoutReady(page: Page): Promise<void> {
+  const checkout = page.locator('[data-checkout-session-id]');
+  await expect(checkout.locator('[data-test-email]')).toBeVisible({ timeout: 90000 });
+  await expect(checkout.locator('button[type="submit"]')).not.toHaveAttribute('data-checkout-pending', 'true', { timeout: 90000 });
+  await expect(checkout.locator('[aria-busy="true"]')).toHaveCount(0, { timeout: 90000 });
+  await expect(checkout).toBeVisible({ timeout: 90000 });
 }

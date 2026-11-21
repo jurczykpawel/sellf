@@ -1,6 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { classifyCachedPaymentAuth, mapVerifiedPaymentToStatus } from '@/lib/payment/verify-payment';
 
 describe('classifyCachedPaymentAuth', () => {
@@ -227,30 +225,5 @@ describe('end-to-end contract: classifyCachedPaymentAuth -> mapVerifiedPaymentTo
 
     expect(mapped.paymentStatus).toBe('magic_link_sent');
     expect(mapped.accessGranted).toBe(true);
-  });
-});
-
-describe('useAuthCheck never auto-redirects (server is source of truth)', () => {
-  const repoRoot = join(__dirname, '..', '..', '..');
-  const hookSource = readFileSync(
-    join(repoRoot, 'src/app/[locale]/p/[slug]/payment-status/hooks/useAuthCheck.ts'),
-    'utf8'
-  );
-
-  // Hard regression guard. Client-side getUser() can race or miss cookies right
-  // after Stripe redirect; auto-redirecting on that would bounce buyers off
-  // their success page. Server-side verify-payment already decided the state.
-  it('does not import useRouter or call router.push', () => {
-    expect(hookSource).not.toMatch(/useRouter/);
-    expect(hookSource).not.toMatch(/router\.push/);
-  });
-
-  it('does not reference the post-payment login message', () => {
-    expect(hookSource).not.toContain('payment_completed_login_required');
-  });
-
-  it('still gates the auth probe on paymentStatus=completed + accessGranted', () => {
-    expect(hookSource).toMatch(/paymentStatus\s*!==\s*['"]completed['"]/);
-    expect(hookSource).toMatch(/accessGranted/);
   });
 });

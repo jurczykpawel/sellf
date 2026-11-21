@@ -7,7 +7,7 @@ import en from '../src/messages/en.json';
 import pl from '../src/messages/pl.json';
 import { openFormSection } from './helpers/product-form';
 
-test('aligns the registered user count and renders seller forms in both languages', async ({ page, browser }) => {
+test('aligns the registered user count and renders seller forms in both languages', async ({ page, browser, baseURL }) => {
   test.setTimeout(180000);
   mkdirSync('/tmp/rcfix-core-shots', { recursive: true });
   const admin = await createTestAdmin('core-seller-ui');
@@ -54,7 +54,7 @@ test('aligns the registered user count and renders seller forms in both language
       const context = await browser.newContext({ viewport: { width, height: 900 } });
       try {
         const login = await context.newPage();
-        await login.goto(`http://localhost:3777/${locale}/login`);
+        await login.goto(new URL(`/${locale}/login`, baseURL).href);
         await expect(login.locator('#password')).toHaveAttribute('placeholder', messages.auth.passwordEntryPlaceholder);
         await login.screenshot({ path: `/tmp/rcfix-core-shots/login-${locale}-${width}.png`, fullPage: true, animations: 'disabled' });
       } finally { await context.close(); }
