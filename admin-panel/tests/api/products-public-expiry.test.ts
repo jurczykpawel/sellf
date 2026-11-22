@@ -365,7 +365,9 @@ describe('Public product endpoints — expiry semantics', () => {
       await grantAccess(userId, product.id, new Date(Date.now() - 60000));
       const page = await get(`/pl/p/${product.slug}`, userCookie);
       expect(page.status).toBe(200);
-      expect(await page.text()).not.toContain('secret.pdf');
+      const html = await page.text();
+      expect(html).not.toContain('secret.pdf');
+      expect(html).toMatch(state === 'paused' ? /<h2[^>]*>Produkt nieaktywny<\/h2>/ : /<h2[^>]*>Dostęp wygasł<\/h2>/);
       expect((await get(`/pl/p/${product.slug}`)).status).toBe(404);
       expect((await createClient(SUPABASE_URL, ANON_KEY).from('products').select('id').eq('id', product.id)).data).toEqual([]);
       expect(await publicGet(`/api/public/products/${product.slug}/access`, userCookie)).toMatchObject({ status: 200, data: { hasAccess: false, reason: state === 'paused' ? 'inactive' : 'expired' } });
