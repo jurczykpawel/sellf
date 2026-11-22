@@ -24,11 +24,13 @@ export async function setEndpointScoping(
   endpointId: string,
   mode: 'all' | 'selected',
   productIds: string[],
+  updates?: Record<string, unknown>,
 ): Promise<void> {
-  const { error } = await client.rpc('set_webhook_endpoint_scoping', {
+  const { error } = await client.rpc(updates ? 'update_webhook_endpoint_scoping' : 'set_webhook_endpoint_scoping', {
     p_endpoint_id: endpointId,
     p_mode: mode,
     p_product_ids: productIds,
+    ...(updates ? { p_updates: updates } : {}),
   });
   if (error?.code === '23503') throw new ApiValidationError('Unknown product in webhook scope', { product_ids: ['One or more products do not exist'] });
   if (error) throw error;

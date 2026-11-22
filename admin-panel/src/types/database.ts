@@ -7455,6 +7455,15 @@ export type Database = {
         }
         Returns: Json
       }
+      update_webhook_endpoint_scoping: {
+        Args: {
+          p_endpoint_id: string
+          p_mode: string
+          p_product_ids: string[]
+          p_updates: Json
+        }
+        Returns: undefined
+      }
       validate_email_format: { Args: { email_param: string }; Returns: boolean }
       validate_payment_transaction: {
         Args: { transaction_id: string }

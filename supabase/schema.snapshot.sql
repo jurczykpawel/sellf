@@ -13935,6 +13935,30 @@ COMMENT ON FUNCTION public.update_video_progress(product_id_param uuid, video_id
 
 
 --
+-- Name: update_webhook_endpoint_scoping(uuid, text, uuid[], jsonb); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.update_webhook_endpoint_scoping(p_endpoint_id uuid, p_mode text, p_product_ids uuid[], p_updates jsonb) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+DECLARE endpoint public.webhook_endpoints;
+BEGIN
+  SELECT * INTO endpoint FROM public.webhook_endpoints WHERE id = p_endpoint_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Webhook not found' USING ERRCODE = 'P0002'; END IF;
+  endpoint := jsonb_populate_record(endpoint, p_updates);
+  UPDATE public.webhook_endpoints SET
+    url = endpoint.url, events = endpoint.events, description = endpoint.description,
+    is_active = endpoint.is_active, custom_headers_encrypted = endpoint.custom_headers_encrypted,
+    custom_payload_fields = endpoint.custom_payload_fields, payload_field_selection = endpoint.payload_field_selection
+    WHERE id = p_endpoint_id;
+  PERFORM public.set_webhook_endpoint_scoping(p_endpoint_id, p_mode, p_product_ids);
+END $$;
+
+
+ALTER FUNCTION public.update_webhook_endpoint_scoping(p_endpoint_id uuid, p_mode text, p_product_ids uuid[], p_updates jsonb) OWNER TO postgres;
+
+--
 -- Name: validate_bundle_item(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -24097,6 +24121,8 @@ function | public.update_updated_at_column() | service_role | EXECUTE | postgres
 function | public.update_video_progress(product_id_param uuid, video_id_param text, position_param integer, duration_param integer, completed_param boolean) | authenticated | EXECUTE | postgres | -
 function | public.update_video_progress(product_id_param uuid, video_id_param text, position_param integer, duration_param integer, completed_param boolean) | postgres | EXECUTE | postgres | -
 function | public.update_video_progress(product_id_param uuid, video_id_param text, position_param integer, duration_param integer, completed_param boolean) | service_role | EXECUTE | postgres | -
+function | public.update_webhook_endpoint_scoping(p_endpoint_id uuid, p_mode text, p_product_ids uuid[], p_updates jsonb) | postgres | EXECUTE | postgres | -
+function | public.update_webhook_endpoint_scoping(p_endpoint_id uuid, p_mode text, p_product_ids uuid[], p_updates jsonb) | service_role | EXECUTE | postgres | -
 function | public.validate_bundle_item() | postgres | EXECUTE | postgres | -
 function | public.validate_bundle_item() | service_role | EXECUTE | postgres | -
 function | public.validate_email_format(email_param text) | authenticated | EXECUTE | postgres | -

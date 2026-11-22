@@ -4273,3 +4273,21 @@ BEGIN
       WHEN p_license.revoked_by_dispute_id IS NOT NULL THEN 'dispute'
       ELSE p_license.revocation_reason END);
 END $$;
+
+CREATE FUNCTION public.update_webhook_endpoint_scoping(
+  p_endpoint_id uuid, p_mode text, p_product_ids uuid[], p_updates jsonb
+) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE endpoint public.webhook_endpoints;
+BEGIN
+  SELECT * INTO endpoint FROM public.webhook_endpoints WHERE id = p_endpoint_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Webhook not found' USING ERRCODE = 'P0002'; END IF;
+  endpoint := jsonb_populate_record(endpoint, p_updates);
+  UPDATE public.webhook_endpoints SET
+    url = endpoint.url, events = endpoint.events, description = endpoint.description,
+    is_active = endpoint.is_active, custom_headers_encrypted = endpoint.custom_headers_encrypted,
+    custom_payload_fields = endpoint.custom_payload_fields, payload_field_selection = endpoint.payload_field_selection
+    WHERE id = p_endpoint_id;
+  PERFORM public.set_webhook_endpoint_scoping(p_endpoint_id, p_mode, p_product_ids);
+END $$;
+REVOKE ALL ON FUNCTION public.update_webhook_endpoint_scoping(uuid, text, uuid[], jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.update_webhook_endpoint_scoping(uuid, text, uuid[], jsonb) TO service_role;

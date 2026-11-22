@@ -28,6 +28,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
+import * as endpointProducts from '@/lib/webhooks/endpoint-products';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -356,4 +357,41 @@ it.each(['POST', 'PATCH'])('%s rejects missing scope products before writing fie
   expect(payload.error).toMatchObject({ code: 'VALIDATION_ERROR', details: { product_ids: expect.any(Array) } });
   expect((await admin.from('webhook_endpoints').select('id').eq('url', url)).data).toEqual([]);
   expect((await admin.from('webhook_endpoints').select('product_filter_mode,description').eq('id', id).single()).data).toMatchObject({ product_filter_mode: 'all', description: null });
+});
+
+it('PATCH retains all settings when a selected product is removed after validation @J60', async () => {
+  process.env.DEMO_MODE = 'true';
+  const id = await seedEndpoint(), product = crypto.randomUUID(), previous = crypto.randomUUID();
+  expect((await admin.from('products').insert({ id: product, name: 'Scope product', slug: product, price: 1, currency: 'PLN' })).error).toBeNull();
+  expect((await admin.from('products').insert({ id: previous, name: 'Previous scope', slug: previous, price: 1, currency: 'PLN' })).error).toBeNull();
+  await endpointProducts.setEndpointScoping(admin, id, 'selected', [previous]);
+  const before = await admin.from('webhook_endpoints').select('*').eq('id', id).single();
+  expect(before.error).toBeNull();
+  const validate = endpointProducts.validateEndpointProducts;
+  const spy = vi.spyOn(endpointProducts, 'validateEndpointProducts').mockImplementationOnce(async (client, ids) => {
+    await validate(client, ids);
+    expect((await admin.from('products').delete().eq('id', product)).error).toBeNull();
+  });
+  try {
+    const response = asResponse(await PATCH(patchReq({ description: 'changed', is_active: false, events: ['purchase.completed'], product_filter_mode: 'selected', product_ids: [product] }), { params: Promise.resolve({ id }) }));
+    expect(spy).toHaveBeenCalledOnce();
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toMatchObject({ code: 'VALIDATION_ERROR', details: { product_ids: expect.any(Array) } });
+    expect((await admin.from('webhook_endpoints').select('*').eq('id', id).single()).data).toEqual(before.data);
+    expect(await endpointProducts.getEndpointProductIds(admin, id)).toEqual([previous]);
+  } finally { spy.mockRestore(); await admin.from('products').delete().in('id', [product, previous]); }
+});
+
+it.each(['selected', 'all'] as const)('PATCH saves fields and %s scope together @J60', async mode => {
+  process.env.DEMO_MODE = 'true';
+  const id = await seedEndpoint(), product = crypto.randomUUID();
+  expect((await admin.from('products').insert({ id: product, name: 'Scope product', slug: product, price: 1, currency: 'PLN' })).error).toBeNull();
+  try {
+    await endpointProducts.setEndpointScoping(admin, id, 'selected', [product]);
+    const fields = { url: `https://example.com/combined-${id}`, description: null, events: ['purchase.completed'], is_active: false, custom_payload_fields: { brand: 'test' }, payload_field_selection: ['customer.email'] };
+    const response = asResponse(await PATCH(patchReq({ ...fields, product_filter_mode: mode, product_ids: mode === 'selected' ? [product] : [] }), { params: Promise.resolve({ id }) }));
+    expect(response.status).toBe(200);
+    expect((await admin.from('webhook_endpoints').select('*').eq('id', id).single()).data).toMatchObject({ ...fields, product_filter_mode: mode });
+    expect(await endpointProducts.getEndpointProductIds(admin, id)).toEqual(mode === 'selected' ? [product] : []);
+  } finally { await admin.from('products').delete().eq('id', product); }
 });
