@@ -58,8 +58,14 @@ it('returns translations only for products the buyer may read (publication windo
   expect(result[ids.visible]).toEqual({ name: 'Visible', description: 'Visible opis', imageAlt: 'Visible okładka' });
   expect(result[ids.archivedOwned]?.name).toBe('Archived');
   expect(result[ids.future]).toBeUndefined();
-  expect(result[ids.ended]).toBeUndefined();
+  expect(result[ids.ended]?.name).toBe('Ended');
   expect(result[ids.inactiveOwned]?.name).toBe('Inactive');
   expect(result[ids.inactiveOther]).toBeUndefined();
-  expect(Object.keys(result).sort()).toEqual([ids.visible, ids.archivedOwned, ids.inactiveOwned].sort());
+  expect(Object.keys(result).sort()).toEqual([ids.visible, ids.archivedOwned, ids.inactiveOwned, ids.ended].sort());
+});
+
+it('omits closed-offer translations after the buyer grant expires', async () => {
+  expect((await db.from('user_product_access').update({ access_granted_at: '2000-01-01T00:00:00Z', access_expires_at: '2001-01-01T00:00:00Z' }).eq('user_id', userId).eq('product_id', ids.ended)).error).toBeNull();
+  try { expect((await getProductLocalizations([ids.ended], 'pl'))[ids.ended]).toBeUndefined(); }
+  finally { expect((await db.from('user_product_access').update({ access_expires_at: null }).eq('user_id', userId).eq('product_id', ids.ended)).error).toBeNull(); }
 });

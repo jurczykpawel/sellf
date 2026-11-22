@@ -51,3 +51,8 @@ describe('setEndpointScoping', () => {
     await expect(setEndpointScoping(client, EP, 'selected', ['p1'])).rejects.toBeTruthy();
   });
 });
+
+it('identifies a removed product during scope replacement', async () => {
+  const { client } = makeClient({ code: '23503' });
+  await expect(setEndpointScoping(client, EP, 'selected', ['removed'])).rejects.toMatchObject({ details: { product_ids: expect.any(Array) } });
+});

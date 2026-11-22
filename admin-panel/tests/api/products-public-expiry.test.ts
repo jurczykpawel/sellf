@@ -329,6 +329,10 @@ describe('Public product endpoints — expiry semantics', () => {
     const get = (path: string, cookie?: string) => fetch(`${API_URL}${path}`, { headers: cookie ? { Cookie: cookie } : {}, redirect: 'manual' });
     try {
       expect((await get(pagePath, userCookie)).status).toBe(200);
+      const buyer = createClient(SUPABASE_URL, ANON_KEY);
+      expect((await buyer.auth.signInWithPassword({ email: userEmail, password: userPassword })).error).toBeNull();
+      const owned = await buyer.from('user_product_access').select('product:products!inner(id)').eq('product_id', pActive.id);
+      expect(owned.error).toBeNull(); expect(owned.data).toHaveLength(1);
       expect((await publicGet(`/api/public/products/${pActive.slug}/content`, userCookie)).data.product.content_config.content_items[0].url).toBe('https://files.example/secret.pdf');
       expect((await get(gatePath, userCookie)).status).toBe(307);
       const protect = await get(protectPath, userCookie);

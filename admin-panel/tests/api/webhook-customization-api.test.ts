@@ -346,7 +346,10 @@ it.each(['POST', 'PATCH'])('%s rejects missing scope products before writing fie
   process.env.DEMO_MODE = 'true';
   const id = await seedEndpoint();
   const url = `https://example.com/missing-scope-${TS}-${method}`;
-  const body = { url, description: 'must not save', events: ['purchase.completed'], product_filter_mode: 'selected', product_ids: [crypto.randomUUID()] };
+  const removedId = crypto.randomUUID();
+  expect((await admin.from('products').insert({ id: removedId, name: 'Removed scope', slug: removedId, price: 1, currency: 'PLN' })).error).toBeNull();
+  expect((await admin.from('products').delete().eq('id', removedId)).error).toBeNull();
+  const body = { url, description: 'must not save', events: ['purchase.completed'], product_filter_mode: 'selected', product_ids: [removedId] };
   const response = asResponse(await (method === 'POST' ? POST(postReq(body)) : PATCH(patchReq(body), { params: Promise.resolve({ id }) })));
   const payload = await response.json();
   expect(response.status).toBe(400);

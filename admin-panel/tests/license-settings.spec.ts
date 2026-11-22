@@ -93,4 +93,15 @@ test.describe('License Settings', () => {
       return data?.sellf_license;
     }).toBeNull();
   });
+  test('invalid signing key is explained at the field in Polish @J600', async ({ page }) => {
+    await loginAsAdmin(page); await gotoSystemSettings(page);
+    await page.getByRole('button', { name: 'Wgraj klucz', exact: true }).click();
+    const input = page.locator('#license-private-key');
+    await input.fill('not a private key');
+    await page.getByRole('button', { name: 'Zapisz klucz', exact: true }).click();
+    await expect(input).toHaveAttribute('aria-invalid', 'true');
+    await expect(page.locator('#license-private-key-error')).toContainText('Wklej klucz prywatny EC P-256');
+    await expect(input).toBeFocused();
+  });
+
 });
