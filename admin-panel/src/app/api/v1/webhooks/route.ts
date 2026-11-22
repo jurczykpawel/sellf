@@ -1,4 +1,3 @@
-import { ApiValidationError } from '@/lib/api/errors';
 /**
  * Webhooks API v1 - List and Create Webhooks
  *
@@ -7,6 +6,7 @@ import { ApiValidationError } from '@/lib/api/errors';
  */
 
 import { NextRequest } from 'next/server';
+import { ApiValidationError } from '@/lib/api/errors';
 import {
   handleCorsPreFlight,
   jsonResponse,
