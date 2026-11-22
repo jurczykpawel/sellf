@@ -30,6 +30,17 @@ katalogowi stosu zawierającego `admin-panel`. Katalog roboczy aplikacji to
 PM2 przez StackPilot. Instalacje ze źródeł, klastry, instalacje bez roota oraz
 systemd bez PM2 korzystają ze swojej procedury wdrożenia.
 
+## Odświeżenie szablonów Auth po aktualizacji
+
+**Aktualizator z panelu nie wgrywa szablonów do hostowanego Supabase Auth.** Aktualizuje pliki aplikacji i SQL kluczem service-role projektu; zmiana konfiguracji hostowanego Auth wymaga osobnego tokenu Management API. Skopiowanie HTML z wydania na serwer nie zmienia hostowanych szablonów. Stackpilot może je wgrać tylko wtedy, gdy ma ten token, identyfikator projektu i pliki szablonów; również po takiej aktualizacji sprawdź wynik.
+
+Po aktualizacji do **2026.11.1**:
+
+1. W Supabase **Authentication → Emails → Templates** zapisz prywatną kopię obecnej treści i tematu wszystkich pięciu szablonów, zanim coś zmienisz. Przechowuj ją poza repozytorium, z dostępem wyłącznie dla operatora. Porównaj teksty zmienione dla sklepu z nowymi plikami.
+2. Z **tego samego wydania, które zainstalowałeś**, zastąp pełną treść według tabeli plik → szablon na stronie [konfiguracji e-maili](/pl/email-setup/). Użyj katalogu `supabase/templates/` z paczki wydania lub otagowanych źródeł. Zaktualizuj zarówno **Confirm sign up** (`confirmation.html`), jak i **Magic link** (`magic-link.html`): nowy i istniejący odbiorca korzystają z różnych szablonów. Zachowaj dostarczone linki logowania oraz warunki `access_on_placement`. Ponowne wgranie identycznej treści jest bezpieczne. Nie zmieniaj SMTP, transportu ani pozostałych ustawień Auth.
+3. Odczytaj ponownie obie zapisane treści i sprawdź, czy zawierają `access_on_placement`. Przy własnym Auth zastosuj instrukcję adresów URL szablonów z tej samej strony i sprawdź, czy serwowane pliki pochodzą z zainstalowanego wydania.
+4. Złóż testowe zamówienia przelewem z natychmiastowym dostępem włączonym i wyłączonym, dla nowego i istniejącego potwierdzonego odbiorcy, po polsku i angielsku. Przeczytaj pierwszy rzeczywisty mail w każdym wariancie: dla potwierdzonego odbiorcy natychmiastowy dostęp ma być opisany jako aktywny, a dla nowego jako dostępny po potwierdzeniu adresu; przy dostępie odroczonym mail ma mówić o dostępie po wpłacie. Sprawdź też link logowania. Udana aktualizacja aplikacji nie dowodzi odświeżenia hostowanych szablonów.
+
 ## Procedura wdrożenia
 
 Zrób kopię bazy, pobierz źródła docelowego wydania i zastosuj migracje
