@@ -665,4 +665,4 @@ Zmiana URL webhooka zapisuje czas zmiany i zamyka oczekujące dostawy utworzone 
 
 Operacje `/api/v1/webhooks/logs/{logId}/retry`, `/replay`, `/force-retry` oraz `/api/v1/webhooks/events/{id}/retry` wymagają sesji administratora w panelu. Klucz API, również z zakresem `webhooks:write`, otrzyma HTTP `403`. Anulowanie i archiwizacja nadal korzystają z `webhooks:write`.
 
-Utworzenie lub edycja endpointu z nieistniejącym lub usuniętym produktem w `product_ids` zwraca HTTP **400**, `VALIDATION_ERROR` i `error.details.product_ids`. Popraw wybór produktów i ponów zapis. Walidacja poprzedza zapis pól endpointu; niepoprawna edycja zachowuje poprzednie ustawienia.
+Utworzenie lub edycja endpointu z nieistniejącym lub usuniętym produktem w `product_ids` zwraca HTTP **400**, `VALIDATION_ERROR` i `error.details.product_ids`. Popraw wybór produktów i ponów zapis. Podczas edycji pola endpointu i zakres produktów są zapisywane razem; niepoprawna edycja zachowuje poprzednie ustawienia, także gdy wybrany produkt zostanie usunięty w trakcie aktualizacji.
