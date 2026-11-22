@@ -37,6 +37,7 @@ export async function purchaseEventMail(email: string, productId: string, sessio
   const attempts = options.wait === false ? 1 : 10;
   for (let attempt = 0; attempt < attempts; attempt++) {
     const data = await readPurchaseEventMail(email.trim().toLowerCase(), productId, sessionId, paymentIntentId, locale, options);
+    if (data.purchase_mail_pending === 'true' && attempt === attempts - 1) return data;
     if (data.purchase_product && data.purchase_amount) {
       if (attempt) console.info(`[purchase-mail] context ready after ${attempt + 1} attempts`);
       return data;

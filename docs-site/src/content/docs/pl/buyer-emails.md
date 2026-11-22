@@ -9,6 +9,8 @@ Supabase Auth nadal wysyła linki logowania i potwierdzenia adresu. Gość po op
 
 W **Ustawienia → Sklep → Maile do kupujących** włącz **Wysyłaj maile do kupujących przez Supabase**, aby korzystać z dotychczasowych szablonów Sellfa. Ta opcja szybciej zużywa darmowy limit maili Supabase i może wymagać płatnego planu. Sellf nie konfiguruje osobnego SMTP. Aktualizacja pozostawia opcję włączoną w istniejących instalacjach, aby kupujący nie stracili powiadomień bez ostrzeżenia. W nowych instalacjach jest wyłączona. Wyłącz ją po podłączeniu i sprawdzeniu odbiorcy webhooków. Oczekujące ponowienia uwzględniają bieżące ustawienie: zakupowe linki dostępu stają się zwykłymi linkami logowania, a same powiadomienia są pomijane.
 
+Jeżeli realizacja zapisanej płatności nie zakończy się po krótkim oczekiwaniu, pierwszy mail z dostępem trafia do kolejki ponowień. Po zakończeniu realizacji wysyłka odczytuje aktualne dane zakupu i dołącza produkt oraz zapłaconą kwotę, gdy maile do kupujących są włączone. Dotyczy to subskrypcji i zakupów jednorazowych, także pierwszego potwierdzenia adresu kupującego. Pierwsze ponowienie jest zaplanowane po dwóch minutach. Zapewnij działanie procesu ponowień opisanego poniżej.
+
 ## Przykład z Mailstackiem
 
 Dodaj endpoint webhooków Sellfa wskazujący na Twój serwer Mailstack:
