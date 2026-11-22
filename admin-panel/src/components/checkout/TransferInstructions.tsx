@@ -15,9 +15,9 @@ export default function TransferInstructions({ transfer, amount, currency, dueAt
   return <section aria-label={t('instructions')} className="space-y-4 rounded-xl border border-sf-border p-5 my-4">
     <h3 className="font-semibold">{t('instructions')}</h3>
     <dl className="grid gap-3 sm:grid-cols-2">
-      {(['holder', 'account', 'bank', 'title'] as const).map(key => <div key={key}><dt className="text-sm text-sf-muted">{t(`transfer_${key}`)}</dt><dd className="font-medium break-words">{key === 'account' ? formatTransferAccount(details[key]) : String(details[key] ?? '')}</dd></div>)}
-      <div><dt className="text-sm text-sf-muted">{t('amount')}</dt><dd className="font-medium break-words">{formatPrice(fromMinorUnits(amount, currency), currency, locale)}</dd></div>
-      <div><dt className="text-sm text-sf-muted">{t('dueAt')}</dt><dd className="font-medium break-words">{dueAt ? formatTransferDeadline(dueAt, locale) : '—'}</dd></div>
+      {(['holder', 'account', 'bank', 'title'] as const).map(key => <div key={key}><dt className="text-sm text-sf-muted">{t(`transfer_${key}`)}</dt><dd className="font-medium [overflow-wrap:anywhere]">{key === 'account' ? formatTransferAccount(details[key]) : String(details[key] ?? '')}</dd></div>)}
+      <div><dt className="text-sm text-sf-muted">{t('amount')}</dt><dd className="font-medium [overflow-wrap:anywhere]">{formatPrice(fromMinorUnits(amount, currency), currency, locale)}</dd></div>
+      <div><dt className="text-sm text-sf-muted">{t('dueAt')}</dt><dd className="font-medium [overflow-wrap:anywhere]">{dueAt ? formatTransferDeadline(dueAt, locale) : '—'}</dd></div>
     </dl>
     {print && <button className="print:hidden rounded-lg border border-sf-border p-3" onClick={() => window.print()}>{t('print')}</button>}
   </section>;
