@@ -4,8 +4,9 @@ useSupabaseBuyerEmails();
 import { test, expect } from '@playwright/test';
 import { supabaseAdmin } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
-import { waitForEmail, searchMessages } from './helpers/mailpit';
+import { extractMagicLink, waitForEmail, searchMessages } from './helpers/mailpit';
 import recordedPurchase from './fixtures/stripe/initial-subscription-purchase.json';
+import recordedSubscription from './fixtures/stripe/subscription-first-mail.json';
 
 test('offers one cookie preferences control on offer, store, product and login @J40', async ({ page }) => {
   test.setTimeout(120000);
@@ -28,6 +29,43 @@ test('offers one cookie preferences control on offer, store, product and login @
   } finally {
     await supabaseAdmin.from('products').delete().eq('id', product!.id);
     if (config.data) await supabaseAdmin.from('integrations_config').update(config.data).eq('id', 1);
+  }
+});
+
+for (const locale of ['pl', 'en']) test(`first queued subscription email confirms access in ${locale} @J32`, async ({ page }) => {
+  const db = supabaseAdmin, email = `queued-sub-${crypto.randomUUID()}@example.com`;
+  const user = await db.auth.admin.createUser({ email, email_confirm: false }); expect(user.error).toBeNull(); const uid = user.data.user!.id;
+  const product = await db.from('products').insert({ name: 'Queued subscription', slug: `queued-${crypto.randomUUID()}`, price: 17, currency: 'PLN', product_type: 'subscription', recurring_price: 17, billing_interval: 'month', billing_interval_count: 1, is_active: true }).select('id,slug').single();
+  expect(product.error).toBeNull(); const pid = product.data!.id;
+  try {
+    const sub = await db.from('subscriptions').insert({ ...recordedSubscription.subscription, user_id: uid, product_id: pid, stripe_subscription_id: `sub_${crypto.randomUUID()}` }).select('id').single(); expect(sub.error).toBeNull();
+    const invoice = `in_${crypto.randomUUID().replaceAll('-', '')}`;
+    const tx = await db.from('payment_transactions').insert({ ...recordedSubscription.payment, amount: Number(recordedSubscription.payment.amount), session_id: invoice, stripe_invoice_id: invoice, stripe_payment_intent_id: null, user_id: uid, customer_email: email, product_id: pid, subscription_id: sub.data!.id, fulfillment_pending: true }).select('id').single(); expect(tx.error).toBeNull();
+    expect(await searchMessages(email)).toHaveLength(0);
+    const requested = await page.request.post('/api/auth/magic-link', { data: { flow: 'post_checkout', email, productSlug: product.data!.slug, locale, captchaToken: 'test' } });
+    expect(requested.status(), await requested.text()).toBe(200);
+    expect(await searchMessages(email)).toHaveLength(0);
+    expect((await db.from('auth_mail_retries').select('id').eq('email', email)).data).toHaveLength(1);
+    expect((await db.from('user_product_access').select('id').eq('user_id', uid).eq('product_id', pid)).data).toHaveLength(0);
+    expect((await db.from('payment_transactions').update({ fulfillment_pending: false }).eq('id', tx.data!.id)).error).toBeNull();
+    expect((await db.from('auth_mail_retries').update({ next_attempt_at: new Date(0).toISOString() }).eq('email', email)).error).toBeNull();
+    expect(process.env.CRON_SECRET).toBeTruthy();
+    const retried = await page.request.get('/api/cron?job=auth-mail-retry', { headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` } }); expect(retried.status(), await retried.text()).toBe(200);
+    const mail = await waitForEmail(email);
+    expect(mail.Subject).toBe((locale === 'pl' ? 'Potwierdź swój email' : 'Confirm your email') + ': Queued subscription');
+    expect(mail.HTML).toContain(locale === 'pl' ? 'Produkt: Queued subscription' : 'Product: Queued subscription');
+    expect(mail.HTML).toContain(locale === 'pl' ? '17,00\u00a0zł' : 'PLN\u00a017.00');
+    expect(await searchMessages(email)).toHaveLength(1);
+    await acceptAllCookies(page); await page.goto(extractMagicLink(mail.HTML!)!);
+    await expect(page).toHaveURL(new RegExp(`/p/${product.data!.slug}(?:[/?]|$)`));
+    await expect(page.getByRole('heading', { level: 1, name: 'Queued subscription', exact: true })).toBeVisible();
+    expect((await db.auth.admin.getUserById(uid)).data.user!.email_confirmed_at).toBeTruthy();
+    expect((await db.from('user_product_access').select('subscription_id').eq('user_id', uid).eq('product_id', pid)).data).toEqual([{ subscription_id: sub.data!.id }]);
+    expect((await db.from('auth_mail_retries').select('id').eq('email', email)).data).toHaveLength(0);
+  } finally {
+    await db.from('auth_mail_retries').delete().eq('email', email); await db.from('user_product_access').delete().eq('product_id', pid);
+    await db.from('payment_transactions').delete().eq('product_id', pid); await db.from('subscriptions').delete().eq('product_id', pid);
+    await db.from('products').delete().eq('id', pid); await db.auth.admin.deleteUser(uid);
   }
 });
 
