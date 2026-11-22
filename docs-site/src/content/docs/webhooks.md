@@ -898,3 +898,5 @@ restoring sends `product.updated` with `archivedAt: null`. A permanent delete fr
 Orders, invoices, licenses and ended subscriptions stay: later events about them (for example `refund.issued`) carry
 `product.id: null` and the product name from the time of purchase.
 The dashboard event picker describes all three; **Test endpoint** previews a complete example for each.
+
+Creating or updating an endpoint with a missing or deleted product in `product_ids` returns HTTP **400**, `VALIDATION_ERROR`, with `error.details.product_ids`. Correct the selected products and retry. Validation happens before saving endpoint fields; an invalid update keeps the previous settings.

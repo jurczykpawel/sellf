@@ -664,3 +664,5 @@ Lista zdarzeń w panelu opisuje wszystkie trzy; **Testuj endpoint** pokazuje pe�
 Zmiana URL webhooka zapisuje czas zmiany i zamyka oczekujące dostawy utworzone wcześniej. Nie można ich ponowić (HTTP `409`), także po przywróceniu poprzedniego adresu. Worker ponownie sprawdza adres przed wysyłką. Nowe dostawy pozostają dostępne do ponowienia. Zdarzenia biznesowe zachowują pierwotny czas utworzenia przy przekazaniu do kolejki dostaw.
 
 Operacje `/api/v1/webhooks/logs/{logId}/retry`, `/replay`, `/force-retry` oraz `/api/v1/webhooks/events/{id}/retry` wymagają sesji administratora w panelu. Klucz API, również z zakresem `webhooks:write`, otrzyma HTTP `403`. Anulowanie i archiwizacja nadal korzystają z `webhooks:write`.
+
+Utworzenie lub edycja endpointu z nieistniejącym lub usuniętym produktem w `product_ids` zwraca HTTP **400**, `VALIDATION_ERROR` i `error.details.product_ids`. Popraw wybór produktów i ponów zapis. Walidacja poprzedza zapis pól endpointu; niepoprawna edycja zachowuje poprzednie ustawienia.

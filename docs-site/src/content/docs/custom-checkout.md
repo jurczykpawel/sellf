@@ -97,6 +97,11 @@ If the cart changes during payment preparation, Sellf stops before confirmation 
 
 Pausing a product keeps the buyer's purchase in **My products**, but stops access to its content, login wall and element gates. An authenticated owner receives HTTP 200 with `hasAccess: false` and `reason: "inactive"` from `/api/public/products/{slug}/access`; this response describes the saved purchase and does not grant access. The content endpoint returns HTTP 403. An inactive product without ownership remains unavailable. Archiving a product keeps existing buyers' content available while their access is valid. Gate verification with a valid token also works without Sellf cookies after archiving; it still checks the buyer’s current entitlement.
 
+
+Closing a sale window (`available_until`) prevents new purchases; buyers with valid access keep the product page, protected content, login wall and element gates. Anonymous visitors, buyers without access and expired grants cannot open the closed offer. Pausing and archiving retain the behavior described above.
+
+In the product list, **Escape** closes the **More actions** menu and returns focus to its button, including when an action inside the menu has focus.
+
 ## Access from several purchases
 
 A full refund removes only the entitlement from that order. The buyer keeps the product while another qualifying purchase, paid bank transfer, bundle, order bump or active subscription still grants it. Refunding the last qualifying order removes the corresponding access.
