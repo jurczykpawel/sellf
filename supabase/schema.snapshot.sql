@@ -10955,20 +10955,20 @@ $$;
 ALTER FUNCTION public.order_granted_components(p_transaction_id uuid) OWNER TO postgres;
 
 --
--- Name: owns_product_access(uuid); Type: FUNCTION; Schema: public; Owner: postgres
+-- Name: owns_product_access(uuid, boolean); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
-CREATE FUNCTION public.owns_product_access(p_product_id uuid) RETURNS boolean
+CREATE FUNCTION public.owns_product_access(p_product_id uuid, p_include_expired boolean DEFAULT false) RETURNS boolean
     LANGUAGE sql STABLE SECURITY DEFINER
     SET search_path TO ''
     AS $$
   SELECT EXISTS (SELECT 1 FROM public.user_product_access
     WHERE product_id = p_product_id AND user_id = (SELECT auth.uid())
-      AND (access_expires_at IS NULL OR access_expires_at > now()));
+      AND (p_include_expired OR access_expires_at IS NULL OR access_expires_at > now()));
 $$;
 
 
-ALTER FUNCTION public.owns_product_access(p_product_id uuid) OWNER TO postgres;
+ALTER FUNCTION public.owns_product_access(p_product_id uuid, p_include_expired boolean) OWNER TO postgres;
 
 --
 -- Name: pending_free_grant_products(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -21695,7 +21695,7 @@ CREATE POLICY "Public read access to shop_config" ON public.shop_config FOR SELE
 -- Name: products SELECT policy for products; Type: POLICY; Schema: public; Owner: postgres
 --
 
-CREATE POLICY "SELECT policy for products" ON public.products FOR SELECT USING ((( SELECT public.is_admin() AS is_admin) OR ((archived_at IS NULL) AND (is_active = true) AND ((available_from IS NULL) OR (available_from <= now())) AND ((available_until IS NULL) OR (available_until >= now()))) OR ((archived_at IS NULL) AND (is_active = false) AND (enable_waitlist = true)) OR public.owns_product_access(id)));
+CREATE POLICY "SELECT policy for products" ON public.products FOR SELECT USING ((( SELECT public.is_admin() AS is_admin) OR ((archived_at IS NULL) AND (is_active = true) AND ((available_from IS NULL) OR (available_from <= now())) AND ((available_until IS NULL) OR (available_until >= now()))) OR ((archived_at IS NULL) AND (is_active = false) AND (enable_waitlist = true)) OR public.owns_product_access(id, ((is_active = false) OR (archived_at IS NOT NULL)))));
 
 
 --
@@ -23902,10 +23902,10 @@ function | public.order_awaits_participants(p_order_details jsonb, p_profile jso
 function | public.order_awaits_participants(p_order_details jsonb, p_profile jsonb, p_status text) | service_role | EXECUTE | postgres | -
 function | public.order_granted_components(p_transaction_id uuid) | postgres | EXECUTE | postgres | -
 function | public.order_granted_components(p_transaction_id uuid) | service_role | EXECUTE | postgres | -
-function | public.owns_product_access(p_product_id uuid) | anon | EXECUTE | postgres | -
-function | public.owns_product_access(p_product_id uuid) | authenticated | EXECUTE | postgres | -
-function | public.owns_product_access(p_product_id uuid) | postgres | EXECUTE | postgres | -
-function | public.owns_product_access(p_product_id uuid) | service_role | EXECUTE | postgres | -
+function | public.owns_product_access(p_product_id uuid, p_include_expired boolean) | anon | EXECUTE | postgres | -
+function | public.owns_product_access(p_product_id uuid, p_include_expired boolean) | authenticated | EXECUTE | postgres | -
+function | public.owns_product_access(p_product_id uuid, p_include_expired boolean) | postgres | EXECUTE | postgres | -
+function | public.owns_product_access(p_product_id uuid, p_include_expired boolean) | service_role | EXECUTE | postgres | -
 function | public.pending_free_grant_products() | authenticated | EXECUTE | postgres | -
 function | public.pending_free_grant_products() | postgres | EXECUTE | postgres | -
 function | public.pending_free_grant_products() | service_role | EXECUTE | postgres | -

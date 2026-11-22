@@ -6978,7 +6978,10 @@ export type Database = {
         Args: { p_transaction_id: string }
         Returns: string[]
       }
-      owns_product_access: { Args: { p_product_id: string }; Returns: boolean }
+      owns_product_access: {
+        Args: { p_include_expired?: boolean; p_product_id: string }
+        Returns: boolean
+      }
       pending_free_grant_products: {
         Args: never
         Returns: {

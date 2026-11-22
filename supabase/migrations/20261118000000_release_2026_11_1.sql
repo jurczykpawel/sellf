@@ -686,14 +686,14 @@ GRANT EXECUTE ON FUNCTION public.restore_product_as(jsonb, uuid, uuid) TO servic
 GRANT SELECT (archived_at) ON public.products TO anon, authenticated;
 
 -- Buyer check for the policy below; anon has no access to user_product_access itself.
-CREATE FUNCTION public.owns_product_access(p_product_id uuid) RETURNS boolean
+CREATE FUNCTION public.owns_product_access(p_product_id uuid, p_include_expired boolean DEFAULT false) RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
   SELECT EXISTS (SELECT 1 FROM public.user_product_access
     WHERE product_id = p_product_id AND user_id = (SELECT auth.uid())
-      AND (access_expires_at IS NULL OR access_expires_at > now()));
+      AND (p_include_expired OR access_expires_at IS NULL OR access_expires_at > now()));
 $$;
-REVOKE ALL ON FUNCTION public.owns_product_access(uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.owns_product_access(uuid) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.owns_product_access(uuid, boolean) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.owns_product_access(uuid, boolean) TO anon, authenticated, service_role;
 
 DROP POLICY "SELECT policy for products" ON public.products;
 CREATE POLICY "SELECT policy for products" ON public.products FOR SELECT USING (
@@ -702,7 +702,7 @@ CREATE POLICY "SELECT policy for products" ON public.products FOR SELECT USING (
       AND (available_from IS NULL OR available_from <= now())
       AND (available_until IS NULL OR available_until >= now()))
   OR (archived_at IS NULL AND is_active = false AND enable_waitlist = true)
-  OR public.owns_product_access(id)
+  OR public.owns_product_access(id, is_active = false OR archived_at IS NOT NULL)
 );
 
 -- ===== HISTORY KEPT ON PERMANENT DELETE =====
