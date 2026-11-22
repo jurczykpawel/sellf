@@ -319,6 +319,38 @@ describe('Public product endpoints — expiry semantics', () => {
     });
   });
 
+  it('keeps buyer pages and wall bootstrap after sales close, with valid access only @J61', async () => {
+    const redirect = encodeURIComponent('https://customer.example/content');
+    expect((await supabaseAdmin.from('seller_embed_settings').upsert({ seller_id: userId, allowed_embed_origins: ['https://customer.example'] })).error).toBeNull();
+    expect((await supabaseAdmin.from('products').update({ seller_id: userId, available_until: new Date(Date.now() - 60000).toISOString() }).eq('id', pActive.id)).error).toBeNull();
+    const pagePath = `/pl/p/${pActive.slug}`;
+    const gatePath = `/pl/loginwall/gate?products=${pActive.slug}&redirect=${redirect}`;
+    const protectPath = `/pl/loginwall/protect?id=${pActive.id}&redirect=${redirect}`;
+    const get = (path: string, cookie?: string) => fetch(`${API_URL}${path}`, { headers: cookie ? { Cookie: cookie } : {}, redirect: 'manual' });
+    try {
+      expect((await get(pagePath, userCookie)).status).toBe(200);
+      expect((await publicGet(`/api/public/products/${pActive.slug}/content`, userCookie)).data.product.content_config.content_items[0].url).toBe('https://files.example/secret.pdf');
+      expect((await get(gatePath, userCookie)).status).toBe(307);
+      const protect = await get(protectPath, userCookie);
+      expect(protect.status).toBe(307);
+      expect(protect.headers.get('location')).toContain('https://customer.example/content');
+      for (const state of ['anonymous', 'expired', 'unowned']) {
+        const cookie = state === 'anonymous' ? undefined : userCookie;
+        if (state === 'expired') expect((await supabaseAdmin.from('user_product_access').update({ access_granted_at: new Date(Date.now() - 120000).toISOString(), access_expires_at: new Date(Date.now() - 60000).toISOString() }).eq('user_id', userId).eq('product_id', pActive.id)).error).toBeNull();
+        if (state === 'unowned') expect((await supabaseAdmin.from('user_product_access').delete().eq('user_id', userId).eq('product_id', pActive.id)).error).toBeNull();
+        expect((await get(pagePath, cookie)).status).toBe(404);
+        expect((await get(protectPath, cookie)).status).toBe(cookie ? 404 : 307);
+        expect((await get(gatePath, cookie)).status).toBe(400);
+        expect(JSON.stringify((await publicGet(`/api/public/products/${pActive.slug}/content`, cookie)).data)).not.toContain('secret.pdf');
+      }
+    } finally {
+      expect((await supabaseAdmin.from('products').update({ available_until: null }).eq('id', pActive.id)).error).toBeNull();
+      expect((await supabaseAdmin.from('user_product_access').delete().eq('user_id', userId).eq('product_id', pActive.id)).error).toBeNull();
+      await grantAccess(userId, pActive.id, null);
+      expect((await supabaseAdmin.from('seller_embed_settings').delete().eq('seller_id', userId)).error).toBeNull();
+    }
+  });
+
   // ===========================================================================
   // Defense-in-depth assertion: /content cannot be tricked into serving
   // expired payload even when the caller bypasses the /access pre-check.

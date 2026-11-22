@@ -689,7 +689,8 @@ GRANT SELECT (archived_at) ON public.products TO anon, authenticated;
 CREATE FUNCTION public.owns_product_access(p_product_id uuid) RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
   SELECT EXISTS (SELECT 1 FROM public.user_product_access
-    WHERE product_id = p_product_id AND user_id = (SELECT auth.uid()));
+    WHERE product_id = p_product_id AND user_id = (SELECT auth.uid())
+      AND (access_expires_at IS NULL OR access_expires_at > now()));
 $$;
 REVOKE ALL ON FUNCTION public.owns_product_access(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.owns_product_access(uuid) TO anon, authenticated, service_role;
@@ -701,7 +702,7 @@ CREATE POLICY "SELECT policy for products" ON public.products FOR SELECT USING (
       AND (available_from IS NULL OR available_from <= now())
       AND (available_until IS NULL OR available_until >= now()))
   OR (archived_at IS NULL AND is_active = false AND enable_waitlist = true)
-  OR (is_active = false AND public.owns_product_access(id))
+  OR public.owns_product_access(id)
 );
 
 -- ===== HISTORY KEPT ON PERMANENT DELETE =====
