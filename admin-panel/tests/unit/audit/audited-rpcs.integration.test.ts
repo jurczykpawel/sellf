@@ -62,6 +62,16 @@ describe('save_invoicing_config', () => {
   });
 });
 
+it('clearing a disabled invoice account discards its saved token', async () => {
+  const before = (await db.from('invoicing_config').select('*').eq('id', true).single()).data!;
+  try {
+    expect((await db.from('invoicing_config').update({ domain: 'old.fakturownia.pl', token: { encrypted_key: 'saved', encryption_iv: 'iv', encryption_tag: 'tag' } }).eq('id', true)).error).toBeNull();
+    const result = await db.rpc('save_invoicing_config', { p_settings: { provider: 'none', domain: '', mode: 'manual', exemption: '', template: '{product}' }, p_token: null, p_performed_by: actor });
+    expect(result.error).toBeNull();
+    expect((await db.from('invoicing_config').select('domain,token').eq('id', true).single()).data).toEqual({ domain: '', token: null });
+  } finally { expect((await db.from('invoicing_config').upsert(before)).error).toBeNull(); }
+});
+
 describe('mutate_access_audited', () => {
   const call = (action: 'grant' | 'revoke', performedBy: string, audit: Record<string, unknown>) => db.rpc('mutate_access_audited', {
     p_action: action, p_user_id: buyer, p_product_id: product, p_actor: { type: 'user', id: performedBy }, p_values: {}, p_audit: audit,

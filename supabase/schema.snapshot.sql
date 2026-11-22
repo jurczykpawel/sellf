@@ -12627,7 +12627,7 @@ BEGIN
   UPDATE public.invoicing_config SET
     provider = p_settings->>'provider', domain = p_settings->>'domain', mode = p_settings->>'mode',
     exemption = p_settings->>'exemption', template = p_settings->>'template',
-    token = CASE WHEN p_token IS NULL THEN token ELSE p_token END
+    token = CASE WHEN p_token IS NOT NULL THEN p_token WHEN domain IS DISTINCT FROM p_settings->>'domain' THEN NULL ELSE token END
   WHERE id;
   IF NOT FOUND THEN RAISE EXCEPTION 'Invoice settings unavailable' USING ERRCODE='P0002'; END IF;
   INSERT INTO public.audit_log(table_name, operation, performed_by, new_values)
