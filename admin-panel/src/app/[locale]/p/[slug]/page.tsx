@@ -42,14 +42,13 @@ const getProduct = cache(async (slug: string) => {
   return { product, error: product ? null : 'Product unavailable' };
 });
 
-// An archived product is hidden from the public but stays readable to its buyers through RLS,
-// so a signed-in buyer gets it from their own session (never through the shared public cache).
-const getBuyerArchivedProduct = cache(async (slug: string): Promise<Product | null> => {
+// Buyer-only products are read through the session, outside the shared public cache.
+const getBuyerProduct = cache(async (slug: string): Promise<Product | null> => {
   if (!/^[a-zA-Z0-9_-]{1,100}$/.test(slug)) return null;
   try {
     const supabase = await createClient();
     const { data } = await supabase.from('products').select(PRODUCT_PUBLIC_COLUMNS_CSV)
-      .eq('slug', slug).not('archived_at', 'is', null).maybeSingle();
+      .eq('slug', slug).maybeSingle();
     return data as unknown as Product | null;
   } catch {
     return null;
@@ -59,8 +58,8 @@ const getBuyerArchivedProduct = cache(async (slug: string): Promise<Product | nu
 const getVisibleProduct = async (slug: string) => {
   const result = await getProduct(slug);
   if (result.product) return result;
-  const archived = await getBuyerArchivedProduct(slug);
-  return archived ? { product: archived, error: null } : result;
+  const owned = await getBuyerProduct(slug);
+  return owned ? { product: owned, error: null } : result;
 };
 
 // Generate metadata for the page based on the product data

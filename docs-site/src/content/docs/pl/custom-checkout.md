@@ -96,7 +96,7 @@ Jeśli koszyk zmieni się podczas przygotowywania płatności, Sellf zatrzymuje 
 
 ## Wstrzymane i zarchiwizowane produkty
 
-Wyłączenie produktu zachowuje zakup w **Moich produktach**, ale wstrzymuje dostęp do treści, login wall i bramek elementów. Zalogowany posiadacz dostępu otrzymuje HTTP 200 z `hasAccess: false` i `reason: "inactive"` z `/api/public/products/{slug}/access`; odpowiedź opisuje zapisany zakup i nie przyznaje dostępu. Endpoint treści zwraca HTTP 403. Nieaktywny produkt bez posiadanego dostępu pozostaje niedostępny. Archiwizacja zachowuje treści dla dotychczasowych kupujących, dopóki ich dostęp jest ważny. Weryfikacja bramki przez ważny token działa także bez ciasteczek Sellf, również po archiwizacji; nadal sprawdza bieżące uprawnienie kupującego.
+Wyłączenie produktu zachowuje zakup w **Moich produktach**, ale wstrzymuje dostęp do treści, login wall i bramek elementów. Zalogowany posiadacz zapisanego dostępu, także wygasłego, otrzymuje HTTP 200 z `hasAccess: false` i `reason: "inactive"` z `/api/public/products/{slug}/access`; odpowiedź opisuje zapisany zakup i nie przyznaje dostępu. Endpoint treści zwraca HTTP 403. Nieaktywny produkt bez posiadanego dostępu pozostaje niedostępny. Archiwizacja zachowuje treści dla dotychczasowych kupujących, dopóki ich dostęp jest ważny. Po wygaśnięciu dostępu kupujący nadal widzi stronę z informacją o wygaśnięciu; `/access` zwraca HTTP 200 z `hasAccess: false` i `reason: "expired"`, a endpoint treści — HTTP 403. Dla produktu wstrzymanego lub archiwalnego login wall kieruje kupującego z wygasłym dostępem na `/p/{slug}` bez przyznania dostępu do treści. Weryfikacja bramki przez ważny token działa także bez ciasteczek Sellf, również po archiwizacji; nadal sprawdza bieżące uprawnienie kupującego.
 
 ## Dostęp z kilku zakupów
 
@@ -109,3 +109,7 @@ Dla produktów czasowych inne zamówienie podtrzymuje dostęp tylko do końca sw
 Komunikaty ładowania i niedostępności filmu są wyświetlane w języku widoku kupującego: polskim lub angielskim.
 
 Anulowanie nieopłaconego przelewu z dostępem od złożenia usuwa okres tego zamówienia, nawet gdy późniejszy zakup przedłużył ten sam produkt. Zwrot faktury subskrypcji kończy uprawnienia z tej subskrypcji, zachowując osobno kupione okresy i nadania administratora.
+
+Zamknięcie okna sprzedaży (`available_until`) zatrzymuje nowe zakupy; kupujący z ważnym dostępem zachowują stronę produktu, chronioną treść, bramkę logowania i bramki elementów. Goście, osoby bez dostępu i z wygasłym dostępem nie otworzą zamkniętej oferty. Wstrzymanie i archiwizacja zachowują opisane wyżej działanie.
+
+Na liście produktów **Escape** zamyka menu **Więcej akcji** i przywraca fokus na jego przycisku, również wtedy, gdy fokus był na akcji wewnątrz menu.

@@ -319,6 +319,73 @@ describe('Public product endpoints — expiry semantics', () => {
     });
   });
 
+  it('keeps buyer pages and wall bootstrap after sales close, with valid access only @J61', async () => {
+    const redirect = encodeURIComponent('https://customer.example/content');
+    expect((await supabaseAdmin.from('seller_embed_settings').upsert({ seller_id: userId, allowed_embed_origins: ['https://customer.example'] })).error).toBeNull();
+    expect((await supabaseAdmin.from('products').update({ seller_id: userId, available_until: new Date(Date.now() - 60000).toISOString() }).eq('id', pActive.id)).error).toBeNull();
+    const pagePath = `/pl/p/${pActive.slug}`;
+    const gatePath = `/pl/loginwall/gate?products=${pActive.slug}&redirect=${redirect}`;
+    const protectPath = `/pl/loginwall/protect?id=${pActive.id}&redirect=${redirect}`;
+    const get = (path: string, cookie?: string) => fetch(`${API_URL}${path}`, { headers: cookie ? { Cookie: cookie } : {}, redirect: 'manual' });
+    try {
+      expect((await get(pagePath, userCookie)).status).toBe(200);
+      const buyer = createClient(SUPABASE_URL, ANON_KEY);
+      expect((await buyer.auth.signInWithPassword({ email: userEmail, password: userPassword })).error).toBeNull();
+      const owned = await buyer.from('user_product_access').select('product:products!inner(id)').eq('product_id', pActive.id);
+      expect(owned.error).toBeNull(); expect(owned.data).toHaveLength(1);
+      expect((await publicGet(`/api/public/products/${pActive.slug}/content`, userCookie)).data.product.content_config.content_items[0].url).toBe('https://files.example/secret.pdf');
+      expect((await get(gatePath, userCookie)).status).toBe(307);
+      const protect = await get(protectPath, userCookie);
+      expect(protect.status).toBe(307);
+      expect(protect.headers.get('location')).toContain('https://customer.example/content');
+      for (const state of ['anonymous', 'expired', 'unowned']) {
+        const cookie = state === 'anonymous' ? undefined : userCookie;
+        if (state === 'expired') expect((await supabaseAdmin.from('user_product_access').update({ access_granted_at: new Date(Date.now() - 120000).toISOString(), access_expires_at: new Date(Date.now() - 60000).toISOString() }).eq('user_id', userId).eq('product_id', pActive.id)).error).toBeNull();
+        if (state === 'unowned') expect((await supabaseAdmin.from('user_product_access').delete().eq('user_id', userId).eq('product_id', pActive.id)).error).toBeNull();
+        expect((await get(pagePath, cookie)).status).toBe(404);
+        expect((await get(protectPath, cookie)).status).toBe(cookie ? 404 : 307);
+        expect((await get(gatePath, cookie)).status).toBe(400);
+        expect(JSON.stringify((await publicGet(`/api/public/products/${pActive.slug}/content`, cookie)).data)).not.toContain('secret.pdf');
+      }
+    } finally {
+      expect((await supabaseAdmin.from('products').update({ available_until: null }).eq('id', pActive.id)).error).toBeNull();
+      expect((await supabaseAdmin.from('user_product_access').delete().eq('user_id', userId).eq('product_id', pActive.id)).error).toBeNull();
+      await grantAccess(userId, pActive.id, null);
+      expect((await supabaseAdmin.from('seller_embed_settings').delete().eq('seller_id', userId)).error).toBeNull();
+    }
+  });
+
+  it.each(['paused', 'archived'])('keeps the expired purchase page for a %s product @J61', async state => {
+    const product = await createProduct({ suffix: `expired-${state}`, isActive: false });
+    const get = (path: string, cookie?: string) => fetch(`${API_URL}${path}`, { headers: cookie ? { Cookie: cookie } : {}, redirect: 'manual' });
+    expect((await supabaseAdmin.from('seller_embed_settings').upsert({ seller_id: userId, allowed_embed_origins: ['https://customer.example'] })).error).toBeNull();
+    expect((await supabaseAdmin.from('products').update({ seller_id: userId }).eq('id', product.id)).error).toBeNull();
+    try {
+      if (state === 'archived') expect((await supabaseAdmin.from('products').update({ archived_at: new Date().toISOString() }).eq('id', product.id)).error).toBeNull();
+      await grantAccess(userId, product.id, new Date(Date.now() - 60000));
+      const page = await get(`/pl/p/${product.slug}`, userCookie);
+      expect(page.status).toBe(200);
+      const html = await page.text();
+      expect(html).not.toContain('secret.pdf');
+      expect(html).toMatch(state === 'paused' ? /<h2[^>]*>Produkt nieaktywny<\/h2>/ : /<h2[^>]*>Dostęp wygasł<\/h2>/);
+      expect((await get(`/pl/p/${product.slug}`)).status).toBe(404);
+      expect((await createClient(SUPABASE_URL, ANON_KEY).from('products').select('id').eq('id', product.id)).data).toEqual([]);
+      expect(await publicGet(`/api/public/products/${product.slug}/access`, userCookie)).toMatchObject({ status: 200, data: { hasAccess: false, reason: state === 'paused' ? 'inactive' : 'expired' } });
+      expect((await publicGet(`/api/public/products/${product.slug}/content`, userCookie)).status).toBe(403);
+      const protect = await get(`/pl/loginwall/protect?id=${product.id}&redirect=https%3A%2F%2Fcustomer.example%2Fcontent`, userCookie);
+      expect(protect.status).toBe(307);
+      expect(new URL(protect.headers.get('location')!).pathname).toBe(`/p/${product.slug}`);
+      expect((await supabaseAdmin.from('user_product_access').delete().eq('product_id', product.id)).error).toBeNull();
+      for (const cookie of [undefined, userCookie]) {
+        expect((await get(`/pl/p/${product.slug}`, cookie)).status).toBe(404);
+        expect((await publicGet(`/api/public/products/${product.slug}/access`, cookie)).status).toBe(cookie ? 404 : 401);
+      }
+    } finally {
+      expect((await supabaseAdmin.from('products').delete().eq('id', product.id)).error).toBeNull();
+      expect((await supabaseAdmin.from('seller_embed_settings').delete().eq('seller_id', userId)).error).toBeNull();
+    }
+  });
+
   // ===========================================================================
   // Defense-in-depth assertion: /content cannot be tricked into serving
   // expired payload even when the caller bypasses the /access pre-check.

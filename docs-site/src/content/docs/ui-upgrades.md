@@ -30,6 +30,17 @@ directory is `<stack>/admin-panel/.next/standalone/admin-panel`. StackPilot's
 standard PM2 installation uses this layout. Non-root, source-based, clustered or
 systemd-only installs use their existing deployment procedure instead.
 
+## Refresh Auth email templates after an update
+
+**The in-place updater does not upload templates to hosted Supabase Auth.** It updates application files and SQL using the project's service-role key; changing hosted Auth configuration needs a separate Management API access token. Copying the release's HTML files to the server does not update the hosted templates. Stackpilot can upload them only when it has that token, the project reference and the template files; verify the result even after a Stackpilot update.
+
+After updating to **2026.11.1**:
+
+1. In Supabase **Authentication → Emails → Templates**, save a private copy of the current body and subject of all five templates before changing anything. Keep the copy outside your repository, accessible only to the operator. Compare any shop-specific wording with the new files.
+2. From the **same release you installed**, replace the complete bodies using the file-to-template table in [email setup](/email-setup/#5-upload-sellfs-templates). Use `supabase/templates/` in the release package or tagged source. Update both **Confirm sign up** (`confirmation.html`) and **Magic link** (`magic-link.html`); a new recipient and an existing recipient use different templates. Preserve the supplied authentication links and the `access_on_placement` conditions. Reapplying identical bodies is safe. Leave SMTP, transport and unrelated Auth settings unchanged.
+3. Read back both saved bodies and confirm they contain `access_on_placement`. For self-hosted Auth, follow the template-URL instructions on the same page and verify the files served by those URLs are from the installed release.
+4. Place test transfers with immediate access on and off, for a new and an existing confirmed recipient, in Polish and English. Read the first actual email in each case: immediate access must be described as already active for a confirmed recipient, or available after email confirmation for a new one; deferred access must say it starts after payment. Check the login link as well. An application update succeeding does not prove that hosted email templates were refreshed.
+
 ## Deployment steps
 
 Back up the database, check out the target release, and apply its migrations

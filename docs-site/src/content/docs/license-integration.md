@@ -519,3 +519,5 @@ start. Then report what you changed and how to try it with a real key from Sellf
 ```
 
 The issued-license list and license lifecycle webhooks report the tier saved in the issued token. Editing the product tier or deleting the product does not change that license tier. Listing licenses does not return their tokens; revealing a token remains a separate admin action.
+
+An invalid imported signing key shows an English or Polish message beside the private-key field and returns focus there. Paste an EC P-256 private key in PKCS8 PEM format. Validation leaves the existing signing key unchanged.

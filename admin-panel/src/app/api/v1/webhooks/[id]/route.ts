@@ -7,6 +7,7 @@
  */
 
 import { NextRequest } from 'next/server';
+import { ApiValidationError } from '@/lib/api/errors';
 import {
   handleCorsPreFlight,
   jsonResponse,
@@ -28,7 +29,7 @@ import {
 import { publicWebhookSecret } from '@/lib/webhooks/signing-secret';
 import { checkFeature } from '@/lib/license/resolve';
 import { findDeniedEventFeature } from '@/lib/webhooks/event-feature-gate';
-import { setEndpointScoping, getEndpointProductIds } from '@/lib/webhooks/endpoint-products';
+import { validateEndpointProducts, setEndpointScoping, getEndpointProductIds } from '@/lib/webhooks/endpoint-products';
 import { encryptHeaderMap, decryptHeaderMap } from '@/lib/webhooks/custom-headers';
 
 const PRODUCT_SCOPING_DENIED =
@@ -214,6 +215,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         body.product_filter_mode === 'selected' ? Array.from(new Set(body.product_ids ?? [])) : [];
     }
 
+    if (scopingChange) await validateEndpointProducts(adminClient, scopedLinks);
+
     // Custom field names must not collide with the envelope's own keys
     // (event/timestamp/data) — see validateCustomPayloadFields.
     if (body.custom_payload_fields !== undefined) {
@@ -257,7 +260,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Apply non-scoping field updates (url/events/description/is_active).
-    if (Object.keys(updates).length > 0) {
+    if (Object.keys(updates).length > 0 && !scopingChange) {
       updates.updated_at = new Date().toISOString();
       const { error } = await adminClient
         .from('webhook_endpoints')
@@ -273,7 +276,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    // Apply scoping (mode + links) atomically in one transaction.
+    // Apply fields and scoping together in one transaction.
     if (scopingChange) {
       try {
         await setEndpointScoping(
@@ -281,9 +284,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           id,
           body.product_filter_mode as 'all' | 'selected',
           scopedLinks,
+          updates,
         );
       } catch (scopingError) {
         console.error('Error scoping webhook products:', scopingError);
+        if (scopingError instanceof ApiValidationError) return handleApiError(scopingError, request);
+        if ((scopingError as { code?: string }).code === '23505') return apiError(request, 'ALREADY_EXISTS', 'A webhook with this URL already exists');
         return apiError(request, 'INTERNAL_ERROR', 'Failed to set webhook product scope');
       }
     }

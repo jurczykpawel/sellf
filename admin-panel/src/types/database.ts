@@ -6978,7 +6978,10 @@ export type Database = {
         Args: { p_transaction_id: string }
         Returns: string[]
       }
-      owns_product_access: { Args: { p_product_id: string }; Returns: boolean }
+      owns_product_access: {
+        Args: { p_include_expired?: boolean; p_product_id: string }
+        Returns: boolean
+      }
       pending_free_grant_products: {
         Args: never
         Returns: {
@@ -7451,6 +7454,15 @@ export type Database = {
           video_id_param: string
         }
         Returns: Json
+      }
+      update_webhook_endpoint_scoping: {
+        Args: {
+          p_endpoint_id: string
+          p_mode: string
+          p_product_ids: string[]
+          p_updates: Json
+        }
+        Returns: undefined
       }
       validate_email_format: { Args: { email_param: string }; Returns: boolean }
       validate_payment_transaction: {

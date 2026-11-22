@@ -65,7 +65,7 @@ for (const locale of ['en', 'pl']) {
     const original = await supabaseAdmin.from('invoicing_config').select('*').single();
     expect(original.error).toBeNull();
     try {
-      expect((await supabaseAdmin.from('invoicing_config').update({ provider: 'none', domain: '', token: null }).eq('id', true)).error).toBeNull();
+      expect((await supabaseAdmin.from('invoicing_config').update({ provider: 'none', domain: 'old.fakturownia.pl', token: null }).eq('id', true)).error).toBeNull();
       await loginAsAdmin(page, admin.email, admin.password);
       await page.goto(locale === 'pl' ? '/pl/dashboard/settings' : '/en/dashboard/settings');
       const settings = page.getByRole('region', { name: locale === 'pl' ? 'Faktury' : 'Invoicing', exact: true });
@@ -73,6 +73,16 @@ for (const locale of ['en', 'pl']) {
       await expect(save).toBeEnabled();
       await settings.getByRole('combobox', { name: locale === 'pl' ? 'Dostawca' : 'Provider', exact: true }).selectOption('fakturownia');
       const domain = settings.locator('[name=domain]'), token = settings.locator('[name=token]'), template = settings.locator('[name=template]');
+      await expect(domain).toHaveValue('old.fakturownia.pl');
+      await domain.fill('');
+      await settings.getByRole('combobox', { name: locale === 'pl' ? 'Dostawca' : 'Provider', exact: true }).selectOption('none');
+      await save.click();
+      await expect(settings.getByRole('status')).toHaveText(locale === 'pl' ? 'Zapisano' : 'Saved');
+      expect((await supabaseAdmin.from('invoicing_config').select('provider,domain,token').single()).data).toEqual({ provider: 'none', domain: '', token: null });
+      await page.reload();
+      await expect(save).toBeEnabled();
+      await expect(settings.getByRole('combobox', { name: locale === 'pl' ? 'Dostawca' : 'Provider', exact: true })).toHaveValue('none');
+      await settings.getByRole('combobox', { name: locale === 'pl' ? 'Dostawca' : 'Provider', exact: true }).selectOption('fakturownia');
       await save.click();
       await expect(domain).toBeFocused();
       await expect(domain).toHaveAttribute('aria-invalid', 'true');

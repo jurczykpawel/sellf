@@ -61,3 +61,5 @@ The standard checkout and product checkout profiles share one invoice section. A
 Saved buyer company details from embedded Stripe Checkout are visible in **Payments → Details**, including company name, tax ID and address, even without a checkout profile. A collected Stripe tax ID is treated as an invoice request.
 
 When saving invoice settings, invalid account domains, missing API tokens and invalid description templates are explained next to the corresponding field. Focus moves to the first invalid field; rejected settings are not saved. A blank token retains the saved token only for the same account.
+
+With provider **Disabled**, you can clear the saved account domain without entering a token. Changing the domain discards the previous account token. Enabling another account requires a fresh token; saving the same domain with a blank token keeps the stored token.

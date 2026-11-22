@@ -249,3 +249,17 @@ for (const locale of ['en', 'pl']) {
     await expect(page.getByRole('button', { name: `${locale === 'pl' ? 'Dodaj' : 'Add'} ${original!.name}`, exact: true })).toHaveCount(0);
   });
 }
+
+test('Escape closes product actions and returns focus to the trigger @J600', async ({ page }) => {
+  const name = `Keyboard actions ${Date.now()}`;
+  await soldProduct(name); await openProducts(page, name);
+  const trigger = page.locator('tr').filter({ hasText: name }).locator('button[aria-expanded]');
+  for (const focusItem of [false, true]) {
+    await trigger.click();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    if (focusItem) await page.getByRole('button', { name: /Testuj lejek/ }).focus();
+    await page.keyboard.press('Escape');
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await expect(trigger).toBeFocused();
+  }
+});

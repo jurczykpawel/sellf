@@ -163,7 +163,7 @@ BEGIN
   UPDATE public.invoicing_config SET
     provider = p_settings->>'provider', domain = p_settings->>'domain', mode = p_settings->>'mode',
     exemption = p_settings->>'exemption', template = p_settings->>'template',
-    token = CASE WHEN p_token IS NULL THEN token ELSE p_token END
+    token = CASE WHEN p_token IS NOT NULL THEN p_token WHEN domain IS DISTINCT FROM p_settings->>'domain' THEN NULL ELSE token END
   WHERE id;
   IF NOT FOUND THEN RAISE EXCEPTION 'Invoice settings unavailable' USING ERRCODE='P0002'; END IF;
   INSERT INTO public.audit_log(table_name, operation, performed_by, new_values)
@@ -686,13 +686,14 @@ GRANT EXECUTE ON FUNCTION public.restore_product_as(jsonb, uuid, uuid) TO servic
 GRANT SELECT (archived_at) ON public.products TO anon, authenticated;
 
 -- Buyer check for the policy below; anon has no access to user_product_access itself.
-CREATE FUNCTION public.owns_product_access(p_product_id uuid) RETURNS boolean
+CREATE FUNCTION public.owns_product_access(p_product_id uuid, p_include_expired boolean DEFAULT false) RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
   SELECT EXISTS (SELECT 1 FROM public.user_product_access
-    WHERE product_id = p_product_id AND user_id = (SELECT auth.uid()));
+    WHERE product_id = p_product_id AND user_id = (SELECT auth.uid())
+      AND (p_include_expired OR access_expires_at IS NULL OR access_expires_at > now()));
 $$;
-REVOKE ALL ON FUNCTION public.owns_product_access(uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.owns_product_access(uuid) TO anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.owns_product_access(uuid, boolean) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.owns_product_access(uuid, boolean) TO anon, authenticated, service_role;
 
 DROP POLICY "SELECT policy for products" ON public.products;
 CREATE POLICY "SELECT policy for products" ON public.products FOR SELECT USING (
@@ -701,7 +702,7 @@ CREATE POLICY "SELECT policy for products" ON public.products FOR SELECT USING (
       AND (available_from IS NULL OR available_from <= now())
       AND (available_until IS NULL OR available_until >= now()))
   OR (archived_at IS NULL AND is_active = false AND enable_waitlist = true)
-  OR (is_active = false AND public.owns_product_access(id))
+  OR public.owns_product_access(id, is_active = false OR archived_at IS NOT NULL)
 );
 
 -- ===== HISTORY KEPT ON PERMANENT DELETE =====
@@ -4272,3 +4273,21 @@ BEGIN
       WHEN p_license.revoked_by_dispute_id IS NOT NULL THEN 'dispute'
       ELSE p_license.revocation_reason END);
 END $$;
+
+CREATE FUNCTION public.update_webhook_endpoint_scoping(
+  p_endpoint_id uuid, p_mode text, p_product_ids uuid[], p_updates jsonb
+) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE endpoint public.webhook_endpoints;
+BEGIN
+  SELECT * INTO endpoint FROM public.webhook_endpoints WHERE id = p_endpoint_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Webhook not found' USING ERRCODE = 'P0002'; END IF;
+  endpoint := jsonb_populate_record(endpoint, p_updates);
+  UPDATE public.webhook_endpoints SET
+    url = endpoint.url, events = endpoint.events, description = endpoint.description,
+    is_active = endpoint.is_active, custom_headers_encrypted = endpoint.custom_headers_encrypted,
+    custom_payload_fields = endpoint.custom_payload_fields, payload_field_selection = endpoint.payload_field_selection
+    WHERE id = p_endpoint_id;
+  PERFORM public.set_webhook_endpoint_scoping(p_endpoint_id, p_mode, p_product_ids);
+END $$;
+REVOKE ALL ON FUNCTION public.update_webhook_endpoint_scoping(uuid, text, uuid[], jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.update_webhook_endpoint_scoping(uuid, text, uuid[], jsonb) TO service_role;

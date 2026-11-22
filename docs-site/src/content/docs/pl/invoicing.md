@@ -61,3 +61,5 @@ Zwykły koszyk i profil produktu korzystają z jednej sekcji faktury. Numer NIP 
 Zapisane dane firmy z osadzonego Stripe Checkout są widoczne w **Płatności → Szczegóły**: nazwa firmy, NIP i adres, także bez profilu danych z koszyka. NIP zebrany przez Stripe oznacza prośbę o fakturę.
 
 Przy zapisywaniu ustawień faktur błędna domena konta, brak tokenu API i błędny szablon opisu mają wyjaśnienie przy odpowiednim polu. Fokus przechodzi do pierwszego błędu; odrzucone ustawienia nie są zapisywane. Pusty token zachowuje zapisany token tylko dla tego samego konta.
+
+Przy dostawcy **Wyłączone** możesz wyczyścić zapisaną domenę konta bez wpisywania tokenu. Zmiana domeny usuwa token poprzedniego konta. Włączenie innego konta wymaga nowego tokenu; zapis tej samej domeny z pustym polem tokenu zachowuje zapisany token.

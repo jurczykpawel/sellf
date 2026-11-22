@@ -4225,6 +4225,7 @@
       "upload": "Wgraj klucz",
       "uploading": "Wgrywanie…",
       "uploadLabel": "Wklej klucz prywatny EC P-256 w formacie PEM",
+      "invalidPrivateKey": "Wklej klucz prywatny EC P-256 w formacie PEM (PKCS8, zaczynający się od -----BEGIN PRIVATE KEY-----).",
       "uploadPlaceholder": "-----BEGIN PRIVATE KEY-----",
       "rotateWarning": "Po wygenerowaniu lub wgraniu nowego klucza to on podpisuje nowe licencje. Obecny klucz zostanie wycofany, nie unieważniony: zostaje pod adresem JWKS, więc wydane licencje dalej działają.",
       "cancel": "Anuluj",

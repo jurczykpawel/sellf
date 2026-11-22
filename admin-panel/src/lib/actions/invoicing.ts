@@ -20,7 +20,7 @@ export async function saveInvoiceSettings(input: unknown) {
     const { token, ...settings } = parsed.data;
     const previous = await readInvoiceConfig(dataClient);
     if (settings.provider !== 'none' && !token && !previous?.token) return { success: false, error: 'API token required', fieldErrors: { token: 'tokenRequired' } };
-    if (previous?.domain && previous.domain !== settings.domain && !token) return { success: false, error: 'API token required for new account', fieldErrors: { token: 'tokenRequired' } };
+    if (settings.provider !== 'none' && previous && previous.domain !== settings.domain && !token) return { success: false, error: 'API token required for new account', fieldErrors: { token: 'tokenRequired' } };
     // Settings and their audit entry commit together (save_invoicing_config): a refused entry saves
     // nothing, and no entry exists for settings that were not saved.
     const { error } = await dataClient.rpc('save_invoicing_config', {

@@ -86,3 +86,14 @@ it.each([
   expect(result).toMatchObject({ success: false, fieldErrors: { [field]: expect.any(String) } });
   expect(mock.rpc).not.toHaveBeenCalled();
 });
+
+it('clears the account while invoices are disabled without requiring a token', async () => {
+  mock.config.domain = 'old.fakturownia.pl';
+  expect((await saveInvoiceSettings(SETTINGS)).success).toBe(true);
+  expect(mock.rpc).toHaveBeenCalledWith('save_invoicing_config', expect.objectContaining({ p_settings: expect.objectContaining({ provider: 'none', domain: '' }) }));
+});
+it('requires a fresh token when enabling a different account', async () => {
+  mock.config.domain = '';
+  expect(await saveInvoiceSettings({ ...SETTINGS, provider: 'fakturownia', domain: 'new.fakturownia.pl' })).toMatchObject({ success: false, fieldErrors: { token: 'tokenRequired' } });
+  expect(mock.rpc).not.toHaveBeenCalled();
+});
