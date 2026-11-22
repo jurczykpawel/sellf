@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import type { Page } from '@playwright/test';
-import { test, startNativeCheckout } from './helpers/checkout-intent';
+import { test, startNativeCheckout, clickNativeCheckoutPay } from './helpers/checkout-intent';
 import { getTestDatabaseContainer } from './helpers/database-container';
 import { acceptAllCookies } from './helpers/consent';
 
@@ -45,7 +45,6 @@ async function fillBuyer(page: Page): Promise<string> {
   await expect(page.getByTestId('buyer-company-card')).toContainText('ul. Prosta 20, 00-850 Warszawa');
   const terms = page.locator('input[type="checkbox"]:not(#wantInvoice)');
   for (const checkbox of await terms.all()) if (await checkbox.isVisible()) await checkbox.check();
-  await expect(page.getByRole('button', { name: /^Zapłać/ })).toBeEnabled({ timeout: 30000 });
   return checkoutSessionId;
 }
 
@@ -71,7 +70,7 @@ test('stores the invoice NIP on this session before Stripe confirmation @J94', a
   await page.route('https://api.stripe.com/**/confirm', route => route.abort());
   const sessionId = await fillBuyer(page);
   const saved = page.waitForResponse('**/api/update-payment-metadata');
-  await page.getByRole('button', { name: /^Zapłać/ }).click();
+  await clickNativeCheckoutPay(page);
   expect((await saved).status()).toBe(200);
   await expect.poll(() => readBuyer(sessionId)).toMatchObject({ nip: NIP, source: 'checkout', needs_invoice: true });
 });
@@ -83,7 +82,7 @@ test('keeps payment editable when buyer details cannot be saved', async ({ page 
     status: 500, contentType: 'application/json', body: '{"error":"x"}',
   }));
   const sessionId = await fillBuyer(page);
-  await page.getByRole('button', { name: /^Zapłać/ }).click();
+  await clickNativeCheckoutPay(page);
   await expect(page.getByText('Nie udało się zapisać danych. Spróbuj ponownie.')).toBeVisible();
   await expect(page.getByRole('button', { name: /^Zapłać/ })).toBeEnabled();
   await expect(page).toHaveURL(new RegExp(`/pl/checkout/${product.slug}$`));
@@ -111,7 +110,7 @@ test('a German company in the form without a profile gets its VAT number checked
   await page.locator('#city').fill('Berlin');
   for (const checkbox of await page.locator('input[type="checkbox"]:not(#wantInvoice)').all()) if (await checkbox.isVisible()) await checkbox.check();
   const saved = page.waitForResponse('**/api/update-payment-metadata');
-  await page.getByRole('button', { name: /^Zapłać/ }).click();
+  await clickNativeCheckoutPay(page);
   expect((await saved).status()).toBe(200);
   await expect.poll(() => readBuyer(checkoutSessionId)).toMatchObject({ nip: 'DE123456789', country: 'DE', needs_invoice: true, company_name: 'Muster GmbH', city: 'Berlin' });
 });

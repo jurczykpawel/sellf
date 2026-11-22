@@ -476,6 +476,7 @@
     "invalidEmail": "Nieprawidłowy adres e-mail",
     "invalidTaxIdFormat": "Nieprawidłowy format NIP/ID podatkowego",
     "failedToPreparePayment": "Nie udało się przygotować płatności",
+    "paymentLoadError": "Nie udało się wczytać metod płatności. Odśwież stronę i spróbuj ponownie.",
     "paymentFailed": "Płatność nieudana",
     "emailTooLong": "Adres e-mail może mieć maksymalnie 254 znaki.",
     "emailInvalidFormat": "Wpisz poprawny adres e-mail.",

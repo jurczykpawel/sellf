@@ -80,6 +80,8 @@ Po potwierdzeniu zakupu przez serwer przekierowanie pod ustawiony adres działa 
 
 ## Wznowienie koszyka i walidacja
 
+Podczas inicjalizacji przy wyłączonym przycisku widać informację o wczytywaniu płatności. Jeśli nie uda się wczytać metod płatności, przy wyłączonym przycisku płatności pojawia się komunikat z prośbą o odświeżenie strony. Brak wymaganej zgody powoduje wyświetlenie trwałego komunikatu, a przeglądarka kieruje fokus na pierwsze błędne pole. Zaznaczenie zgody usuwa ten komunikat.
+
 Serwer zwraca pozostały czas sesji w sekundach. Strona odlicza go od odebrania odpowiedzi, niezależnie od zegara urządzenia kupującego; odpowiedź API `409 checkout_session_expired` rozstrzyga o wygaśnięciu. Lokalny upływ czasu nie przerywa trwającej autoryzacji płatności, np. 3DS.
 
 Po wygaśnięciu sesji pojawia się komunikat **Sesja płatności wygasła** i przycisk **Rozpocznij nowy koszyk**, zamiast zachęty do ponownego zapisywania danych. Nowy koszyk ponownie sprawdza dostępność i ceny; miejsce na wydarzeniu zostanie ponownie zarezerwowane tylko wtedy, gdy jest nadal dostępne. Dane kupującego przechowywane przez stronę pozostają dostępne, ale nowy formularz Stripe wymaga ponownego wpisania danych płatności.
