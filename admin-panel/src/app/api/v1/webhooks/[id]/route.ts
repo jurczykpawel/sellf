@@ -1,3 +1,4 @@
+import { ApiValidationError } from '@/lib/api/errors';
 /**
  * Webhooks API v1 - Single Webhook Operations
  *
@@ -28,7 +29,7 @@ import {
 import { publicWebhookSecret } from '@/lib/webhooks/signing-secret';
 import { checkFeature } from '@/lib/license/resolve';
 import { findDeniedEventFeature } from '@/lib/webhooks/event-feature-gate';
-import { setEndpointScoping, getEndpointProductIds } from '@/lib/webhooks/endpoint-products';
+import { validateEndpointProducts, setEndpointScoping, getEndpointProductIds } from '@/lib/webhooks/endpoint-products';
 import { encryptHeaderMap, decryptHeaderMap } from '@/lib/webhooks/custom-headers';
 
 const PRODUCT_SCOPING_DENIED =
@@ -214,6 +215,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         body.product_filter_mode === 'selected' ? Array.from(new Set(body.product_ids ?? [])) : [];
     }
 
+    if (scopingChange) await validateEndpointProducts(adminClient, scopedLinks);
+
     // Custom field names must not collide with the envelope's own keys
     // (event/timestamp/data) — see validateCustomPayloadFields.
     if (body.custom_payload_fields !== undefined) {
@@ -284,6 +287,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         );
       } catch (scopingError) {
         console.error('Error scoping webhook products:', scopingError);
+        if (scopingError instanceof ApiValidationError) return handleApiError(scopingError, request);
         return apiError(request, 'INTERNAL_ERROR', 'Failed to set webhook product scope');
       }
     }

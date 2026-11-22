@@ -341,3 +341,16 @@ describe('PATCH /api/v1/webhooks/:id — payload customization gate', () => {
     expect(row!.custom_headers_encrypted).toBeNull();
   });
 });
+
+it.each(['POST', 'PATCH'])('%s rejects missing scope products before writing fields @J60', async method => {
+  process.env.DEMO_MODE = 'true';
+  const id = await seedEndpoint();
+  const url = `https://example.com/missing-scope-${TS}-${method}`;
+  const body = { url, description: 'must not save', events: ['purchase.completed'], product_filter_mode: 'selected', product_ids: [crypto.randomUUID()] };
+  const response = asResponse(await (method === 'POST' ? POST(postReq(body)) : PATCH(patchReq(body), { params: Promise.resolve({ id }) })));
+  const payload = await response.json();
+  expect(response.status).toBe(400);
+  expect(payload.error).toMatchObject({ code: 'VALIDATION_ERROR', details: { product_ids: expect.any(Array) } });
+  expect((await admin.from('webhook_endpoints').select('id').eq('url', url)).data).toEqual([]);
+  expect((await admin.from('webhook_endpoints').select('product_filter_mode,description').eq('id', id).single()).data).toMatchObject({ product_filter_mode: 'all', description: null });
+});

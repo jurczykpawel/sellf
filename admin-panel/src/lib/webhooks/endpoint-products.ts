@@ -7,6 +7,8 @@
  * @see /lib/webhooks/endpoint-selection.ts
  */
 
+import { ApiValidationError } from '@/lib/api/errors';
+
 // Supabase clients with different schema types can't be unified via generics.
 type SupabaseClientLike = any;
 
@@ -28,7 +30,18 @@ export async function setEndpointScoping(
     p_mode: mode,
     p_product_ids: productIds,
   });
+  if (error?.code === '23503') throw new ApiValidationError('Unknown product in webhook scope', { product_ids: ['One or more products do not exist'] });
   if (error) throw error;
+}
+
+export async function validateEndpointProducts(client: SupabaseClientLike, productIds: string[]): Promise<void> {
+  if (!productIds.length) return;
+  const { data, error } = await client.from('products').select('id').in('id', productIds);
+  if (error) throw error;
+  const found = new Set((data ?? []).map((row: { id: string }) => row.id));
+  if (productIds.some(id => !found.has(id))) {
+    throw new ApiValidationError('Unknown product in webhook scope', { product_ids: ['One or more products do not exist'] });
+  }
 }
 
 /** Product ids linked to a single endpoint. */

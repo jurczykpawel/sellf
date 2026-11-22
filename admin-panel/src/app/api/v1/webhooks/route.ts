@@ -1,3 +1,4 @@
+import { ApiValidationError } from '@/lib/api/errors';
 /**
  * Webhooks API v1 - List and Create Webhooks
  *
@@ -26,7 +27,7 @@ import { parseLimit, applyCursorToQuery, createPaginationResponse, validateCurso
 import { publicWebhookSecret } from '@/lib/webhooks/signing-secret';
 import { checkFeature } from '@/lib/license/resolve';
 import { findDeniedEventFeature } from '@/lib/webhooks/event-feature-gate';
-import { setEndpointScoping, getEndpointProductIdsMap } from '@/lib/webhooks/endpoint-products';
+import { validateEndpointProducts, setEndpointScoping, getEndpointProductIdsMap } from '@/lib/webhooks/endpoint-products';
 import { encryptHeaderMap, decryptHeaderMap } from '@/lib/webhooks/custom-headers';
 
 const WEBHOOK_ENDPOINT_QUOTA = 50;
@@ -228,6 +229,8 @@ export async function POST(request: NextRequest) {
       return apiError(request, 'FORBIDDEN', PRODUCT_SCOPING_DENIED);
     }
 
+    if (scoped) await validateEndpointProducts(adminClient, product_ids ?? []);
+
     // Custom field names must not collide with the envelope's own keys
     // (event/timestamp/data) — see validateCustomPayloadFields.
     const fieldNameValidation = validateCustomPayloadFields(custom_payload_fields);
@@ -300,6 +303,7 @@ export async function POST(request: NextRequest) {
         console.error('Error scoping webhook products:', scopingError);
         // TODO: fold create+scoping into one transactional RPC to drop this best-effort cleanup
         await adminClient.from('webhook_endpoints').delete().eq('id', webhook.id);
+        if (scopingError instanceof ApiValidationError) return handleApiError(scopingError, request);
         return apiError(request, 'INTERNAL_ERROR', 'Failed to set webhook product scope');
       }
     }
