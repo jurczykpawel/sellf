@@ -79,6 +79,8 @@ A server-confirmed receipt follows the configured success URL even if the browse
 
 ## Checkout recovery and validation
 
+While checkout initializes, its disabled button is accompanied by a loading message. If payment methods cannot be loaded, the disabled payment button is accompanied by a message asking the buyer to refresh the page. Missing required terms consent shows a persistent message, and the browser focuses the first invalid control. Accepting the terms clears that message.
+
 The server returns the remaining session lifetime in seconds. The page counts from receipt of the response, independently of the buyer’s system clock; an API `409 checkout_session_expired` response is authoritative. Local expiry does not interrupt an ongoing payment authentication such as 3DS.
 
 An expired payment session shows **Your payment session has expired** and **Start a new checkout**, instead of inviting the buyer to retry saving details. The new checkout checks current availability and prices again; an event seat is reserved again only if still available. Buyer values held by the page remain available, but the new Stripe form needs payment details again.
