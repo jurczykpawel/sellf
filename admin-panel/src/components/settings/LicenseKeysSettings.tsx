@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { KeyRound, Copy, Check, Lock } from 'lucide-react';
@@ -23,6 +23,8 @@ export default function LicenseKeysSettings({ hasLicenseIssuance = true }: Licen
   const [info, setInfo] = useState<SellerLicenseInfo | null>(null);
   const [showUpload, setShowUpload] = useState(false);
   const [privateKeyPem, setPrivateKeyPem] = useState('');
+  const [privateKeyError, setPrivateKeyError] = useState<string | null>(null);
+  const privateKeyInput = useRef<HTMLTextAreaElement>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [showHowTo, setShowHowTo] = useState(false);
 
@@ -64,6 +66,7 @@ export default function LicenseKeysSettings({ hasLicenseIssuance = true }: Licen
   };
 
   const handleUpload = async () => {
+    setPrivateKeyError(null);
     setWorking(true);
     try {
       const res = await uploadSellerLicenseKey(privateKeyPem);
@@ -72,6 +75,9 @@ export default function LicenseKeysSettings({ hasLicenseIssuance = true }: Licen
         setPrivateKeyPem('');
         setShowUpload(false);
         await load();
+      } else if (res.errorCode === 'INVALID_KEY' || res.errorCode === 'INVALID_INPUT') {
+        setPrivateKeyError(t('invalidPrivateKey'));
+        privateKeyInput.current?.focus();
       } else {
         toast.error(res.error || t('actionError'));
         // Refresh in case the prior key was deactivated before the error.
@@ -166,13 +172,17 @@ export default function LicenseKeysSettings({ hasLicenseIssuance = true }: Licen
                 {t('uploadLabel')}
               </label>
               <textarea
+                ref={privateKeyInput}
                 id="license-private-key"
+                aria-invalid={!!privateKeyError}
+                aria-describedby={privateKeyError ? 'license-private-key-error' : undefined}
                 rows={6}
                 value={privateKeyPem}
-                onChange={(e) => setPrivateKeyPem(e.target.value)}
+                onChange={(e) => { setPrivateKeyPem(e.target.value); setPrivateKeyError(null); }}
                 placeholder={t('uploadPlaceholder')}
                 className="w-full border-2 border-sf-border-medium px-4 py-3 bg-sf-input focus:ring-2 focus:ring-sf-accent outline-none font-mono text-xs"
               />
+              {privateKeyError && <p id="license-private-key-error" role="alert" className="mt-2 text-sm text-sf-danger">{privateKeyError}</p>}
             </div>
           )}
 
@@ -200,7 +210,7 @@ export default function LicenseKeysSettings({ hasLicenseIssuance = true }: Licen
               <>
                 <button
                   type="button"
-                  onClick={() => { setShowUpload(false); setPrivateKeyPem(''); }}
+                  onClick={() => { setShowUpload(false); setPrivateKeyPem(''); setPrivateKeyError(null); }}
                   disabled={working}
                   className="px-6 py-2 border-2 border-sf-border-medium text-sf-heading font-medium hover:bg-sf-hover disabled:opacity-50 transition-all"
                 >

@@ -4225,6 +4225,7 @@
       "upload": "Upload key",
       "uploading": "Uploading…",
       "uploadLabel": "Paste a PEM-encoded EC P-256 private key",
+      "invalidPrivateKey": "Paste an EC P-256 private key in PEM format (PKCS8, starting with -----BEGIN PRIVATE KEY-----).",
       "uploadPlaceholder": "-----BEGIN PRIVATE KEY-----",
       "rotateWarning": "Generating or uploading a new key makes it the key that signs new licenses. The current key is retired, not cancelled: it stays published at the JWKS URL, so licenses already issued keep working.",
       "cancel": "Cancel",
