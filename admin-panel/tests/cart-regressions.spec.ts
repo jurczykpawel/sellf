@@ -173,6 +173,18 @@ for (const signedIn of [false, true]) test(`consent follows the same session rul
   await page.goto(`/en/checkout/${products[0].slug}?email=${encodeURIComponent(email)}`);
   const body = await (await startNativeCheckout(page)).json(); remember(body);
   if (signedIn) await expect(legal).toHaveCount(0); else await expect(legal).toBeVisible();
+  if (!signedIn) {
+    await page.locator('#fullName').fill('Test Buyer');
+    const pay = page.getByRole('button', { name: /^Pay/ });
+    const feedback = pay.locator('..').getByRole('alert');
+    await expect(pay).toBeEnabled({ timeout: 30000 });
+    await expect(legal).not.toBeChecked();
+    await pay.click();
+    await expect(legal).toBeFocused();
+    await expect(feedback).toContainText('Please accept Terms and Conditions');
+    await legal.check();
+    await expect(feedback).toHaveCount(0);
+  }
   const update = (termsAccepted?: boolean) => page.request.post('/api/update-payment-metadata', { headers: { Origin: sellfOrigin }, data: {
     productId: products[0].id, clientSecret: body.clientSecret, bindingToken: body.bindingToken, email, fullName: 'Test Buyer', termsAccepted,
   } });

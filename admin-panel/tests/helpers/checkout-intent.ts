@@ -56,3 +56,12 @@ export async function waitForNativeCheckoutReady(page: Page): Promise<void> {
   await expect(checkout.locator('[aria-busy="true"]')).toHaveCount(0, { timeout: 90000 });
   await expect(checkout).toBeVisible({ timeout: 90000 });
 }
+
+export async function clickNativeCheckoutPay(page: Page): Promise<void> {
+  await waitForNativeCheckoutReady(page);
+  const pay = page.locator('[data-checkout-session-id] button[type="submit"]');
+  await expect(pay).toBeEnabled({ timeout: 30000 });
+  await pay.scrollIntoViewIfNeeded();
+  await expect(pay).toBeInViewport({ ratio: 1 });
+  await pay.click();
+}

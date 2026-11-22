@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { expect } from '@playwright/test';
 import { createClient } from '@supabase/supabase-js';
 import { acceptAllCookies } from './helpers/consent';
-import { test, startNativeCheckout } from './helpers/checkout-intent';
+import { test, startNativeCheckout, waitForNativeCheckoutReady } from './helpers/checkout-intent';
 import { getTestDatabaseContainer } from './helpers/database-container';
 import type { Page } from '@playwright/test';
 const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
@@ -93,6 +93,7 @@ test('(f) recording bump gives three registered participants recording access', 
     const response = await startNativeCheckout(page); const body = await response.json();
     await expect(page.locator('[data-test-email]')).toHaveAttribute('data-test-email', 'event-buyer@example.com');
     await expect(page.locator('#checkoutEmail')).toHaveCount(0);
+    await waitForNativeCheckoutReady(page);
     const tx = await checked(await db.from('payment_transactions').select('id').eq('session_id',(await response.json()).checkoutSessionId).single());
     const metadata = await page.request.post('/api/update-payment-metadata', { headers: { origin: new URL(page.url()).origin }, data: { clientSecret: body.clientSecret, bindingToken: body.bindingToken, productId: product.id, moduleValues: { quantity: 3, participants: people }, termsAccepted: true, locale: 'pl' } });
     expect(metadata.status()).toBe(200);

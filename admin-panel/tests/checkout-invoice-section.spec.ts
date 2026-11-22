@@ -15,7 +15,7 @@ import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import type { Page } from '@playwright/test';
 import { readBuyerPayload } from '@/lib/webhooks/buyer-payload-storage';
-import { test, startNativeCheckout } from './helpers/checkout-intent';
+import { test, startNativeCheckout, clickNativeCheckoutPay } from './helpers/checkout-intent';
 import { acceptAllCookies } from './helpers/consent';
 
 test.describe.configure({ mode: 'serial' });
@@ -61,10 +61,8 @@ async function openCheckout(page: Page, { confirm = false } = {}): Promise<strin
 
 async function submit(page: Page): Promise<number> {
   for (const box of await page.locator('input[type="checkbox"]:not(#wantInvoice):not(#wantRecipient)').all()) if (await box.isVisible()) await box.check();
-  const pay = page.getByRole('button', { name: /^Zapłać/ });
-  await expect(pay).toBeEnabled({ timeout: 30000 });
   const saved = page.waitForResponse('**/api/update-payment-metadata');
-  await pay.click();
+  await clickNativeCheckoutPay(page);
   return (await saved).status();
 }
 
@@ -184,7 +182,7 @@ test('a wrong NIP and missing data stop the payment before anything is saved @J6
   await page.locator('#nip').blur();
   await expect(page.getByText('Ten NIP ma błąd w cyfrach')).toBeVisible();
   for (const box of await page.locator('input[type="checkbox"]:not(#wantInvoice)').all()) if (await box.isVisible()) await box.check();
-  await page.getByRole('button', { name: /^Zapłać/ }).click();
+  await clickNativeCheckoutPay(page);
   await expect(page.getByText('Popraw dane do faktury.')).toBeVisible();
   await shot(page, '06-validation');
   expect(requests).toEqual([]);

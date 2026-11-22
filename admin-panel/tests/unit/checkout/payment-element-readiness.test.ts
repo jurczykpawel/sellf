@@ -12,7 +12,7 @@ import pl from '@/messages/pl.json';
 import type { Product } from '@/types';
 import type { PricingResult } from '@/hooks/usePricing';
 
-const stripe = vi.hoisted(() => ({ ready: undefined as undefined | (() => void), options: undefined as undefined | { paymentMethodOrder?: string[] }, result: { type: 'success', checkout: {} } }));
+const stripe = vi.hoisted(() => ({ ready: undefined as undefined | (() => void), options: undefined as undefined | { paymentMethodOrder?: string[] }, result: { type: 'success', checkout: {}, error: { message: 'Provider unavailable' } } }));
 vi.mock('@stripe/react-stripe-js/checkout', () => ({
   useCheckoutElements: () => stripe.result,
   PaymentElement: ({ onReady, options }: { onReady?: () => void; options: { paymentMethodOrder?: string[] } }) => { stripe.ready = onReady; stripe.options = options; return null; },
@@ -60,6 +60,7 @@ it('retains the session loading gate even after the Element is ready', () => {
   const button = view.getByRole('button', { name: /Pay/ }) as HTMLButtonElement;
   expect(button.disabled).toBe(true);
   expect(button.hasAttribute('data-checkout-pending')).toBe(true);
+  expect(view.getByRole('status').textContent).toContain('Loading payment methods');
 });
 
 it('shows a loading placeholder until payment methods are ready', () => {
@@ -110,4 +111,34 @@ it('keeps the email supplied by the parent after a different payment method edit
   expect((view.container.querySelector('#checkoutEmail') as HTMLInputElement).value).toBe('first@example.com');
   view.rerender(form('second@example.com'));
   expect((view.container.querySelector('#checkoutEmail') as HTMLInputElement).value).toBe('second@example.com');
+});
+
+it.each([['en', en, 'Payment methods could not be loaded. Refresh the page and try again.'], ['pl', pl, 'Nie udało się wczytać metod płatności. Odśwież stronę i spróbuj ponownie.']] as const)('explains a disabled payment button after SDK initialization fails in %s', (locale, messages, message) => {
+  stripe.result.type = 'error';
+  const view = render(React.createElement(NextIntlClientProvider, { locale, messages }, React.createElement(FormFixture)));
+  expect((view.container.querySelector('button[type=submit]') as HTMLButtonElement).disabled).toBe(true);
+  expect(view.getByRole('alert').textContent).toContain(message);
+  expect(view.queryByRole('status')).toBeNull();
+});
+
+it('explains required consent after the buyer signs out of a ready checkout', () => {
+  const tree = (isGuest: boolean) => React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(FormFixture, { collectTermsOfService: true, isGuest }));
+  const view = render(tree(false));
+  act(() => stripe.ready!());
+  expect((view.container.querySelector('button[type=submit]') as HTMLButtonElement).disabled).toBe(false);
+  view.rerender(tree(true));
+  fireEvent.invalid(view.getByRole('checkbox'));
+  expect(view.getByRole('alert').textContent).toContain(en.checkout.termsRequired);
+  fireEvent.click(view.getByRole('checkbox'));
+  expect(view.queryByRole('alert')).toBeNull();
+});
+
+it('keeps one payment attempt visibly processing', () => {
+  const fetch = vi.fn(() => new Promise<Response>(() => {})); vi.stubGlobal('fetch', fetch);
+  const view = setup(); act(() => stripe.ready!());
+  const button = view.container.querySelector('button[type=submit]') as HTMLButtonElement;
+  fireEvent.submit(button.closest('form')!); fireEvent.submit(button.closest('form')!);
+  expect(button.disabled).toBe(true);
+  expect(view.getByText(en.checkout.processing)).toBeTruthy();
+  expect(fetch).toHaveBeenCalledTimes(1);
 });

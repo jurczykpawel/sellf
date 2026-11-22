@@ -476,6 +476,7 @@
     "invalidEmail": "Invalid email",
     "invalidTaxIdFormat": "Invalid tax ID format",
     "failedToPreparePayment": "Failed to prepare payment",
+    "paymentLoadError": "Payment methods could not be loaded. Refresh the page and try again.",
     "paymentFailed": "Payment failed",
     "emailTooLong": "Email addresses can have at most 254 characters.",
     "emailInvalidFormat": "Enter a valid email address.",

@@ -139,6 +139,7 @@ export default function CustomPaymentForm({
   useEffect(() => () => onProcessingChange?.(false), [onProcessingChange]);
   const [paymentElementReady, setPaymentElementReady] = useState(false);
   const paymentInputPending = !paymentElementReady || quantityInvalid;
+  const paymentLoading = paymentInputPending && checkoutResult.type !== 'error';
   const [errorMessage, setErrorMessage] = useState('');
   const [emailError, setEmailError] = useState('');
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -483,7 +484,10 @@ export default function CustomPaymentForm({
             <input
               type="checkbox"
               checked={termsAccepted}
-              onChange={(e) => setTermsAccepted(e.target.checked)}
+              onChange={(e) => { setTermsAccepted(e.target.checked); if (errorMessage === t('termsRequired')) setErrorMessage(''); }}
+              onInvalid={() => setErrorMessage(t('termsRequired'))}
+              aria-invalid={!termsAccepted && errorMessage === t('termsRequired')}
+              aria-describedby={!termsAccepted && errorMessage === t('termsRequired') ? 'checkout-payment-error' : undefined}
               className="mt-0.5 w-4 h-4 text-sf-accent bg-sf-input border border-sf-border rounded focus:ring-2 focus:ring-sf-accent/50 focus:border-sf-accent/50 transition-colors"
               required
             />
@@ -503,15 +507,15 @@ export default function CustomPaymentForm({
       )}
 
       {/* Payment Element */}
-      <div className="relative min-h-48" aria-busy={paymentInputPending}>
-        {paymentInputPending && <div className="absolute inset-0 z-10 bg-sf-raised"><PaymentFormSkeleton /></div>}
+      <div className="relative min-h-48" aria-busy={paymentLoading}>
+        {paymentLoading && <div className="absolute inset-0 z-10 bg-sf-raised"><PaymentFormSkeleton /></div>}
         <div inert={paymentInputPending}><PaymentElement options={paymentElementOptions} onReady={() => setPaymentElementReady(true)} /></div>
       </div>
 
       {/* Error Message */}
-      {errorMessage && (
-        <div role="alert" className="p-4 bg-sf-danger-soft border border-sf-danger/20 rounded-lg">
-          <p className="text-sf-danger text-sm">{errorMessage}</p>
+      {(errorMessage || checkoutResult.type === 'error') && (
+        <div id="checkout-payment-error" role="alert" className="p-4 bg-sf-danger-soft border border-sf-danger/20 rounded-lg">
+          <p className="text-sf-danger text-sm">{checkoutResult.type === 'error' ? t('paymentLoadError') : errorMessage}</p>
         </div>
       )}
 
@@ -589,6 +593,8 @@ export default function CustomPaymentForm({
           })
         )}
       </button>
+
+      {checkoutResult.type === 'loading' && !paymentInputPending && <p role="status" className="text-sm text-sf-muted">{t('loadingPaymentMethods')}</p>}
 
       <p className="text-xs text-sf-muted text-center">{t('securePayment')}</p>
     </form>
