@@ -117,3 +117,5 @@ Video loading and unavailable messages follow the buyer view language (English o
 Cancelling an unpaid bank transfer with access granted on placement removes that order's period even if a later purchase extended the same product. Refunding a subscription invoice ends that subscription's rights while preserving separately purchased periods and administrator grants.
 
 Subscription receipt verification uses the saved invoice payment and current entitlement. A full refund shows **Payment refunded** with `access_granted: false`; cancellation without a refund keeps the paid period. When returning from checkout in another signed-in account, the page explains that the purchase belongs to a different account and offers **Sign out and continue**, without revealing the buyer email. Verification still returns HTTP 403 for the other account.
+
+This terminal state also applies to legacy `payment_intent` return links.
