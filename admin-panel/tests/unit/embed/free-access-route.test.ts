@@ -34,7 +34,7 @@ const product = {
 
 function makeDbMock(overrides: {
   allowedOrigins?: string[];
-  product?: typeof product | null;
+  product?: (typeof product & { checkout_profile?: unknown; event_mode?: boolean }) | null;
 } = {}) {
   const allowedOrigins = overrides.allowedOrigins ?? ['https://landing.example.com'];
   const selectedProduct = overrides.product === undefined ? product : overrides.product;
@@ -279,4 +279,18 @@ it.each(['pl', 'en'])('passes free checkout language %s to its confirmation link
   const response = await POST(makeRequest({ productSlug: 'free-guide', email: 'lead@example.com', locale }, 'https://landing.example.com'));
   expect(response.status).toBe(200);
   expect(mocks.requestMagicLink).toHaveBeenCalledWith(expect.objectContaining({ locale }));
+});
+
+it('matches the standard free form without collecting profile modules', async () => {
+  mocks.createAdminClient.mockReturnValue(makeDbMock({ product: { ...product, checkout_profile: { v: 1, modules: [{ id: 'quantity', min: 3, max: 5, mode: 'hidden' }, { id: 'participants', required: true, prefill_from_buyer: false }] } } }));
+  expect((await POST(makeRequest({ productSlug: product.slug, email: 'buyer@example.com' }, 'https://landing.example.com'))).status).toBe(200);
+  expect(mocks.requestMagicLink).toHaveBeenCalled();
+});
+
+it('directs an event with required participants to its standard form', async () => {
+  mocks.createAdminClient.mockReturnValue(makeDbMock({ product: { ...product, event_mode: true, checkout_profile: { v: 1, modules: [{ id: 'quantity', min: 1, max: 3, mode: 'checkout' }, { id: 'participants', required: true, prefill_from_buyer: false }] } } }));
+  const response = await POST(makeRequest({ productSlug: product.slug, email: 'buyer@example.com', locale: 'pl' }, 'https://landing.example.com'));
+  expect(response.status).toBe(422);
+  expect(await response.json()).toMatchObject({ code: 'STANDARD_CHECKOUT_REQUIRED', productUrl: expect.stringContaining(`/pl/p/${product.slug}`) });
+  expect(mocks.requestMagicLink).not.toHaveBeenCalled();
 });

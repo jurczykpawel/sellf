@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkoutProfileSchema, parseCheckoutProfile, storedCheckoutProfileSchema } from '@/lib/checkout-modules/profile';
+import { checkoutProfileSchema, parseCheckoutProfile, storedCheckoutProfileSchema, requiresStandardCheckout } from '@/lib/checkout-modules/profile';
 import type { CheckoutCtx } from '@/lib/checkout-modules/registry';
 import { validateModuleValues } from '@/lib/checkout-modules/registry';
 import { mapApiInputToProductRow } from '@/lib/api/dto/product';
@@ -33,6 +33,7 @@ describe('checkout profile', () => {
     { allow_custom_price: true }, { is_bundle: true }, { issue_license_on_purchase: true },
   ])('rejects incompatible product %j', product => {
     expect(parseCheckoutProfile(profile, product).success).toBe(false);
+    expect(requiresStandardCheckout(profile, product)).toBe(true);
   });
   it('rejects removed product GUS settings in API input', () => {
     for (const gus of [false, true]) {
@@ -178,4 +179,17 @@ it.each([false, true])('reads legacy buyer gus:%s without changing other profile
   const legacy = { ...expected, modules: [{ ...expected.modules[0], gus }, quantity] };
   expect(storedCheckoutProfileSchema.parse(legacy)).toEqual(expected);
   expect(legacy.modules[0]).toHaveProperty('gus', gus);
+});
+
+
+describe('embed product validation', () => {
+  it('requires explicitly disabling embed for a blocking paid profile', async () => {
+    const { checkoutProfileErrors } = await import('@/lib/checkout-modules/product-validation');
+    const product = { price: 50, embed_enabled: true, checkout_profile: { v: 1, modules: [{ ...quantity, min: 2 }] } };
+    expect(await checkoutProfileErrors(product)).toContain('checkout_profile: embed_incompatible');
+    expect(parseCheckoutProfile(product.checkout_profile, product).success).toBe(false);
+    expect(await checkoutProfileErrors({ ...product, embed_enabled: false })).toEqual([]);
+    expect(await checkoutProfileErrors({ ...product, price: 0 })).toEqual([]);
+    expect(await checkoutProfileErrors({ ...product, checkout_profile: profile })).toEqual([]);
+  });
 });

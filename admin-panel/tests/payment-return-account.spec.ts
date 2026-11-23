@@ -46,6 +46,9 @@ test('profile quantities are enforced by both checkout entry points @J733', asyn
       expect(embed.status()).toBe(422);
       expect(await embed.json()).toMatchObject({ code: 'STANDARD_CHECKOUT_REQUIRED' });
     }
+    expect((await db.from('products').update({ price: 0, event_mode: true }).eq('id', id)).error).toBeNull();
+    const freeEvent = await request.post('/api/embed/free-access', { headers: { Origin: 'https://merchant.example.com' }, data: { productSlug: id, email: 'event-buyer@example.com' } });
+    expect(freeEvent.status()).toBe(422);
     expect((await db.from('payment_transactions').select('id').eq('product_id', id)).data).toEqual([]);
   } finally { await db.from('products').delete().eq('id', id); }
 });

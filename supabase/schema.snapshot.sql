@@ -18305,6 +18305,13 @@ CREATE INDEX idx_coupons_source_transaction ON public.coupons USING btree (sourc
 
 
 --
+-- Name: idx_embed_checkout_log_product_created; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_embed_checkout_log_product_created ON public.embed_checkout_log USING btree (product_id, created_at DESC);
+
+
+--
 -- Name: idx_guest_purchases_claimed_by_user_id; Type: INDEX; Schema: public; Owner: postgres
 --
 

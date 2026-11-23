@@ -2,6 +2,9 @@
 -- Requires the updater shipped with 2026.11.0 or later.
 -- Sections retain dependency order; later function definitions take precedence.
 
+-- ===== Embed usage =====
+CREATE INDEX IF NOT EXISTS idx_embed_checkout_log_product_created ON public.embed_checkout_log(product_id, created_at DESC);
+
 -- ===== Checkout details =====
 -- ===== Source: 20261111000000_checkout_details_reconciliation.sql =====
 -- Preserve completion while recording missing required checkout modules.

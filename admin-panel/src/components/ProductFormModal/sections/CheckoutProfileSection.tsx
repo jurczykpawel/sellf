@@ -1,8 +1,9 @@
 'use client';
 
 /** Product checkout profile editor. @see @/lib/checkout-modules/profile */
-import { useTranslations } from 'next-intl';
-import { parseCheckoutProfile } from '@/lib/checkout-modules/profile';
+import { useEffect, useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
+import { parseCheckoutProfile, usesFreeProductForm } from '@/lib/checkout-modules/profile';
 import TutorialHelpButton from '@/components/tutorials/TutorialHelpButton';
 import TutorialTrigger from '@/components/tutorials/TutorialTrigger';
 import type { Dispatch, SetStateAction } from 'react';
@@ -12,9 +13,17 @@ import type { ProductFormData } from '@/components/ProductFormModal/types';
 type Module = CheckoutProfile['modules'][number];
 const DEFAULTS: Module[] = [{ id: 'buyer', types: ['person', 'organization'] }, { id: 'recipient', for: ['organization'] }, { id: 'phone', required: false }, { id: 'quantity', min: 1, max: 100, mode: 'checkout' }, { id: 'participants', required: true, prefill_from_buyer: true }];
 const MODULE_TOUR: Partial<Record<Module['id'], string>> = { buyer: 'profile-buyer', recipient: 'profile-recipient', quantity: 'profile-quantity', participants: 'profile-participants' };
-export function CheckoutProfileSection({ formData, setFormData }: { formData: ProductFormData; setFormData: Dispatch<SetStateAction<ProductFormData>> }) {
+export function CheckoutProfileSection({ productId, formData, setFormData }: { productId?: string; formData: ProductFormData; setFormData: Dispatch<SetStateAction<ProductFormData>> }) {
   const t = useTranslations('checkoutProfile');
-  const bt = useTranslations('bankTransfer');
+  const bt = useTranslations('bankTransfer'), locale = useLocale();
+  const [usage, setUsage] = useState<{ origins: string[]; lastUsage?: { origin: string | null; created_at: string } | null } | null>(null);
+  useEffect(() => {
+    if (!productId) return;
+    const controller = new AbortController();
+    fetch(`/api/admin/embed/allowed-origins?productId=${encodeURIComponent(productId)}&usage=1`, { signal: controller.signal })
+      .then(r => r.ok ? r.json() : null).then(setUsage).catch(() => {});
+    return () => controller.abort();
+  }, [productId]);
   const profile = formData.checkout_profile;
   const update = (modules: Module[]) => setFormData(prev => ({ ...prev, checkout_profile: { v: 1, modules } }));
   const change = (entry: Module, patch: Record<string, unknown>) => update((profile?.modules ?? []).map(m => m.id === entry.id ? { ...m, ...patch } as Module : m));
@@ -27,6 +36,10 @@ export function CheckoutProfileSection({ formData, setFormData }: { formData: Pr
   return <section className="space-y-3" aria-label={t('title')}>
     <TutorialTrigger id="b2b-checkout-profile" auto={!!profile} />
     <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="font-medium text-sf-heading">{t('title')}</h4><TutorialHelpButton id="b2b-checkout-profile" /></div>
+    {(formData.embed_enabled || usage?.lastUsage) && <p role="status" className="text-sm text-sf-warning">{t(usesFreeProductForm(formData) ? 'embedWarningFree' : 'embedWarning', {
+      origin: usage?.lastUsage?.origin || usage?.origins.join(', ') || t('embedOriginUnknown'),
+      date: usage?.lastUsage ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(usage.lastUsage.created_at)) : t('embedDateUnknown'),
+    })}</p>}
     {checkbox(t('enabled'), !!profile, enabled => setFormData(prev => ({ ...prev, checkout_profile: enabled ? { v: 1, modules: [DEFAULTS[0]] } : null })), false, 'profile-enable', 'enabled')}
     {profile && DEFAULTS.map(defaultModule => {
       const entry = profile.modules.find(m => m.id === defaultModule.id);

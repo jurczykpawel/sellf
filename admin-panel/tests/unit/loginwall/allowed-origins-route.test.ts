@@ -38,10 +38,12 @@ function mockProductLookup(seller_id: string | null | undefined) {
   const chain = {
     select: () => chain,
     eq: () => chain,
+    order: () => chain,
+    limit: () => chain,
     maybeSingle: () =>
       Promise.resolve({ data: seller_id === undefined ? null : { seller_id }, error: null }),
   };
-  adminClient.from.mockReturnValue(chain);
+  adminClient.from.mockImplementation((table: string) => table === 'products' ? chain : { ...chain, maybeSingle: async () => ({ data: null, error: null }) });
 }
 
 beforeEach(() => {
@@ -101,4 +103,16 @@ describe('GET /api/admin/embed/allowed-origins', () => {
     const body = await res.json();
     expect(body).toEqual({ origins: [] });
   });
+});
+
+it('returns the latest embed usage only after checking administrator authorization', async () => {
+  vi.mocked(requireAdminApiWithRequest).mockResolvedValue({} as never);
+  mockProductLookup(SELLER_ID);
+  const original = adminClient.from.getMockImplementation()!;
+  const usage = { origin: 'https://customer.example', created_at: '2026-11-23T10:00:00Z' };
+  const chain = { select: () => chain, eq: vi.fn(() => chain), order: () => chain, limit: () => chain, maybeSingle: async () => ({ data: usage, error: null }) };
+  adminClient.from.mockImplementation((table: string) => table === 'embed_checkout_log' ? chain : original(table));
+  const res = await GET(makeRequest(`?productId=${PRODUCT_ID}&usage=1`));
+  expect(await res.json()).toMatchObject({ lastUsage: usage });
+  expect(chain.eq).toHaveBeenCalledWith('product_id', PRODUCT_ID);
 });

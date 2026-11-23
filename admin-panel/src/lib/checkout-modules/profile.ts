@@ -20,6 +20,7 @@ export function parseCheckoutProfile(value: unknown, product: Record<string, unk
   return checkoutProfileSchema.superRefine((p, ctx) => {
     const issue = (message: string) => ctx.addIssue({ code: 'custom', message });
     if ((product.checkout_template ?? 'default') !== 'default' || (product.product_type ?? 'one_time') !== 'one_time' || product.allow_custom_price === true || product.is_bundle === true) issue('profile_product_incompatible');
+    if (product.embed_enabled === true && requiresStandardCheckout(p, product)) issue('embed_incompatible');
     if (product.issue_license_on_purchase === true && p.modules.some(m => m.id === 'quantity' && m.max > 1)) issue('license_quantity');
   }).safeParse(value);
 }
@@ -36,8 +37,13 @@ export const storedCheckoutProfileSchema = z.preprocess(value => {
 }, checkoutProfileSchema);
 
 /** Embedded checkout does not collect profile module values. */
-export function requiresStandardCheckout(value: unknown): boolean {
-  if (value == null) return false;
+interface CheckoutProductKind { price?: unknown; event_mode?: unknown; product_type?: unknown; allow_custom_price?: unknown; checkout_template?: unknown; is_bundle?: unknown; issue_license_on_purchase?: unknown }
+export function usesFreeProductForm(product: CheckoutProductKind): boolean {
+  return !product.event_mode && product.product_type !== 'subscription' && product.price === 0 && !product.allow_custom_price;
+}
+export function requiresStandardCheckout(value: unknown, product: CheckoutProductKind = {}): boolean {
+  if (value == null || usesFreeProductForm(product)) return false;
   const profile = storedCheckoutProfileSchema.safeParse(value);
-  return !profile.success || profile.data.modules.length > 0;
+  return !profile.success || !parseCheckoutProfile(profile.data, { ...product, embed_enabled: false }).success || profile.data.modules.some(m => m.id === 'participants'
+    || (m.id === 'quantity' && (m.min > 1 || m.max < 1 || m.mode !== 'checkout')));
 }

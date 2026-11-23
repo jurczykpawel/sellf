@@ -13,6 +13,10 @@ export type BillingInterval = 'day' | 'week' | 'month' | 'year';
 
 export interface ValidatedProduct {
   checkout_profile?: unknown;
+  event_mode?: boolean;
+  checkout_template?: string | null;
+  is_bundle?: boolean;
+  issue_license_on_purchase?: boolean;
   id: string;
   slug: string;
   name: string;
@@ -70,7 +74,7 @@ export class ProductValidationService {
 
     const { data: product, error } = await this.supabase
       .from('products')
-      .select('id, slug, name, description, price, currency, is_active, available_from, available_until, auto_grant_duration_days, allow_custom_price, custom_price_min, sale_price, sale_price_until, sale_quantity_limit, sale_quantity_sold, vat_rate, price_includes_vat, vat_exempt, vat_exempt_note, product_type, billing_interval, billing_interval_count, recurring_price, trial_days, stripe_price_id, checkout_profile')
+      .select('id, slug, name, description, price, currency, is_active, available_from, available_until, auto_grant_duration_days, allow_custom_price, custom_price_min, sale_price, sale_price_until, sale_quantity_limit, sale_quantity_sold, vat_rate, price_includes_vat, vat_exempt, vat_exempt_note, product_type, billing_interval, billing_interval_count, recurring_price, trial_days, stripe_price_id, checkout_profile, event_mode, checkout_template, is_bundle, issue_license_on_purchase')
       .eq('id', productId)
       .eq('is_active', true)
       .single();

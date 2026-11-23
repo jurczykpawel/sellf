@@ -114,6 +114,10 @@
     "missing": "Brak uczestników"
   },
   "checkoutProfile": {
+    "embedWarningFree": "Ten produkt jest używany w embedzie na {origin} (ostatnio: {date}). Darmowy formularz nie zbiera profilu. Po ustawieniu płatnej ceny uczestnicy lub niezgodne ustawienia ilości będą wymagać wyłączenia embedu.",
+    "embedWarning": "Ten produkt jest używany w embedzie na {origin} (ostatnio: {date}). Zmiana trybu ilości, minimum powyżej 1 lub uczestnicy wyłączą sprzedaż w embedzie.",
+    "embedOriginUnknown": "stronie zewnętrznej",
+    "embedDateUnknown": "brak zapisanej próby",
     "title": "Koszyk",
     "enabled": "Własny koszyk dla tego produktu",
     "buyer": "Nabywca",
@@ -135,6 +139,7 @@
     "checkout": "W koszyku",
     "product_page": "Na stronie produktu",
     "errors": {
+      "embed_incompatible": "Wyłącz embed w ustawieniach produktu przed dodaniem tego modułu lub zmianą trybu ilości.",
       "invalid": "Sprawdź ustawienia modułów (ilość 1–100, co najmniej jeden typ nabywcy).",
       "duplicate_module": "Każdy moduł można włączyć tylko raz.",
       "duplicate_type": "Typy nabywcy nie mogą się powtarzać.",
@@ -1055,6 +1060,8 @@
     }
   },
   "embedSnippet": {
+    "profileSettings": "Ustawienia profilu produktu",
+    "profileBlocked": "Ten profil wymaga standardowego koszyka. Wyłącz embed, aby zapisać taki profil, albo zmień ilość i uczestników.",
     "title": "Generuj kod osadzania koszyka",
     "subtitle": "Sprzedaj produkt na cudzej stronie. Stripe wbudowany dla płatnych, formularz email dla darmowych.",
     "slug": "Slug",
