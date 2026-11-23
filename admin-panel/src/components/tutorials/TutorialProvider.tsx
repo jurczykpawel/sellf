@@ -125,7 +125,11 @@ export default function TutorialProvider({ initialSeen, autoStart, children }: T
         if (instance.isLastStep() && !mustAct) destroy();
         else void advance(instance, state);
       },
-      onPopoverRender: popover => {
+      onPopoverRender: (popover, { state }) => {
+        const current = definition.steps[state.activeIndex ?? -1];
+        if (current && 'requires' in current && current.requires && !('optionalAction' in current && current.optionalAction)) {
+          popover.nextButton.textContent = translate.current('next');
+        }
         popover.wrapper.setAttribute('aria-modal', 'true');
         if (announcer.current) announcer.current.textContent = `${popover.title.textContent ?? ''}. ${popover.description.textContent ?? ''} ${popover.progress.textContent ?? ''}`.trim();
       },

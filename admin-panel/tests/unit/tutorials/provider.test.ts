@@ -87,3 +87,14 @@ it('does not start a first-visit tutorial over the one the help menu asked for',
     window.history.replaceState(null, '', '/');
   }
 });
+
+it.each(['b2b-checkout-profile', 'offer-page', 'events'] as const)('keeps Next on an unfinished required step in %s', async id => {
+  await setup(id);
+  const { TUTORIALS } = await import('@/lib/tutorials/registry');
+  const activeIndex = TUTORIALS[id].steps.findIndex(step => 'requires' in step && !!step.requires && !('optionalAction' in step && step.optionalAction));
+  expect(activeIndex).toBeGreaterThanOrEqual(0);
+  const popover = { wrapper: document.createElement('div'), nextButton: document.createElement('button'), title: document.createElement('div'), description: document.createElement('div'), progress: document.createElement('div') };
+  popover.nextButton.textContent = 'done';
+  mock.config.onPopoverRender(popover, { state: { activeIndex } });
+  expect(popover.nextButton.textContent).toBe('next');
+});
