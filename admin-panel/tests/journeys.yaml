@@ -545,13 +545,14 @@
       },
       "end_state": {
         "buyer": "Token has no domain claim.",
-        "seller": "Manual issuance returns 201 for a product without the domain field.",
+        "seller": "Manual issuance returns 201 for a product without the domain field. The policy summary shows localized day units or unlimited validity.",
         "integrator": "Not exercised: no outgoing integration contract asserted."
       },
       "status": "automated",
       "layers": [
         "http",
-        "integration"
+        "integration",
+        "browser"
       ]
     },
     {
@@ -1270,7 +1271,7 @@
       },
       "end_state": {
         "buyer": "Paid order is completed.",
-        "seller": "Amount mismatch is rejected; same invoice gains receipt date once. The open details dialog refreshes to the completed status after booking.",
+        "seller": "Amount mismatch is rejected; same invoice gains receipt date once. The open details dialog refreshes to the completed status after booking. Its accepted 200-character buyer transfer note wraps in PL/EN on desktop and mobile.",
         "integrator": "Not exercised: no outgoing integration contract asserted."
       },
       "status": "automated",
@@ -1549,7 +1550,7 @@
       },
       "end_state": {
         "buyer": "Not exercised: no customer state change in this probe.",
-        "seller": "Retired key shows its deadline and can be immediately revoked.",
+        "seller": "Retired key shows its deadline and can be immediately revoked. Create/edit controls have labels; 101-character names show a localized field error and 100-character names are accepted.",
         "integrator": "API access follows the key status."
       },
       "status": "automated",
@@ -1591,7 +1592,7 @@
       },
       "end_state": {
         "buyer": "Not exercised: no customer state change in this probe.",
-        "seller": "Selected payload fields, extra fields and headers persist.",
+        "seller": "Selected payload fields, extra fields and headers persist. Delivery payload and response can be expanded and collapsed with Enter or Space while keyboard focus is retained.",
         "integrator": "Not exercised: no outgoing integration contract asserted."
       },
       "status": "automated",
