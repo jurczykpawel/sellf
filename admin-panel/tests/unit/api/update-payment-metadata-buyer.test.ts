@@ -439,3 +439,7 @@ it('stores a legacy name at the boundary including its final Polish letter', asy
   expect((await POST(makeRequest(SESSION_ID, { fullName }))).status).toBe(200);
   expect(mocks.adminRpc).toHaveBeenCalledWith('set_payment_order_buyer', expect.objectContaining({ p_buyer: expect.objectContaining({ full_name: fullName }) }));
 });
+it('uses configured profile names independently of an unused legacy name', async () => {
+  mocks.productRead.mockResolvedValue({ data: { checkout_profile: { v: 1, modules: [] }, currency: 'PLN' }, error: null });
+  expect((await POST(makeRequest(SESSION_ID, { moduleValues: {}, fullName: 'R'.repeat(201) }))).status).toBe(200);
+});

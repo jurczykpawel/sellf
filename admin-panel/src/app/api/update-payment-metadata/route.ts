@@ -109,10 +109,6 @@ export async function POST(request: NextRequest) {
       invoice,
     } = await readJsonBody<any>(request);
 
-    if (typeof fullName === 'string' && fullName.trim().length > BUYER_FULL_NAME_MAX_LENGTH) {
-      return NextResponse.json({ success: false, error: 'Name is too long', code: 'name_too_long' }, { status: 400 });
-    }
-
     if (!clientSecret) {
       return NextResponse.json(
         { success: false, error: 'Client secret is required' },
@@ -252,6 +248,10 @@ export async function POST(request: NextRequest) {
     const usesProfile = !isSubscription && profileProduct?.checkout_profile != null;
     let standard: { buyer: BuyerDetails; metadata: Record<string, string>; recipientToStore: StoredRecipient | null } | null = null;
     if (!usesProfile) {
+      if (typeof fullName === 'string' && fullName.trim().length > BUYER_FULL_NAME_MAX_LENGTH) {
+        return NextResponse.json({ success: false, error: 'Name is too long', code: 'name_too_long' }, { status: 400 });
+      }
+
       // A subscription has no pending order row to keep a recipient on, so it never takes one.
       const recipientEnabled = !isSubscription && await readInvoiceRecipientEnabled(createAdminClient());
       const section = validateInvoiceSection(
