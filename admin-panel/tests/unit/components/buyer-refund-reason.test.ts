@@ -29,7 +29,7 @@ it('shows a field error for an overlong reason and allows correcting it before s
 it('opens a named refund dialog, contains focus, closes with Escape and restores focus', async () => {
   rpc.mockResolvedValue({ data: [{ transaction_id: 'tx', product_name: 'Course', amount: 900, currency: 'PLN', status: 'completed', is_refundable: true, refund_eligible: true, refund_request_status: null, purchase_date: new Date().toISOString(), refund_period_days: 14 }], error: null });
   await act(async () => { render(createElement(MyPurchasesPage)); });
-  const opener = screen.getByRole('button', { name: 'requestRefund' }); opener.focus();
+  const opener = screen.getByRole('button', { name: 'requestRefund' });
   fireEvent.click(opener);
   const dialog = screen.getByRole('dialog', { name: 'refundRequestTitle' });
   const input = screen.getByRole('textbox');

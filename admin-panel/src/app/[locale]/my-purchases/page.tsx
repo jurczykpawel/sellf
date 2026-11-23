@@ -48,6 +48,7 @@ export default function MyPurchasesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refundModalOpen, setRefundModalOpen] = useState(false);
+  const [refundOpener, setRefundOpener] = useState<HTMLButtonElement | null>(null);
   const [selectedPurchase, setSelectedPurchase] = useState<UserPurchase | null>(null);
   const [refundReason, setRefundReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -298,7 +299,7 @@ export default function MyPurchasesPage() {
     return (
       <div className="flex flex-col items-end gap-1">
         <button
-          onClick={() => openRefundModal(purchase)}
+          onClick={event => { setRefundOpener(event.currentTarget); openRefundModal(purchase); }}
           className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-sf-danger hover:opacity-90 bg-sf-danger-soft rounded-full transition-colors"
         >
           {t('requestRefund', { defaultValue: 'Request Refund' })}
@@ -533,7 +534,7 @@ export default function MyPurchasesPage() {
 
         {/* Refund Request Modal */}
         {refundModalOpen && selectedPurchase && (
-          <BaseModal isOpen onClose={() => setRefundModalOpen(false)} labelledBy="buyer-refund-title" initialFocusSelector="#buyer-refund-reason" showCloseButton={false} closeOnBackdropClick={false}>
+          <BaseModal isOpen returnFocusTo={refundOpener} onClose={() => setRefundModalOpen(false)} labelledBy="buyer-refund-title" initialFocusSelector="#buyer-refund-reason" showCloseButton={false} closeOnBackdropClick={false}>
             <div className="bg-sf-raised border border-sf-border rounded-2xl max-w-md w-full p-6">
               <h2 id="buyer-refund-title" className="text-xl font-bold text-sf-heading mb-4">
                 {t('refundRequestTitle', { defaultValue: 'Request Refund' })}
