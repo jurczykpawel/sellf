@@ -1,16 +1,18 @@
 import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 import { createTestUser, setAuthSession, supabaseAdmin as db } from './helpers/admin-auth';
+import { acceptAllCookies } from './helpers/consent';
 import { useSupabaseBuyerEmails } from './helpers/buyer-email-setting-playwright';
 useSupabaseBuyerEmails();
 
 test('a paid return offers account recovery without showing the other buyer @J732', async ({ page }) => {
   const a = await createTestUser('return-a'), b = await createTestUser('return-b');
-  const id = randomUUID(), session = `cs_test_${randomUUID()}`;
+  const id = randomUUID(), session = `cs_test_${randomUUID().replaceAll('-', '')}`;
   try {
     expect((await db.from('products').insert({ id, slug: id, name: 'Account receipt', price: 10, currency: 'PLN' })).error).toBeNull();
-    expect((await db.from('payment_transactions').insert({ product_id: id, user_id: b.userId, customer_email: b.email, amount: 1000, currency: 'PLN', status: 'completed', session_id: session, stripe_payment_intent_id: `pi_test_${id}` })).error).toBeNull();
+    expect((await db.from('payment_transactions').insert({ product_id: id, user_id: b.userId, customer_email: b.email, amount: 1000, currency: 'PLN', status: 'completed', session_id: session, stripe_payment_intent_id: `pi_test_${id.replaceAll('-', '')}` })).error).toBeNull();
     expect((await db.from('user_product_access').insert({ product_id: id, user_id: b.userId })).error).toBeNull();
+    await acceptAllCookies(page);
     await setAuthSession(page, a.email, a.password);
     await page.goto(`/en/p/${id}/payment-status?session_id=${session}`);
     await expect(page.getByText('This purchase belongs to another account', { exact: true })).toBeVisible();
