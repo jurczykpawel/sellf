@@ -4519,7 +4519,7 @@
     "refundReasonTooLong": "Reason is too long (maximum {max} characters).",
     "refundReasonLimit": "Maximum {max} characters.",
     "refundReasonPlaceholder": "Tell us why you want a refund...",
-    "refundWarning": "Your refund request will be reviewed by our team. You will receive a response via email.",
+    "refundWarning": "The seller will review your refund request. Check its status in My purchases. Additional notifications depend on the seller.",
     "cancel": "Cancel",
     "submitting": "Submitting...",
     "submitRequest": "Submit Request",

@@ -4519,7 +4519,7 @@
     "refundReasonTooLong": "Powód jest za długi (maksymalnie {max} znaków).",
     "refundReasonLimit": "Maksymalnie {max} znaków.",
     "refundReasonPlaceholder": "Powiedz nam, dlaczego chcesz zwrotu...",
-    "refundWarning": "Twoja prośba o zwrot zostanie rozpatrzona przez nasz zespół. Otrzymasz odpowiedź na email.",
+    "refundWarning": "Sprzedawca rozpatrzy Twoją prośbę o zwrot. Jej status sprawdzisz w Moich zakupach. Dodatkowe powiadomienia zależą od sprzedawcy.",
     "cancel": "Anuluj",
     "submitting": "Wysyłanie...",
     "submitRequest": "Wyślij prośbę",
