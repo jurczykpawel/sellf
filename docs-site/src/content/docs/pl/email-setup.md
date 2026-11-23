@@ -191,3 +191,5 @@ Przeprowadź rzeczywisty test logowania ze sklepu, sprawdzenie nadawcy/domeny i 
 ```
 
 Jeśli zużyty lub wygasły link Supabase zwróci błąd `otp_expired` we fragmencie URL, Sellf pokazuje trwały komunikat z akcją logowania. Komunikat nie identyfikuje właściciela linku; obsługiwany cel powrotu zostaje zachowany.
+
+Callback logowania zachowuje obsługiwany cel powrotu także wtedy, gdy brakuje linku albo link wygasł lub został już użyty; nieobsługiwane cele są pomijane.
