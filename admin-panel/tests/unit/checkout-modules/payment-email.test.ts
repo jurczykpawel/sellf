@@ -13,7 +13,7 @@ vi.mock('@/components/checkout/CheckoutProfileFields', () => ({ default: () => n
 vi.mock('@/components/checkout/InvoiceSection', () => ({ default: () => null }));
 afterEach(cleanup);
 it.each([true, false])('shows the collected profile email without asking again: %s', hasProfile => {
-  const props = { product: { price: 10, currency: 'PLN', checkout_profile: hasProfile ? { v: 1, modules: [{ id: 'buyer', types: ['person'] }] } : null }, email: 'buyer@example.com', invoice: {}, profileForm: { errors: [] }, pricing: {}, onEmailChange: vi.fn(), collectTermsOfService: false } as unknown as ComponentProps<typeof CustomPaymentForm>;
+  const props = { product: { price: 10, currency: 'PLN', checkout_profile: hasProfile ? { v: 1, modules: [{ id: 'buyer', types: ['person'] }] } : null }, email: 'buyer@example.com', invoice: { fullName: '' }, profileForm: { errors: [] }, pricing: {}, onEmailChange: vi.fn(), collectTermsOfService: false } as unknown as ComponentProps<typeof CustomPaymentForm>;
   render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(CustomPaymentForm, props)));
   if (hasProfile) {
     expect(screen.queryByRole('textbox', { name: 'Email' })).toBeNull();
