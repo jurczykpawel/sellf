@@ -1,9 +1,9 @@
 'use client';
 
-import { BUYER_FULL_NAME_MAX_LENGTH } from '@/lib/payment/buyer-details';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { PaymentElement, useCheckoutElements } from '@stripe/react-stripe-js/checkout';
+import { BUYER_FULL_NAME_MAX_LENGTH } from '@/lib/payment/buyer-details';
 import { storedCheckoutProfileSchema } from '@/lib/checkout-modules/profile';
 import CheckoutProfileFields from '@/components/checkout/CheckoutProfileFields';
 import { formatPrice } from '@/lib/constants';
