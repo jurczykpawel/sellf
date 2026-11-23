@@ -5,6 +5,8 @@ import { useTranslations } from 'next-intl'
 import { createCategory, updateCategory, Category } from '@/lib/actions/categories'
 import { toast } from 'sonner'
 import { X } from 'lucide-react'
+import { CategoryCreateDTO } from '@/lib/api/dto/category'
+import { useTaxonomyValidation } from '@/hooks/useTaxonomyValidation'
 
 interface CategoryFormModalProps {
   isOpen: boolean
@@ -16,6 +18,8 @@ export default function CategoryFormModal({ isOpen, onClose, category }: Categor
   const t = useTranslations('admin.categories') // To define
   const commonT = useTranslations('common')
 
+  const validation = useTaxonomyValidation(CategoryCreateDTO)
+
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [description, setDescription] = useState('')
@@ -23,6 +27,7 @@ export default function CategoryFormModal({ isOpen, onClose, category }: Categor
 
   const [previousInput, setPreviousInput] = useState<{ category: typeof category; isOpen: boolean } | null>(null)
   if (!previousInput || previousInput.category !== category || previousInput.isOpen !== isOpen) {
+    validation.reset()
     setPreviousInput({ category, isOpen })
     if (category) {
       setName(category.name)
@@ -52,6 +57,7 @@ export default function CategoryFormModal({ isOpen, onClose, category }: Categor
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!validation.validate(e.currentTarget, { name, slug, description })) return
     setIsLoading(true)
 
     try {
@@ -87,43 +93,49 @@ export default function CategoryFormModal({ isOpen, onClose, category }: Categor
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form noValidate onInput={(e) => validation.clear((e.target as HTMLInputElement).name)} onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-sf-body mb-1">
+            <label htmlFor={validation.field('name').id} className="block text-sm font-medium text-sf-body mb-1">
               {commonT('name')}
             </label>
             <input
               type="text"
+              {...validation.field('name')}
               value={name}
               onChange={handleNameChange}
               required
               className="w-full px-3 py-2 bg-sf-input text-sf-heading border-2 border-sf-border-medium focus:ring-2 focus:ring-sf-accent"
             />
+            {validation.error('name')}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-sf-body mb-1">
+            <label htmlFor={validation.field('slug').id} className="block text-sm font-medium text-sf-body mb-1">
               {t('slug')}
             </label>
             <input
               type="text"
+              {...validation.field('slug')}
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
               required
               className="w-full px-3 py-2 bg-sf-input text-sf-heading border-2 border-sf-border-medium focus:ring-2 focus:ring-sf-accent font-mono text-sm"
             />
+            {validation.error('slug')}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-sf-body mb-1">
+            <label htmlFor={validation.field('description').id} className="block text-sm font-medium text-sf-body mb-1">
               {commonT('description')}
             </label>
             <textarea
+              {...validation.field('description')}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
               className="w-full px-3 py-2 bg-sf-input text-sf-heading border-2 border-sf-border-medium focus:ring-2 focus:ring-sf-accent"
             />
+            {validation.error('description')}
           </div>
 
           <div className="flex justify-end gap-3 mt-6">

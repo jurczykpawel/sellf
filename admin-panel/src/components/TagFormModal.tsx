@@ -5,6 +5,8 @@ import { useTranslations } from 'next-intl'
 import { createTag, updateTag, Tag } from '@/lib/actions/tags'
 import { toast } from 'sonner'
 import { X } from 'lucide-react'
+import { TagCreateDTO } from '@/lib/api/dto/tag'
+import { useTaxonomyValidation } from '@/hooks/useTaxonomyValidation'
 
 interface TagFormModalProps {
   isOpen: boolean
@@ -16,12 +18,15 @@ export default function TagFormModal({ isOpen, onClose, tag }: TagFormModalProps
   const t = useTranslations('admin.tags')
   const commonT = useTranslations('common')
 
+  const validation = useTaxonomyValidation(TagCreateDTO)
+
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
   const [previousInput, setPreviousInput] = useState<{ tag: typeof tag; isOpen: boolean } | null>(null)
   if (!previousInput || previousInput.tag !== tag || previousInput.isOpen !== isOpen) {
+    validation.reset()
     setPreviousInput({ tag, isOpen })
     if (tag) {
       setName(tag.name)
@@ -49,6 +54,7 @@ export default function TagFormModal({ isOpen, onClose, tag }: TagFormModalProps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!validation.validate(e.currentTarget, { name, slug })) return
     setIsLoading(true)
 
     try {
@@ -84,31 +90,35 @@ export default function TagFormModal({ isOpen, onClose, tag }: TagFormModalProps
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form noValidate onInput={(e) => validation.clear((e.target as HTMLInputElement).name)} onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-sf-body mb-1">
+            <label htmlFor={validation.field('name').id} className="block text-sm font-medium text-sf-body mb-1">
               {commonT('name')}
             </label>
             <input
               type="text"
+              {...validation.field('name')}
               value={name}
               onChange={handleNameChange}
               required
               className="w-full px-3 py-2 bg-sf-input text-sf-heading border-2 border-sf-border-medium focus:ring-2 focus:ring-sf-accent"
             />
+            {validation.error('name')}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-sf-body mb-1">
+            <label htmlFor={validation.field('slug').id} className="block text-sm font-medium text-sf-body mb-1">
               {t('slug')}
             </label>
             <input
               type="text"
+              {...validation.field('slug')}
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
               required
               className="w-full px-3 py-2 bg-sf-input text-sf-heading border-2 border-sf-border-medium focus:ring-2 focus:ring-sf-accent font-mono text-sm"
             />
+            {validation.error('slug')}
           </div>
 
           <div className="flex justify-end gap-3 mt-6">

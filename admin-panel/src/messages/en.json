@@ -531,6 +531,11 @@
     "getMagicLink": "Send me access link"
   },
   "common": {
+    "taxonomyValidation": {
+      "required": "This field is required.",
+      "tooLong": "Use at most {max} characters.",
+      "slug": "Use letters, numbers, hyphens or underscores, without spaces."
+    },
     "loading": "Loading...",
     "error": "Error",
     "success": "Success",
