@@ -703,3 +703,5 @@ Subscribe the Stripe endpoint to the events listed by `STRIPE_WEBHOOK_EVENTS` in
 ## PlayerStack leads
 
 [Email-confirmed lead forms and marketing consent](/playerstack-leads/).
+
+Key names accept up to 100 characters. Form labels identify their controls; name errors appear beside the field in the panel language. Editing changes the name. Create a new key to change permissions or the rate limit.

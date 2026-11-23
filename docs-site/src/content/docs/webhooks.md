@@ -900,3 +900,5 @@ Orders, invoices, licenses and ended subscriptions stay: later events about them
 The dashboard event picker describes all three; **Test endpoint** previews a complete example for each.
 
 Creating or updating an endpoint with a missing or deleted product in `product_ids` returns HTTP **400**, `VALIDATION_ERROR`, with `error.details.product_ids`. Correct the selected products and retry. Updates save endpoint fields and product scope together; an invalid update keeps the previous settings, including when a selected product is deleted during the update.
+
+In delivery logs, Tab to the event-name button and press Enter or Space to expand or collapse the payload and response. The button exposes its expanded state and keeps keyboard focus.
