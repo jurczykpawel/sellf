@@ -17,7 +17,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useProducts, type ProductStatusFilter } from '@/hooks/useProducts';
 import { isRelativeOrHttpUrl } from '@/lib/validations/redirect';
 import { duplicateProductDraft } from '@/lib/product-duplicate';
-import { ApiError } from '@/lib/api/client';
+import { api, ApiError } from '@/lib/api/client';
 
 // Server-side failures carry English text; show the localized fallback instead.
 const isServerError = (err: unknown): boolean => err instanceof ApiError && err.status >= 500;
@@ -108,6 +108,14 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
   }, [fetchProducts]);
 
   const openParam = searchParams.get('open');
+  useEffect(() => {
+    if (!openParam || openParam === 'new') return;
+    let active = true;
+    void api.get<Product>('products', openParam).then(product => {
+      if (active) { setEditingProduct(product); setShowProductForm(true); }
+    }).catch(() => { if (active) toast.error(t('loadError')); });
+    return () => { active = false; };
+  }, [openParam, t]);
   const [previousOpenParam, setPreviousOpenParam] = useState<string | null>(null);
   if (previousOpenParam !== openParam) {
     setPreviousOpenParam(openParam);
@@ -357,6 +365,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
         <ProductCreationWizard
           isOpen={showProductForm}
           tutorial={searchParams.get('tutorial') ?? undefined}
+          initialFormSection={searchParams.get('section') === 'sales' ? 'sales' : undefined}
           onClose={() => {
             setShowProductForm(false);
             setEditingProduct(null);

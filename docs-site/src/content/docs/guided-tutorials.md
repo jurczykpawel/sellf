@@ -28,3 +28,7 @@ When a new form opens with the scenario picker, focus starts on its first option
 Invalid prices, including fractional JPY amounts, ask you to correct the price in **Buyer gets** and are never labelled free. An unchanged saved product closes without a discard warning. Reverting an edit leaves it unchanged; unsaved edits to a saved product’s fields or one-time offer require confirmation before closing. A new or duplicated draft with a name, description or positive price still asks for confirmation before discarding it.
 
 After a product form starts from the **?** menu, close the tutorial and then the form to return focus to **?**. Dialogs from a product’s **…** menu return focus to that row’s **…** button. Product Edit and **…** buttons keep stable identities, so closing a dialog can also return focus after a background list refresh replaced the original button. History confirmations return focus to the chosen revision button on **Esc** or Cancel, including after a delayed comparison read.
+
+On a step that still requires an action, **Next** remains visible even when later controls are hidden. Complete the highlighted action to continue; **Done** is reserved for completion.
+
+If publishing a product offer is blocked because the product is inactive or hidden in the store, the message explains both requirements. **Open product sales settings** opens that product directly in **Sales and settlement**, where you can change its active and listed settings. Publication stays blocked until both requirements are met.

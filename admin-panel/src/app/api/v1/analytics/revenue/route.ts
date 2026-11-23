@@ -5,6 +5,7 @@
  */
 
 import { NextRequest } from 'next/server';
+import { RevenueQueryDTO } from '@/lib/api/dto/analytics';
 import {
   handleCorsPreFlight,
   jsonResponse,
@@ -47,6 +48,8 @@ export async function GET(request: NextRequest) {
     const startDateParam = searchParams.get('start_date');
     const endDateParam = searchParams.get('end_date');
     const productId = searchParams.get('product_id');
+    const parsed = RevenueQueryDTO.safeParse({ product_id: productId || undefined, period: searchParams.get('period') || undefined, group_by: searchParams.get('group_by') || undefined });
+    if (!parsed.success) return apiError(request, 'INVALID_INPUT', parsed.error.issues[0].message);
     let groupBy = searchParams.get('group_by');
 
     // Calculate date range based on period
@@ -97,6 +100,8 @@ export async function GET(request: NextRequest) {
     if (isNaN(endDate.getTime())) {
       return apiError(request, 'INVALID_INPUT', 'Invalid end_date format');
     }
+
+    if (startDate > endDate) return apiError(request, 'INVALID_INPUT', 'start_date must be before end_date');
 
     const groups = await getRevenueGroups(auth.supabase, { start: startDate, end: endDate, productId });
     const allTx = groups.filter(tx => tx.status !== 'refunded');

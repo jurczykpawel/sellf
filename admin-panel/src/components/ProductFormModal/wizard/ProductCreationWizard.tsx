@@ -26,6 +26,7 @@ import { initialFormData, type ProductFormData } from '../types';
 
 export interface ProductCreationWizardProps {
   tutorial?: string;
+  initialFormSection?: FormSectionId;
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (formData: ProductFormData) => Promise<void>;
@@ -40,6 +41,7 @@ export interface ProductCreationWizardProps {
 const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
   isOpen,
   tutorial,
+  initialFormSection,
   onClose,
   onSubmit,
   isSubmitting,
@@ -57,7 +59,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
   const isBlankNew = !product && !defaultIsBundle;
 
   const titleId = useId();
-  const [currentSection, setCurrentSection] = useState<FormSectionId>(() => initialSection(tutorial));
+  const [currentSection, setCurrentSection] = useState<FormSectionId>(() => initialFormSection ?? initialSection(tutorial));
   const sectionIndex = FORM_SECTIONS.indexOf(currentSection);
   const formRef = useRef<HTMLFormElement>(null);
   // A newly shown section starts at its heading, not at the previous section's scroll position.

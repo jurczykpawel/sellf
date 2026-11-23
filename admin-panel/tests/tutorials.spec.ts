@@ -11,7 +11,7 @@ if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(process.env.SUPABASE_URL ?? '')) throw n
 test.setTimeout(90_000);
 
 const cleanups: Array<() => Promise<unknown>> = [];
-test.afterEach(async () => { while (cleanups.length) await cleanups.pop()!(); });
+test.afterEach(async ({ page }, info) => { if (info.status === 'passed') await page.close(); while (cleanups.length) await cleanups.pop()!(); });
 async function checked<T>({ data, error }: { data: T; error: unknown }): Promise<NonNullable<T>> { if (error) throw error; return data!; }
 async function productFixture(prefix: string, extra: Record<string, unknown> = {}) {
   const name = `${prefix} ${randomUUID().slice(0, 8)}`;
@@ -85,6 +85,7 @@ test('business cart tutorial starts when the custom cart is switched on and its 
   await page.getByTestId('tutorial-help-b2b-checkout-profile').click();
   await popover(page).locator('.driver-popover-next-btn').click();
   await expect(popover(page).locator('.driver-popover-description')).toHaveText(stepText('b2b-checkout-profile', 'enable').bodyAct!);
+  await expect(popover(page).locator('.driver-popover-next-btn')).toHaveText('Dalej');
   await popover(page).locator('.driver-popover-next-btn').click();
   await expect(popover(page).locator('.driver-popover-description')).toHaveText(mustAct);
   await page.getByLabel('Własny koszyk dla tego produktu').check();
@@ -104,6 +105,7 @@ test('event tutorial leads from switching on event mode to adding a date and a p
   await popover(page).locator('.driver-popover-next-btn').click();
   await expect(popoverTitle(page)).toHaveText(stepText('events', 'addSession').title);
   await expect(popover(page).locator('.driver-popover-description')).toHaveText(stepText('events', 'addSession').bodyAct!);
+  await expect(popover(page).locator('.driver-popover-next-btn')).toHaveText('Dalej');
   await page.getByRole('button', { name: 'Dodaj termin', exact: true }).click();
   await walk(page, 'events', ['session', 'tier', 'addTier']);
   await expect(page.getByRole('group', { name: /^Termin 1/ })).toBeVisible();

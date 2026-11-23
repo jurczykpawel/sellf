@@ -531,6 +531,11 @@
     "getMagicLink": "Send me access link"
   },
   "common": {
+    "taxonomyValidation": {
+      "required": "This field is required.",
+      "tooLong": "Use at most {max} characters.",
+      "slug": "Use letters, numbers, hyphens or underscores, without spaces."
+    },
     "loading": "Loading...",
     "error": "Error",
     "success": "Success",
@@ -4517,7 +4522,7 @@
     "refundReasonTooLong": "Reason is too long (maximum {max} characters).",
     "refundReasonLimit": "Maximum {max} characters.",
     "refundReasonPlaceholder": "Tell us why you want a refund...",
-    "refundWarning": "Your refund request will be reviewed by our team. You will receive a response via email.",
+    "refundWarning": "The seller will review your refund request. Check its status in My purchases. Additional notifications depend on the seller.",
     "cancel": "Cancel",
     "submitting": "Submitting...",
     "submitRequest": "Submit Request",
@@ -5895,6 +5900,8 @@
     "beforePublishing": "Before publishing",
     "incompleteDraft": "Drafts can stay incomplete. You can keep editing; fix these before publishing.",
     "fixSection": "Edit {section}",
+    "offerUnavailable": "To publish this offer page, make the product active and visible in the store.",
+    "productSalesSettings": "Open product sales settings",
     "unavailableBinding": "Choose an offer or category that is currently public and available.",
     "missingOffer": "Choose an offer for this section before publishing.",
     "orderHint": "Drag the handle to reorder. Use ↑ / ↓ on the handle with a keyboard.",
