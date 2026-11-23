@@ -27,14 +27,9 @@ describe('verifyPaymentSession subscription branch', () => {
     expect(block![0]).toContain("payment_status === 'paid'");
   });
 
-  it('returns access_granted=true for logged-in buyers (user object or metadata.user_id)', () => {
-    expect(source).toMatch(/wasLoggedIn\s*=\s*!!user\s*\|\|/);
-    expect(source).toMatch(/metadataUserId\s*!==\s*''/);
-    const loggedInBlock = source.match(
-      /if\s*\(wasLoggedIn\)\s*\{[\s\S]+?scenario:\s*['"]subscription['"][\s\S]+?\}/,
-    );
-    expect(loggedInBlock).not.toBeNull();
-    expect(loggedInBlock![0]).toMatch(/access_granted:\s*true/);
+  it('uses the saved invoice receipt and waits for fulfillment for signed-in buyers', () => {
+    expect(source).toContain('getProcessedPaymentFromDatabase(invoiceId, serviceClient, user)');
+    expect(source).toContain("if (user) return { ...baseResponse, access_granted: false, scenario: 'subscription' }");
   });
 
   it('returns guest scenario with magic-link flags when buyer was not logged in', () => {

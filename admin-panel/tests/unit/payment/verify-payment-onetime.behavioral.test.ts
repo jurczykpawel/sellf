@@ -367,7 +367,7 @@ describe.skipIf(!hasSupabase)('verifyPaymentSession — success-redirect capture
     expect(purchaseCalls()).toHaveLength(0);
   });
 
-  it('subscription mode (logged in) → access granted, scenario=subscription, no one-time RPC/webhook', async () => {
+  it('subscription mode (logged in) waits for a saved receipt without a one-time RPC/webhook', async () => {
     const cs = uniq('cs');
     const email = uniq('reg') + '@example.com';
     createdEmails.push(email);
@@ -380,7 +380,7 @@ describe.skipIf(!hasSupabase)('verifyPaymentSession — success-redirect capture
       },
     });
     const r = await verifyPaymentSession(cs, asUser(userId, email));
-    expect(r.access_granted).toBe(true);
+    expect(r.access_granted).toBe(false);
     expect(r.scenario).toBe('subscription');
     expect(purchaseCalls()).toHaveLength(0);
   });
@@ -1138,5 +1138,38 @@ describe.skipIf(!hasSupabase)('paid offer withdrawn before the webhook @J185', (
     expect(await hasAccess(buyer, product.id)).toBe(true);
     expect(await hasAccess(buyer, bump.id)).toBe(true);
     expect(purchaseCalls()).toHaveLength(1);
+  });
+});
+
+describe.skipIf(!hasSupabase)('subscription receipt verification @J712', () => {
+  it.each(['refunded', 'disputed', 'completed', 'partially_refunded'])('uses the saved invoice %s state for both visitors', async status => {
+    const recorded = (await import('../../fixtures/stripe/trial-first-mail-checkout.json')).default;
+    const product = await createProduct({ product_type: 'subscription', price: 0, recurring_price: 10, billing_interval: 'month', billing_interval_count: 1 });
+    const cs = uniq('cs'), invoice = uniq('in'), email = `${uniq('sub-receipt')}@example.com`;
+    createdEmails.push(email);
+    const buyer = await createAuthUser(email);
+    const id = await seedPendingTx({ sessionId: invoice, productId: product.id, email, userId: buyer, status: 'completed' });
+    expect((await db!.from('payment_transactions').update({ status, stripe_invoice_id: invoice, refunded_amount: status === 'refunded' ? 1000 : status === 'partially_refunded' ? 100 : 0 }).eq('id', id)).error).toBeNull();
+    const terminal = status === 'refunded' || status === 'disputed';
+    if (!terminal) expect((await db!.from('user_product_access').insert({ user_id: buyer, product_id: product.id, access_expires_at: new Date(Date.now() + 86400000).toISOString() })).error).toBeNull();
+    for (const expanded of [false, true]) {
+      h.stripe = makeStripeShim({ session: { ...recorded, id: cs, invoice: expanded ? { id: invoice } : invoice, metadata: { product_id: product.id }, customer_details: { email } } });
+      for (const user of [null, asUser(buyer, email)]) {
+        const result = await verifyPaymentSession(cs, user);
+        expect(result).toMatchObject({ session_id: cs, payment_status: terminal ? status : 'paid', access_granted: !terminal });
+        expect(mapVerifiedPaymentToStatus(result).paymentStatus).toBe(terminal ? status : user ? 'completed' : 'magic_link_sent');
+      }
+      const foreign = await verifyPaymentSession(cs, asUser('another', 'other@example.com'));
+      expect(foreign.error).toBe('Session does not belong to current user');
+      expect(foreign.customer_email).toBeUndefined();
+    }
+    expect(purchaseCalls()).toHaveLength(0);
+  });
+  it('waits for subscription fulfillment instead of promising unrecorded access', async () => {
+    const recorded = (await import('../../fixtures/stripe/trial-first-mail-checkout.json')).default;
+    h.stripe = makeStripeShim({ session: { ...recorded, id: uniq('cs'), customer_details: { email: 'waiting@example.com' }, metadata: {} } });
+    const result = await verifyPaymentSession('cs_waiting', asUser('waiting', 'waiting@example.com'));
+    expect(result.access_granted).toBe(false);
+    expect(mapVerifiedPaymentToStatus(result).paymentStatus).toBe('received');
   });
 });

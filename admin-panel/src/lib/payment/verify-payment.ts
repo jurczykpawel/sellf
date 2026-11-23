@@ -511,16 +511,12 @@ export async function verifyPaymentSession(
       session.payment_status === 'paid' &&
       session.mode === 'subscription'
     ) {
-      const metadataUserId = session.metadata?.user_id;
-      const wasLoggedIn = !!user || (!!metadataUserId && metadataUserId !== '' && metadataUserId !== 'null');
-
-      if (wasLoggedIn) {
-        return {
-          ...baseResponse,
-          access_granted: true,
-          scenario: 'subscription',
-        };
+      const invoiceId = typeof session.invoice === 'string' ? session.invoice : session.invoice?.id;
+      if (invoiceId) {
+        const receipt = await getProcessedPaymentFromDatabase(invoiceId, serviceClient, user);
+        if (receipt) return { ...receipt, session_id: session.id, scenario: user ? 'subscription' : 'subscription_guest' };
       }
+      if (user) return { ...baseResponse, access_granted: false, scenario: 'subscription' };
 
       // Guest subscription: webhook still creates the access record (matched by
       // email), but the buyer has no session cookie yet — show magic-link UI.
