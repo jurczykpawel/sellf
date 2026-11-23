@@ -804,6 +804,10 @@ export async function verifyPaymentIntent(
       };
     }
 
+    if (!isCallerOrderOwner(user, readOrderUserId(paymentIntent.metadata), paymentIntent.receipt_email || paymentIntent.metadata?.email)) {
+      return { payment_intent_id: paymentIntent.id, status: paymentIntent.status, access_granted: false, error_code: 'ACCOUNT_MISMATCH', error: 'Session does not belong to current user' };
+    }
+
     // Base response
     const baseResponse: PaymentIntentVerificationResult = {
       payment_intent_id: paymentIntent.id,
@@ -873,7 +877,7 @@ export async function verifyPaymentIntent(
 
           const ownerUserId = readOrderUserId(paymentIntent.metadata) ?? readOrderUserId(ownerSession?.metadata);
           if (!isCallerOrderOwner(user, ownerUserId, customerEmail || ownerSession?.customer_details?.email)) {
-            return { ...baseResponse, access_granted: false, error_code: 'ACCOUNT_MISMATCH', error: 'Session does not belong to current user' };
+            return { payment_intent_id: paymentIntent.id, status: paymentIntent.status, access_granted: false, error_code: 'ACCOUNT_MISMATCH', error: 'Session does not belong to current user' };
           }
 
           // Process payment using database function (multi-bump UUID array)

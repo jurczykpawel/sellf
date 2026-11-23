@@ -63,6 +63,8 @@ export async function sendOrderNotice(db: SupabaseClient<Database>, id: string, 
       redirectTo: buildPostCheckoutMagicLinkRedirect({ origin: base, productSlug: product.slug, locale, sessionId: undefined, paymentIntentId: undefined }), data });
     if (!result.ok && !result.deliveryUnknown) {
       await db.from('payment_transactions').update({ [spec.column]: null } as Database['public']['Tables']['payment_transactions']['Update']).eq('id', id).eq(spec.column, claimedAt);
+    } else if (!result.ok) {
+      console.error('[transfer-mail] Delivery outcome unknown; automatic retry held:', id);
     }
   } catch { console.error('[transfer-mail] Delivery awaiting recovery:', id); }
 }

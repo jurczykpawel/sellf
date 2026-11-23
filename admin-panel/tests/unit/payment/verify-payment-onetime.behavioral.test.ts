@@ -1173,3 +1173,12 @@ describe.skipIf(!hasSupabase)('subscription receipt verification @J730', () => {
     expect(mapVerifiedPaymentToStatus(result).paymentStatus).toBe('received');
   });
 });
+
+it('returns only account recovery fields for another buyer intent', async () => {
+  const recording = (await import('../../fixtures/stripe/dispute_payment_intent_won.json')).default;
+  h.stripe = makeStripeShim({ paymentIntent: { ...recording, id: 'pi_other_buyer', status: 'succeeded', receipt_email: 'buyer-b@example.com', metadata: { product_id: crypto.randomUUID() } }, sessionsByPI: [] });
+  const result = await verifyPaymentIntent('pi_other_buyer', asUser('buyer-a', 'buyer-a@example.com'));
+  expect(result).toMatchObject({ error_code: 'ACCOUNT_MISMATCH', access_granted: false });
+  expect(result.customer_email).toBeUndefined();
+  expect(result.metadata).toBeUndefined();
+});
