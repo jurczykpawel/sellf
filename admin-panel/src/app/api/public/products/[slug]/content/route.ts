@@ -49,7 +49,8 @@ export async function GET(
         is_bundle,
         available_from,
         available_until,
-        content_delivery_type
+        content_delivery_type,
+        issue_license_on_purchase
       `)
       .eq('slug', slug)
       .single();
@@ -96,7 +97,8 @@ export async function GET(
     // issued_licenses is service-role only — must use admin client.
     const admin = createAdminClient();
     const contentConfig = await loadProductContentConfig(admin, productWithAccess.id);
-    const license = toIssuedLicenseResponse(await findIssuedLicense(admin, productWithAccess.id, user));
+    const license = productWithAccess.issue_license_on_purchase
+      ? toIssuedLicenseResponse(await findIssuedLicense(admin, productWithAccess.id, user)) : null;
 
     // For bundles, resolve the component products so the access view can link to
     // each owned component (the buyer has access to all of them). Non-bundles

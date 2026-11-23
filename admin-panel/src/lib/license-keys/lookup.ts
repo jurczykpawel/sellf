@@ -40,8 +40,13 @@ export async function findIssuedLicense(
     return data as unknown as IssuedLicenseRow | null;
   };
   // Prefer a usable account key, then a confirmed guest key, before displaying terminal history.
-  return await lookup(false, true) ?? await lookup(true, true)
-    ?? await lookup(false, false) ?? await lookup(true, false);
+  try {
+    return await lookup(false, true) ?? await lookup(true, true)
+      ?? await lookup(false, false) ?? await lookup(true, false);
+  } catch {
+    console.error('[findIssuedLicense] License state unavailable');
+    return null;
+  }
 }
 
 export function toIssuedLicenseResponse(row: IssuedLicenseRow | null): IssuedLicenseResponse | null {

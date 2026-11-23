@@ -47,3 +47,15 @@ describe('Guest license e-mail lookup', () => {
     expect(admin.from).toHaveBeenCalledTimes(1);
   });
 });
+
+it('leaves content available if license storage cannot be read', async () => {
+  const admin = makeAdmin(null, null);
+  const query = admin.from() as { maybeSingle: () => Promise<unknown> };
+  query.maybeSingle = async () => ({ data: null, error: { message: 'unavailable' } });
+  admin.from.mockReturnValue(query);
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  await expect(findIssuedLicense(admin as unknown as Parameters<typeof findIssuedLicense>[0], 'product', { id: 'buyer' })).resolves.toBeNull();
+  expect(log).toHaveBeenCalled();
+  expect(admin.from).toHaveBeenCalledTimes(2);
+  log.mockRestore();
+});

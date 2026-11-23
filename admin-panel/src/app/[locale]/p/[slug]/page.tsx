@@ -209,6 +209,7 @@ export default async function ProductPage({ params, searchParams }: PageProps) {
   }
 
   const existingLicense =
+    product.issue_license_on_purchase &&
     !previewMode &&
     authResult?.user &&
     (outcome.kind === 'render-content' || outcome.kind === 'render-expired')
