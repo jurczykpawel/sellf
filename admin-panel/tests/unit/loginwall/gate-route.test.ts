@@ -85,12 +85,12 @@ describe('GET /loginwall/gate', () => {
     expect((await GET(req(q(many)))).status).toBe(400);
   });
 
-  it('400s when a requested slug does not exist', async () => {
+  it('returns no access for an unavailable slug alongside a visible product', async () => {
     vi.mocked(createClient).mockResolvedValue(makeSupabaseMock({
       user: { id: USER_ID },
       products: [{ id: 'p1', slug: 'a', is_active: true, seller_id: SELLER_ID }],
     }) as never);
-    expect((await GET(req(q('a,b')))).status).toBe(400);
+    expect(tokenFrom(await GET(req(q('a,b'))))).toMatchObject({ valid: true, owned: [], req: ['a', 'b'] });
   });
 
   it('400s when products span multiple sellers', async () => {
@@ -194,4 +194,17 @@ it.each([false, true])('honours paused and archived products in element states (
   const result = tokenFrom(res);
   expect(result.valid).toBe(true);
   if (result.valid) expect(result.owned).toEqual(archived ? ['a'] : []);
+});
+
+it.each([null, { id: USER_ID }])('keeps visible ownership when another requested row is unavailable (user=%s)', async user => {
+  vi.mocked(createClient).mockResolvedValue(makeSupabaseMock({ user,
+    products: [{ id: 'p1', slug: 'a', is_active: true, seller_id: SELLER_ID }],
+    access: [{ product_id: 'p1', access_expires_at: null }],
+  }) as never);
+  expect(tokenFrom(await GET(req(q('a,b'))))).toMatchObject({ valid: true, auth: !!user, owned: user ? ['a'] : [], req: ['a', 'b'] });
+  expect((await GET(req(q('a,b', 'https://other.example/page')))).status).toBe(400);
+});
+it('keeps an entirely unavailable request indistinguishable from unknown products', async () => {
+  vi.mocked(createClient).mockResolvedValue(makeSupabaseMock({ user: null }) as never);
+  expect((await GET(req(q('a,b')))).status).toBe(400);
 });

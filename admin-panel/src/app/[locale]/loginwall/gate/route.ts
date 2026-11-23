@@ -75,7 +75,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     .in('slug', requested);
   const products = (productsResult.data ?? []) as ProductRow[];
 
-  if (products.length !== requested.length) {
+  if (products.length === 0) {
     return jsonError('Unknown product', 400);
   }
 
