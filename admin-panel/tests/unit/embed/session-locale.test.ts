@@ -15,3 +15,10 @@ it.each(['pl', 'en'] as const)('keeps %s on the return page and in fulfillment m
   await service.createStripeSession({ product: { id: 'product', slug: 'book', name: 'Book', price: 10, currency: 'PLN', product_type: 'one_time' }, locale, returnUrl: buildEmbedReturnUrl('book', locale) } as CheckoutSessionOptions);
   expect(create).toHaveBeenCalledWith(expect.objectContaining({ locale, metadata: expect.objectContaining({ locale }), return_url: `https://sellf.example.com/${locale}/p/book/payment-status?session_id={CHECKOUT_SESSION_ID}` }));
 });
+it('requires standard checkout for profile modules before contacting Stripe', async () => {
+  const service = new CheckoutService();
+  Object.assign(service, { stripe: { checkout: { sessions: { create } } } });
+  await expect(service.createStripeSession({ product: { id: 'product', checkout_profile: { v: 1, modules: [{ id: 'quantity', min: 2, max: 3, mode: 'hidden' }] } } } as CheckoutSessionOptions))
+    .rejects.toMatchObject({ code: 'STANDARD_CHECKOUT_REQUIRED', statusCode: 422 });
+  expect(create).not.toHaveBeenCalled();
+});

@@ -1,3 +1,4 @@
+import { requiresStandardCheckout } from '@/lib/checkout-modules/profile';
 import { NextRequest, NextResponse } from 'next/server';
 
 import {
@@ -17,7 +18,7 @@ import { attributionRequestContext, storeFreeCheckoutAttribution } from '@/lib/a
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 const PRODUCT_SELECT =
-  'id, slug, name, price, is_active, available_from, available_until, embed_enabled, seller_id' as const;
+  'id, slug, name, price, is_active, available_from, available_until, embed_enabled, seller_id, checkout_profile' as const;
 
 type FreeEmbedProduct = {
   id: string;
@@ -29,6 +30,7 @@ type FreeEmbedProduct = {
   available_until: string | null;
   embed_enabled: boolean;
   seller_id: string | null;
+  checkout_profile?: unknown;
 };
 
 export async function OPTIONS(request: NextRequest) {
@@ -106,6 +108,10 @@ export async function POST(request: Request) {
 
   if (!product || !isFreeEmbeddableProduct(product)) {
     return embedJson({ error: 'Product is not available' }, 404, origin, allowedOrigins);
+  }
+
+  if (requiresStandardCheckout(product.checkout_profile)) {
+    return embedJson({ error: 'This product requires the standard checkout. Open the product page to continue.', code: 'STANDARD_CHECKOUT_REQUIRED' }, 422, origin, allowedOrigins);
   }
 
   const result = await requestMagicLink({

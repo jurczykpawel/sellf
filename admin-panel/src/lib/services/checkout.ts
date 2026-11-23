@@ -1,3 +1,4 @@
+import { requiresStandardCheckout } from '@/lib/checkout-modules/profile';
 import { normalizePurchaseEmail } from '@/lib/checkout/normalize-email';
 import { normalizeCouponCode } from '@/lib/coupons/normalize-code';
 import { COUPON_REJECTED_CODE } from '@/lib/coupons/rejection-limit';
@@ -162,6 +163,9 @@ export class CheckoutService {
    */
   async createStripeSession(options: CheckoutSessionOptions): Promise<{ clientSecret: string; sessionId: string; minimumApplied?: boolean }> {
     options = { ...options, email: options.email ? normalizePurchaseEmail(options.email) : options.email };
+    if (requiresStandardCheckout(options.product.checkout_profile)) {
+      throw new CheckoutError(CheckoutErrorType.VALIDATION_ERROR, 'This product requires the standard checkout. Open the product page to continue.', 422, 'STANDARD_CHECKOUT_REQUIRED');
+    }
     try {
       // Subscription products bypass bumps / coupons / PWYW (MVP scope).
       if (options.product.product_type === 'subscription') {
