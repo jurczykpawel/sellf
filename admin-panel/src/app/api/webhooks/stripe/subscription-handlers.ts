@@ -642,6 +642,11 @@ export async function upsertUserProductAccess(
     access_granted_at: new Date().toISOString(),
     grant_source: 'subscription',
   });
+  if (insertErr?.code === '23505') {
+    const winner = await supabase.from('user_product_access').select('subscription_id')
+      .eq('user_id', userId).eq('product_id', productId).maybeSingle();
+    if (!winner.error && winner.data?.subscription_id === subscriptionRowId) return { ok: true };
+  }
   if (insertErr) {
     console.error('[upsertUserProductAccess] insert error:', insertErr);
     return { ok: false, reason: 'access insert failed' };
@@ -743,6 +748,11 @@ export async function handleSubscriptionUpdated(
 
   const current = await currentSubscriptionState(sub, ctx.priorStatus, stripe);
   const subscriptionRowId = await upsertSubscriptionRow(supabase, ctx, current);
+  if (current.status === 'incomplete_expired') {
+    const cleanup = await supabase.from('subscription_checkout_fields').delete()
+      .eq('product_id', ctx.productId).eq('reference', current.metadata.sf_attr_ref ?? current.id);
+    if (cleanup.error) return { processed: false, message: 'Checkout fields cleanup unavailable' };
+  }
   // A cancellation handled meanwhile has the last word: this older snapshot changes nothing.
   if (subscriptionRowId && await endedMeanwhile(supabase, subscriptionRowId, current)) {
     return { processed: true, message: `Subscription already ended, older update ignored: ${sub.id}` };
@@ -1019,7 +1029,7 @@ export async function handleInvoicePaid(
   // subscription context so a prior license-issuance failure can be retried.
   const { data: existingTx } = await supabase
     .from('payment_transactions')
-    .select('id, order_number, fulfillment_pending')
+    .select('id, order_number, fulfillment_pending, custom_field_values')
     .eq('stripe_invoice_id', invoice.id!)
     .maybeSingle();
 
@@ -1048,30 +1058,40 @@ export async function handleInvoicePaid(
     ctx.priorStatus !== null &&
     TERMINAL_STATUSES.has(ctx.priorStatus as Stripe.Subscription.Status);
 
-  const issueRenewalLicense = async () => {
-    const { data: checkoutTransaction } = await supabase
-      .from('payment_transactions')
-      .select('custom_field_values')
-      .eq('subscription_id', subscriptionRowId)
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle();
+  const paymentIntentId = await resolveInvoicePaymentIntentId(invoice, stripe);
+  let session: Stripe.Checkout.Session | undefined;
+  let buyerSourceError: unknown;
+  try {
+    session = (await stripe.checkout.sessions.list({ subscription: sub.id, limit: 1 })).data[0];
+  } catch (error) { buyerSourceError = error; }
+  const checkoutFields = await supabase.from('subscription_checkout_fields').select('reference, custom_field_values')
+    .eq('product_id', ctx.productId).in('reference', [sub.metadata.sf_attr_ref ?? sub.id, session?.id ?? paymentIntentId ?? invoice.id!]).maybeSingle();
+  let previousOrder = await supabase.from('payment_transactions').select('custom_field_values, fulfillment_pending')
+    .eq('subscription_id', subscriptionRowId).order('created_at', { ascending: true }).limit(1).maybeSingle();
+  if (checkoutFields.error || previousOrder.error) return { processed: false, message: 'Checkout fields unavailable' };
+  if (previousOrder.data?.fulfillment_pending === true && !Object.keys(previousOrder.data.custom_field_values ?? {}).length) {
+    previousOrder = await supabase.from('payment_transactions').select('custom_field_values, fulfillment_pending')
+      .eq('subscription_id', subscriptionRowId).neq('custom_field_values', '{}').order('created_at', { ascending: true }).limit(1).maybeSingle();
+    if (previousOrder.error) return { processed: false, message: 'Checkout fields unavailable' };
+  }
+  let customFieldValues = (Object.keys(existingTx?.custom_field_values ?? {}).length ? existingTx!.custom_field_values
+    : previousOrder.data?.custom_field_values ?? checkoutFields.data?.custom_field_values ?? {}) as Record<string, string>;
 
+
+  const issueRenewalLicense = async () => {
     const license = await issueLicense(supabase, {
       productId: ctx.productId,
       email: ctx.email,
       userId: ctx.userId,
       orderId: invoice.id!,
       locale: sub.metadata.locale === 'pl' ? 'pl' : 'en',
-      customFieldValues: (checkoutTransaction?.custom_field_values as Record<string, string> | null) ?? undefined,
+      customFieldValues,
     });
     if (license) await mailOrderLicenses(supabase, { email: ctx.email, userId: ctx.userId,
       locale: sub.metadata.locale === 'pl' ? 'pl' : 'en', mailData: await purchaseEventMail(ctx.email, ctx.productId, invoice.id, undefined, sub.metadata.locale === 'pl' ? 'pl' : 'en', { allowPending: true }), licenses: [{ productId: ctx.productId, token: license.token }] });
   };
 
   // Insert payment_transactions row (idempotent via UNIQUE on stripe_invoice_id).
-  const paymentIntentId = await resolveInvoicePaymentIntentId(invoice, stripe);
-
   let insertedTx = existingTx;
   if (!insertedTx) {
     const { data: newTx, error: txError } = await supabase.from('payment_transactions').insert({
@@ -1082,6 +1102,7 @@ export async function handleInvoicePaid(
       // Subscription renewals don't have a Checkout Session; use the invoice id
       // directly (allowed by the extended session_id regex in subscriptions_mvp migration).
       session_id: invoice.id!,
+      custom_field_values: customFieldValues,
       stripe_payment_intent_id: paymentIntentId,
       // payment_transactions.amount is stored in minor units to match one-time
       // payment rows. Stripe invoice.amount_paid is already in minor units.
@@ -1090,20 +1111,29 @@ export async function handleInvoicePaid(
       status: 'completed',
       fulfillment_pending: true,
       customer_email: ctx.email,
-    }).select('id, order_number, fulfillment_pending').single();
+    }).select('id, order_number, fulfillment_pending, custom_field_values').single();
     insertedTx = newTx;
     if (txError) {
       if (txError.code !== '23505') return { processed: false, message: 'Payment transaction unavailable' };
       const { data: winner, error: winnerError } = await supabase.from('payment_transactions')
-        .select('id, order_number, fulfillment_pending').eq('stripe_invoice_id', invoice.id!).single();
+        .select('id, order_number, fulfillment_pending, custom_field_values').eq('stripe_invoice_id', invoice.id!).single();
       if (winnerError || !winner) return { processed: false, message: 'Invoice transaction unavailable' };
       insertedTx = winner;
     }
   }
   if (!insertedTx) return { processed: false, message: 'Invoice transaction unavailable' };
+  if (Object.keys(insertedTx.custom_field_values ?? {}).length) customFieldValues = insertedTx.custom_field_values as Record<string, string>;
+  if (insertedTx.fulfillment_pending === true && !Object.keys(insertedTx.custom_field_values ?? {}).length && Object.keys(customFieldValues).length) {
+    const recovered = await supabase.from('payment_transactions').update({ custom_field_values: customFieldValues })
+      .eq('id', insertedTx.id).eq('fulfillment_pending', true).eq('custom_field_values', JSON.stringify(insertedTx.custom_field_values ?? {}))
+      .select('custom_field_values').maybeSingle();
+    if (recovered.error) return { processed: false, message: 'Checkout fields unavailable' };
+    const saved = recovered.data ? recovered : await supabase.from('payment_transactions').select('custom_field_values').eq('id', insertedTx.id).single();
+    if (saved.error || !saved.data) return { processed: false, message: 'Checkout fields unavailable' };
+    customFieldValues = saved.data.custom_field_values as Record<string, string>;
+  }
   try {
-    const sessions = await stripe.checkout.sessions.list({ subscription: sub.id, limit: 1 });
-    const session = sessions.data[0];
+    if (buyerSourceError) throw buyerSourceError;
     const intent = !session && paymentIntentId ? await stripe.paymentIntents.retrieve(paymentIntentId) : null;
     const buyerMetadata = { ...sub.metadata, ...invoice.metadata, ...session?.metadata, ...intent?.metadata };
     if (session || buyerMetadata.full_name || buyerMetadata.first_name) {
@@ -1167,6 +1197,10 @@ export async function handleInvoicePaid(
     taxSnapshot,
   });
   await WebhookService.trigger('invoice.paid', payload, supabase, payload.product.id);
+  if (checkoutFields.data) {
+    const cleanup = await supabase.from('subscription_checkout_fields').delete().eq('reference', checkoutFields.data.reference).eq('product_id', ctx.productId);
+    if (cleanup.error) return { processed: false, message: 'Checkout fields cleanup unavailable' };
+  }
   const { error: fulfillmentError } = await supabase.from('payment_transactions')
     .update({ fulfillment_pending: false }).eq('id', insertedTx.id);
   if (fulfillmentError) return { processed: false, message: 'Invoice fulfillment state unavailable' };

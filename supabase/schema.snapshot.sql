@@ -16377,6 +16377,25 @@ CREATE TABLE public.stripe_customers (
 ALTER TABLE public.stripe_customers OWNER TO postgres;
 
 --
+-- Name: subscription_checkout_fields; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.subscription_checkout_fields (
+    reference text NOT NULL,
+    stripe_object_id text NOT NULL,
+    product_id uuid NOT NULL,
+    user_id uuid,
+    custom_field_values jsonb NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT subscription_checkout_fields_custom_field_values_check CHECK ((jsonb_typeof(custom_field_values) = 'object'::text)),
+    CONSTRAINT subscription_checkout_fields_reference_check CHECK (((length(reference) >= 1) AND (length(reference) <= 255))),
+    CONSTRAINT subscription_checkout_fields_stripe_object_id_check CHECK (((length(stripe_object_id) >= 1) AND (length(stripe_object_id) <= 255)))
+);
+
+
+ALTER TABLE public.subscription_checkout_fields OWNER TO postgres;
+
+--
 -- Name: subscriptions; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -17568,6 +17587,22 @@ ALTER TABLE ONLY public.stripe_customers
 
 ALTER TABLE ONLY public.stripe_customers
     ADD CONSTRAINT stripe_customers_user_id_key UNIQUE (user_id);
+
+
+--
+-- Name: subscription_checkout_fields subscription_checkout_fields_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.subscription_checkout_fields
+    ADD CONSTRAINT subscription_checkout_fields_pkey PRIMARY KEY (reference);
+
+
+--
+-- Name: subscription_checkout_fields subscription_checkout_fields_stripe_object_id_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.subscription_checkout_fields
+    ADD CONSTRAINT subscription_checkout_fields_stripe_object_id_key UNIQUE (stripe_object_id);
 
 
 --
@@ -19341,6 +19376,20 @@ CREATE INDEX storefront_products_sale_until ON public.products USING btree (sale
 
 
 --
+-- Name: subscription_checkout_fields_product_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX subscription_checkout_fields_product_idx ON public.subscription_checkout_fields USING btree (product_id);
+
+
+--
+-- Name: subscription_checkout_fields_user_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX subscription_checkout_fields_user_idx ON public.subscription_checkout_fields USING btree (user_id);
+
+
+--
 -- Name: subscriptions_renewal_notice_due_idx; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -21057,6 +21106,22 @@ ALTER TABLE ONLY public.storefront_config
 
 ALTER TABLE ONLY public.stripe_customers
     ADD CONSTRAINT stripe_customers_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: subscription_checkout_fields subscription_checkout_fields_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.subscription_checkout_fields
+    ADD CONSTRAINT subscription_checkout_fields_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE;
+
+
+--
+-- Name: subscription_checkout_fields subscription_checkout_fields_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.subscription_checkout_fields
+    ADD CONSTRAINT subscription_checkout_fields_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 
 
 --
@@ -22821,6 +22886,19 @@ ALTER TABLE public.stripe_configurations ENABLE ROW LEVEL SECURITY;
 --
 
 ALTER TABLE public.stripe_customers ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: subscription_checkout_fields; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.subscription_checkout_fields ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: subscription_checkout_fields subscription_checkout_fields_service; Type: POLICY; Schema: public; Owner: postgres
+--
+
+CREATE POLICY subscription_checkout_fields_service ON public.subscription_checkout_fields TO service_role USING ((( SELECT auth.role() AS role) = 'service_role'::text)) WITH CHECK ((( SELECT auth.role() AS role) = 'service_role'::text));
+
 
 --
 -- Name: subscriptions; Type: ROW SECURITY; Schema: public; Owner: postgres
@@ -25782,6 +25860,20 @@ table | public.stripe_customers | service_role | SELECT | postgres | -
 table | public.stripe_customers | service_role | TRIGGER | postgres | -
 table | public.stripe_customers | service_role | TRUNCATE | postgres | -
 table | public.stripe_customers | service_role | UPDATE | postgres | -
+table | public.subscription_checkout_fields | postgres | DELETE | postgres | -
+table | public.subscription_checkout_fields | postgres | INSERT | postgres | -
+table | public.subscription_checkout_fields | postgres | REFERENCES | postgres | -
+table | public.subscription_checkout_fields | postgres | SELECT | postgres | -
+table | public.subscription_checkout_fields | postgres | TRIGGER | postgres | -
+table | public.subscription_checkout_fields | postgres | TRUNCATE | postgres | -
+table | public.subscription_checkout_fields | postgres | UPDATE | postgres | -
+table | public.subscription_checkout_fields | service_role | DELETE | postgres | -
+table | public.subscription_checkout_fields | service_role | INSERT | postgres | -
+table | public.subscription_checkout_fields | service_role | REFERENCES | postgres | -
+table | public.subscription_checkout_fields | service_role | SELECT | postgres | -
+table | public.subscription_checkout_fields | service_role | TRIGGER | postgres | -
+table | public.subscription_checkout_fields | service_role | TRUNCATE | postgres | -
+table | public.subscription_checkout_fields | service_role | UPDATE | postgres | -
 table | public.subscriptions | authenticated | SELECT | postgres | -
 table | public.subscriptions | postgres | DELETE | postgres | -
 table | public.subscriptions | postgres | INSERT | postgres | -
@@ -26382,6 +26474,7 @@ storefront_config | 1
 storefront_config_history | 1
 stripe_configurations | 0
 stripe_customers | 0
+subscription_checkout_fields | 0
 subscriptions | 0
 tags | 0
 telemetry_state | 1

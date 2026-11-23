@@ -18,7 +18,7 @@ describe('expired session webhook', () => {
   it('dispatches repeated expiration to a pending-only update', async () => {
     const query = { eq: vi.fn().mockReturnThis(), then: (resolve: (value: object) => void) => resolve({ error: null }) };
     const update = vi.fn(() => query);
-    mocks.admin.mockReturnValue({ from: vi.fn(() => ({ update })) });
+    mocks.admin.mockReturnValue({ from: vi.fn(() => ({ update, delete:()=>query })) });
     for (let i = 0; i < 2; i++) {
       const response = await POST(new NextRequest('http://localhost/api/webhooks/stripe', { method: 'POST', body: '{}' }));
       expect(response.status).toBe(200);

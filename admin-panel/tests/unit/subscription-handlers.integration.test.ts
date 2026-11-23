@@ -847,10 +847,12 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
       product_id: product.id, email, order_id: invoice.id!, kid: 'kid-w152', license_key: 'e30.sig' }).select('id').single();
     expect(license.error).toBeNull();
     expect((await supabaseSeller!.from('payment_transactions').update({ refunded_amount: 100, status: 'partially_refunded' }).eq('stripe_invoice_id', invoice.id!)).error).toBeNull();
+    expect((await supabaseSeller!.from('subscription_checkout_fields').insert({reference:sub.id,stripe_object_id:`pi_${crypto.randomUUID()}`,product_id:product.id,custom_field_values:{department:'Training'}})).error).toBeNull();
     current = { ...sub, status };
     expect((await handleSubscriptionUpdated(current, supabaseSeller as never, platformClient as never, stripeShim)).processed).toBe(true);
     const { data: after } = await supabaseSeller!.from('issued_licenses').select('revoked_at, revocation_reason').eq('id', license.data!.id).single();
     expect(after).toMatchObject({ revoked_at: expect.any(String), revocation_reason: 'expired' });
+    expect((await supabaseSeller!.from('subscription_checkout_fields').select('reference').eq('product_id',product.id)).data).toHaveLength(status==='incomplete_expired'?0:1);
     const accessEvents = await supabaseSeller!.from('business_events').select('payload').eq('product_id', product.id).eq('event_type', 'access.revoked');
     expect(accessEvents.data?.at(-1)?.payload).toMatchObject({ revocationReason: 'expired' });
     await supabaseSeller!.from('issued_licenses').delete().eq('id', license.data!.id);

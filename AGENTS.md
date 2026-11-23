@@ -1154,7 +1154,7 @@ There is no in-app "delete my account" flow. An operator deletes a user from Sup
 Every table that references `auth.users(id)` falls into one of two buckets (see `supabase/migrations/20260924000000_access_scope_tightening.sql`, "Account deletion" section):
 
 - **Kept, with the reference set to NULL** — financial and legal records that must survive the account: `payment_transactions` (including `refunded_by`), `refund_requests` (including `admin_id`), `product_price_history` (Omnibus Directive price-history compliance), `audit_log` (`user_id` and `performed_by`), `admin_actions`, `issued_licenses` (license issuance history — `seller_id`), `seller_license_keys` (the seller's signing keypair — `seller_id`), and `subscriptions` (`user_id`, once the subscription has ended — see below). Each of these already stores an independent snapshot (amount, e-mail, product, timestamps), so nulling the account reference loses no financial or audit detail. `consent_logs` has no foreign key at all and is never touched.
-- **Removed with the account** — pure per-account data: `profiles`, `user_product_access`, `video_progress`, `admin_users` (and anything that cascades from it, e.g. that admin's `api_keys`), `stripe_customers`, `seller_embed_settings`.
+- **Removed with the account** — pure per-account data: `profiles`, `user_product_access`, `video_progress`, `admin_users` (and anything that cascades from it, e.g. that admin's `api_keys`), `stripe_customers`, `seller_embed_settings`, `subscription_checkout_fields`.
 
 Two tables needed a product decision rather than a mechanical "keep vs remove" call:
 

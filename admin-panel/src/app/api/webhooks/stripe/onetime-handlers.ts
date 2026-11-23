@@ -185,6 +185,7 @@ export async function handlePaymentIntentSucceeded(
   paymentIntent: Stripe.PaymentIntent,
   supabase: ReturnType<typeof createAdminClient>
 ): Promise<{ processed: boolean; message: string }> {
+  if (paymentIntent.metadata?.product_type === 'subscription') return { processed: true, message: 'Subscription payment handled by invoice events' };
   const productId = paymentIntent.metadata?.product_id;
   const customerEmail = paymentIntent.receipt_email || paymentIntent.metadata?.email;
 

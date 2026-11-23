@@ -1,3 +1,5 @@
+import { execFileSync } from 'node:child_process';
+import { getTestDatabaseContainer } from '../helpers/database-container';
 import { useSupabaseBuyerEmails as registerSupabaseBuyerEmails } from '../helpers/buyer-email-setting-playwright';
 registerSupabaseBuyerEmails();
 import { test, startNativeCheckout, waitForNativeCheckoutReady } from '../helpers/checkout-intent';
@@ -206,13 +208,19 @@ async function timing(s: Scenario, sessionId: string, pageAt: number): Promise<s
   return order;
 }
 
-async function run(page: Page, label: string, card: string, options: { loggedIn?: boolean; subscription?: boolean; challenge?: boolean; declined?: boolean; coupon?: boolean; setPrice?: boolean; fixedPrice?: boolean; netVat?: boolean; profile?: boolean; event?: boolean; netCouponQuantity?: number; noBump?: boolean; expireCouponAfterReservation?: boolean; multipleLicenses?: boolean; licensedSubscription?: boolean } = {}): Promise<void> {
+async function run(page: Page, label: string, card: string, options: { loggedIn?: boolean; subscription?: boolean; challenge?: boolean; declined?: boolean; coupon?: boolean; setPrice?: boolean; fixedPrice?: boolean; netVat?: boolean; profile?: boolean; event?: boolean; netCouponQuantity?: number; noBump?: boolean; expireCouponAfterReservation?: boolean; multipleLicenses?: boolean; licensedSubscription?: boolean; subscriptionFields?: boolean } = {}): Promise<void> {
   const slug = `stripe-live-${label}-${randomUUID().slice(0, 8)}`;
   const s: Scenario = { slug, productIds: [], email: `${slug}@example.com`, domain: `${slug}.example.com`, sessionIds: [], subscription: !!options.subscription, netVat: options.netVat, profile: options.profile, netCouponQuantity: options.netCouponQuantity, noBump: options.noBump };
   let passed = false;
+  let clock: Stripe.TestHelpers.TestClock | undefined;
   let order = 'not observed';
   try {
     await setup(s, !!options.loggedIn);
+    if (options.subscriptionFields && s.buyerId) {
+      clock=await stripe.testHelpers.testClocks.create({frozen_time:Math.floor(Date.now()/1000)});
+      const customer=await stripe.customers.create({test_clock:clock.id,email:s.email});
+      expect((await supabaseAdmin.from('stripe_customers').upsert({user_id:s.buyerId,stripe_customer_id:customer.id})).error).toBeNull();
+    }
     if (options.event) {
       expect((await supabaseAdmin.from('products').update({ event_mode: true, issue_license_on_purchase: false, custom_checkout_fields: [], checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['person'] }, { id: 'quantity', min: 1, max: 5, mode: 'product_page' }] } }).eq('id',s.productIds[0])).error).toBeNull();
       const eventSession = await insert('product_sessions', { product_id: s.productIds[0], starts_at: '2099-06-01T12:00:00Z', timezone: 'Europe/Warsaw', title: 'June workshop', capacity: 60 });
@@ -226,6 +234,9 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
     await acceptAllCookies(page);
     if (options.multipleLicenses || options.licensedSubscription) {
       expect((await supabaseAdmin.from('products').update({issue_license_on_purchase:true,license_tier:'pro'}).in('id',s.productIds)).error).toBeNull();
+    }
+    if (options.subscriptionFields) {
+      expect((await supabaseAdmin.from('products').update({custom_checkout_fields:[{...PREDEFINED_CUSTOM_FIELDS.license_domain, required:true, claim:undefined}]}).eq('id',s.productIds[0])).error).toBeNull();
     }
     if (s.buyerId) await setAuthSession(page, s.email, password);
     page.on('response', async response => {
@@ -325,7 +336,7 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
       await expect(page.getByRole('button', { name: /Remove discount code/i })).toBeVisible();
     }
     if (!s.profile && !options.event && !s.netCouponQuantity) await page.locator('#fullName').fill('Stripe Test Buyer');
-    if (!s.subscription && !options.event) await page.getByLabel(/License domain/).fill(s.domain);
+    if ((!s.subscription || options.subscriptionFields) && !options.event) await page.getByLabel(/License domain/).fill(s.domain);
     const consents = page.getByRole('checkbox', { name: /^(I agree to the|I confirm the product will be linked to my account)/ });
     for (const consent of await consents.all()) if (await consent.isVisible()) await consent.check();
     if (!hasProfile) await expect(page.getByRole('checkbox', { name: 'I want a company invoice', exact: true })).not.toBeChecked();
@@ -392,6 +403,14 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
       expect(tx.customer_email).toBe(s.email);
       if (s.buyerId) expect(tx.user_id).toBe(s.buyerId);
       expect(tx.stripe_payment_intent_id).toMatch(/^pi_/);
+      if (options.subscriptionFields) {
+        expect(tx.custom_field_values).toEqual({_sellf_license_domain:s.domain});
+        expect(tx.fulfillment_pending).toBe(false);
+        const keys = await rows('issued_licenses', 'product_id', s.productIds[0]);
+        expect(keys).toHaveLength(1);
+        expect(keys[0].license_domain).toBe(s.domain);
+        expect((await waitForEmail(s.email, {timeout:60000})).HTML).toContain(keys[0].license_key);
+      }
       if (s.subscription) {
         expect(tx.order_details?.buyer).toMatchObject({ full_name: 'Stripe Test Buyer', source: 'stripe_metadata' });
       }
@@ -539,6 +558,22 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
         expect((await rows('issued_licenses','email',s.email)).map(row=>row.license_key).sort()).toEqual(licenses.map(row=>row.license_key).sort());
       } finally {await admin.cleanup();}
     }
+    if (clock) {
+      const subscription=(await rows('subscriptions','product_id',s.productIds[0]))[0];
+      const current=await stripe.subscriptions.retrieve(subscription.stripe_subscription_id);
+      execFileSync('docker',['exec','-i',getTestDatabaseContainer(),'psql','-U','postgres','-v','ON_ERROR_STOP=1'],{input:`UPDATE auth.users SET recovery_sent_at = recovery_sent_at - interval '35 days', confirmation_sent_at = confirmation_sent_at - interval '35 days' WHERE id = '${s.buyerId}';`});
+      for (const frozen_time of [current.items.data[0].current_period_end+1,current.items.data[0].current_period_end+3701]) {
+        await stripe.testHelpers.testClocks.advance(clock.id,{frozen_time});
+        await expect.poll(async()=>(await stripe.testHelpers.testClocks.retrieve(clock!.id)).status,{timeout:60000}).toBe('ready');
+      }
+      const invoice=(await stripe.invoices.list({subscription:current.id})).data.find(item=>item.billing_reason==='subscription_cycle');
+      expect(invoice?.status).toBe('paid');
+      await expect.poll(async()=>(await rows('payment_transactions','product_id',s.productIds[0])).filter(tx=>tx.status==='completed'&&!tx.fulfillment_pending).length,{timeout:90000}).toBe(2);
+      expect((await rows('payment_transactions','product_id',s.productIds[0])).map(tx=>tx.custom_field_values)).toEqual([{_sellf_license_domain:s.domain},{_sellf_license_domain:s.domain}]);
+      expect((await rows('issued_licenses','product_id',s.productIds[0])).map(key=>key.license_domain)).toEqual([s.domain,s.domain]);
+      await expect.poll(async()=>(await searchMessages(s.email)).length,{timeout:30000}).toBe(2);
+      await expect.poll(()=>deliveries(s).length,{timeout:30000}).toBe(2);
+    }
     expect(hydrationErrors).toEqual([]);
     passed = true;
   } finally {
@@ -552,7 +587,7 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
       }, null, 2), { mode: 0o600 });
     }
     appendFileSync(`${artifacts}/summary.jsonl`, JSON.stringify({ scenario: label, pass: passed, order }) + '\n');
-    await cleanup(s);
+    try { await cleanup(s); } finally { if (clock) await stripe.testHelpers.testClocks.del(clock.id); }
   }
 }
 
@@ -639,3 +674,7 @@ test('form coupon expires after reservation', async ({ page }) => { await run(pa
 
 test('multiple license keys share the first purchase email and both revoke on refund @J01', async ({page})=>run(page,'multi-license','4242424242424242',{multipleLicenses:true}));
 test('licensed subscription keeps its first purchase link @J05', async ({page})=>run(page,'licensed-subscription','4242424242424242',{subscription:true,licensedSubscription:true}));
+
+for (const loggedIn of [false, true]) test(`subscription with required domain (${loggedIn ? 'signed-in' : 'guest'}) @J05`, async ({page}) => {
+  await run(page, 'subscription-domain', '4242424242424242', {subscription:true, licensedSubscription:true, subscriptionFields:true, loggedIn});
+});
