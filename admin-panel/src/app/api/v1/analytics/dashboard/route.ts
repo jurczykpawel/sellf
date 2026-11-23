@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     const adminClient = auth.supabase;
     const { searchParams } = request.nextUrl;
     const productId = searchParams.get('product_id');
-    const parsed = DashboardQueryDTO.safeParse(Object.fromEntries([...searchParams].filter(([, value]) => value !== '')));
+    const parsed = DashboardQueryDTO.safeParse({ product_id: productId || undefined });
     if (!parsed.success) return apiError(request, 'INVALID_INPUT', parsed.error.issues[0].message);
 
     // Calculate date ranges

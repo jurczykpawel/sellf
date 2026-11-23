@@ -12,7 +12,7 @@ beforeEach(() => {
   mocks.groups.mockResolvedValue([]);
 });
 for (const [name, get] of Object.entries({ dashboard, revenue })) {
-  it.each(['not-a-uuid', '123', 'null'])(`${name} rejects invalid product_id %s before loading data`, async id => {
+  it.each(['not-a-uuid', '123', 'null', 'not-a-uuid&product_id=90000000-0000-4000-a000-000000000001'])(`${name} rejects invalid product_id %s before loading data`, async id => {
     const response = await get(new NextRequest(`http://localhost/api/v1/analytics/${name}?product_id=${id}`));
     expect(response.status).toBe(400);
     expect((await response.json()).error.code).toBe('INVALID_INPUT');
@@ -24,7 +24,7 @@ for (const [name, get] of Object.entries({ dashboard, revenue })) {
     expect(mocks.groups).toHaveBeenCalled();
   });
 }
-it.each(['period=invalid', 'group_by=invalid', 'start_date=wrong', 'end_date=wrong', 'start_date=2026-11-23&end_date=2026-11-20'])('revenue rejects invalid query %s before loading data', async query => {
+it.each(['period=invalid', 'period=invalid&period=day', 'group_by=invalid', 'group_by=invalid&group_by=day', 'start_date=wrong', 'end_date=wrong', 'start_date=2026-11-23&end_date=2026-11-20'])('revenue rejects invalid query %s before loading data', async query => {
   const response = await revenue(new NextRequest(`http://localhost/api/v1/analytics/revenue?${query}`));
   expect(response.status).toBe(400);
   expect((await response.json()).error.code).toBe('INVALID_INPUT');

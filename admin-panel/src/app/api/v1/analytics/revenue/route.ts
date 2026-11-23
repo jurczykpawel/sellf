@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
     const startDateParam = searchParams.get('start_date');
     const endDateParam = searchParams.get('end_date');
     const productId = searchParams.get('product_id');
-    const parsed = RevenueQueryDTO.safeParse(Object.fromEntries([...searchParams].filter(([, value]) => value !== '')));
+    const parsed = RevenueQueryDTO.safeParse({ product_id: productId || undefined, period: searchParams.get('period') || undefined, group_by: searchParams.get('group_by') || undefined });
     if (!parsed.success) return apiError(request, 'INVALID_INPUT', parsed.error.issues[0].message);
     let groupBy = searchParams.get('group_by');
 
