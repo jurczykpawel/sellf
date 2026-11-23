@@ -250,3 +250,16 @@ describe('catalogue', () => {
     ).toThrow();
   });
 });
+
+it.each(['x'.repeat(101), '😀'.repeat(101)])('explains an overlong search beside the field without requesting it', async value => {
+  const fetcher = vi.fn().mockResolvedValue(response()); vi.stubGlobal('fetch', fetcher);
+  const view = render(React.createElement(Catalogue, catalogueFixture()));
+  const input = view.getByRole('searchbox');
+  fireEvent.change(input, { target: { value } }); fireEvent.submit(view.getByRole('search'));
+  expect(input.getAttribute('aria-invalid')).toBe('true');
+  expect(view.getByRole('alert').textContent).toContain('100');
+  expect(fetcher).not.toHaveBeenCalled();
+  fireEvent.change(input, { target: { value: 'e\u0301'.repeat(100) } }); fireEvent.submit(view.getByRole('search'));
+  await waitFor(() => expect(fetcher).toHaveBeenCalledOnce());
+  expect(view.queryByRole('alert')).toBeNull();
+});
