@@ -86,12 +86,6 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
     await acceptAllCookies(page);
     if (buyerId) await setAuthSession(page, email, password);
     expect(await searchMessages(email), 'No earlier message or resend').toHaveLength(0);
-    page.on('response', async response => {
-      if (response.url().includes('/api/create-payment-intent') && response.ok()) {
-        const body = await response.json();
-        if (body.checkoutSessionId && !sessions.includes(body.checkoutSessionId)) sessions.push(body.checkoutSessionId);
-      }
-    });
     if (kind === 'variant') {
       await page.goto(`/en/v/${groupId}`);
       await expect(page.getByText('Selected plan', { exact: true }).first()).toBeVisible();
@@ -112,7 +106,9 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
       for (const checkbox of await page.locator('input[type="checkbox"]:not(#wantInvoice):not(#wantRecipient)').all()) if (await checkbox.isVisible()) await checkbox.check();
       await page.getByRole('button', { name: /Send magic link/i }).click();
     } else {
-      await startNativeCheckout(page);
+      const checkout = await startNativeCheckout(page);
+      const created = await checkout.json();
+      if (created.checkoutSessionId) sessions.push(created.checkoutSessionId);
       if (kind === 'trial') {
         await expect(page.getByTestId('order-summary-total')).toContainText(locale === 'pl' ? '0,00' : '0.00');
         await expect(page.getByTestId('trial-later-total')).toContainText(locale === 'pl' ? '11,00' : '11.00');
@@ -140,6 +136,7 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
       await page.waitForURL(/payment-status.*session_id=/, { timeout: 120000 });
       const sessionId = new URL(page.url()).searchParams.get('session_id')!;
       receiptSessionId = sessionId;
+      if (!sessions.includes(sessionId)) sessions.push(sessionId);
       const session = await stripe.checkout.sessions.retrieve(sessionId);
       if (session.customer) customerIds.add(typeof session.customer === 'string' ? session.customer : session.customer.id);
       expect(session.status).toBe('complete');
@@ -235,6 +232,9 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
     for (const id of ids) for (const sub of await rows('subscriptions', 'product_id', id)) {
       if (sub.status !== 'canceled') await stripe.subscriptions.cancel(sub.stripe_subscription_id);
       await expect.poll(async () => (await rows('subscriptions', 'product_id', id)).every(row => row.status === 'canceled'), { timeout: 60000 }).toBe(true);
+    }
+    for (const productId of ids) for (const tx of await rows('payment_transactions', 'product_id', productId)) {
+      if (tx.session_id?.startsWith('cs_') && !sessions.includes(tx.session_id)) sessions.push(tx.session_id);
     }
     for (const id of sessions) {
       const session = await stripe.checkout.sessions.retrieve(id);
