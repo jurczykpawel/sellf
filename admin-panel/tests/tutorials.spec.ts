@@ -11,7 +11,7 @@ if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(process.env.SUPABASE_URL ?? '')) throw n
 test.setTimeout(90_000);
 
 const cleanups: Array<() => Promise<unknown>> = [];
-test.afterEach(async () => { while (cleanups.length) await cleanups.pop()!(); });
+test.afterEach(async ({ page }, info) => { if (info.status === 'passed') await page.close(); while (cleanups.length) await cleanups.pop()!(); });
 async function checked<T>({ data, error }: { data: T; error: unknown }): Promise<NonNullable<T>> { if (error) throw error; return data!; }
 async function productFixture(prefix: string, extra: Record<string, unknown> = {}) {
   const name = `${prefix} ${randomUUID().slice(0, 8)}`;

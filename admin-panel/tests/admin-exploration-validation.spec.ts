@@ -40,6 +40,7 @@ for (const [locale, messages] of Object.entries({ en, pl })) {
         expect(response.status()).toBe(400);
         expect((await response.json()).error.code).toBe('INVALID_INPUT');
       }
+      await page.close();
     } finally { await admin.cleanup(); }
   });
 
@@ -61,6 +62,7 @@ for (const [locale, messages] of Object.entries({ en, pl })) {
       await expect(next).toHaveText(texts.done);
       await next.click();
       await expect(tour).toHaveCount(0);
+      await page.close();
     } finally { await admin.cleanup(); }
   });
 
@@ -81,6 +83,7 @@ for (const [locale, messages] of Object.entries({ en, pl })) {
       await expect(page.locator('#is_active')).toBeChecked();
       await expect(page.locator('#is_listed')).not.toBeChecked();
       expect((await db.from('product_offer_config').select('published').eq('product_id', productId).single()).data?.published).toBeNull();
+      await page.close();
     } finally { await db.from('products').delete().eq('id', productId); await admin.cleanup(); }
   });
 
@@ -95,6 +98,7 @@ for (const [locale, messages] of Object.entries({ en, pl })) {
       await page.goto(`${prefix}/my-purchases`);
       await page.getByRole('button', { name: messages.myPurchases.requestRefund, exact: true }).click();
       await expect(page.getByText(messages.myPurchases.refundWarning, { exact: true })).toBeVisible();
+      await page.close();
     } finally { await db.from('payment_transactions').delete().eq('product_id', data!.id); await db.from('products').delete().eq('id', data!.id); await user.cleanup(); }
   });
 }
