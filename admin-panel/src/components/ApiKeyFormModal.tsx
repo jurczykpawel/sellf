@@ -171,6 +171,7 @@ export default function ApiKeyFormModal({
               aria-describedby={nameError ? `${id}-name-error` : undefined}
               type="text"
               required
+              onInvalid={() => setNameError(t('nameRequired'))}
               value={formData.name}
               onChange={(e) => { setFormData({ ...formData, name: e.target.value }); setNameError(null); }}
               className="w-full px-3 py-2 bg-sf-input text-sf-heading border-2 border-sf-border-medium focus:ring-2 focus:ring-sf-accent focus:border-transparent outline-none transition-all"

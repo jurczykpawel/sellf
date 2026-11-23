@@ -38,3 +38,9 @@ it.each(['pl', 'en'])('validates 101 characters inline in %s for create and edit
     cleanup();
   }
 });
+it.each(['pl', 'en'])('associates the required-name error in %s before submission', locale => {
+  open(locale);
+  const input = screen.getByRole('textbox');
+  fireEvent.invalid(input);
+  expect(document.getElementById(input.getAttribute('aria-describedby')!)?.textContent).toBe((locale === 'pl' ? pl : en).admin.apiKeys.nameRequired);
+});
