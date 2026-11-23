@@ -195,3 +195,15 @@ describe('demo auth callback', () => {
     expect(response.cookies.getAll()).toEqual([]);
   });
 });
+
+describe('auth error return destination', () => {
+  afterEach(() => vi.unstubAllEnvs());
+  it.each(['', 'type=signup&token_hash=used&'])('keeps the supported destination when a link fails (%s)', async prefix => {
+    vi.stubEnv('DEMO_MODE', 'false'); vi.stubEnv('SITE_URL', 'https://shop.example.com');
+    verifyOtp.mockResolvedValue({ data: { session: null }, error: { code: 'otp_expired' } });
+    const target = '/pl/auth/product-access?product=course';
+    const url = new URL((await callback(`${prefix}redirect_to=${encodeURIComponent(target)}`)).headers.get('location')!);
+    expect(url.pathname).toBe('/login');
+    expect(url.searchParams.get('redirect_to')).toBe(target);
+  });
+});
