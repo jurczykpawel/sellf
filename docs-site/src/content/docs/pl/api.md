@@ -214,3 +214,5 @@ Wydanie i cofnięcie klucza wymaga dodatkowo `licenses:write`. Bez tego zakresu 
 `DELETE /users/{id}/access?product_id={uuid}` i `DELETE /users/{id}/access/{accessId}` przyjmują `revoke_license=true|false` (domyślnie `true`). Cofają tylko licencję z tego nadania; klucze z zakupu zostają. `false` świadomie zachowuje klucz. Zwykłe powodzenie to 204; brak zakresu licencji zwraca 200 z `license_warning`.
 
 Nazwy kluczy mogą mieć najwyżej 100 znaków. Etykiety formularza są powiązane z polami, a błąd nazwy pojawia się przy polu w języku panelu. Edycja zmienia nazwę. Aby zmienić uprawnienia lub limit zapytań, utwórz nowy klucz.
+
+Otwarty formularz klucza zachowuje wpisaną nazwę podczas odświeżania panelu. Otwarcie innego klucza usuwa błąd poprzedniego pola.
