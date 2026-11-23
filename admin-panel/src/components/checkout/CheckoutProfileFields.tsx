@@ -129,6 +129,7 @@ export default function CheckoutProfileFields({ profile, state, errors, disabled
         update={(index, key, value) => state.setParticipants(previous => ({ ...previous, [index]: { ...previous[index], [key]: value } }))}
         fill={rows => {
           state.setParticipants(Object.fromEntries(rows.map((row, index) => [index, row])));
+          if (!errors.some(error => error.field.startsWith('participants'))) return;
           const result = validateModuleValues(profile, { ...state.values, participants: state.people.map((_, index) => rows[index] ?? { first_name: '', last_name: '', email: '' }) }, { locale: 'en', currency: '', quantity: state.people.length });
           state.setErrors([...errors.filter(error => !error.field.startsWith('participants')), ...(result.success ? [] : result.errors.filter(error => error.field.startsWith('participants')))]);
         }} />,
