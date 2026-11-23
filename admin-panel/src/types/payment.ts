@@ -31,6 +31,11 @@ export interface PaymentTransaction {
   payment_provider?: string;
   payment_due_at?: string | null;
   transfer_details?: Json | null;
+  transfer_mail_delivery_unknown?: boolean;
+  reminder_mail_delivery_unknown?: boolean;
+  cancelled_mail_delivery_unknown?: boolean;
+  transfer_paid_mail_delivery_unknown?: boolean;
+
   /** Unpaid transfer lifecycle (null outside a timed reservation). */
   reminder_at?: string | null;
   release_at?: string | null;

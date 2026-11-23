@@ -12,18 +12,21 @@ import type { Database } from '@/types/database';
 
 export type OrderNotice = 'placed' | 'reminder' | 'cancelled' | 'paid';
 const NOTICE = {
-  placed: { kind: 'transfer_placed', column: 'transfer_mail_sent_at', statuses: ['awaiting_payment', 'completed'] },
-  reminder: { kind: 'payment_reminder', column: 'reminder_mail_sent_at', statuses: ['awaiting_payment'] },
-  cancelled: { kind: 'order_cancelled', column: 'cancelled_mail_sent_at', statuses: ['cancelled'] },
-  paid: { kind: undefined, column: 'transfer_paid_mail_sent_at', statuses: ['completed'] },
+  placed: { kind: 'transfer_placed', column: 'transfer_mail_sent_at', state: 'transfer_mail_delivery_unknown', statuses: ['awaiting_payment', 'completed'] },
+  reminder: { kind: 'payment_reminder', column: 'reminder_mail_sent_at', state: 'reminder_mail_delivery_unknown', statuses: ['awaiting_payment'] },
+  cancelled: { kind: 'order_cancelled', column: 'cancelled_mail_sent_at', state: 'cancelled_mail_delivery_unknown', statuses: ['cancelled'] },
+  paid: { kind: undefined, column: 'transfer_paid_mail_sent_at', state: 'transfer_paid_mail_delivery_unknown', statuses: ['completed'] },
 } as const;
 
 /** Reserves one notice per order; confirmed refusals remain eligible for recovery. */
-export async function sendOrderNotice(db: SupabaseClient<Database>, id: string, notice: OrderNotice): Promise<void> {
+export async function sendOrderNotice(db: SupabaseClient<Database>, id: string, notice: OrderNotice, retryUnknown = false): Promise<void> {
   const spec = NOTICE[notice];
   try {
     const { data: tx } = await db.from('payment_transactions').select('*').eq('id', id).single();
-    if (!tx || tx[spec.column] || !(spec.statuses as readonly string[]).includes(tx.status) || !tx.customer_email || !tx.product_id) return;
+    if (!tx || !(spec.statuses as readonly string[]).includes(tx.status) || !tx.customer_email || !tx.product_id) return;
+    const previous = tx[spec.column];
+    if (previous && (!retryUnknown || !tx[spec.state] || Date.parse(previous) > Date.now() - 300000)) return;
+    if (retryUnknown && !previous) return;
     if (notice === 'reminder' && !tx.release_at) return;
     if (notice === 'paid' && tx.fulfillment_pending) return;
     const meta = tx.metadata as Record<string, unknown> | null;
@@ -55,14 +58,18 @@ export async function sendOrderNotice(db: SupabaseClient<Database>, id: string, 
       if (licenses.error) throw new Error('Order mail state unavailable');
       if (licenses.data?.length) data.license_mail_managed = 'true';
     }
-    const claimedAt = new Date().toISOString();
-    const claim = await db.from('payment_transactions').update({ [spec.column]: claimedAt } as Database['public']['Tables']['payment_transactions']['Update'])
-      .eq('id', id).is(spec.column, null).in('status', [...spec.statuses]).select('id').maybeSingle();
+    const claimedAt = new Date(Math.max(Date.now(), previous ? Date.parse(previous) + 1 : 0)).toISOString();
+    let query = db.from('payment_transactions').update({ [spec.column]: claimedAt, [spec.state]: true } as Database['public']['Tables']['payment_transactions']['Update'])
+      .eq('id', id).in('status', [...spec.statuses]);
+    query = previous ? query.eq(spec.column, previous).eq(spec.state, true) : query.is(spec.column, null);
+    const claim = await query.select('id').maybeSingle();
     if (claim.error || !claim.data) return;
     const result = await sendTrustedMagicLink({ transactionalOnly: !!tx.user_id || (notice !== 'paid' && !(notice === 'placed' && meta?.access_on_placement === true)), email: tx.customer_email,
       redirectTo: buildPostCheckoutMagicLinkRedirect({ origin: base, productSlug: product.slug, locale, sessionId: undefined, paymentIntentId: undefined }), data });
     if (!result.ok && !result.deliveryUnknown) {
-      await db.from('payment_transactions').update({ [spec.column]: null } as Database['public']['Tables']['payment_transactions']['Update']).eq('id', id).eq(spec.column, claimedAt);
+      await db.from('payment_transactions').update({ [spec.column]: null, [spec.state]: false } as Database['public']['Tables']['payment_transactions']['Update']).eq('id', id).eq(spec.column, claimedAt);
+    } else if (result.ok) {
+      await db.from('payment_transactions').update({ [spec.state]: false } as Database['public']['Tables']['payment_transactions']['Update']).eq('id', id).eq(spec.column, claimedAt);
     } else if (!result.ok) {
       console.error('[transfer-mail] Delivery outcome unknown; automatic retry held:', id);
     }

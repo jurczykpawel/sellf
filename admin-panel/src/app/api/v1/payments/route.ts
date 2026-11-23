@@ -94,6 +94,7 @@ export async function GET(request: NextRequest) {
         custom_field_values,
         order_details,
         payment_provider,payment_due_at,transfer_details,
+        transfer_mail_delivery_unknown,reminder_mail_delivery_unknown,cancelled_mail_delivery_unknown,transfer_paid_mail_delivery_unknown,
         reminder_at,release_at,invoice_hold_at,transfer_declared_at,transfer_declared_note,cancel_reason,reopened_at,
         invoices(status,number,view_url,error,attempts),
         refund_id,
@@ -310,6 +311,10 @@ export async function GET(request: NextRequest) {
         status: p.status,
         payment_provider: p.payment_provider, payment_due_at: p.payment_due_at, transfer_details: p.transfer_details,
         reminder_at: p.reminder_at, release_at: p.release_at, invoice_hold_at: p.invoice_hold_at, transfer_declared_at: p.transfer_declared_at, transfer_declared_note: p.transfer_declared_note, cancel_reason: p.cancel_reason, reopened_at: p.reopened_at,
+        transfer_mail_delivery_unknown: p.transfer_mail_delivery_unknown,
+        reminder_mail_delivery_unknown: p.reminder_mail_delivery_unknown,
+        cancelled_mail_delivery_unknown: p.cancelled_mail_delivery_unknown,
+        transfer_paid_mail_delivery_unknown: p.transfer_paid_mail_delivery_unknown,
         stripe_payment_intent_id: p.stripe_payment_intent_id,
         product: {
           id: p.product_id,

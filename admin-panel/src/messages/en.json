@@ -6408,6 +6408,12 @@
     "fromPrice": "from {price}"
   },
   "bankTransfer": {
+    "mailUnknown": "Email ({notice}): delivery outcome unknown. Retry is available after 5 minutes and may send a duplicate.",
+    "retryMail": "Retry email",
+    "mailNotice_placed": "transfer instructions",
+    "mailNotice_reminder": "reminder",
+    "mailNotice_cancelled": "cancellation",
+    "mailNotice_paid": "payment received",
     "markPaidPending": "Recording payment…",
     "cancelPending": "Cancelling…",
     "markInvoiceIssuedPending": "Recording invoice…",

@@ -6408,6 +6408,12 @@
     "fromPrice": "od {price}"
   },
   "bankTransfer": {
+    "mailUnknown": "Mail ({notice}): stan doręczenia nieznany. Ponowienie jest możliwe po 5 minutach i może wysłać drugi mail.",
+    "retryMail": "Ponów wysyłkę maila",
+    "mailNotice_placed": "dane do przelewu",
+    "mailNotice_reminder": "przypomnienie",
+    "mailNotice_cancelled": "anulowanie",
+    "mailNotice_paid": "wpłata otrzymana",
     "markPaidPending": "Zapisywanie płatności…",
     "cancelPending": "Anulowanie…",
     "markInvoiceIssuedPending": "Zapisywanie faktury…",

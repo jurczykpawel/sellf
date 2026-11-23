@@ -4294,3 +4294,10 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.update_webhook_endpoint_scoping(uuid, text, uuid[], jsonb) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.update_webhook_endpoint_scoping(uuid, text, uuid[], jsonb) TO service_role;
+
+-- Mail delivery markers are held until the provider confirms its result.
+ALTER TABLE public.payment_transactions
+  ADD COLUMN transfer_mail_delivery_unknown boolean NOT NULL DEFAULT false,
+  ADD COLUMN reminder_mail_delivery_unknown boolean NOT NULL DEFAULT false,
+  ADD COLUMN cancelled_mail_delivery_unknown boolean NOT NULL DEFAULT false,
+  ADD COLUMN transfer_paid_mail_delivery_unknown boolean NOT NULL DEFAULT false;
