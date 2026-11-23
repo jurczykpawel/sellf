@@ -1075,7 +1075,7 @@ describe.skipIf(!hasSupabase)('paid reconciliation recovery against local DB', (
   }
 
 describe.skipIf(!hasSupabase)('refunded order verification', () => {
-  it('returns a terminal refund for a paid session without fulfilling it again', async () => {
+  it.each(['session', 'intent'] as const)('returns a terminal refund for a paid %s without fulfilling it again', async path => {
     const product = await createProduct();
     const cs = uniq('cs'); const pi = uniq('pi');
     const email = uniq('refund') + '@example.com'; createdEmails.push(email);
@@ -1083,10 +1083,12 @@ describe.skipIf(!hasSupabase)('refunded order verification', () => {
     await seedPendingTx({ sessionId: cs, productId: product.id, email, pi, userId, status: 'completed' });
     const { error } = await db!.from('payment_transactions').update({ status: 'refunded', refunded_amount: 1000 }).eq('session_id', cs);
     expect(error).toBeNull();
-    h.stripe = makeStripeShim({ session: paidSession(cs, product.id, email, { payment_intent: pi }) });
-    const result = await verifyPaymentSession(cs, asUser(userId, email));
+    const recorded = (await import('../../fixtures/stripe/dispute_payment_intent_won.json')).default;
+    const session = paidSession(cs, product.id, email, { payment_intent: pi });
+    h.stripe = makeStripeShim({ session, paymentIntent: { ...recorded, id: pi, status: 'succeeded', amount: 1000, currency: 'usd', receipt_email: email, metadata: { product_id: product.id } }, sessionsByPI: [session] });
+    const result = path === 'session' ? await verifyPaymentSession(cs, asUser(userId, email)) : await verifyPaymentIntent(pi, asUser(userId, email));
     expect(result.error).toBeUndefined();
-    expect(result.payment_status).toBe('refunded');
+    expect(result).toMatchObject({ payment_status: 'refunded' });
     expect(result.access_granted).toBe(false);
     expect(mapVerifiedPaymentToStatus(result).paymentStatus).toBe('refunded');
     expect(await hasAccess(userId, product.id)).toBe(false);
@@ -1111,6 +1113,14 @@ describe.skipIf(!hasSupabase)('settled order verification', () => {
     expect(result.payment_status).toBe(status === 'partially_refunded' ? 'paid' : 'disputed');
     expect(result.access_granted).toBe(status === 'partially_refunded');
     expect(mapVerifiedPaymentToStatus(result).paymentStatus).toBe(status === 'partially_refunded' ? 'completed' : 'disputed');
+    const recorded = (await import('../../fixtures/stripe/dispute_payment_intent_won.json')).default;
+    const session = paidSession(cs, product.id, email, { payment_intent: pi });
+    h.stripe = makeStripeShim({ session, paymentIntent: { ...recorded, id: pi, status: 'succeeded', amount: 1000, currency: 'usd', receipt_email: email, metadata: { product_id: product.id } }, sessionsByPI: [session] });
+    const intent = await verifyPaymentIntent(pi, asUser(userId, email));
+    expect(intent.error).toBeUndefined();
+    expect(intent.access_granted).toBe(status === 'partially_refunded');
+    expect(mapVerifiedPaymentToStatus(intent).paymentStatus).toBe(status === 'partially_refunded' ? 'completed' : 'disputed');
+
     expect((await fetchTx(cs))?.status).toBe(status);
     expect(purchaseCalls()).toHaveLength(0);
     expect((await verifyPaymentSession(cs, asUser('different-user', 'different@example.com'))).error).toBe('Session does not belong to current user');

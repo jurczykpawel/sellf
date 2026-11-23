@@ -150,6 +150,7 @@ export interface OtoInfo {
 
 export interface PaymentIntentVerificationResult {
   payment_intent_id: string;
+  payment_status?: string | null;
   status: string;
   customer_email?: string;
   amount?: number;
@@ -879,6 +880,9 @@ export async function verifyPaymentIntent(
           if (!isCallerOrderOwner(user, ownerUserId, customerEmail || ownerSession?.customer_details?.email)) {
             return { payment_intent_id: paymentIntent.id, status: paymentIntent.status, access_granted: false, error_code: 'ACCOUNT_MISMATCH', error: 'Session does not belong to current user' };
           }
+
+          const settled = await getProcessedPaymentFromDatabase(canonicalSessionId, serviceClient, user);
+          if (settled) return { ...settled, payment_intent_id: paymentIntent.id, status: paymentIntent.status };
 
           // Process payment using database function (multi-bump UUID array)
           const rpcParams = {
