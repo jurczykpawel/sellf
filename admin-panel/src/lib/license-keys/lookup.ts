@@ -30,33 +30,18 @@ export async function findIssuedLicense(
   user: IssuedLicenseLookupUser,
   columns = 'license_key, issued_at, expires_at, revoked_at, revoked_by_dispute_id',
 ): Promise<IssuedLicenseRow | null> {
-  // Prefer licenses assigned to the account; guest rows need a confirmed address.
-  const { data: byUser } = await admin
-    .from('issued_licenses')
-    .select(columns)
-    .eq('product_id', productId)
-    .eq('user_id', user.id)
-    .order('issued_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (byUser) {
-    return byUser as unknown as IssuedLicenseRow;
-  }
-
-  if (!user.email || !user.email_confirmed_at) return null;
-
-  const { data: byEmail } = await admin
-    .from('issued_licenses')
-    .select(columns)
-    .eq('product_id', productId)
-    .is('user_id', null)
-    .eq('email', user.email)
-    .order('issued_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  return byEmail ? byEmail as unknown as IssuedLicenseRow : null;
+  const lookup = async (byEmail: boolean, active: boolean): Promise<IssuedLicenseRow | null> => {
+    if (byEmail && (!user.email || !user.email_confirmed_at)) return null;
+    let query = admin.from('issued_licenses').select(columns).eq('product_id', productId);
+    query = byEmail ? query.is('user_id', null).eq('email', user.email!.toLowerCase()) : query.eq('user_id', user.id);
+    if (active) query = query.is('revoked_at', null).or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
+    const { data, error } = await query.order('issued_at', { ascending: false }).limit(1).maybeSingle();
+    if (error) throw new Error('License state unavailable');
+    return data as unknown as IssuedLicenseRow | null;
+  };
+  // Prefer a usable account key, then a confirmed guest key, before displaying terminal history.
+  return await lookup(false, true) ?? await lookup(true, true)
+    ?? await lookup(false, false) ?? await lookup(true, false);
 }
 
 export function toIssuedLicenseResponse(row: IssuedLicenseRow | null): IssuedLicenseResponse | null {

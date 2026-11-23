@@ -15,6 +15,7 @@ export interface DeliverMagicLinkInput {
 // Service-role client: Supabase Auth skips its own captcha for admin credentials,
 // so every caller MUST have verified a captcha or a paid Stripe session first.
 export async function deliverMagicLink(input: DeliverMagicLinkInput): Promise<MagicLinkResult> {
+  let deliveryStarted = false;
   try {
     const client = createAdminClient();
     const redirect = new URL(input.redirectTo);
@@ -25,6 +26,7 @@ export async function deliverMagicLink(input: DeliverMagicLinkInput): Promise<Ma
     const data = { ...(enabled ? input.data : {}), locale: input.data?.locale === 'pl' || (!input.data?.locale && destination.startsWith('/pl/')) ? 'pl' : 'en' };
     const prepared = await client.rpc('prepare_event_mail', { p_email: input.email, p_data: data });
     if (prepared.error) return { ok: false, code: 'send_failed' };
+    deliveryStarted = true;
     const { error } = await client.auth.signInWithOtp({
       email: input.email,
       options: {
@@ -35,9 +37,9 @@ export async function deliverMagicLink(input: DeliverMagicLinkInput): Promise<Ma
     });
     if (!error) return { ok: true };
     console.error(`[magic-link] send failed: status=${error.status ?? 'n/a'} code=${error.code ?? 'n/a'}`);
-    return { ok: false, code: error.status === 429 ? 'rate_limited' : 'send_failed' };
+    return { ok: false, code: error.status === 429 ? 'rate_limited' : 'send_failed', ...(!error.status || error.status > 500 ? { deliveryUnknown: true as const } : {}) };
   } catch {
     console.error('[magic-link] send unavailable');
-    return { ok: false, code: 'send_failed' };
+    return { ok: false, code: 'send_failed', ...(deliveryStarted ? { deliveryUnknown: true as const } : {}) };
   }
 }

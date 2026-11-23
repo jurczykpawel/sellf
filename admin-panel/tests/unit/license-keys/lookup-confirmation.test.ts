@@ -8,14 +8,15 @@ import { findIssuedLicense } from '@/lib/license-keys/lookup';
 
 function makeAdmin(byUser: object | null, byEmail: object | null) {
   const from = vi.fn().mockImplementation(() => {
-    const result = from.mock.calls.length === 1 ? byUser : byEmail;
+    let guest = false;
     const query = {
       select: () => query,
       eq: () => query,
-      is: () => query,
+      is: (column: string) => { if (column === 'user_id') guest = true; return query; },
+      or: () => query,
       order: () => query,
       limit: () => query,
-      maybeSingle: async () => ({ data: result, error: null }),
+      maybeSingle: async () => ({ data: guest ? byEmail : byUser, error: null }),
     };
     return query;
   });
@@ -29,7 +30,7 @@ describe('Guest license e-mail lookup', () => {
     const admin = makeAdmin(null, token);
     const result = await findIssuedLicense(admin as unknown as Parameters<typeof findIssuedLicense>[0], 'product', { id: 'buyer', email: 'buyer@example.com' });
     expect(result).toBeNull();
-    expect(admin.from).toHaveBeenCalledTimes(1);
+    expect(admin.from).toHaveBeenCalledTimes(2);
   });
 
   it('looks up a guest license for a confirmed address', async () => {

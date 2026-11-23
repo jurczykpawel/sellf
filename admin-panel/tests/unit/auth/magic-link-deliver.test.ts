@@ -48,10 +48,10 @@ describe('deliverMagicLink', () => {
     expect(result).toEqual({ ok: false, code: 'rate_limited' });
   });
 
-  it('maps any other error to send_failed and logs without the email', async () => {
+  it.each([500, 502, 503, 504])('classifies server response %s and logs without the email', async status => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     signInWithOtp.mockResolvedValue({
-      error: { status: 500, code: 'unexpected_failure', message: 'boom' },
+      error: { status, code: 'unexpected_failure', message: 'boom' },
     });
 
     const result = await deliverMagicLink({
@@ -60,7 +60,7 @@ describe('deliverMagicLink', () => {
       shouldCreateUser: false,
     });
 
-    expect(result).toEqual({ ok: false, code: 'send_failed' });
+    expect(result).toEqual({ ok: false, code: 'send_failed', ...(status === 500 ? {} : { deliveryUnknown: true }) });
     expect(errorSpy).toHaveBeenCalledTimes(1);
     const [loggedMessage] = errorSpy.mock.calls[0];
     expect(loggedMessage).toContain('[magic-link]');
@@ -80,7 +80,7 @@ describe('deliverMagicLink', () => {
       shouldCreateUser: true,
     });
 
-    expect(result).toEqual({ ok: false, code: 'send_failed' });
+    expect(result).toEqual({ ok: false, code: 'send_failed', deliveryUnknown: true });
     expect(errorSpy).toHaveBeenCalled();
 
     errorSpy.mockRestore();

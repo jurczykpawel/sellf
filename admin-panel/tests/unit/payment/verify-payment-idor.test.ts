@@ -177,3 +177,11 @@ it.each(['completed', 'partially_refunded'])('offers OTO only for completed purc
   expect(result.oto_info?.has_oto).toBe(status === 'completed');
   expect(rpc).toHaveBeenCalledTimes(status === 'completed' ? 1 : 0);
 });
+
+it('maps a completed paid return for another account to a terminal account notice', async () => {
+  mocks.stripeSessionsRetrieve.mockResolvedValue({ id: 'cs_paid_other', status: 'complete', payment_status: 'paid', mode: 'payment', metadata: {}, customer_details: { email: 'buyer-b@example.com' } });
+  const result = await verifyPaymentSession('cs_paid_other', makeUser('buyer-a', 'buyer-a@example.com'));
+  const { mapVerifiedPaymentToStatus } = await import('@/lib/payment/verify-payment');
+  expect(mapVerifiedPaymentToStatus(result)).toMatchObject({ paymentStatus: 'account_mismatch', accessGranted: false });
+  expect(result.customer_email).toBeUndefined();
+});

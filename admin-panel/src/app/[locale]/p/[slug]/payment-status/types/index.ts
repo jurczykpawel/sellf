@@ -1,4 +1,5 @@
 export type PaymentStatus = 
+  | 'account_mismatch'
   | 'refunded'
   | 'disputed'
   | 'received'

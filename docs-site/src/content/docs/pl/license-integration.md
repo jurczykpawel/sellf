@@ -521,3 +521,5 @@ start. Then report what you changed and how to try it with a real key from Sellf
 Lista wystawionych licencji i webhooki cyklu życia licencji pokazują poziom zapisany w wystawionym tokenie. Zmiana poziomu produktu lub usunięcie produktu nie zmienia poziomu tej licencji. Lista licencji nie zwraca tokenów; ich ujawnienie pozostaje osobną akcją administratora.
 
 Niepoprawny importowany klucz podpisujący pokazuje komunikat po polsku lub angielsku przy polu klucza prywatnego i przenosi tam fokus. Wklej klucz prywatny EC P-256 w formacie PKCS8 PEM. Walidacja nie zmienia dotychczasowego klucza podpisującego.
+
+Strona produktu kupującego i API treści wybierają ważną licencję przed nowszymi cofniętymi lub wygasłymi kluczami, także po zwrocie pakietu zawierającego ten sam produkt. Klucz musi należeć do konta; nieprzypisane klucze gościa są dopasowywane wyłącznie do potwierdzonego adresu konta. Gdy nie ma już ważnego klucza, historia konta nadal pokazuje stan cofnięcia lub wygaśnięcia.

@@ -44,7 +44,7 @@ const product = {
 
 function makeDbMock(overrides: {
   allowedOrigins?: string[];
-  product?: typeof product | null;
+  product?: (typeof product & { checkout_profile?: unknown }) | null;
 } = {}) {
   const allowedOrigins = overrides.allowedOrigins ?? ['https://landing.example.com'];
   const selectedProduct = overrides.product === undefined ? product : overrides.product;
@@ -432,4 +432,18 @@ describe('embed error response origins', () => {
     expect(response.status).toBe(status);
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe('https://landing.example.com');
   });
+});
+
+it.each([
+  ...['hidden', 'checkout', 'product_page'].map(mode => ({ modules: [{ id: 'quantity', min: 2, max: 3, mode }] })),
+  { modules: [{ id: 'buyer', types: ['organization'] }] },
+  { modules: [{ id: 'phone', required: true }] },
+  { modules: [{ id: 'buyer', types: ['organization'] }, { id: 'recipient', for: ['organization'] }] },
+  { modules: [{ id: 'quantity', min: 1, max: 3, mode: 'checkout' }, { id: 'participants', required: true, prefill_from_buyer: false }] },
+])('directs profile $modules to standard checkout before creating a session', async ({ modules }) => {
+  mocks.createAdminClient.mockReturnValue(makeDbMock({ product: { ...product, checkout_profile: { v: 1, modules } } }));
+  const response = await POST(makeRequest({ productSlug: product.slug }, 'https://landing.example.com'));
+  expect(response.status).toBe(422);
+  expect(await response.json()).toMatchObject({ code: 'STANDARD_CHECKOUT_REQUIRED' });
+  expect(mocks.createCheckoutSession).not.toHaveBeenCalled();
 });

@@ -150,6 +150,7 @@ export interface OtoInfo {
 
 export interface PaymentIntentVerificationResult {
   payment_intent_id: string;
+  payment_status?: string | null;
   status: string;
   customer_email?: string;
   amount?: number;
@@ -162,7 +163,7 @@ export interface PaymentIntentVerificationResult {
   scenario?: string;
   send_magic_link?: boolean;
   oto_info?: OtoInfo;
-  error_code?: 'INVALID_SESSION';
+  error_code?: 'INVALID_SESSION' | 'ACCOUNT_MISMATCH';
   error?: string;
   reconciliation_error?: 'transient' | 'data';
 }
@@ -185,7 +186,7 @@ export interface PaymentVerificationResult {
   access_expires_at?: string | null;
   send_magic_link?: boolean;
   oto_info?: OtoInfo;
-  error_code?: 'INVALID_SESSION';
+  error_code?: 'INVALID_SESSION' | 'ACCOUNT_MISMATCH';
   error?: string;
   reconciliation_error?: 'transient' | 'data';
 }
@@ -196,6 +197,7 @@ export interface PaymentVerificationResult {
  * Returns null if payment not found in database (needs Stripe verification).
  */
 export type PaymentStatusKind =
+  | 'account_mismatch'
   | 'refunded'
   | 'disputed'
   | 'received'
@@ -217,6 +219,7 @@ interface VerifiedPaymentShape {
   send_magic_link?: boolean;
   requires_login?: boolean;
   error?: string;
+  error_code?: string;
 }
 
 interface MappedPaymentStatus {
@@ -232,6 +235,7 @@ interface MappedPaymentStatus {
  * in the contract are caught by unit tests.
  */
 export function mapVerifiedPaymentToStatus(result: VerifiedPaymentShape): MappedPaymentStatus {
+  if (result.error_code === 'ACCOUNT_MISMATCH') return { paymentStatus: 'account_mismatch', accessGranted: false, errorMessage: '' };
   if (result.payment_status === 'disputed') return { paymentStatus: 'disputed', accessGranted: false, errorMessage: '' };
   if (result.payment_status === 'refunded') return { paymentStatus: 'refunded', accessGranted: false, errorMessage: '' };
 
@@ -305,7 +309,8 @@ export function classifyCachedPaymentAuth({
 async function getProcessedPaymentFromDatabase(
   sessionId: string,
   serviceClient: AdminClient,
-  user?: User | null
+  user?: User | null,
+  adjustedPaymentsOnly = false,
 ): Promise<PaymentVerificationResult | null> {
   // Look up existing completed transaction
   const { data: transaction, error } = await serviceClient
@@ -329,7 +334,7 @@ async function getProcessedPaymentFromDatabase(
       )
     `)
     .eq('session_id', sessionId)
-    .in('status', ['completed', 'partially_refunded', 'refunded', 'disputed'])
+    .in('status', adjustedPaymentsOnly ? ['partially_refunded', 'refunded', 'disputed'] : ['completed', 'partially_refunded', 'refunded', 'disputed'])
     .maybeSingle();
 
   if (error || !transaction) {
@@ -341,7 +346,7 @@ async function getProcessedPaymentFromDatabase(
       session_id: sessionId,
       status: 'complete',
       payment_status: 'paid',
-      error: 'Session does not belong to current user'
+      error_code: 'ACCOUNT_MISMATCH', access_granted: false, error: 'Session does not belong to current user'
     };
   }
 
@@ -351,7 +356,7 @@ async function getProcessedPaymentFromDatabase(
       session_id: sessionId,
       status: 'complete',
       payment_status: 'paid',
-      error: 'Session does not belong to current user'
+      error_code: 'ACCOUNT_MISMATCH', access_granted: false, error: 'Session does not belong to current user'
     };
   }
 
@@ -483,7 +488,7 @@ export async function verifyPaymentSession(
         session_id: session.id,
         status: session.status || 'unknown',
         payment_status: session.payment_status,
-        error: 'Session does not belong to current user'
+        error_code: 'ACCOUNT_MISMATCH', access_granted: false, error: 'Session does not belong to current user'
       };
     }
 
@@ -511,16 +516,12 @@ export async function verifyPaymentSession(
       session.payment_status === 'paid' &&
       session.mode === 'subscription'
     ) {
-      const metadataUserId = session.metadata?.user_id;
-      const wasLoggedIn = !!user || (!!metadataUserId && metadataUserId !== '' && metadataUserId !== 'null');
-
-      if (wasLoggedIn) {
-        return {
-          ...baseResponse,
-          access_granted: true,
-          scenario: 'subscription',
-        };
+      const invoiceId = typeof session.invoice === 'string' ? session.invoice : session.invoice?.id;
+      if (invoiceId) {
+        const receipt = await getProcessedPaymentFromDatabase(invoiceId, serviceClient, user);
+        if (receipt) return { ...receipt, session_id: session.id, scenario: user ? 'subscription' : 'subscription_guest' };
       }
+      if (user) return { ...baseResponse, access_granted: false, scenario: 'subscription' };
 
       // Guest subscription: webhook still creates the access record (matched by
       // email), but the buyer has no session cookie yet — show magic-link UI.
@@ -805,6 +806,10 @@ export async function verifyPaymentIntent(
       };
     }
 
+    if (!isCallerOrderOwner(user, readOrderUserId(paymentIntent.metadata), paymentIntent.receipt_email || paymentIntent.metadata?.email)) {
+      return { payment_intent_id: paymentIntent.id, status: paymentIntent.status, access_granted: false, error_code: 'ACCOUNT_MISMATCH', error: 'Session does not belong to current user' };
+    }
+
     // Base response
     const baseResponse: PaymentIntentVerificationResult = {
       payment_intent_id: paymentIntent.id,
@@ -874,8 +879,11 @@ export async function verifyPaymentIntent(
 
           const ownerUserId = readOrderUserId(paymentIntent.metadata) ?? readOrderUserId(ownerSession?.metadata);
           if (!isCallerOrderOwner(user, ownerUserId, customerEmail || ownerSession?.customer_details?.email)) {
-            return { ...baseResponse, access_granted: false, error: 'Session does not belong to current user' };
+            return { payment_intent_id: paymentIntent.id, status: paymentIntent.status, access_granted: false, error_code: 'ACCOUNT_MISMATCH', error: 'Session does not belong to current user' };
           }
+
+          const settled = await getProcessedPaymentFromDatabase(canonicalSessionId, serviceClient, user, true);
+          if (settled) return { ...settled, payment_intent_id: paymentIntent.id, status: paymentIntent.status };
 
           // Process payment using database function (multi-bump UUID array)
           const rpcParams = {

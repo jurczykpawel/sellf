@@ -100,7 +100,7 @@ describe('reservation job', () => {
       { data: [] },            // reminders due
       { data: [{ id }] },      // releases due
       { data: released }, { data: [] }, { data: [] }, {}, // order.cancelled dispatch
-      { data: released }, { data: { slug: 'w', name: 'Warsztat' } }, {}, // cancellation mail
+      { data: released }, { data: { slug: 'w', name: 'Warsztat' } }, { data: { id } }, // cancellation mail
       { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, // recovery sweeps
     ], name => name === 'release_unpaid_transfer' ? { data: { success: true, released: true, expire_sessions: ['cs_test_stale'] } } : { data: { success: true } });
     const result = await runTransferJob(db, 'transfer-reservations');
@@ -115,7 +115,7 @@ describe('reservation job', () => {
 
 describe('buyer mail', () => {
   it('reminder mail names the release time and the pay link even without access on placement', async () => {
-    const { db, queries } = client([{ data: row }, { data: { slug: 'w', name: 'Warsztat' } }, {}]);
+    const { db, queries } = client([{ data: row }, { data: { slug: 'w', name: 'Warsztat' } }, { data: { id } }]);
     await sendOrderNotice(db, id, 'reminder');
     const data = magic.mock.calls[0][0].data as Record<string, string>;
     expect(data.mail_kind).toBe('payment_reminder');
@@ -124,20 +124,21 @@ describe('buyer mail', () => {
     expect(queries[2].update).toHaveBeenCalledWith({ reminder_mail_sent_at: expect.any(String) });
   });
   it.each([false, true])('placed mail carries the saved access policy %s', async access => {
-    const { db } = client([{ data: { ...row, metadata: { access_on_placement: access, locale: 'en' } } }, { data: { slug: 'w', name: 'Workshop' } }, {}]);
+    const { db } = client([{ data: { ...row, metadata: { access_on_placement: access, locale: 'en' } } }, { data: { slug: 'w', name: 'Workshop' } }, { data: { id } }]);
     await sendOrderNotice(db, id, 'placed');
     expect(magic.mock.calls[0][0].data.access_on_placement).toBe(access ? 'true' : 'false');
   });
   it('placed mail is sent for every transfer order', async () => {
-    const { db } = client([{ data: { ...row, metadata: { access_on_placement: false, locale: 'en' } } }, { data: { slug: 'w', name: 'Workshop' } }, {}]);
+    const { db } = client([{ data: { ...row, metadata: { access_on_placement: false, locale: 'en' } } }, { data: { slug: 'w', name: 'Workshop' } }, { data: { id } }]);
     await sendOrderNotice(db, id, 'placed');
     expect(magic.mock.calls[0][0].data).toMatchObject({ mail_kind: 'transfer_placed', locale: 'en' });
   });
   it('a failed delivery stays pending for the next job', async () => {
     magic.mockResolvedValue({ ok: false, code: 'rate_limited' });
-    const { db, queries } = client([{ data: row }, { data: { slug: 'w', name: 'Warsztat' } }]);
+    const { db, queries } = client([{ data: row }, { data: { slug: 'w', name: 'Warsztat' } }, { data: { id } }, {}]);
     await sendOrderNotice(db, id, 'reminder');
-    expect(queries.some(q => q.update.mock.calls.length)).toBe(false);
+    expect(queries[2].update).toHaveBeenCalledWith({ reminder_mail_sent_at: expect.any(String) });
+    expect(queries[3].update).toHaveBeenCalledWith({ reminder_mail_sent_at: null });
   });
 });
 

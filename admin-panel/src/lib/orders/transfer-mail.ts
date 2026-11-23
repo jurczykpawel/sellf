@@ -18,7 +18,7 @@ const NOTICE = {
   paid: { kind: undefined, column: 'transfer_paid_mail_sent_at', statuses: ['completed'] },
 } as const;
 
-/** Sends each notice at most once per order; a failed delivery stays pending for the reservation job. */
+/** Reserves one notice per order; confirmed refusals remain eligible for recovery. */
 export async function sendOrderNotice(db: SupabaseClient<Database>, id: string, notice: OrderNotice): Promise<void> {
   const spec = NOTICE[notice];
   try {
@@ -55,8 +55,16 @@ export async function sendOrderNotice(db: SupabaseClient<Database>, id: string, 
       if (licenses.error) throw new Error('Order mail state unavailable');
       if (licenses.data?.length) data.license_mail_managed = 'true';
     }
+    const claimedAt = new Date().toISOString();
+    const claim = await db.from('payment_transactions').update({ [spec.column]: claimedAt } as Database['public']['Tables']['payment_transactions']['Update'])
+      .eq('id', id).is(spec.column, null).in('status', [...spec.statuses]).select('id').maybeSingle();
+    if (claim.error || !claim.data) return;
     const result = await sendTrustedMagicLink({ transactionalOnly: !!tx.user_id || (notice !== 'paid' && !(notice === 'placed' && meta?.access_on_placement === true)), email: tx.customer_email,
       redirectTo: buildPostCheckoutMagicLinkRedirect({ origin: base, productSlug: product.slug, locale, sessionId: undefined, paymentIntentId: undefined }), data });
-    if (result.ok) await db.from('payment_transactions').update({ [spec.column]: new Date().toISOString() } as Database['public']['Tables']['payment_transactions']['Update']).eq('id', id);
-  } catch { console.error('[transfer-mail] Delivery awaiting recovery:', id); }
+    if (!result.ok && !result.deliveryUnknown) {
+      await db.from('payment_transactions').update({ [spec.column]: null } as Database['public']['Tables']['payment_transactions']['Update']).eq('id', id).eq(spec.column, claimedAt);
+    } else if (!result.ok) {
+      console.error('[transfer-mail] Delivery outcome unknown; automatic retry held:', id);
+    }
+  } catch { console.error('[transfer-mail] Delivery unavailable; check saved notice state:', id); }
 }

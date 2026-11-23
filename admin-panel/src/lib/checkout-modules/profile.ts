@@ -34,3 +34,10 @@ export const storedCheckoutProfileSchema = z.preprocess(value => {
     return config;
   }) };
 }, checkoutProfileSchema);
+
+/** Embedded checkout does not collect profile module values. */
+export function requiresStandardCheckout(value: unknown): boolean {
+  if (value == null) return false;
+  const profile = storedCheckoutProfileSchema.safeParse(value);
+  return !profile.success || profile.data.modules.length > 0;
+}

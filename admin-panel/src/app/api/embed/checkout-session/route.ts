@@ -11,6 +11,7 @@ import {
   parseEmbedCheckoutBody,
   requireEmbedCaptcha,
 } from '@/lib/embed/checkout-embed';
+import { requiresStandardCheckout } from '@/lib/checkout-modules/profile';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { COUPON_REJECTED_CODE, recordRejectedCouponAttempt } from '@/lib/coupons/rejection-limit';
 import { getCaptchaConfig } from '@/lib/captcha/config';
@@ -22,7 +23,7 @@ import { attributionRequestContext, storeCheckoutAttribution } from '@/lib/attri
 import { isBelowMinimumCharge, minimumChargeAmount, toMinorUnits } from '@/lib/currency/minor-units';
 
 const PRODUCT_SELECT =
-  'id, slug, name, price, currency, is_active, available_from, available_until, product_type, embed_enabled, seller_id' as const;
+  'id, slug, name, price, currency, is_active, available_from, available_until, product_type, embed_enabled, seller_id, checkout_profile' as const;
 
 type EmbedProduct = {
   id: string;
@@ -36,6 +37,7 @@ type EmbedProduct = {
   product_type: string;
   embed_enabled: boolean;
   seller_id: string | null;
+  checkout_profile?: unknown;
 };
 
 export async function OPTIONS(request: NextRequest) {
@@ -108,6 +110,10 @@ export async function POST(request: Request) {
       status: 'denied',
     });
     return embedJson({ error: 'Product is not available' }, 404, origin, allowedOrigins);
+  }
+
+  if (requiresStandardCheckout(product.checkout_profile)) {
+    return embedJson({ error: 'This product requires the standard checkout. Open the product page to continue.', code: 'STANDARD_CHECKOUT_REQUIRED' }, 422, origin, allowedOrigins);
   }
 
   // W146 B6: legacy products priced under Stripe's minimum exist in seller databases;

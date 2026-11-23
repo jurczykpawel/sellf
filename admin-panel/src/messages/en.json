@@ -1486,6 +1486,9 @@
     "invalidPrice": "Invalid Price"
   },
   "paymentStatus": {
+    "differentAccount": "This purchase belongs to another account",
+    "differentAccountDetails": "You are signed in to a different account. Sign out to continue with the account used for this purchase.",
+    "signOutAndContinue": "Sign out and continue",
     "preparingLoginLink": "Preparing your login link…",
     "invalidSession": "Invalid payment session ID.",
     "verificationFailed": "Could not verify payment. Please try again.",

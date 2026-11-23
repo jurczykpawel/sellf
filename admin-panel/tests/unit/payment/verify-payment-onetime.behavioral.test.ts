@@ -367,7 +367,7 @@ describe.skipIf(!hasSupabase)('verifyPaymentSession — success-redirect capture
     expect(purchaseCalls()).toHaveLength(0);
   });
 
-  it('subscription mode (logged in) → access granted, scenario=subscription, no one-time RPC/webhook', async () => {
+  it('subscription mode (logged in) waits for a saved receipt without a one-time RPC/webhook', async () => {
     const cs = uniq('cs');
     const email = uniq('reg') + '@example.com';
     createdEmails.push(email);
@@ -380,7 +380,7 @@ describe.skipIf(!hasSupabase)('verifyPaymentSession — success-redirect capture
       },
     });
     const r = await verifyPaymentSession(cs, asUser(userId, email));
-    expect(r.access_granted).toBe(true);
+    expect(r.access_granted).toBe(false);
     expect(r.scenario).toBe('subscription');
     expect(purchaseCalls()).toHaveLength(0);
   });
@@ -1075,7 +1075,7 @@ describe.skipIf(!hasSupabase)('paid reconciliation recovery against local DB', (
   }
 
 describe.skipIf(!hasSupabase)('refunded order verification', () => {
-  it('returns a terminal refund for a paid session without fulfilling it again', async () => {
+  it.each(['session', 'intent'] as const)('returns a terminal refund for a paid %s without fulfilling it again', async path => {
     const product = await createProduct();
     const cs = uniq('cs'); const pi = uniq('pi');
     const email = uniq('refund') + '@example.com'; createdEmails.push(email);
@@ -1083,10 +1083,12 @@ describe.skipIf(!hasSupabase)('refunded order verification', () => {
     await seedPendingTx({ sessionId: cs, productId: product.id, email, pi, userId, status: 'completed' });
     const { error } = await db!.from('payment_transactions').update({ status: 'refunded', refunded_amount: 1000 }).eq('session_id', cs);
     expect(error).toBeNull();
-    h.stripe = makeStripeShim({ session: paidSession(cs, product.id, email, { payment_intent: pi }) });
-    const result = await verifyPaymentSession(cs, asUser(userId, email));
+    const recorded = (await import('../../fixtures/stripe/dispute_payment_intent_won.json')).default;
+    const session = paidSession(cs, product.id, email, { payment_intent: pi });
+    h.stripe = makeStripeShim({ session, paymentIntent: { ...recorded, id: pi, status: 'succeeded', amount: 1000, currency: 'usd', receipt_email: email, metadata: { product_id: product.id } }, sessionsByPI: [session] });
+    const result = path === 'session' ? await verifyPaymentSession(cs, asUser(userId, email)) : await verifyPaymentIntent(pi, asUser(userId, email));
     expect(result.error).toBeUndefined();
-    expect(result.payment_status).toBe('refunded');
+    expect(result).toMatchObject({ payment_status: 'refunded' });
     expect(result.access_granted).toBe(false);
     expect(mapVerifiedPaymentToStatus(result).paymentStatus).toBe('refunded');
     expect(await hasAccess(userId, product.id)).toBe(false);
@@ -1094,6 +1096,32 @@ describe.skipIf(!hasSupabase)('refunded order verification', () => {
     expect(purchaseCalls()).toHaveLength(0);
     expect((await verifyPaymentSession(cs, asUser('different-user', 'different@example.com'))).error).toBe('Session does not belong to current user');
   });
+
+  it('returns only account recovery fields for another buyer intent', async () => {
+    const recording = (await import('../../fixtures/stripe/dispute_payment_intent_won.json')).default;
+    h.stripe = makeStripeShim({ paymentIntent: { ...recording, id: 'pi_other_buyer', status: 'succeeded', receipt_email: 'buyer-b@example.com', metadata: { product_id: crypto.randomUUID() } }, sessionsByPI: [] });
+    const result = await verifyPaymentIntent('pi_other_buyer', asUser('buyer-a', 'buyer-a@example.com'));
+    expect(result).toMatchObject({ error_code: 'ACCOUNT_MISMATCH', access_granted: false });
+    expect(result.customer_email).toBeUndefined();
+    expect(result.metadata).toBeUndefined();
+  });
+
+  it('a signed-in buyer still claims a completed guest payment through its intent', async () => {
+    const product = await createProduct(), cs = uniq('cs'), pi = uniq('pi'), email = `${uniq('claim')}@example.com`;
+    createdEmails.push(email);
+    const buyer = await createAuthUser(email);
+    const transaction = await seedPendingTx({ sessionId: cs, productId: product.id, email, pi, status: 'completed' });
+    expect((await db!.from('guest_purchases').insert({ product_id: product.id, customer_email: email, session_id: cs, transaction_amount: 1000, transaction_id: transaction })).error).toBeNull();
+    expect(await hasAccess(buyer, product.id)).toBe(false);
+    const recorded = (await import('../../fixtures/stripe/dispute_payment_intent_won.json')).default;
+    const session = paidSession(cs, product.id, email, { payment_intent: pi });
+    h.stripe = makeStripeShim({ session, paymentIntent: { ...recorded, id: pi, status: 'succeeded', amount: 1000, currency: 'usd', receipt_email: email, metadata: { product_id: product.id } }, sessionsByPI: [session] });
+    const result = await verifyPaymentIntent(pi, asUser(buyer, email));
+    expect(result.access_granted).toBe(true);
+    expect((await db!.from('payment_transactions').select('user_id').eq('session_id', cs).single()).data?.user_id).toBe(buyer);
+    expect(await hasAccess(buyer, product.id)).toBe(true);
+  });
+
 });
 
 describe.skipIf(!hasSupabase)('settled order verification', () => {
@@ -1111,6 +1139,14 @@ describe.skipIf(!hasSupabase)('settled order verification', () => {
     expect(result.payment_status).toBe(status === 'partially_refunded' ? 'paid' : 'disputed');
     expect(result.access_granted).toBe(status === 'partially_refunded');
     expect(mapVerifiedPaymentToStatus(result).paymentStatus).toBe(status === 'partially_refunded' ? 'completed' : 'disputed');
+    const recorded = (await import('../../fixtures/stripe/dispute_payment_intent_won.json')).default;
+    const session = paidSession(cs, product.id, email, { payment_intent: pi });
+    h.stripe = makeStripeShim({ session, paymentIntent: { ...recorded, id: pi, status: 'succeeded', amount: 1000, currency: 'usd', receipt_email: email, metadata: { product_id: product.id } }, sessionsByPI: [session] });
+    const intent = await verifyPaymentIntent(pi, asUser(userId, email));
+    expect(intent.error).toBeUndefined();
+    expect(intent.access_granted).toBe(status === 'partially_refunded');
+    expect(mapVerifiedPaymentToStatus(intent).paymentStatus).toBe(status === 'partially_refunded' ? 'completed' : 'disputed');
+
     expect((await fetchTx(cs))?.status).toBe(status);
     expect(purchaseCalls()).toHaveLength(0);
     expect((await verifyPaymentSession(cs, asUser('different-user', 'different@example.com'))).error).toBe('Session does not belong to current user');
@@ -1138,5 +1174,46 @@ describe.skipIf(!hasSupabase)('paid offer withdrawn before the webhook @J185', (
     expect(await hasAccess(buyer, product.id)).toBe(true);
     expect(await hasAccess(buyer, bump.id)).toBe(true);
     expect(purchaseCalls()).toHaveLength(1);
+  });
+});
+
+describe.skipIf(!hasSupabase)('subscription receipt verification @J730', () => {
+  it.each(['open', 'unpaid'])('does not complete a subscription while it is %s', async state => {
+    const recorded = (await import('../../fixtures/stripe/trial-first-mail-checkout.json')).default;
+    h.stripe = makeStripeShim({ session: { ...recorded, id: uniq('cs'), status: state === 'open' ? 'open' : 'complete', payment_status: state === 'unpaid' ? 'unpaid' : 'paid' } });
+    const result = await verifyPaymentSession('cs_not_paid');
+    expect(result.access_granted).toBeUndefined();
+    expect(result.scenario).toBeUndefined();
+    expect(purchaseCalls()).toHaveLength(0);
+  });
+  it.each(['refunded', 'disputed', 'completed', 'partially_refunded'])('uses the saved invoice %s state for both visitors @J730', async status => {
+    const recorded = (await import('../../fixtures/stripe/trial-first-mail-checkout.json')).default;
+    const product = await createProduct({ product_type: 'subscription', price: 0, recurring_price: 10, billing_interval: 'month', billing_interval_count: 1 });
+    const cs = uniq('cs'), invoice = uniq('in'), email = `${uniq('sub-receipt')}@example.com`;
+    createdEmails.push(email);
+    const buyer = await createAuthUser(email);
+    const id = await seedPendingTx({ sessionId: invoice, productId: product.id, email, userId: buyer, status: 'completed' });
+    expect((await db!.from('payment_transactions').update({ status, stripe_invoice_id: invoice, refunded_amount: status === 'refunded' ? 1000 : status === 'partially_refunded' ? 100 : 0 }).eq('id', id)).error).toBeNull();
+    const terminal = status === 'refunded' || status === 'disputed';
+    if (!terminal) expect((await db!.from('user_product_access').insert({ user_id: buyer, product_id: product.id, access_expires_at: new Date(Date.now() + 86400000).toISOString() })).error).toBeNull();
+    for (const expanded of [false, true]) {
+      h.stripe = makeStripeShim({ session: { ...recorded, id: cs, invoice: expanded ? { id: invoice } : invoice, metadata: { product_id: product.id }, customer_details: { email } } });
+      for (const user of [null, asUser(buyer, email)]) {
+        const result = await verifyPaymentSession(cs, user);
+        expect(result).toMatchObject({ session_id: cs, payment_status: terminal ? status : 'paid', access_granted: !terminal });
+        expect(mapVerifiedPaymentToStatus(result).paymentStatus).toBe(terminal ? status : user ? 'completed' : 'magic_link_sent');
+      }
+      const foreign = await verifyPaymentSession(cs, asUser('another', 'other@example.com'));
+      expect(foreign.error).toBe('Session does not belong to current user');
+      expect(foreign.customer_email).toBeUndefined();
+    }
+    expect(purchaseCalls()).toHaveLength(0);
+  });
+  it('waits for subscription fulfillment instead of promising unrecorded access', async () => {
+    const recorded = (await import('../../fixtures/stripe/trial-first-mail-checkout.json')).default;
+    h.stripe = makeStripeShim({ session: { ...recorded, id: uniq('cs'), customer_details: { email: 'waiting@example.com' }, metadata: {} } });
+    const result = await verifyPaymentSession('cs_waiting', asUser('waiting', 'waiting@example.com'));
+    expect(result.access_granted).toBe(false);
+    expect(mapVerifiedPaymentToStatus(result).paymentStatus).toBe('received');
   });
 });

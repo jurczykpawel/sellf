@@ -135,7 +135,7 @@ describe('Access wiring', () => {
     expect(helper).toMatch(/from\(['"]issued_licenses['"]\)/);
     expect(helper).toMatch(/\.eq\(['"]user_id['"],\s*user\.id\)/);
     expect(helper).toMatch(/\.is\(['"]user_id['"],\s*null\)/);
-    expect(helper).toMatch(/\.eq\(['"]email['"],\s*user\.email\)/);
+    expect(helper).toMatch(/\.eq\(['"]email['"],\s*user\.email!\.toLowerCase\(\)\)/);
     expect(helper).not.toMatch(/\.or\(\s*`[^`]*(?:email|user)/);
   });
 });

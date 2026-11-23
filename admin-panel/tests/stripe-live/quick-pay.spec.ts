@@ -33,7 +33,9 @@ async function payOnHostedCheckout(page: Page) {
   const layout = async () => await classicNumber.isVisible() || await classicCard.isVisible() ? 'classic'
     : await form.getByTestId('payment-accordion-wrapper').isVisible() ? 'framed' : 'loading';
   await expect.poll(layout, { timeout: 60000, intervals: [500] }).not.toBe('loading');
-  if (await layout() === 'classic') {
+  const checkoutLayout = await layout();
+  console.log('[stripe-live] Hosted checkout layout:', checkoutLayout);
+  if (checkoutLayout === 'classic') {
     if (!await classicNumber.isVisible()) await classicCard.click();
     await classicNumber.fill('4242424242424242');
     await page.locator('input[name="cardExpiry"]').fill('1234');
@@ -49,7 +51,9 @@ async function payOnHostedCheckout(page: Page) {
     const name = form.locator('input[name="name"]'); if (await name.isVisible()) await name.fill('Quick Pay Buyer');
     // Saving to Link would ask for a phone number; the buyer pays as a guest.
     const link = form.locator('input[name="linkOptIn"]'); if (await link.isVisible() && await link.isChecked()) await link.uncheck();
-    await form.getByTestId('payment-form-submit-button').click();
+    const submit = form.getByTestId('payment-form-submit-button');
+    await expect(submit).toBeEnabled();
+    await submit.press('Enter');
   }
   await page.waitForURL(/\/order\/.*\/transfer\?token=/, { timeout: 120000 });
 }

@@ -113,3 +113,9 @@ Anulowanie nieopłaconego przelewu z dostępem od złożenia usuwa okres tego za
 Zamknięcie okna sprzedaży (`available_until`) zatrzymuje nowe zakupy; kupujący z ważnym dostępem zachowują stronę produktu, chronioną treść, bramkę logowania i bramki elementów. Goście, osoby bez dostępu i z wygasłym dostępem nie otworzą zamkniętej oferty. Wstrzymanie i archiwizacja zachowują opisane wyżej działanie.
 
 Na liście produktów **Escape** zamyka menu **Więcej akcji** i przywraca fokus na jego przycisku, również wtedy, gdy fokus był na akcji wewnątrz menu.
+
+Produkty z niepustym profilem zamówienia wymagają standardowego formularza na stronie produktu. Osadzony checkout nie zbiera danych modułów: API odmawia utworzenia sesji kodem `422 STANDARD_CHECKOUT_REQUIRED`, a komunikat kieruje do strony produktu. Ta sama reguła obowiązuje przy darmowym dostępie przez embed. Serwer sprawdza zakres ilości, także ukryte minimum, przed przygotowaniem płatności.
+
+Potwierdzenie subskrypcji korzysta z zapisanej płatności za fakturę i bieżącego uprawnienia. Pełny zwrot pokazuje **Płatność zwrócona** z `access_granted: false`; anulowanie bez zwrotu zachowuje opłacony okres. Powrót z płatności na innym zalogowanym koncie wyjaśnia, że zakup należy do innego konta, i udostępnia przycisk **Wyloguj się i kontynuuj**, bez ujawniania adresu kupującego. API weryfikacji nadal zwraca HTTP 403 dla obcego konta.
+
+Stan terminalny obowiązuje także dla starszych linków powrotu z parametrem `payment_intent`.
