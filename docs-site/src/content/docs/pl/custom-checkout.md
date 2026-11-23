@@ -125,3 +125,7 @@ Bramka elementów z kilkoma produktami ustala dostęp do każdego slugu osobno, 
 Wyszukiwanie katalogu przyjmuje najwyżej 100 znaków Unicode po usunięciu skrajnych spacji i normalizacji NFC; dłuższa treść pokazuje błąd przy polu. Imię i nazwisko w starszym formularzu checkoutu przyjmuje najwyżej 200 jednostek UTF-16, zgodnie z zapisywanym polem; dłuższa wartość pokazuje błąd i blokuje wysłanie. Import uczestników z listy lub CSV od razu przelicza błędy uzupełnionych wierszy, jeśli błędy uczestników były już wyświetlone. Częściowy import przed pierwszym wysłaniem nie dodaje błędów i nie przenosi fokusu.
 
 Dialog prośby o zwrot utrzymuje fokus w środku, zamyka się klawiszem Escape i oddaje fokus przyciskowi, który go otworzył.
+
+## Aktualizacja koszyka przed płatnością
+
+Gdy aktualizacja koszyka trwa lub czeka w kolejce, przycisk płatności jest wyłączony, a koszyk informuje o ustalaniu kwoty. Dotyczy to także zmiany ilości i natychmiastowego powrotu do poprzedniej wartości. Jeśli serwer wykryje zmianę ilości podczas zatwierdzania, koszyk prosi kupującego o sprawdzenie zamówienia przed ponowną próbą płatności.

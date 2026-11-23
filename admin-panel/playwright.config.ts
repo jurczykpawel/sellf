@@ -52,7 +52,7 @@ function templateAuthorEnvironment(): Record<string, string> {
 // See scripts/fx-rate-stub-server.mjs.
 const FX_STUB_PORT = Number(process.env.FX_STUB_PORT || 3779);
 const APP_PORT = Number(process.env.PW_PORT || 3777);
-const APP_COMMAND = process.env.PW_PRODUCTION === '1' ? 'start' : 'dev';
+const APP_COMMAND = process.env.PW_PRODUCTION === '1' ? 'start' : process.env.PW_WEBPACK === '1' ? 'dev:webpack' : 'dev';
 const FX_STUB_BASE_URL = `http://127.0.0.1:${FX_STUB_PORT}/v1`;
 
 // Visual test projects run a subset of tests at different viewports with screenshots

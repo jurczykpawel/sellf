@@ -77,6 +77,8 @@ What a key looks like: `<payload>.<signature>`. The payload is base64url JSON, f
 
 `exp` is `null` for a key without expiry. `domain` appears only when the product asks for a license domain. The full list of fields is in the [technical contract](/llms/license-integration.md#claims).
 
+For subscription checkouts, additional answers (including a required license domain) are validated and saved before payment confirmation. Clearing an optional answer before payment also clears its saved value. The paid invoice keeps those answers on its order and uses them to issue and email the license. Renewals retain the original answers. Retrying the same invoice reuses its order and license instead of creating another purchase. Checkout profiles remain limited to one-time products. Saved answers from an unpaid checkout are removed after confirmed expiration; answers on a paid invoice are retained.
+
 ### TypeScript / Node
 
 One file, no dependencies, Node 18+ or Bun. Copy it into your project as `sellf-license.ts`.

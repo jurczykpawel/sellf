@@ -181,3 +181,13 @@ it('keeps response timing out of the identity sent when leaving checkout', async
   await queue.update(null);
   expect(expire).toHaveBeenCalledExactlyOnceWith({ clientSecret: response.clientSecret, checkoutSessionId: response.checkoutSessionId, bindingToken: response.bindingToken });
 });
+
+it('keeps an unapplied response pending while Stripe is refreshing',async()=>{
+  const pending=vi.fn(),apply=vi.fn(),fail=vi.fn(),response=deferred<ReturnType<typeof identity>>();
+  const queue=createCheckoutSessionQueue(vi.fn(),pending);
+  const draining=queue.update({key:'B',run:()=>response.promise,apply,fail});
+  queue.pause();response.resolve(identity('cs_test_b'));await draining;
+  expect(pending).toHaveBeenLastCalledWith(true);
+  await queue.update({key:'B',run:async()=>identity('cs_test_b'),apply,fail});
+  expect(apply).toHaveBeenCalledOnce();expect(pending).toHaveBeenLastCalledWith(false);
+});

@@ -4,7 +4,7 @@ import { expect, it, vi } from 'vitest';
 vi.mock('@/lib/security/safe-fetch', async original => ({ ...await original<typeof import('@/lib/security/safe-fetch')>(), getSsrfSafeAgent: () => undefined }));
 vi.mock('@/lib/validations/webhook', async original => ({ ...await original<typeof import('@/lib/validations/webhook')>(), validateWebhookUrlAsync: async () => ({ valid: true }) }));
 import { SupabaseWebhookQueue } from '@/lib/services/webhook-queue/supabase-queue';
-import { handleWebhookDeliveriesRetry } from '@/app/api/cron/route';
+import { handleWebhookDeliveriesRetry } from '@/app/api/cron/webhook-deliveries';
 import { verifyWebhookSignature } from '@/lib/services/webhook-queue/signature';
 const db=createClient(process.env.SUPABASE_URL!,process.env.SUPABASE_SERVICE_ROLE_KEY!);
 it.each(['license.issued','order.participants_needed', 'purchase.completed', 'lead.captured'])('retries %s as a signed complete message while keeping logs private', async event => {

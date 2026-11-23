@@ -77,6 +77,8 @@ Jak wygląda klucz: `<payload>.<podpis>`. Payload to JSON zakodowany w base64url
 
 `exp` ma wartość `null`, gdy klucz nie wygasa. `domain` pojawia się tylko wtedy, gdy produkt prosi o domenę licencji. Pełna lista pól jest w [opisie technicznym](/llms/license-integration.md#claims).
 
+W koszyku subskrypcji dodatkowe odpowiedzi (w tym wymagana domena licencji) są walidowane i zapisywane przed potwierdzeniem płatności. Wyczyszczenie opcjonalnej odpowiedzi przed płatnością usuwa jej wcześniej zapisaną wartość. Opłacona faktura zachowuje je w zamówieniu i korzysta z nich przy wystawieniu oraz wysyłce licencji. Odnowienie zachowuje odpowiedzi z zakupu. Ponowienie tej samej faktury korzysta z jej zamówienia i licencji, zamiast tworzyć kolejny zakup. Profile koszyka nadal obsługują wyłącznie produkty jednorazowe. Zapisane odpowiedzi z nieopłaconego koszyka są usuwane po potwierdzonym wygaśnięciu; odpowiedzi zapisane na opłaconej fakturze pozostają.
+
 ### TypeScript / Node
 
 Jeden plik, bez zależności, Node 18+ albo Bun. Skopiuj go do projektu jako `sellf-license.ts`. Komentarze w kodzie są po angielsku, tak jak w wersji angielskiej tej strony.

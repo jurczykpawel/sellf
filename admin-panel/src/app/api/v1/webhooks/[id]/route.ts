@@ -7,6 +7,7 @@
  */
 
 import { NextRequest } from 'next/server';
+import { validateCustomHeaders } from '@/lib/webhooks/customization-form';
 import { ApiValidationError } from '@/lib/api/errors';
 import {
   handleCorsPreFlight,
@@ -224,6 +225,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       if (!fieldNameValidation.valid) {
         return apiError(request, 'INVALID_INPUT', fieldNameValidation.error || 'Invalid custom payload field name');
       }
+    }
+
+    if (!validateCustomHeaders(body.custom_headers)) {
+      return apiError(request, 'INVALID_INPUT', 'Invalid custom headers', { custom_headers: ['invalid'] });
     }
 
     // Payload customization (custom headers/fields/field selection) is a Pro feature.

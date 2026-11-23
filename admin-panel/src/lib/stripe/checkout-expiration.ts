@@ -24,7 +24,10 @@ export async function abandonPendingCheckoutSession(
       .update({ status: 'abandoned', updated_at: new Date().toISOString() })
       .eq('session_id', sessionId)
       .eq('status', 'pending');
-    if (!error) return { success: true };
+    if (!error) {
+      const cleanup = await supabase.from('subscription_checkout_fields').delete().eq('stripe_object_id', sessionId);
+      return cleanup.error ? { success: false, error: 'Unable to reconcile checkout session', status: 503 } : { success: true };
+    }
     console.error('[abandonPendingCheckoutSession] Update failed:', error);
   } catch (error) {
     console.error('[abandonPendingCheckoutSession] Request failed:', error instanceof Error ? error.message : 'Unknown error');

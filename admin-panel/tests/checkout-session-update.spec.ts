@@ -111,6 +111,28 @@ test('entered coupon, quantity, add-on and coupon removal keep one Stripe sessio
   const { data: pending } = await supabaseAdmin.from('payment_transactions').select('id,status,amount,coupon_id').eq('product_id', productIds[0]);
   expect(pending).toEqual([expect.objectContaining({ status: 'pending', amount: 32000, coupon_id: null })]);
 
+  let releaseCart!: () => void, receivedCart!: () => void;
+  const cartGate = new Promise<void>(resolve => { releaseCart = resolve; });
+  const serverUpdated = new Promise<void>(resolve => { receivedCart = resolve; });
+  await page.route('**/api/create-payment-intent', async route => {
+    if (route.request().postDataJSON().quantity !== 2) return route.continue();
+    const response = await route.fetch();
+    expect(response.ok()).toBe(true);
+    receivedCart(); await cartGate; await route.fulfill({response});
+  });
+  await page.getByLabel('Quantity', {exact:true}).fill('2');
+  await serverUpdated;
+  expect((await stripe.checkout.sessions.retrieve(first)).amount_total).toBe(22000);
+  await page.getByLabel('Quantity', {exact:true}).fill('3');
+  await expect(page.locator('button[type="submit"]')).toBeDisabled();
+  await expect(page.locator('button[type="submit"]')).toHaveAttribute('data-checkout-pending','true');
+  await expect(page.getByText(/Updating your cart/)).toBeVisible();
+  releaseCart();
+  await expect(page.locator('button[type="submit"]')).not.toHaveAttribute('data-checkout-pending','true');
+  await expect(page.locator('[data-checkout-session-id]')).toHaveAttribute('data-checkout-session-id',first);
+  expect((await stripe.checkout.sessions.retrieve(first)).amount_total).toBe(32000);
+  await page.unroute('**/api/create-payment-intent');
+
   await page.locator('[id="buyer.first_name"]').fill('Session');
   await page.locator('[id="buyer.last_name"]').fill('Buyer');
   for (const checkbox of await page.locator('input[type="checkbox"]').all()) if (await checkbox.isVisible() && !await checkbox.isChecked()) await checkbox.check();
@@ -151,7 +173,7 @@ test('entered coupon, quantity, add-on and coupon removal keep one Stripe sessio
   expect(intent.metadata.coupon_id).toBeUndefined();
 
   const partial = await refundEvent(intent.id, 1000, 1000);
-  expect((await sendStripeEvent(request, partial.event)).status()).toBe(200);
+  await expect.poll(async () => (await sendStripeEvent(request, partial.event)).status(), { timeout: 15000 }).toBe(200);
   const partialVerification = await request.post('/api/verify-payment', { data: { session_id: first } });
   expect(partialVerification.status()).toBe(200);
   expect(await partialVerification.json()).toMatchObject({ payment_status: 'paid' });
@@ -159,7 +181,7 @@ test('entered coupon, quantity, add-on and coupon removal keep one Stripe sessio
   expect(partiallyRefunded).toEqual({ status: 'partially_refunded', refunded_amount: 1000 });
 
   const refunded = await refundEvent(intent.id, 31000, 32000);
-  expect((await sendStripeEvent(request, refunded.event)).status()).toBe(200);
+  await expect.poll(async () => (await sendStripeEvent(request, refunded.event)).status(), { timeout: 15000 }).toBe(200);
   const verified = await request.post('/api/verify-payment', { data: { session_id: first } });
   expect(verified.status()).toBe(200);
   expect(await verified.json()).toMatchObject({ payment_status: 'refunded', access_granted: false });

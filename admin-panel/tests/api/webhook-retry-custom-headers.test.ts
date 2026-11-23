@@ -47,7 +47,7 @@ vi.mock('@/lib/validations/webhook', () => ({
 
 // Import the cron handler AFTER the mocks so the dispatcher it pulls in binds to
 // the mocked undici.
-const { handleWebhookDeliveriesRetry } = await import('@/app/api/cron/route');
+const { handleWebhookDeliveriesRetry } = await import('@/app/api/cron/webhook-deliveries');
 
 const admin = createClient(
   process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321',

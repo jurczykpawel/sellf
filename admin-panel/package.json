@@ -5,6 +5,7 @@
   "license": "Elastic-2.0",
   "scripts": {
     "dev": "next dev --turbopack",
+    "dev:webpack": "next dev --webpack",
     "prebuild": "chflags -R nouchg,nohidden .next 2>/dev/null; rm -rf .next 2>/dev/null; true",
     "build": "next build",
     "start": "next start",

@@ -27,7 +27,8 @@ function fixtures(status = 'open', rowStatus = 'pending', paymentStatus?: Stripe
     };
     return query;
   });
-  const from = vi.fn(() => ({ update }));
+  const remove = vi.fn(() => ({eq:vi.fn(async()=>({error:null}))}));
+  const from = vi.fn(() => ({ update, delete:remove }));
   const stripe = {
     checkout: { sessions: {
       retrieve: vi.fn(async () => ({ id: row.session_id, status, payment_intent: paymentStatus ? 'pi_test_first' : null, metadata: { product_id: 'product', user_id: '' } })),
@@ -35,7 +36,7 @@ function fixtures(status = 'open', rowStatus = 'pending', paymentStatus?: Stripe
     } },
     paymentIntents: { retrieve: vi.fn(async () => ({ id: 'pi_test_first', status: paymentStatus })) },
   };
-  return { row, update, from, db: { from } as unknown as ReturnType<typeof createAdminClient>, stripe: stripe as unknown as Stripe, sessions: stripe.checkout.sessions, intents: stripe.paymentIntents };
+  return { row, update, remove, from, db: { from } as unknown as ReturnType<typeof createAdminClient>, stripe: stripe as unknown as Stripe, sessions: stripe.checkout.sessions, intents: stripe.paymentIntents };
 }
 function input(token?: string) {
   return {
@@ -118,4 +119,14 @@ describe('checkout expiration', () => {
     expect(buildWebhookParams('https://shop.example/api/webhooks/stripe').enabled_events).toContain('checkout.session.expired');
     expect(RETRIABLE_EVENTS.has('checkout.session.expired')).toBe(true);
   });
+});
+
+it('removes the private fields of an expired checkout and keeps paid fields',async()=>{
+  const unpaid=fixtures('expired');
+  expect((await expireBoundCheckoutSession(unpaid.stripe,unpaid.db,input())).success).toBe(true);
+  expect(unpaid.from).toHaveBeenCalledWith('subscription_checkout_fields');
+  expect(unpaid.remove).toHaveBeenCalledOnce();
+  const paid=fixtures('complete','completed');
+  await expireBoundCheckoutSession(paid.stripe,paid.db,input());
+  expect(paid.remove).not.toHaveBeenCalled();
 });

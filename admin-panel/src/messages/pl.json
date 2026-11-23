@@ -262,6 +262,7 @@
       "publishVersion": "Opublikuj tę wersję"
   },
   "checkout": {
+    "updatingCart": "Aktualizujemy koszyk. Płatność będzie dostępna po ustaleniu kwoty.",
     "cartChanged": "Koszyk się zmienił. Sprawdź go przed ponowną próbą płatności.",
     "invoiceSection": {
       "wantInvoice": "Chcę fakturę na firmę",
@@ -2794,6 +2795,7 @@
         "keyPlaceholder": "nazwa pola",
         "valuePlaceholder": "wartość lub token placeholder",
         "placeholdersHint": "Dostępne: {tokens}",
+        "headerInvalid": "Podaj poprawną nazwę nagłówka HTTP i wartość w jednym wierszu. Nagłówki transportowe i X-Sellf są zastrzeżone.",
         "headersLabel": "Własne nagłówki",
         "headersConfigured": "Własne nagłówki skonfigurowane",
         "deleteHeaders": "Usuń",

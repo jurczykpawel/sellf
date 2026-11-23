@@ -31,7 +31,8 @@ describe('checkout expire-only request', () => {
     try {
       const query = { eq: vi.fn().mockReturnThis(), then: (resolve: (value: object) => void) => resolve({ error: null }) };
       const update = vi.fn(() => query);
-      const from = vi.fn(() => ({ update }));
+      const remove = vi.fn(() => query);
+      const from = vi.fn((_table: string) => ({ update, delete: remove }));
       mocks.admin.mockReturnValue({ from });
       const sessions = {
         retrieve: vi.fn(async () => ({ status: 'open', metadata: { product_id: productId } })),
@@ -43,7 +44,9 @@ describe('checkout expire-only request', () => {
       expect(response.status).toBe(200);
       expect(sessions.expire).toHaveBeenCalledWith('cs_test_first');
       expect(sessions.create).not.toHaveBeenCalled();
-      expect(from).toHaveBeenCalledExactlyOnceWith('payment_transactions');
+      expect(from.mock.calls.map(([table])=>table)).toEqual(['payment_transactions','subscription_checkout_fields']);
+      expect(remove).toHaveBeenCalledOnce();
+      expect(query.eq).toHaveBeenCalledWith('stripe_object_id','cs_test_first');
       expect(query.eq).toHaveBeenCalledWith('status', 'pending');
     } finally {
       if (secret === undefined) delete process.env.CHECKOUT_BINDING_SECRET;

@@ -76,6 +76,7 @@ export function buildSubscriptionSessionConfig(
       product_slug: product.slug,
       ...(input.locale === 'pl' || input.locale === 'en' ? { locale: input.locale } : {}),
       product_type: 'subscription',
+      ...(input.attributionRef ? { sf_attr_ref: input.attributionRef } : {}),
       user_id: userId || null,
       [STRIPE_INSTANCE_METADATA_KEY]: input.instanceId,
     },

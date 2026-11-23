@@ -362,6 +362,14 @@ export async function POST(request: NextRequest) {
 
       customFieldsToSave = valuesResult.values;
       persistCustomFields = async () => {
+        if (isSubscription) {
+          const { error } = await admin.from('subscription_checkout_fields').upsert({
+            reference: stripeMetadata.sf_attr_ref ?? stripeMetadata.subscription_id ?? stripeObjectId,
+            stripe_object_id: stripeObjectId, product_id: productId, user_id: sessionUserId,
+            custom_field_values: valuesResult.values,
+          }, { onConflict: 'reference' });
+          return error ? NextResponse.json({ success: false, error: 'Failed to save custom field values' }, { status: 500 }) : null;
+        }
         const sessionId = isCheckoutSession ? stripeObjectId : null;
         const piId = isCheckoutSession ? null : stripeObjectId;
         const matcher = sessionId

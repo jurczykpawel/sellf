@@ -2,6 +2,22 @@
 -- Requires the updater shipped with 2026.11.0 or later.
 -- Sections retain dependency order; later function definitions take precedence.
 
+CREATE TABLE public.subscription_checkout_fields (
+  reference text PRIMARY KEY CHECK (length(reference) BETWEEN 1 AND 255),
+  stripe_object_id text NOT NULL UNIQUE CHECK (length(stripe_object_id) BETWEEN 1 AND 255),
+  product_id uuid NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  custom_field_values jsonb NOT NULL CHECK (jsonb_typeof(custom_field_values) = 'object'),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX subscription_checkout_fields_product_idx ON public.subscription_checkout_fields(product_id);
+CREATE INDEX subscription_checkout_fields_user_idx ON public.subscription_checkout_fields(user_id);
+ALTER TABLE public.subscription_checkout_fields ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.subscription_checkout_fields FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.subscription_checkout_fields TO service_role;
+CREATE POLICY subscription_checkout_fields_service ON public.subscription_checkout_fields TO service_role
+  USING ((SELECT auth.role()) = 'service_role') WITH CHECK ((SELECT auth.role()) = 'service_role');
+
 -- ===== Checkout details =====
 -- ===== Source: 20261111000000_checkout_details_reconciliation.sql =====
 -- Preserve completion while recording missing required checkout modules.

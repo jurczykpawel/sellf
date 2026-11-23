@@ -91,6 +91,7 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
       await expect(page.getByText('Selected plan', { exact: true }).first()).toBeVisible();
       await page.getByRole('main').getByRole('button', { name: 'Select', exact: true }).first().click();
       await expect(page).toHaveURL(new RegExp(`/checkout/${slug}(?:[?]|$)`));
+      await startNativeCheckout(page);
     }
     if (kind !== 'transfer') await page.goto(`/${locale}/checkout/${slug}?email=${encodeURIComponent(email)}${couponCode ? `&coupon=${couponCode}` : ''}`);
     if (kind === 'transfer') {

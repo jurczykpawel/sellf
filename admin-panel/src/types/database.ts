@@ -4432,6 +4432,55 @@ export type Database = {
           },
         ]
       }
+      subscription_checkout_fields: {
+        Row: {
+          created_at: string
+          custom_field_values: Json
+          product_id: string
+          reference: string
+          stripe_object_id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          custom_field_values: Json
+          product_id: string
+          reference: string
+          stripe_object_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          custom_field_values?: Json
+          product_id?: string
+          reference?: string
+          stripe_object_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_checkout_fields_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_checkout_fields_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "seller_customer_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "subscription_checkout_fields_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_access_stats"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           cancel_at_period_end: boolean

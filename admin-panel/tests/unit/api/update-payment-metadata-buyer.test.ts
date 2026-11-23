@@ -13,6 +13,7 @@ const PRODUCT_ID = '11111111-1111-4111-8111-111111111111';
 
 const mocks = vi.hoisted(() => ({
   adminRpc: vi.fn(),
+  upsert: vi.fn(async()=>({error:null})),
   customUpdate: vi.fn(async () => ({ error: null })),
   productRead: vi.fn(),
   sessionsRetrieve: vi.fn(),
@@ -26,7 +27,7 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(async () => ({ auth: { getUser: async () => ({ data: { user: mocks.user } }) } })),
 }));
 vi.mock('@/lib/supabase/admin', () => ({
-  createAdminClient: vi.fn(() => ({ rpc: mocks.adminRpc, from: () => ({ update: (value: unknown) => ({ match: () => mocks.customUpdate(value) }), select: () => ({ eq: () => ({ single: mocks.productRead }) }) }) })),
+  createAdminClient: vi.fn(() => ({ rpc: mocks.adminRpc, from: () => ({ upsert:mocks.upsert, update: (value: unknown) => ({ match: () => mocks.customUpdate(value) }), select: () => ({ eq: () => ({ single: mocks.productRead }) }) }) })),
 }));
 vi.mock('@/lib/rate-limiting', () => ({
   checkRateLimit: vi.fn().mockResolvedValue(true),
@@ -442,4 +443,24 @@ it('stores a legacy name at the boundary including its final Polish letter', asy
 it('uses configured profile names independently of an unused legacy name', async () => {
   mocks.productRead.mockResolvedValue({ data: { checkout_profile: { v: 1, modules: [] }, currency: 'PLN' }, error: null });
   expect((await POST(makeRequest(SESSION_ID, { moduleValues: {}, fullName: 'R'.repeat(201) }))).status).toBe(200);
+});
+
+it.each([SESSION_ID,PI_ID])('stores subscription fields before confirming %s',async id=>{
+  mocks.sessionsRetrieve.mockResolvedValue({id:SESSION_ID,status:'open',mode:'subscription',amount_total:1100,currency:'pln',metadata:{product_id:PRODUCT_ID},customer:null});
+  mocks.piRetrieve.mockResolvedValue({id:PI_ID,status:'requires_confirmation',amount:1100,currency:'pln',metadata:{product_id:PRODUCT_ID,product_type:'subscription',subscription_id:'sub_1'},customer:null});
+  mocks.productRead.mockResolvedValue({data:{custom_checkout_fields:[{id:'department',type:'text',label:'Department',required:true,max_length:100}]},error:null});
+  const response=await POST(makeRequest(id,{email:'buyer@example.com',customFieldValues:{department:'Training'}}));
+  expect(response.status).toBe(200);
+  expect(mocks.upsert).toHaveBeenCalledWith(expect.objectContaining({reference:id===PI_ID?'sub_1':SESSION_ID,stripe_object_id:id,product_id:PRODUCT_ID,custom_field_values:{department:'Training'}}),{onConflict:'reference'});
+});
+
+it.each([SESSION_ID, PI_ID])('clears an optional subscription answer before confirming %s', async id => {
+  mocks.sessionsRetrieve.mockResolvedValue({id:SESSION_ID,status:'open',mode:'subscription',metadata:{product_id:PRODUCT_ID},customer:null});
+  mocks.piRetrieve.mockResolvedValue({id:PI_ID,status:'requires_payment_method',metadata:{product_id:PRODUCT_ID,product_type:'subscription',subscription_id:'sub_1'},customer:null});
+  mocks.productRead.mockResolvedValue({data:{custom_checkout_fields:[{id:'department',type:'text',label:'Department',required:false,max_length:100}]},error:null});
+  expect((await POST(makeRequest(id,{customFieldValues:{department:'Training'}}))).status).toBe(200);
+  expect(mocks.upsert).toHaveBeenCalledWith(expect.objectContaining({custom_field_values:{department:'Training'}}),{onConflict:'reference'});
+  mocks.upsert.mockClear();
+  expect((await POST(makeRequest(id,{customFieldValues:{department:''}}))).status).toBe(200);
+  expect(mocks.upsert).toHaveBeenCalledWith(expect.objectContaining({custom_field_values:{}}),{onConflict:'reference'});
 });

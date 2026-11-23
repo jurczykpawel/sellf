@@ -17,6 +17,7 @@ export interface CheckoutSessionTask<T extends CheckoutSessionIdentity> {
 
 export function createCheckoutSessionQueue<T extends CheckoutSessionIdentity>(
   expire: (identity: CheckoutSessionIdentity) => Promise<void>,
+  onPendingChange: (pending: boolean) => void = () => {},
 ): { update: (task: CheckoutSessionTask<T> | null, quiet?: boolean) => Promise<void>; pause: () => void } {
   let desired: CheckoutSessionTask<T> | null = null;
   let identity: CheckoutSessionIdentity | null = null;
@@ -37,6 +38,7 @@ export function createCheckoutSessionQueue<T extends CheckoutSessionIdentity>(
         const task = desired;
         if (!task) {
           if (identity) {
+            onPendingChange(true);
             await expire(identity);
             identity = null;
             signature = null;
@@ -54,6 +56,7 @@ export function createCheckoutSessionQueue<T extends CheckoutSessionIdentity>(
           return;
         }
         try {
+          onPendingChange(true);
           const received = await task.run(identity);
           result = received;
           identity = received.clientSecret ? { clientSecret: received.clientSecret, bindingToken: received.bindingToken, checkoutSessionId: received.checkoutSessionId } : null;
@@ -78,6 +81,7 @@ export function createCheckoutSessionQueue<T extends CheckoutSessionIdentity>(
       console.error('[checkoutSessionQueue] Expiration failed:', error instanceof Error ? error.message : 'Unknown error');
     } finally {
       running = false;
+      if (!paused) onPendingChange(false);
     }
   }
 

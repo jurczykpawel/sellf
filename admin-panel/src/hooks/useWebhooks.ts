@@ -8,7 +8,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { WebhookEndpoint } from '@/types/webhooks';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
-import { WEBHOOK_URL_REASONS, type WebhookUrlReason } from '@/lib/validations/webhook';
+import { WEBHOOK_URL_REASONS, type WebhookUrlReason } from '@/lib/webhooks/customization-form';
 import { api, ApiError, isExpectedApiError } from '@/lib/api/client';
 
 export function useWebhooks() {

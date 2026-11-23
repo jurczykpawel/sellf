@@ -138,3 +138,17 @@ it.each(['en', 'pl'] as const)('rejects a legacy name longer than the stored lim
   view.rerender(tree(locale, { invoice: { fullName: 'R'.repeat(199) + 'Ż', setFullName: vi.fn() } }));
   expect(view.container.querySelector('#fullName')?.getAttribute('aria-invalid')).toBe('false');
 });
+
+it.each(['en','pl'] as const)('marks the pending cart in %s and explains a quantity conflict', async locale => {
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => url === '/api/validate-email'
+    ? Response.json({success:true,data:{isValid:true}})
+    : Response.json({success:false,code:'quantity_snapshot_mismatch'},{status:409})));
+  const view=form(locale,{cartUpdating:true,quantityInvalid:true});
+  const button=view.container.querySelector('button[type=submit]')!;
+  expect(button.getAttribute('data-checkout-pending')).toBe('true');
+  expect(screen.getByText(locale==='pl'?/Aktualizujemy koszyk/:/Updating your cart/).getAttribute('role')).toBe('status');
+  view.rerender(tree(locale));
+  fireEvent.submit(view.container.querySelector('form')!);
+  expect((await screen.findByRole('alert')).textContent).toContain(locale==='pl'?'Koszyk się zmienił':'Your cart has changed');
+  expect(stripe.confirm).not.toHaveBeenCalled();
+});

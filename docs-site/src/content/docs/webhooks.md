@@ -902,3 +902,9 @@ The dashboard event picker describes all three; **Test endpoint** previews a com
 Creating or updating an endpoint with a missing or deleted product in `product_ids` returns HTTP **400**, `VALIDATION_ERROR`, with `error.details.product_ids`. Correct the selected products and retry. Updates save endpoint fields and product scope together; an invalid update keeps the previous settings, including when a selected product is deleted during the update.
 
 In delivery logs, Tab to the event-name button and press Enter or Space to expand or collapse the payload and response. The button exposes its expanded state and keeps keyboard focus.
+
+### Custom header validation and delivery log data
+
+Custom header names must be [HTTP tokens](https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.2) (no spaces, colons or non-ASCII characters); values must fit one HTTP header line. Transport headers (`Host`, `Content-Type`, `Content-Length`, `Content-Encoding`, `Connection`, `Transfer-Encoding`, `TE`, `Trailer`, `Upgrade`, `Expect`) and `X-Sellf-*` are reserved, regardless of case. Both the dashboard and API v1 reject invalid entries before saving. `Authorization` and headers such as `X-Tenant` are supported; values remain write-only.
+
+The endpoint log drawer and delivery dashboard show readable event data through `GET /api/v1/webhooks/logs`. License keys, buyer tokens and payment/participant links are replaced with `[REDACTED]`, including in older logs. An unreadable stored payload appears as `null`. Session access requires an administrator; API keys require `webhooks:read`. Actual signed deliveries retain their complete payload.

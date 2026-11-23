@@ -182,3 +182,22 @@ it('keeps a departed checkout retired when Stripe finishes loading', async () =>
   expect(fetch).toHaveBeenCalledTimes(2);
   expect(JSON.parse(fetch.mock.calls[1][1].body as string)).toMatchObject({ expireOnly: true });
 });
+
+it('keeps card input unavailable when an in-flight cart returns to its original selection',async()=>{
+  let release!:(value:Response)=>void; const started=vi.fn();
+  vi.stubGlobal('fetch',vi.fn((_url:string,init:RequestInit)=>{
+    const body=JSON.parse(init.body as string);
+    if(body.couponCode==='QUARTER'){started();return new Promise<Response>(resolve=>{release=resolve;});}
+    return Promise.resolve(Response.json({clientSecret:'cs_test_open_secret_value',checkoutSessionId:'cs_test_open'}));
+  }));
+  const product={id:'product',slug:'product',name:'Product',price:100,currency:'PLN',is_active:true};
+  const tree=()=>React.createElement(NextIntlClientProvider,{locale:'en',messages:en},React.createElement(PaidProductForm,{product,collectTermsOfService:false} as unknown as React.ComponentProps<typeof PaidProductForm>));
+  const view=render(tree());const card=await screen.findByLabelText('Card') as HTMLInputElement;
+  await waitFor(()=>expect(card.disabled).toBe(false));
+  state.coupon={code:'QUARTER',discount_type:'percentage',discount_value:25};view.rerender(tree());
+  await waitFor(()=>expect(started).toHaveBeenCalled());
+  state.coupon=null;view.rerender(tree());
+  expect(card.disabled).toBe(true);
+  await act(async()=>{release(Response.json({clientSecret:'cs_test_open_secret_value',checkoutSessionId:'cs_test_open'}));});
+  await waitFor(()=>expect(card.disabled).toBe(false));
+});

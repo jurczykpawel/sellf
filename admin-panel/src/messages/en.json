@@ -262,6 +262,7 @@
       "publishVersion": "Publish this version"
   },
   "checkout": {
+    "updatingCart": "Updating your cart. Payment will be available when the total is ready.",
     "cartChanged": "Your cart has changed. Review it before paying again.",
     "invoiceSection": {
       "wantInvoice": "I want a company invoice",
@@ -2794,6 +2795,7 @@
         "keyPlaceholder": "field name",
         "valuePlaceholder": "value or a placeholder token",
         "placeholdersHint": "Available: {tokens}",
+        "headerInvalid": "Use a valid HTTP header name and a single-line value. Transport and X-Sellf headers are reserved.",
         "headersLabel": "Custom headers",
         "headersConfigured": "Custom headers configured",
         "deleteHeaders": "Delete",

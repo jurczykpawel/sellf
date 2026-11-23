@@ -1282,8 +1282,22 @@ describe.skipIf(!hasSupabase)('canonical paid order fulfillment', () => {
           const queue = new SupabaseWebhookQueue(db!);
           const { data: queued } = await db!.from('webhook_logs').select('id').in('endpoint_id', endpoints);
           for (const row of queued!) await queue.forceRetryNow(row.id);
-          const due = await queue.pickDue(100);
-          for (const delivery of due.filter(d => endpoints.includes(d.endpointId))) {
+          const { data: pending, error: pendingError } = await db!.from('webhook_logs').select('id')
+            .in('endpoint_id', endpoints).eq('status', 'pending_retry');
+          expect(pendingError).toBeNull();
+          let due: Awaited<ReturnType<typeof queue.pickDue>> = [];
+          if (pending!.length) {
+            const { data: oldest, error: oldestError } = await db!.from('webhook_logs').select('next_retry_at')
+              .eq('status', 'pending_retry').not('next_retry_at', 'is', null).order('next_retry_at').limit(1).single();
+            expect(oldestError).toBeNull();
+            // Keep this fixture first without claiming another test's queued deliveries.
+            const priority = new Date(Date.parse(oldest!.next_retry_at!) - 1000).toISOString();
+            const { error } = await db!.from('webhook_logs').update({ next_retry_at: priority }).in('id', pending!.map(row => row.id));
+            expect(error).toBeNull();
+            due = await queue.pickDue(pending!.length);
+            expect(due.map(row => row.id).sort()).toEqual(pending!.map(row => row.id).sort());
+          }
+          for (const delivery of due) {
             const { data: endpoint } = await db!.from('webhook_endpoints').select('id,url,secret').eq('id', delivery.endpointId).single();
             const result = await WebhookDispatcher.dispatch(endpoint!, delivery.eventType, delivery.payload, { attemptCount: delivery.attemptCount + 1, deliveryId: delivery.id });
             await queue.markDelivered(delivery.id, result);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildCustomizationPayload, PAYLOAD_TOP_LEVEL_KEYS } from '@/lib/webhooks/customization-form';
+import { buildCustomizationPayload, isValidCustomHeader, validateCustomHeaders, PAYLOAD_TOP_LEVEL_KEYS } from '@/lib/webhooks/customization-form';
 
 const base = { payloadFieldsSelected: [...PAYLOAD_TOP_LEVEL_KEYS], extraFields: [], headerRows: [], deleteHeaders: false, hadHeaders: false };
 
@@ -30,4 +30,11 @@ describe('buildCustomizationPayload', () => {
 
 it('offers checkout order details for payload field selection', () => {
   expect(PAYLOAD_TOP_LEVEL_KEYS).toContain('orderDetails');
+});
+
+it('accepts HTTP token punctuation and authorization header values',()=>{
+  expect(isValidCustomHeader("X-!#$%&'*+-.^_`|~09",'tenant')).toBe(true);
+  expect(validateCustomHeaders({Authorization:'Bearer test','X-Tenant':'one'})).toBe(true);
+  expect(validateCustomHeaders(null)).toBe(true);
+  expect(validateCustomHeaders(['Header'])).toBe(false);
 });

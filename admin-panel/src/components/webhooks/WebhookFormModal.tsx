@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useProductsDropdown } from '@/hooks/useProducts';
-import { buildCustomizationPayload, PAYLOAD_TOP_LEVEL_KEYS, PLACEHOLDER_HINTS } from '@/lib/webhooks/customization-form';
+import { buildCustomizationPayload, isValidCustomHeader, PAYLOAD_TOP_LEVEL_KEYS, PLACEHOLDER_HINTS } from '@/lib/webhooks/customization-form';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from '@/components/ui/Modal';
 import { Tooltip } from '@/components/ui/Tooltip';
 import WebhookSecretRotation from '@/components/webhooks/WebhookSecretRotation';
@@ -47,7 +47,7 @@ export default function WebhookFormModal({
 
   const [formData, setFormData] = useState(() => buildFormData(editingEndpoint));
   const [productFilter, setProductFilter] = useState('');
-  const [fieldErrors, setFieldErrors] = useState<{ description?: string; events?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{ description?: string; events?: string; headers?: string }>({});
 
   const buildCustomState = (endpoint: typeof editingEndpoint) => ({
     payloadFieldsSelected: endpoint?.payload_field_selection ?? [...PAYLOAD_TOP_LEVEL_KEYS],
@@ -137,13 +137,15 @@ export default function WebhookFormModal({
           id="webhook-form"
           onSubmit={(e) => {
             e.preventDefault();
+            const invalidHeader = customizationLocked ? -1 : customState.headerRows.findIndex(row => row.key.trim() && !isValidCustomHeader(row.key.trim(), row.value));
             const errors = {
+              headers: invalidHeader >= 0 ? t('customization.headerInvalid') : undefined,
               description: formData.description.length > 500 ? t('descriptionTooLong') : undefined,
               events: formData.events.length === 0 ? t('eventsRequired') : undefined,
             };
             setFieldErrors(errors);
-            if (errors.description || errors.events) {
-              document.getElementById(errors.description ? 'webhook-description' : 'webhook-events')?.focus();
+            if (errors.description || errors.events || errors.headers) {
+              document.getElementById(errors.headers ? `webhook-header-${invalidHeader}` : errors.description ? 'webhook-description' : 'webhook-events')?.focus();
               return;
             }
             const mode = scopingLocked ? 'all' : formData.product_filter_mode;
@@ -442,16 +444,17 @@ export default function WebhookFormModal({
                   )}
                   {customState.headerRows.map((row, i) => (
                     <div key={i} className="flex gap-2 mb-2">
-                      <input value={row.key} placeholder={t('customization.headerNamePlaceholder')}
-                        onChange={(e) => setCustomState((s) => ({ ...s, headerRows: s.headerRows.map((r, j) => j === i ? { ...r, key: e.target.value } : r) }))}
+                      <input id={`webhook-header-${i}`} aria-invalid={fieldErrors.headers && !isValidCustomHeader(row.key.trim(),row.value) ? true : undefined} aria-describedby={fieldErrors.headers ? 'webhook-header-error-0' : undefined} value={row.key} placeholder={t('customization.headerNamePlaceholder')}
+                        onChange={(e) => { setFieldErrors(prev=>({...prev,headers:undefined})); setCustomState((s) => ({ ...s, headerRows: s.headerRows.map((r, j) => j === i ? { ...r, key: e.target.value } : r) })); }}
                         className="flex-1 px-2 py-1.5 bg-sf-input text-sf-heading border-2 border-sf-border-medium text-sm" />
                       <input type="password" autoComplete="off" value={row.value} placeholder={t('customization.headerValuePlaceholder')}
-                        onChange={(e) => setCustomState((s) => ({ ...s, headerRows: s.headerRows.map((r, j) => j === i ? { ...r, value: e.target.value } : r) }))}
+                        onChange={(e) => { setFieldErrors(prev=>({...prev,headers:undefined})); setCustomState((s) => ({ ...s, headerRows: s.headerRows.map((r, j) => j === i ? { ...r, value: e.target.value } : r) })); }}
                         className="flex-1 px-2 py-1.5 bg-sf-input text-sf-heading border-2 border-sf-border-medium text-sm font-mono" />
                       <button type="button" onClick={() => setCustomState((s) => ({ ...s, headerRows: s.headerRows.filter((_, j) => j !== i) }))}
                         className="px-2 text-sf-muted hover:text-red-500">×</button>
                     </div>
                   ))}
+                  {fieldErrors.headers && <p id="webhook-header-error-0" role="alert" className="text-sm text-sf-danger">{fieldErrors.headers}</p>}
                   <button type="button" onClick={() => setCustomState((s) => ({ ...s, headerRows: [...s.headerRows, { key: '', value: '' }] }))}
                     className="text-sm text-sf-accent hover:underline">{t('customization.addHeader')}</button>
                 </div>

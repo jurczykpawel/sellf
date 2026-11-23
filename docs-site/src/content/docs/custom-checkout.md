@@ -125,3 +125,7 @@ Mixed-product element gates resolve each requested slug separately when at least
 Catalogue searches accept at most 100 Unicode characters after trimming and NFC normalization; longer input shows an error beside the search field. Legacy checkout names accept at most 200 UTF-16 code units, matching the stored field; longer names show a field error and cannot be submitted. Participant paste/CSV imports immediately revalidate the filled rows when participant errors are already displayed. Partial imports before the first submission do not introduce errors or move focus.
 
 The refund request dialog supports keyboard focus containment, Escape to close, and focus return to its opening button.
+
+## Cart updates before payment
+
+While a cart update is running or queued, the Pay button is disabled and checkout explains that the total is being updated. This also applies when a buyer changes a quantity and immediately returns to its previous value. If the server detects a changed quantity at submission, checkout asks the buyer to review the cart before paying again.
