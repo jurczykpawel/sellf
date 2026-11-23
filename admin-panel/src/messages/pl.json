@@ -2909,7 +2909,7 @@
         "usersOnly": "Tylko użytkownicy"
       },
       "editKeyTitle": "Edytuj klucz API",
-      "editKeySubtitle": "Zmień nazwę, uprawnienia lub limit zapytań",
+      "editKeySubtitle": "Zmień nazwę klucza. Aby zmienić uprawnienia lub limit zapytań, utwórz nowy klucz.",
       "editSuccess": "Klucz API został zaktualizowany",
       "editError": "Nie udało się zaktualizować klucza API"
     },

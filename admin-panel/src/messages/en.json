@@ -2909,7 +2909,7 @@
         "usersOnly": "Users Only"
       },
       "editKeyTitle": "Edit API Key",
-      "editKeySubtitle": "Update name, permissions, or rate limit",
+      "editKeySubtitle": "Change the key name. To change permissions or the rate limit, create a new key.",
       "editSuccess": "API key updated successfully",
       "editError": "Failed to update API key"
     },
