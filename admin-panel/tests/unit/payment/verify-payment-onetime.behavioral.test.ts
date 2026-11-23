@@ -1096,6 +1096,32 @@ describe.skipIf(!hasSupabase)('refunded order verification', () => {
     expect(purchaseCalls()).toHaveLength(0);
     expect((await verifyPaymentSession(cs, asUser('different-user', 'different@example.com'))).error).toBe('Session does not belong to current user');
   });
+
+  it('returns only account recovery fields for another buyer intent', async () => {
+    const recording = (await import('../../fixtures/stripe/dispute_payment_intent_won.json')).default;
+    h.stripe = makeStripeShim({ paymentIntent: { ...recording, id: 'pi_other_buyer', status: 'succeeded', receipt_email: 'buyer-b@example.com', metadata: { product_id: crypto.randomUUID() } }, sessionsByPI: [] });
+    const result = await verifyPaymentIntent('pi_other_buyer', asUser('buyer-a', 'buyer-a@example.com'));
+    expect(result).toMatchObject({ error_code: 'ACCOUNT_MISMATCH', access_granted: false });
+    expect(result.customer_email).toBeUndefined();
+    expect(result.metadata).toBeUndefined();
+  });
+
+  it('a signed-in buyer still claims a completed guest payment through its intent', async () => {
+    const product = await createProduct(), cs = uniq('cs'), pi = uniq('pi'), email = `${uniq('claim')}@example.com`;
+    createdEmails.push(email);
+    const buyer = await createAuthUser(email);
+    const transaction = await seedPendingTx({ sessionId: cs, productId: product.id, email, pi, status: 'completed' });
+    expect((await db!.from('guest_purchases').insert({ product_id: product.id, customer_email: email, session_id: cs, transaction_amount: 1000, transaction_id: transaction })).error).toBeNull();
+    expect(await hasAccess(buyer, product.id)).toBe(false);
+    const recorded = (await import('../../fixtures/stripe/dispute_payment_intent_won.json')).default;
+    const session = paidSession(cs, product.id, email, { payment_intent: pi });
+    h.stripe = makeStripeShim({ session, paymentIntent: { ...recorded, id: pi, status: 'succeeded', amount: 1000, currency: 'usd', receipt_email: email, metadata: { product_id: product.id } }, sessionsByPI: [session] });
+    const result = await verifyPaymentIntent(pi, asUser(buyer, email));
+    expect(result.access_granted).toBe(true);
+    expect((await db!.from('payment_transactions').select('user_id').eq('session_id', cs).single()).data?.user_id).toBe(buyer);
+    expect(await hasAccess(buyer, product.id)).toBe(true);
+  });
+
 });
 
 describe.skipIf(!hasSupabase)('settled order verification', () => {
@@ -1182,13 +1208,4 @@ describe.skipIf(!hasSupabase)('subscription receipt verification @J730', () => {
     expect(result.access_granted).toBe(false);
     expect(mapVerifiedPaymentToStatus(result).paymentStatus).toBe('received');
   });
-});
-
-it('returns only account recovery fields for another buyer intent', async () => {
-  const recording = (await import('../../fixtures/stripe/dispute_payment_intent_won.json')).default;
-  h.stripe = makeStripeShim({ paymentIntent: { ...recording, id: 'pi_other_buyer', status: 'succeeded', receipt_email: 'buyer-b@example.com', metadata: { product_id: crypto.randomUUID() } }, sessionsByPI: [] });
-  const result = await verifyPaymentIntent('pi_other_buyer', asUser('buyer-a', 'buyer-a@example.com'));
-  expect(result).toMatchObject({ error_code: 'ACCOUNT_MISMATCH', access_granted: false });
-  expect(result.customer_email).toBeUndefined();
-  expect(result.metadata).toBeUndefined();
 });

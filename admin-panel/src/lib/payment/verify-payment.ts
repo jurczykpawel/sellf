@@ -309,7 +309,8 @@ export function classifyCachedPaymentAuth({
 async function getProcessedPaymentFromDatabase(
   sessionId: string,
   serviceClient: AdminClient,
-  user?: User | null
+  user?: User | null,
+  adjustedPaymentsOnly = false,
 ): Promise<PaymentVerificationResult | null> {
   // Look up existing completed transaction
   const { data: transaction, error } = await serviceClient
@@ -333,7 +334,7 @@ async function getProcessedPaymentFromDatabase(
       )
     `)
     .eq('session_id', sessionId)
-    .in('status', ['completed', 'partially_refunded', 'refunded', 'disputed'])
+    .in('status', adjustedPaymentsOnly ? ['partially_refunded', 'refunded', 'disputed'] : ['completed', 'partially_refunded', 'refunded', 'disputed'])
     .maybeSingle();
 
   if (error || !transaction) {
@@ -881,7 +882,7 @@ export async function verifyPaymentIntent(
             return { payment_intent_id: paymentIntent.id, status: paymentIntent.status, access_granted: false, error_code: 'ACCOUNT_MISMATCH', error: 'Session does not belong to current user' };
           }
 
-          const settled = await getProcessedPaymentFromDatabase(canonicalSessionId, serviceClient, user);
+          const settled = await getProcessedPaymentFromDatabase(canonicalSessionId, serviceClient, user, true);
           if (settled) return { ...settled, payment_intent_id: paymentIntent.id, status: paymentIntent.status };
 
           // Process payment using database function (multi-bump UUID array)
