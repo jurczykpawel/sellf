@@ -116,6 +116,6 @@ Cancelling an unpaid bank transfer with access granted on placement removes that
 
 Mixed-product element gates resolve each requested slug separately when at least one product is visible to the caller. Unavailable slugs receive no access without blocking valid ownership of another product. A request with no visible products remains unavailable. All returned states require the seller’s allowed origin.
 
-Catalogue searches accept at most 100 Unicode characters after trimming and NFC normalization; longer input shows an error beside the search field. Legacy checkout names accept at most 200 UTF-16 code units, matching the stored field; longer names show a field error and cannot be submitted. Participant paste/CSV imports immediately revalidate the filled rows.
+Catalogue searches accept at most 100 Unicode characters after trimming and NFC normalization; longer input shows an error beside the search field. Legacy checkout names accept at most 200 UTF-16 code units, matching the stored field; longer names show a field error and cannot be submitted. Participant paste/CSV imports immediately revalidate the filled rows when participant errors are already displayed. Partial imports before the first submission do not introduce errors or move focus.
 
 The refund request dialog supports keyboard focus containment, Escape to close, and focus return to its opening button.
