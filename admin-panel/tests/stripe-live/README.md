@@ -6,6 +6,8 @@ From `admin-panel/`, run:
 scripts/run-stripe-live-e2e.sh
 ```
 
+Set `PW_WEBPACK=1` to run the same browser checks with Next.js's supported Webpack dev engine when Turbopack is unavailable in the local environment. The default dev command and `PW_PRODUCTION=1` remain unchanged. The suite still uses genuine Stripe scripts, API calls and webhooks.
+
 Prerequisites: Bun dependencies and Playwright Chromium installed, Stripe CLI,
 `cloudflared`, Docker with disposable local Supabase running and migrations applied,
 and free ports 3777 (app), 3778 (receiver), 3779 (exchange-rate stub).
