@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { isValidEmailFormat } from '@/lib/validations/custom-checkout-fields'
-import { submitMagicLink } from '@/lib/auth/magic-link/submit'
+import { submitMagicLink, magicLinkRetryAt } from '@/lib/auth/magic-link/submit'
 import CaptchaWidget from '@/components/captcha/CaptchaWidget'
 import { useCaptcha } from '@/hooks/useCaptcha'
 import TermsCheckbox from '@/components/TermsCheckbox'
@@ -90,6 +90,8 @@ export default function LoginForm({ redirectTo, onMagicLinkSent }: { redirectTo?
               ? t('compliance.securityVerificationRequired')
               : result.reason === 'invalid_email'
                 ? t('auth.disposableEmailBlocked')
+                : result.reason === 'address_rate_limited'
+                  ? t('auth.magicLinkAddressRateLimit', { time: magicLinkRetryAt(result.retryAfterSeconds, locale) })
                 : result.reason === 'rate_limited'
                   ? t('auth.magicLinkRateLimit')
                   : t('auth.loginFailed')

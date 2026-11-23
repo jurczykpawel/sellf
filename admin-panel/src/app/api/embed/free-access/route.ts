@@ -143,7 +143,7 @@ export async function POST(request: Request) {
     if (result.code === 'invalid_email') {
       return embedJson({ error: 'Invalid request' }, 400, origin, allowedOrigins);
     }
-    if (result.code === 'rate_limited') {
+    if ((result.code === 'rate_limited' || result.code === 'address_rate_limited')) {
       return embedJson({ error: 'Too many requests' }, 429, origin, allowedOrigins);
     }
     if (result.code === 'maintenance') {

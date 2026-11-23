@@ -19,7 +19,7 @@ import {
   type CustomFieldValues,
 } from '@/lib/validations/custom-checkout-fields';
 import { OAuthIconButtons, signInWithOAuth, type OAuthProvider } from '@/components/OAuthIconButtons';
-import { submitMagicLink } from '@/lib/auth/magic-link/submit';
+import { submitMagicLink, magicLinkRetryAt } from '@/lib/auth/magic-link/submit';
 import { useConfig } from '@/components/providers/config-provider';
 import { useTracking } from '@/hooks/useTracking';
 import { useOto } from '@/hooks/useOto';
@@ -45,6 +45,7 @@ interface FreeProductFormProps {
 }
 
 export default function FreeProductForm({ product, collectTermsOfService, bundleComponents }: FreeProductFormProps) {
+  const tAuth = useTranslations('auth');
   const tDemo = useTranslations('demo');
   const t = useTranslations('productView');
   const tCheckout = useTranslations('checkout');
@@ -230,7 +231,9 @@ export default function FreeProductForm({ product, collectTermsOfService, bundle
             ? tDemo('authBlocked')
             : result.reason === 'captcha_missing'
               ? tCompliance('securityVerificationRequired')
-              : result.reason === 'rate_limited'
+              : result.reason === 'address_rate_limited'
+                  ? tAuth('magicLinkAddressRateLimit', { time: magicLinkRetryAt(result.retryAfterSeconds, locale) })
+                  : result.reason === 'rate_limited'
                   ? t('rateLimitError')
                   : result.reason === 'maintenance'
                     ? tCheckout('shopMaintenance')

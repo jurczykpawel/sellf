@@ -15,7 +15,7 @@ import { checkRateLimit } from '@/lib/rate-limiting';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { prepareFreeGrantRequest } from '@/lib/services/free-grant-context';
 
-import { allowMailToAddress } from './address-limit';
+import { allowMailToAddress, addressMailRetryAfterSeconds } from './address-limit';
 import { readBuyerEmailPolicy } from './buyer-email-policy';
 import { deliverMagicLink } from './deliver';
 import { queueAuthMailRetry } from './retry';
@@ -92,7 +92,7 @@ export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Pr
   const knownPurchase = input.retry === 'license' || (input.retry === 'post_checkout' && Boolean(input.data?.purchase_product));
   if (!emailAllowed) return input.retry && knownPurchase
     ? queueAuthMailRetry({ email: normalizedEmail, redirectTo: input.redirectTo, data: input.data, kind: input.retry, code: 'rate_limited' })
-    : { ok: false, code: 'rate_limited' };
+    : { ok: false, code: 'address_rate_limited', retryAfterSeconds: addressMailRetryAfterSeconds() };
 
   let redirectTo = input.redirectTo;
   let data = input.data;

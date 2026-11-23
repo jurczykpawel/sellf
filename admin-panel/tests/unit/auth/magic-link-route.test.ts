@@ -166,3 +166,8 @@ describe('POST /api/auth/magic-link', () => {
     expect((await res.json()).code).toBe(code);
   });
 });
+it('returns the daily address retry time with HTTP 429', async () => {
+  requestMagicLink.mockResolvedValue({ ok: false, code: 'address_rate_limited', retryAfterSeconds: 3600 });
+  const res = await POST(jsonRequest({ email: 'a@b.com', captchaToken: 't', flow: 'login' }));
+  expect(res.status).toBe(429); expect(res.headers.get('Retry-After')).toBe('3600');
+});

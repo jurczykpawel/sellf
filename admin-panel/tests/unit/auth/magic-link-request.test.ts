@@ -87,7 +87,7 @@ describe('requestMagicLink', () => {
 
     const result = await requestMagicLink(BASE_INPUT);
 
-    expect(result).toEqual({ ok: false, code: 'rate_limited' });
+    expect(result).toMatchObject({ ok: false, code: 'address_rate_limited' });
     expect(checkRateLimitForIdentifier).toHaveBeenCalledWith(
       'magic_link_email',
       5,
@@ -246,7 +246,7 @@ describe('sendTrustedMagicLink', () => {
       redirectTo: 'https://shop.example.com/auth/callback?flow=login',
     });
 
-    expect(result).toEqual({ ok: false, code: 'rate_limited' });
+    expect(result).toMatchObject({ ok: false, code: 'address_rate_limited' });
     expect(checkRateLimitForIdentifier).toHaveBeenCalledWith(
       'magic_link_email',
       5,
@@ -271,7 +271,7 @@ describe('sendTrustedMagicLink', () => {
       redirectTo: 'https://shop.example.com/auth/callback?flow=login',
     });
 
-    expect(sixth).toEqual({ ok: false, code: 'rate_limited' });
+    expect(sixth).toMatchObject({ ok: false, code: 'address_rate_limited' });
     expect(deliverMagicLink).toHaveBeenCalledTimes(5);
   });
 });
@@ -373,8 +373,15 @@ describe('post-payment link past the daily per-address limit @J292', () => {
 
   it('is refused, not parked, when no purchase for that address and product is known @J292', async () => {
     eventMailForSlug.mockResolvedValueOnce({});
-    expect(await requestMagicLink({ ...BASE_INPUT, flow: 'post_checkout', productSlug: 'anything' })).toEqual({ ok: false, code: 'rate_limited' });
+    expect(await requestMagicLink({ ...BASE_INPUT, flow: 'post_checkout', productSlug: 'anything' })).toMatchObject({ ok: false, code: 'address_rate_limited' });
     expect(policyRetry).not.toHaveBeenCalled();
     expect(deliverMagicLink).not.toHaveBeenCalled();
   });
+});
+it('identifies the daily address allowance independently from the IP limit', async () => {
+  vi.stubEnv('DEMO_MODE', 'false');
+  checkRateLimit.mockResolvedValue(true); checkRateLimitForIdentifier.mockResolvedValue(false);
+  verifyCaptchaToken.mockResolvedValue({ success: true }); validateEmailAction.mockResolvedValue({ isValid: true });
+  expect(await requestMagicLink({ ...BASE_INPUT, locale: 'pl' })).toMatchObject({ ok: false, code: 'address_rate_limited', retryAfterSeconds: expect.any(Number) });
+  vi.unstubAllEnvs();
 });

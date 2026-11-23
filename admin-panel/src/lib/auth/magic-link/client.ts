@@ -19,6 +19,7 @@ const KNOWN_ERROR_CODES: readonly MagicLinkErrorCode[] = [
   'captcha_failed',
   'invalid_email',
   'rate_limited',
+  'address_rate_limited',
   'send_failed',
   'maintenance',
 ];
@@ -60,7 +61,7 @@ export async function sendMagicLinkRequest(req: MagicLinkClientRequest): Promise
     if (response.ok) return { ok: true };
     if (isKnownErrorCode(json?.code)) {
       const fieldErrors = isFieldErrors(json.fieldErrors) ? json.fieldErrors : undefined;
-      return { ok: false, code: json.code, ...(fieldErrors ? { fieldErrors } : {}), ...(json.queued === true ? { queued: true as const } : {}) };
+      return { ok: false, code: json.code, ...(Number.isInteger(json.retryAfterSeconds) && json.retryAfterSeconds > 0 && json.retryAfterSeconds <= 86400 ? { retryAfterSeconds: json.retryAfterSeconds } : {}), ...(fieldErrors ? { fieldErrors } : {}), ...(json.queued === true ? { queued: true as const } : {}) };
     }
     return { ok: false, code: 'send_failed' };
   } catch {

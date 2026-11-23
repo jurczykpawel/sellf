@@ -100,6 +100,7 @@ const STATUS_BY_CODE: Record<MagicLinkErrorCode, number> = {
   captcha_failed: 400,
   invalid_email: 400,
   rate_limited: 429,
+  address_rate_limited: 429,
   send_failed: 502,
   maintenance: 503,
 };
@@ -146,5 +147,5 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ ok: true });
   }
-  return NextResponse.json(result, { status: STATUS_BY_CODE[result.code] });
+  return NextResponse.json(result, { status: STATUS_BY_CODE[result.code], ...(result.retryAfterSeconds ? { headers: { 'Retry-After': String(result.retryAfterSeconds) } } : {}) });
 }

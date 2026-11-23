@@ -946,6 +946,7 @@
     "backToLogin": "Back to Login",
     "title": "Sellf Admin",
     "oauthFailed": "Social login failed or was cancelled. Please try again or use a magic link.",
+    "magicLinkAddressRateLimit": "The daily link email limit for this address has been reached. Try again after {time}.",
     "magicLinkRateLimit": "Too many link requests. Wait 15 minutes and try again. If the limit remains, try again the next day.",
     "magicLinkExpiredTitle": "Link expired or already used",
     "magicLinkExpired": "This link has already been used or has expired — enter your email below to request a new one.",
