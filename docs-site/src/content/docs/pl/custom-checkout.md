@@ -113,3 +113,9 @@ Anulowanie nieopłaconego przelewu z dostępem od złożenia usuwa okres tego za
 Zamknięcie okna sprzedaży (`available_until`) zatrzymuje nowe zakupy; kupujący z ważnym dostępem zachowują stronę produktu, chronioną treść, bramkę logowania i bramki elementów. Goście, osoby bez dostępu i z wygasłym dostępem nie otworzą zamkniętej oferty. Wstrzymanie i archiwizacja zachowują opisane wyżej działanie.
 
 Na liście produktów **Escape** zamyka menu **Więcej akcji** i przywraca fokus na jego przycisku, również wtedy, gdy fokus był na akcji wewnątrz menu.
+
+Bramka elementów z kilkoma produktami ustala dostęp do każdego slugu osobno, jeśli przynajmniej jeden produkt jest widoczny dla wywołującego. Niedostępne slugi otrzymują brak dostępu i nie blokują posiadanego drugiego produktu. Żądanie bez widocznych produktów pozostaje niedostępne. Zwracane stany wymagają dozwolonego originu sprzedawcy.
+
+Wyszukiwanie katalogu przyjmuje najwyżej 100 znaków Unicode po usunięciu skrajnych spacji i normalizacji NFC; dłuższa treść pokazuje błąd przy polu. Imię i nazwisko w starszym formularzu checkoutu przyjmuje najwyżej 200 jednostek UTF-16, zgodnie z zapisywanym polem; dłuższa wartość pokazuje błąd i blokuje wysłanie. Import uczestników z listy lub CSV od razu przelicza błędy uzupełnionych wierszy.
+
+Dialog prośby o zwrot utrzymuje fokus w środku, zamyka się klawiszem Escape i oddaje fokus przyciskowi, który go otworzył.

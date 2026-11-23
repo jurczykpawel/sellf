@@ -189,3 +189,5 @@ Set Supabase Site URL, allow https://MY-SHOP-DOMAIN/** in Redirect URLs, and che
 
 Guide a real shop login test, sender/domain and DNS-authentication checks, and a spam-score test using a disposable account. Test other enabled flows separately. Report verified results and anything still untested; do not claim success from settings alone.
 ```
+
+If a consumed or expired Supabase link returns an `otp_expired` error in the URL fragment, Sellf displays a persistent explanation with a sign-in action. The message does not identify the link owner; supported return destinations are retained.

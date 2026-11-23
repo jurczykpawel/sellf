@@ -113,3 +113,9 @@ For time-limited products, another order retains access only until its own perio
 Video loading and unavailable messages follow the buyer view language (English or Polish).
 
 Cancelling an unpaid bank transfer with access granted on placement removes that order's period even if a later purchase extended the same product. Refunding a subscription invoice ends that subscription's rights while preserving separately purchased periods and administrator grants.
+
+Mixed-product element gates resolve each requested slug separately when at least one product is visible to the caller. Unavailable slugs receive no access without blocking valid ownership of another product. A request with no visible products remains unavailable. All returned states require the seller’s allowed origin.
+
+Catalogue searches accept at most 100 Unicode characters after trimming and NFC normalization; longer input shows an error beside the search field. Legacy checkout names accept at most 200 UTF-16 code units, matching the stored field; longer names show a field error and cannot be submitted. Participant paste/CSV imports immediately revalidate the filled rows.
+
+The refund request dialog supports keyboard focus containment, Escape to close, and focus return to its opening button.

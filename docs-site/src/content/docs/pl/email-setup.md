@@ -189,3 +189,5 @@ Ustaw Site URL w Supabase, dopuść https://DOMENA-MOJEGO-SKLEPU/** w Redirect U
 
 Przeprowadź rzeczywisty test logowania ze sklepu, sprawdzenie nadawcy/domeny i uwierzytelnienia DNS oraz test spam score na jednorazowym koncie. Pozostałe włączone procesy przetestuj osobno. Podaj zweryfikowane wyniki i to, co zostało nieprzetestowane; nie ogłaszaj sukcesu na podstawie samych ustawień.
 ```
+
+Jeśli zużyty lub wygasły link Supabase zwróci błąd `otp_expired` we fragmencie URL, Sellf pokazuje trwały komunikat z akcją logowania. Komunikat nie identyfikuje właściciela linku; obsługiwany cel powrotu zostaje zachowany.
