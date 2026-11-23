@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from './ui/Modal';
 import { useTranslations } from 'next-intl';
 import { Key } from 'lucide-react';
@@ -41,6 +41,7 @@ export default function ApiKeyFormModal({
   initialData,
   scopesLocked = false,
 }: ApiKeyFormModalProps) {
+  const id = useId();
   const t = useTranslations('admin.apiKeys');
   const tCommon = useTranslations('common');
 
@@ -153,10 +154,11 @@ export default function ApiKeyFormModal({
         <form id="api-key-form" onSubmit={handleSubmit} className="space-y-6">
           {/* Name */}
           <div>
-            <label className="block text-sm font-medium text-sf-body mb-1">
+            <label htmlFor={`${id}-name`} className="block text-sm font-medium text-sf-body mb-1">
               {t('keyName')} <span className="text-red-500">*</span>
             </label>
             <input
+              id={`${id}-name`}
               type="text"
               required
               value={formData.name}
@@ -264,11 +266,12 @@ export default function ApiKeyFormModal({
               {showAdvanced && (
                 <div className="mt-4 space-y-4 p-4 bg-sf-deep border-2 border-sf-border-medium">
                   <div>
-                    <label className="block text-sm font-medium text-sf-body mb-1">
+                    <label htmlFor={`${id}-rate`} className="block text-sm font-medium text-sf-body mb-1">
                       {t('rateLimit')}
                     </label>
                     <div className="flex items-center gap-2">
                       <input
+                        id={`${id}-rate`}
                         type="number"
                         min={1}
                         max={1000}
@@ -281,11 +284,12 @@ export default function ApiKeyFormModal({
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-sf-body mb-1">
+                    <label htmlFor={`${id}-expiry`} className="block text-sm font-medium text-sf-body mb-1">
                       {t('expiration')}
                     </label>
                     <input
-                      type="datetime-local"
+                      id={`${id}-expiry`}
+                        type="datetime-local"
                       value={formData.expires_at}
                       onChange={(e) => setFormData({ ...formData, expires_at: e.target.value })}
                       min={new Date().toISOString().slice(0, 16)}
