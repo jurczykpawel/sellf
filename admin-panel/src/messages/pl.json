@@ -5897,6 +5897,8 @@
     "beforePublishing": "Przed publikacją",
     "incompleteDraft": "Szkic może pozostać niepełny. Możesz go dalej edytować; popraw te ustawienia przed publikacją.",
     "fixSection": "Popraw: {section}",
+    "offerUnavailable": "Aby opublikować stronę oferty, produkt musi być aktywny i widoczny w sklepie.",
+    "productSalesSettings": "Otwórz ustawienia sprzedaży produktu",
     "unavailableBinding": "Wybierz ofertę lub kategorię, która jest teraz publiczna i dostępna.",
     "missingOffer": "Wybierz ofertę dla tej sekcji przed publikacją.",
     "orderHint": "Przeciągnij uchwyt, aby zmienić kolejność. Na klawiaturze użyj ↑ / ↓ na uchwycie.",

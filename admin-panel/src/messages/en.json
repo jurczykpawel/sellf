@@ -5897,6 +5897,8 @@
     "beforePublishing": "Before publishing",
     "incompleteDraft": "Drafts can stay incomplete. You can keep editing; fix these before publishing.",
     "fixSection": "Edit {section}",
+    "offerUnavailable": "To publish this offer page, make the product active and visible in the store.",
+    "productSalesSettings": "Open product sales settings",
     "unavailableBinding": "Choose an offer or category that is currently public and available.",
     "missingOffer": "Choose an offer for this section before publishing.",
     "orderHint": "Drag the handle to reorder. Use ↑ / ↓ on the handle with a keyboard.",

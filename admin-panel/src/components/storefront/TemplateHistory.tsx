@@ -96,7 +96,7 @@ export default function TemplateHistory({ productId }: { productId?: string }) {
       <button type="button" disabled={busy} onClick={() => { setDiff(null); void reload(); }} className={styles.secondary}>{t('reload')}</button>
     </header>
     {error && !validation?.errors.length && <p className={styles.error} role="alert">{t.has(error) ? t(error) : t('error')}</p>}
-    {validation && <ValidationIssues issues={validation.errors} blocking />}
+    {validation && <ValidationIssues issues={validation.errors} productId={productId} blocking />}
     <p className={styles.status} role="status">{notice}</p>
     {current && <>
       <p className={styles.revision}>{t('revision')} <strong>{current.revision}</strong></p>
