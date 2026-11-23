@@ -13,17 +13,17 @@ vi.mock('@/lib/actions/tags', () => ({ createTag: actions.save, updateTag: actio
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 for (const [locale, messages] of Object.entries({ en, pl })) {
   for (const kind of ['category', 'tag'] as const) {
-    it.each(['slug', 'name', ...(kind === 'category' ? ['description'] : [])])(`${locale} ${kind} validates %s at its field before saving`, async field => {
+    it.each(['slug', 'name', 'empty', ...(kind === 'category' ? ['description'] : [])])(`${locale} ${kind} validates %s at its field before saving`, async field => {
       const item = { id: 'test', name: 'Name', slug: 'valid', description: '', created_at: '' };
       render(React.createElement(NextIntlClientProvider, { locale, messages, children: kind === 'category'
         ? React.createElement(CategoryFormModal, { isOpen: true, onClose: vi.fn(), category: item })
         : React.createElement(TagFormModal, { isOpen: true, onClose: vi.fn(), tag: item }) }));
-      const input = document.querySelectorAll('input,textarea')[['name', 'slug', 'description'].indexOf(field)] as HTMLInputElement;
-      fireEvent.change(input, { target: { value: field === 'slug' ? 'bad slug <script>' : 'x'.repeat(field === 'description' ? 501 : 220) } });
+      const input = document.querySelectorAll('input,textarea')[['name', 'slug', 'description'].indexOf(field === 'empty' ? 'name' : field)] as HTMLInputElement;
+      fireEvent.change(input, { target: { value: field === 'empty' ? '   ' : field === 'slug' ? 'bad slug <script>' : 'x'.repeat(field === 'description' ? 501 : 220) } });
       fireEvent.submit(document.querySelector('form')!);
       expect(input.getAttribute('aria-invalid')).toBe('true');
       const error = document.getElementById(input.getAttribute('aria-describedby')!);
-      expect(error?.textContent).toBeTruthy();
+      expect(error?.textContent).toBe(field === 'slug' ? messages.common.taxonomyValidation.slug : field === 'empty' ? messages.common.taxonomyValidation.required : messages.common.taxonomyValidation.tooLong.replace('{max}', String(field === 'description' ? 500 : kind === 'tag' ? 50 : 100)));
       expect(error?.textContent).not.toMatch(/regex|expected string|must match/);
       await waitFor(() => expect(document.activeElement).toBe(input));
       expect(actions.save).not.toHaveBeenCalled();

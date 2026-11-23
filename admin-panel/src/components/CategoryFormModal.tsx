@@ -55,7 +55,7 @@ export default function CategoryFormModal({ isOpen, onClose, category }: Categor
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!validation.validate(e.currentTarget, { name, slug, description })) return
     setIsLoading(true)

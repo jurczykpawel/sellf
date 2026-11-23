@@ -85,6 +85,7 @@ test('business cart tutorial starts when the custom cart is switched on and its 
   await page.getByTestId('tutorial-help-b2b-checkout-profile').click();
   await popover(page).locator('.driver-popover-next-btn').click();
   await expect(popover(page).locator('.driver-popover-description')).toHaveText(stepText('b2b-checkout-profile', 'enable').bodyAct!);
+  await expect(popover(page).locator('.driver-popover-next-btn')).toHaveText('Dalej');
   await popover(page).locator('.driver-popover-next-btn').click();
   await expect(popover(page).locator('.driver-popover-description')).toHaveText(mustAct);
   await page.getByLabel('Własny koszyk dla tego produktu').check();
@@ -104,6 +105,7 @@ test('event tutorial leads from switching on event mode to adding a date and a p
   await popover(page).locator('.driver-popover-next-btn').click();
   await expect(popoverTitle(page)).toHaveText(stepText('events', 'addSession').title);
   await expect(popover(page).locator('.driver-popover-description')).toHaveText(stepText('events', 'addSession').bodyAct!);
+  await expect(popover(page).locator('.driver-popover-next-btn')).toHaveText('Dalej');
   await page.getByRole('button', { name: 'Dodaj termin', exact: true }).click();
   await walk(page, 'events', ['session', 'tier', 'addTier']);
   await expect(page.getByRole('group', { name: /^Termin 1/ })).toBeVisible();

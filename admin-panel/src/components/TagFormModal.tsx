@@ -52,7 +52,7 @@ export default function TagFormModal({ isOpen, onClose, tag }: TagFormModalProps
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!validation.validate(e.currentTarget, { name, slug })) return
     setIsLoading(true)
