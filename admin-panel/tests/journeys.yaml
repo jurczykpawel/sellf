@@ -5605,6 +5605,94 @@
         "browser",
         "sandbox"
       ]
+    },
+    {
+      "id": "J730",
+      "title": "Subscription receipt reflects the refunded invoice",
+      "values": {
+        "persona": "guest",
+        "entry": "checkout",
+        "product": "subscription",
+        "payment": "refund",
+        "moment": "after_payment",
+        "operation": "read"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Sees a terminal refund; cancellation without refund keeps the paid period.",
+        "seller": "Existing offer and entitlement rules are preserved.",
+        "integrator": "Receives explicit verification or validation state."
+      },
+      "layers": [
+        "unit",
+        "database"
+      ]
+    },
+    {
+      "id": "J731",
+      "title": "Independent license remains visible after bundle refund",
+      "values": {
+        "persona": "signed_in",
+        "entry": "checkout",
+        "product": "bundle",
+        "payment": "refund",
+        "moment": "after_payment",
+        "operation": "read"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Receives the active independent key; refunded keys remain revoked.",
+        "seller": "Existing offer and entitlement rules are preserved.",
+        "integrator": "Receives explicit verification or validation state."
+      },
+      "layers": [
+        "unit",
+        "database"
+      ]
+    },
+    {
+      "id": "J732",
+      "title": "Return to a purchase from a different signed-in account",
+      "values": {
+        "persona": "signed_in",
+        "entry": "checkout",
+        "product": "paid",
+        "payment": "card",
+        "moment": "after_payment",
+        "operation": "read"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Can sign out and continue without seeing another account address.",
+        "seller": "Existing offer and entitlement rules are preserved.",
+        "integrator": "Receives explicit verification or validation state."
+      },
+      "layers": [
+        "browser",
+        "database"
+      ]
+    },
+    {
+      "id": "J733",
+      "title": "Embedded checkout respects profile quantity requirements",
+      "values": {
+        "persona": "guest",
+        "entry": "embed",
+        "product": "b2b_quantity",
+        "payment": "card",
+        "moment": "immediate",
+        "operation": "read"
+      },
+      "status": "automated",
+      "end_state": {
+        "buyer": "Uses standard checkout for profiles; no below-minimum session is created.",
+        "seller": "Existing offer and entitlement rules are preserved.",
+        "integrator": "Receives explicit verification or validation state."
+      },
+      "layers": [
+        "browser",
+        "database"
+      ]
     }
   ],
   "escapes": [

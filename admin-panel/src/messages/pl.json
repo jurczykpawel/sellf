@@ -1486,6 +1486,9 @@
     "invalidPrice": "Nieprawidłowa cena"
   },
   "paymentStatus": {
+    "differentAccount": "Ten zakup należy do innego konta",
+    "differentAccountDetails": "Jesteś zalogowany na inne konto. Wyloguj się, aby kontynuować z kontem użytym do tego zakupu.",
+    "signOutAndContinue": "Wyloguj się i kontynuuj",
     "preparingLoginLink": "Przygotowuję link logowania…",
     "invalidSession": "Nieprawidłowy identyfikator sesji płatności.",
     "verificationFailed": "Nie udało się zweryfikować płatności. Spróbuj ponownie.",

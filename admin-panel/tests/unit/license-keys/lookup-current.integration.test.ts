@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { expect, it } from 'vitest';
 import { findIssuedLicense, toIssuedLicenseResponse } from '@/lib/license-keys/lookup';
 
-it('keeps an independent key available after a newer bundle key is refunded @J712', async () => {
+it('keeps an independent key available after a newer bundle key is refunded @J731', async () => {
   const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   const email = `lookup-${crypto.randomUUID()}@example.com`;
   const buyer = await db.auth.admin.createUser({ email, email_confirm: true });

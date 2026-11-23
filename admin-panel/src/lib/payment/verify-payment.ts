@@ -162,7 +162,7 @@ export interface PaymentIntentVerificationResult {
   scenario?: string;
   send_magic_link?: boolean;
   oto_info?: OtoInfo;
-  error_code?: 'INVALID_SESSION';
+  error_code?: 'INVALID_SESSION' | 'ACCOUNT_MISMATCH';
   error?: string;
   reconciliation_error?: 'transient' | 'data';
 }
@@ -185,7 +185,7 @@ export interface PaymentVerificationResult {
   access_expires_at?: string | null;
   send_magic_link?: boolean;
   oto_info?: OtoInfo;
-  error_code?: 'INVALID_SESSION';
+  error_code?: 'INVALID_SESSION' | 'ACCOUNT_MISMATCH';
   error?: string;
   reconciliation_error?: 'transient' | 'data';
 }
@@ -196,6 +196,7 @@ export interface PaymentVerificationResult {
  * Returns null if payment not found in database (needs Stripe verification).
  */
 export type PaymentStatusKind =
+  | 'account_mismatch'
   | 'refunded'
   | 'disputed'
   | 'received'
@@ -217,6 +218,7 @@ interface VerifiedPaymentShape {
   send_magic_link?: boolean;
   requires_login?: boolean;
   error?: string;
+  error_code?: string;
 }
 
 interface MappedPaymentStatus {
@@ -232,6 +234,7 @@ interface MappedPaymentStatus {
  * in the contract are caught by unit tests.
  */
 export function mapVerifiedPaymentToStatus(result: VerifiedPaymentShape): MappedPaymentStatus {
+  if (result.error_code === 'ACCOUNT_MISMATCH') return { paymentStatus: 'account_mismatch', accessGranted: false, errorMessage: '' };
   if (result.payment_status === 'disputed') return { paymentStatus: 'disputed', accessGranted: false, errorMessage: '' };
   if (result.payment_status === 'refunded') return { paymentStatus: 'refunded', accessGranted: false, errorMessage: '' };
 
@@ -341,7 +344,7 @@ async function getProcessedPaymentFromDatabase(
       session_id: sessionId,
       status: 'complete',
       payment_status: 'paid',
-      error: 'Session does not belong to current user'
+      error_code: 'ACCOUNT_MISMATCH', access_granted: false, error: 'Session does not belong to current user'
     };
   }
 
@@ -351,7 +354,7 @@ async function getProcessedPaymentFromDatabase(
       session_id: sessionId,
       status: 'complete',
       payment_status: 'paid',
-      error: 'Session does not belong to current user'
+      error_code: 'ACCOUNT_MISMATCH', access_granted: false, error: 'Session does not belong to current user'
     };
   }
 
@@ -483,7 +486,7 @@ export async function verifyPaymentSession(
         session_id: session.id,
         status: session.status || 'unknown',
         payment_status: session.payment_status,
-        error: 'Session does not belong to current user'
+        error_code: 'ACCOUNT_MISMATCH', access_granted: false, error: 'Session does not belong to current user'
       };
     }
 
@@ -870,7 +873,7 @@ export async function verifyPaymentIntent(
 
           const ownerUserId = readOrderUserId(paymentIntent.metadata) ?? readOrderUserId(ownerSession?.metadata);
           if (!isCallerOrderOwner(user, ownerUserId, customerEmail || ownerSession?.customer_details?.email)) {
-            return { ...baseResponse, access_granted: false, error: 'Session does not belong to current user' };
+            return { ...baseResponse, access_granted: false, error_code: 'ACCOUNT_MISMATCH', error: 'Session does not belong to current user' };
           }
 
           // Process payment using database function (multi-bump UUID array)

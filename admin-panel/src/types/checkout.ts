@@ -46,6 +46,7 @@ export interface CheckoutErrorResponse {
 
 // Product types for checkout
 export interface ProductForCheckout {
+  checkout_profile?: unknown;
   id: string;
   slug: string;
   name: string;

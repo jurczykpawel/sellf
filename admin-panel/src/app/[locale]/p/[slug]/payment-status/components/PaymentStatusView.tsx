@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Confetti from 'react-confetti';
 import { useTranslations } from 'next-intl';
@@ -28,6 +28,8 @@ export default function PaymentStatusView({
   redirectUrl,
 }: PaymentStatusViewProps) {
   const t = useTranslations('paymentStatus');
+  const [switching, setSwitching] = useState(false);
+  const [switchError, setSwitchError] = useState(false);
   const router = useRouter();
   useEffect(() => {
     if (paymentStatus !== 'received') return;
@@ -87,6 +89,22 @@ export default function PaymentStatusView({
       userEmail: customerEmail || undefined,
     }, purchaseEventId);
   }, [paymentStatus, accessGranted, product, sessionId, paymentIntentId, customerEmail, track]);
+
+  if (paymentStatus === 'account_mismatch') {
+    return <PaymentStatusLayout product={product} statusInfo={statusInfo}>
+      <p className="text-sf-body mb-6">{t('differentAccountDetails')}</p>
+      <button disabled={switching} className="bg-sf-accent-bg text-white rounded-full px-6 py-3 disabled:opacity-50" onClick={async () => {
+        setSwitching(true); setSwitchError(false);
+        try {
+          const response = await fetch('/api/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ returnUrl: window.location.pathname + window.location.search }) });
+          if (!response.ok) throw new Error('Logout unavailable');
+          localStorage.removeItem('sf_role');
+          window.location.reload();
+        } catch { setSwitching(false); setSwitchError(true); }
+      }}>{t('signOutAndContinue')}</button>
+      {switchError && <p role="alert">{t('verificationFailed')}</p>}
+    </PaymentStatusLayout>;
+  }
 
   if (paymentStatus === 'disputed') {
     return <PaymentStatusLayout product={product} statusInfo={statusInfo}><p className="text-sf-body">{t('paymentDisputedDetails')}</p></PaymentStatusLayout>;
