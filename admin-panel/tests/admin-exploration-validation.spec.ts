@@ -74,7 +74,7 @@ for (const [locale, messages] of Object.entries({ en, pl })) {
       expect(draft.status()).toBe(200);
       await page.goto(`${prefix}/admin/templates/history?product=${productId}`);
       await page.getByRole('button', { name: messages.templatePreview.publishVersion, exact: true }).click();
-      await expect(page.getByRole('alert')).toContainText(messages.storefrontEditor.offerUnavailable);
+      await expect(page.getByRole('alert', { name: messages.storefrontEditor.beforePublishing })).toContainText(messages.storefrontEditor.offerUnavailable);
       const link = page.getByRole('link', { name: messages.storefrontEditor.productSalesSettings });
       await link.click();
       await expect(page.getByRole('dialog')).toBeVisible();
