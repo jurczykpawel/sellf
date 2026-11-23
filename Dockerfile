@@ -11,7 +11,7 @@
 # Bun installs dependencies only (bun.lock). Pinned to the same Bun as CI (setup-bun in
 # build-release.yml): the floating tag moved to 1.4.x, which rejects this bun.lock under
 # --frozen-lockfile. Debian-based so native modules match the Node stages below.
-FROM oven/bun:1.3.14-slim AS deps
+FROM oven/bun:1.4.5-slim AS deps
 WORKDIR /app/admin-panel
 COPY admin-panel/package.json admin-panel/bun.lock* ./
 RUN bun install --frozen-lockfile --ignore-scripts
@@ -19,7 +19,7 @@ RUN bun install --frozen-lockfile --ignore-scripts
 # Next.js builds and runs on Node, as in CI (build job) and on production (PM2 --interpreter
 # node). In oven/bun images `node` is a Bun shim, and Bun 1.3.14 segfaults at the end of
 # `next build` with Next 16.3.
-FROM node:22.23.3-trixie-slim@sha256:154ba2f4d6fec323d28e4f4bb86bba4677f1223391a1979cf521304e03a98dfa AS node-base
+FROM node:22.23.5-trixie-slim@sha256:68c76cfad89921b927eae28ba21407475e29d0ce450afcdbe70c1532db042b64 AS node-base
 
 # --- Build ---
 FROM node-base AS builder
