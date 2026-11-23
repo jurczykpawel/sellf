@@ -113,3 +113,7 @@ For time-limited products, another order retains access only until its own perio
 Video loading and unavailable messages follow the buyer view language (English or Polish).
 
 Cancelling an unpaid bank transfer with access granted on placement removes that order's period even if a later purchase extended the same product. Refunding a subscription invoice ends that subscription's rights while preserving separately purchased periods and administrator grants.
+
+## Cart updates before payment
+
+While a cart update is running or queued, the Pay button is disabled and checkout explains that the total is being updated. This also applies when a buyer changes a quantity and immediately returns to its previous value. If the server detects a changed quantity at submission, checkout asks the buyer to review the cart before paying again.

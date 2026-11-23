@@ -666,3 +666,9 @@ Zmiana URL webhooka zapisuje czas zmiany i zamyka oczekujące dostawy utworzone 
 Operacje `/api/v1/webhooks/logs/{logId}/retry`, `/replay`, `/force-retry` oraz `/api/v1/webhooks/events/{id}/retry` wymagają sesji administratora w panelu. Klucz API, również z zakresem `webhooks:write`, otrzyma HTTP `403`. Anulowanie i archiwizacja nadal korzystają z `webhooks:write`.
 
 Utworzenie lub edycja endpointu z nieistniejącym lub usuniętym produktem w `product_ids` zwraca HTTP **400**, `VALIDATION_ERROR` i `error.details.product_ids`. Popraw wybór produktów i ponów zapis. Podczas edycji pola endpointu i zakres produktów są zapisywane razem; niepoprawna edycja zachowuje poprzednie ustawienia, także gdy wybrany produkt zostanie usunięty w trakcie aktualizacji.
+
+### Walidacja nagłówków i dane w logach dostaw
+
+Nazwa własnego nagłówka musi być [tokenem HTTP](https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.2) (bez spacji, dwukropków i znaków spoza ASCII), a wartość mieścić się w jednym wierszu nagłówka HTTP. Nagłówki transportowe (`Host`, `Content-Type`, `Content-Length`, `Content-Encoding`, `Connection`, `Transfer-Encoding`, `TE`, `Trailer`, `Upgrade`, `Expect`) i `X-Sellf-*` są zastrzeżone bez względu na wielkość liter. Panel i API v1 odrzucają błędne wpisy przed zapisem. Możesz używać `Authorization` i nagłówków takich jak `X-Tenant`; ich wartości pozostają dostępne wyłącznie do zapisu.
+
+Panel logów endpointu i widok dostaw pokazują czytelne dane zdarzenia przez `GET /api/v1/webhooks/logs`. Klucze licencji, tokeny kupującego oraz linki do płatności i uczestników są zastępowane przez `[REDACTED]`, także w starszych logach. Gdy zapisanych danych nie da się odczytać, payload ma wartość `null`. Dostęp przez sesję wymaga administratora, a klucz API zakresu `webhooks:read`. Rzeczywista podpisana dostawa zachowuje pełny payload.

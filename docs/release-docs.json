@@ -785,5 +785,20 @@
   ],
   "4d6616c8a2118499217395ec23d07cac6cbaf8b7": [
     "buyer-emails.md"
+  ],
+  "5085f7bb5a8bba2cb45515bac43e71870b840ece": [
+    "license-integration.md"
+  ],
+  "e7aa951d758bfe4d5b77d70c4082c09410176ad9": [
+    "custom-checkout.md"
+  ],
+  "7b6126abb4f31d0ffcd4a01601420e3aa0f0b62c": [
+    "webhooks.md"
+  ],
+  "1287dd4a5b1f591685add08af929a8a7c0d10ec2": [
+    "webhooks.md"
+  ],
+  "9b5e5f5b1f3bb47f009211ffcbb815d8b23491e6": [
+    "none \u2014 internal cron worker extraction; HTTP behavior unchanged"
   ]
 }

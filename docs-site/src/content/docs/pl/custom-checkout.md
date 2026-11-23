@@ -113,3 +113,7 @@ Anulowanie nieopłaconego przelewu z dostępem od złożenia usuwa okres tego za
 Zamknięcie okna sprzedaży (`available_until`) zatrzymuje nowe zakupy; kupujący z ważnym dostępem zachowują stronę produktu, chronioną treść, bramkę logowania i bramki elementów. Goście, osoby bez dostępu i z wygasłym dostępem nie otworzą zamkniętej oferty. Wstrzymanie i archiwizacja zachowują opisane wyżej działanie.
 
 Na liście produktów **Escape** zamyka menu **Więcej akcji** i przywraca fokus na jego przycisku, również wtedy, gdy fokus był na akcji wewnątrz menu.
+
+## Aktualizacja koszyka przed płatnością
+
+Gdy aktualizacja koszyka trwa lub czeka w kolejce, przycisk płatności jest wyłączony, a koszyk informuje o ustalaniu kwoty. Dotyczy to także zmiany ilości i natychmiastowego powrotu do poprzedniej wartości. Jeśli serwer wykryje zmianę ilości podczas zatwierdzania, koszyk prosi kupującego o sprawdzenie zamówienia przed ponowną próbą płatności.
