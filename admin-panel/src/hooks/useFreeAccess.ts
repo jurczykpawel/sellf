@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { useCaptcha } from '@/hooks/useCaptcha';
 import { useTracking } from '@/hooks/useTracking';
 import { validateCustomFieldDefinitions, validateCustomFieldValues } from '@/lib/validations/custom-checkout-fields';
-import { submitMagicLink } from '@/lib/auth/magic-link/submit';
+import { submitMagicLink, magicLinkRetryAt } from '@/lib/auth/magic-link/submit';
 import { shouldShowTosCheckbox } from '@/lib/checkout/tos-display';
 import type { User } from '@supabase/supabase-js';
 import type { Product } from '@/types';
@@ -62,6 +62,7 @@ export function useFreeAccess({
   onFieldErrors,
 }: UseFreeAccessOptions): UseFreeAccessReturn {
   const locale = useLocale();
+  const tAuth = useTranslations('auth');
   const tDemo = useTranslations('demo');
   const t = useTranslations('checkout');
   const tCompliance = useTranslations('compliance');
@@ -158,7 +159,9 @@ export function useFreeAccess({
               ? tCompliance('securityVerificationRequired')
               : result.reason === 'invalid_email'
                 ? t('invalidEmail')
-                : result.reason === 'maintenance'
+                : result.reason === 'address_rate_limited'
+                  ? tAuth('magicLinkAddressRateLimit', { time: magicLinkRetryAt(result.retryAfterSeconds, locale) })
+                  : result.reason === 'maintenance'
                   ? t('shopMaintenance')
                   : t('unexpectedError');
         setPwywFreeMessage({ type: 'error', text });
@@ -176,7 +179,7 @@ export function useFreeAccess({
     } finally {
       setPwywFreeLoading(false);
     }
-  }, [customFieldValues, onFieldErrors, pwywFreeEmail, pwywFreeTermsAccepted, showTos, captcha, product, couponCode, searchParams, t, tCompliance, tDemo, track, locale]);
+  }, [customFieldValues, onFieldErrors, pwywFreeEmail, pwywFreeTermsAccepted, showTos, captcha, product, couponCode, searchParams, t, tCompliance, tDemo, tAuth, track, locale]);
 
   return {
     pwywFreeEmail,

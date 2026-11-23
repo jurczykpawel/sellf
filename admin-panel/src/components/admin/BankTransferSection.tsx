@@ -98,7 +98,7 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
     <ul data-tour="unpaid-lifecycle" className="my-3 space-y-1 text-sm" aria-label={t('lifecycle')}>
       {tx.status === 'awaiting_payment' && tx.invoice_hold_at && <li>{t('invoiceHoldAdmin')}</li>}
       {tx.status === 'awaiting_payment' && tx.release_at && <li>{t('releaseAt', { date: date(tx.release_at) })}{tx.reminder_at ? ` · ${t('reminderAt', { date: date(tx.reminder_at) })}` : ''}</li>}
-      {tx.transfer_declared_at && <li className="font-semibold text-sf-warning">{t('declaredBadge', { date: date(tx.transfer_declared_at) })}{tx.transfer_declared_note ? `: ${tx.transfer_declared_note}` : ''}{tx.release_at && Date.parse(tx.transfer_declared_at) >= Date.parse(tx.release_at) ? ` (${t('declaredAfterDeadline')})` : ''}</li>}
+      {tx.transfer_declared_at && <li className="font-semibold text-sf-warning [overflow-wrap:anywhere]">{t('declaredBadge', { date: date(tx.transfer_declared_at) })}{tx.transfer_declared_note ? `: ${tx.transfer_declared_note}` : ''}{tx.release_at && Date.parse(tx.transfer_declared_at) >= Date.parse(tx.release_at) ? ` (${t('declaredAfterDeadline')})` : ''}</li>}
       {tx.status === 'cancelled' && tx.cancel_reason && <li>{t(`cancelReason_${tx.cancel_reason === 'payment_window_expired' ? 'expired' : 'admin'}`)}</li>}
       {tx.reopened_at && <li>{t('reopened', { date: date(tx.reopened_at) })}</li>}
     </ul>

@@ -15,3 +15,9 @@ export const ADDRESS_MAIL_WINDOW_MINUTES = 1440;
 export function allowMailToAddress(email: string): Promise<boolean> {
   return checkRateLimitForIdentifier('magic_link_email', 5, ADDRESS_MAIL_WINDOW_MINUTES, `email:${canonicalizeEmailForBucket(email)}`);
 }
+
+export function addressMailRetryAfterSeconds(): number {
+  const window = ADDRESS_MAIL_WINDOW_MINUTES * 60;
+  return process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+    ? window : window - Math.floor(Date.now() / 1000) % window;
+}

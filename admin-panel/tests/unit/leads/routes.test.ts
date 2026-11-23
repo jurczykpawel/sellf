@@ -15,6 +15,7 @@ vi.mock('@/lib/services/webhook-service', () => ({ WebhookService: { trigger: m.
 import { GET as challenge, OPTIONS as challengeOptions } from '@/app/api/leads/challenge/route';
 import { POST as submit, OPTIONS as submitOptions } from '@/app/api/leads/submit/route';
 import { GET as config } from '@/app/api/products/[id]/playerstack/route';
+import { GET as arrive } from '@/app/[locale]/auth/lead/route';
 import { confirmLead } from '@/lib/leads/server';
 import { DEFAULT_LEAD_CONSENT } from '@/lib/leads/config';
 
@@ -232,4 +233,13 @@ it.each([
 it('keeps a configured Polish confirmation endpoint in the form language', async () => {
   const response = await config(req(undefined, origin, 'GET', '/api/products/guide/playerstack?locale=pl'), { params: Promise.resolve({ id: 'guide' }) });
   expect((await response.json()).emailGate.webhookUrl).toBe('https://shop.example.com/api/leads/submit?product=guide&locale=pl');
+});
+
+it.each(['pl', 'en'])('lands in the confirmed %s lead language regardless of URL and cookie language', async locale => {
+  await submit(req({ ...payload(), consentVersion: `1:${locale}` }));
+  const pending = rows.lead_submissions[0]; pending.id = 'lead-1'; pending.product = product;
+  const secret = new URL(m.send.mock.calls[0][0].redirectTo).searchParams.get('redirect_to')!.split('token=')[1];
+  m.user.mockResolvedValue({ data: { user: { id: 'u1', email: 'viewer@example.com' } } });
+  const response = await arrive(new Request(`https://shop.example.com/auth/lead?token=${secret}`, { headers: { cookie: `NEXT_LOCALE=${locale === 'pl' ? 'en' : 'pl'}` } }));
+  expect(response.headers.get('location')).toBe(`https://shop.example.com/${locale}/p/guide`);
 });

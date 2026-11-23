@@ -218,3 +218,7 @@ Wydanie i cofnięcie klucza wymaga dodatkowo `licenses:write`. Bez tego zakresu 
 W formularzach kategorii i tagów błędny slug oraz za długa nazwa lub opis wyświetlają komunikat w języku panelu przy polu i przenoszą fokus do pierwszego błędu. Popraw wartość i zapisz ponownie; odmowa nie zmienia zapisanych danych. Walidacja API nadal obowiązuje.
 
 `GET /api/v1/analytics/dashboard` i `/api/v1/analytics/revenue` przyjmują opcjonalny UUID `product_id`; brak lub pusty filtr oznacza wszystkie produkty. Błędny UUID zwraca HTTP 400 z `error.code: INVALID_INPUT` przed odczytem raportu. Raport przychodów odrzuca też nieprawidłowy `period` lub `group_by`, nierozpoznawalne daty oraz początek po końcu zakresu. Poprawne filtry, uwierzytelnianie i zakresy uprawnień działają jak dotąd.
+
+Nazwy kluczy mogą mieć najwyżej 100 znaków. Etykiety formularza są powiązane z polami, a błąd nazwy pojawia się przy polu w języku panelu. Edycja zmienia nazwę. Aby zmienić uprawnienia lub limit zapytań, utwórz nowy klucz.
+
+Otwarty formularz klucza zachowuje wpisaną nazwę podczas odświeżania panelu. Otwarcie innego klucza usuwa błąd poprzedniego pola.

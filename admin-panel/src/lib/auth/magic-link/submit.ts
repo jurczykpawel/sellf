@@ -24,7 +24,7 @@ export interface SubmitMagicLinkInput {
 
 export type MagicLinkSubmitResult =
   | { ok: true }
-  | { ok: false; reason: 'captcha_missing' | MagicLinkErrorCode; fieldErrors?: Record<string, string>; queued?: true };
+  | { ok: false; reason: 'captcha_missing' | MagicLinkErrorCode; fieldErrors?: Record<string, string>; retryAfterSeconds?: number; queued?: true };
 
 /**
  * Shared client-side submit step for the four magic-link forms: checks the
@@ -51,8 +51,12 @@ export async function submitMagicLink(input: SubmitMagicLinkInput): Promise<Magi
 
   if (!result.ok) {
     input.captcha.reset();
-    return { ok: false, reason: result.code, ...(result.fieldErrors ? { fieldErrors: result.fieldErrors } : {}), ...(result.queued ? { queued: true as const } : {}) };
+    return { ok: false, reason: result.code, ...(result.retryAfterSeconds ? { retryAfterSeconds: result.retryAfterSeconds } : {}), ...(result.fieldErrors ? { fieldErrors: result.fieldErrors } : {}), ...(result.queued ? { queued: true as const } : {}) };
   }
 
   return { ok: true };
+}
+
+export function magicLinkRetryAt(seconds: number | undefined, locale: string): string {
+  return new Date(Date.now() + (seconds ?? 86400) * 1000).toLocaleString(locale, { timeZoneName: 'short' });
 }

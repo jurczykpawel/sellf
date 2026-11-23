@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from './ui/Modal';
 import { useTranslations } from 'next-intl';
 import { Key } from 'lucide-react';
@@ -41,6 +41,9 @@ export default function ApiKeyFormModal({
   initialData,
   scopesLocked = false,
 }: ApiKeyFormModalProps) {
+  const id = useId();
+  const nameRef = useRef<HTMLInputElement>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
   const t = useTranslations('admin.apiKeys');
   const tCommon = useTranslations('common');
 
@@ -92,14 +95,13 @@ export default function ApiKeyFormModal({
   const [formData, setFormData] = useState<ApiKeyFormData>(() => buildFormData(initialData));
   const [showAdvanced, setShowAdvanced] = useState(() => (initialData?.rate_limit_per_minute ?? 60) !== 60);
 
-  // Re-sync local form when the parent passes a different `initialData` record.
-  // setState-during-render is React's documented pattern for "adjusting state
-  // when a prop changes" and avoids the effect-cascade the compiler flags.
-  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
-  const [trackedInitialData, setTrackedInitialData] = useState(initialData);
-  if (initialData !== trackedInitialData) {
-    setTrackedInitialData(initialData);
+  // Parent renders can recreate the same initial values without changing the edited record.
+  const initialDataKey = JSON.stringify(initialData);
+  const [trackedInitialDataKey, setTrackedInitialDataKey] = useState(initialDataKey);
+  if (initialDataKey !== trackedInitialDataKey) {
+    setTrackedInitialDataKey(initialDataKey);
     setFormData(buildFormData(initialData));
+    setNameError(null);
     setShowAdvanced((initialData?.rate_limit_per_minute ?? 60) !== 60);
   }
 
@@ -129,6 +131,11 @@ export default function ApiKeyFormModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.name.trim() || formData.name.length > 100) {
+      setNameError(t(formData.name.trim() ? 'nameTooLong' : 'nameRequired'));
+      nameRef.current?.focus();
+      return;
+    }
     const submitData: ApiKeyFormData = {
       name: formData.name,
       scopes: formData.scopes.length > 0 ? formData.scopes : [WILDCARD_SCOPE],
@@ -153,17 +160,23 @@ export default function ApiKeyFormModal({
         <form id="api-key-form" onSubmit={handleSubmit} className="space-y-6">
           {/* Name */}
           <div>
-            <label className="block text-sm font-medium text-sf-body mb-1">
+            <label htmlFor={`${id}-name`} className="block text-sm font-medium text-sf-body mb-1">
               {t('keyName')} <span className="text-red-500">*</span>
             </label>
             <input
+              ref={nameRef}
+              id={`${id}-name`}
+              aria-invalid={Boolean(nameError)}
+              aria-describedby={nameError ? `${id}-name-error` : undefined}
               type="text"
               required
+              onInvalid={() => setNameError(t('nameRequired'))}
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) => { setFormData({ ...formData, name: e.target.value }); setNameError(null); }}
               className="w-full px-3 py-2 bg-sf-input text-sf-heading border-2 border-sf-border-medium focus:ring-2 focus:ring-sf-accent focus:border-transparent outline-none transition-all"
               placeholder={t('keyNamePlaceholder')}
             />
+            {nameError && <p id={`${id}-name-error`} className="mt-1 text-sm text-sf-danger">{nameError}</p>}
           </div>
 
           {/* Scope Presets & Scopes — create only */}
@@ -264,11 +277,12 @@ export default function ApiKeyFormModal({
               {showAdvanced && (
                 <div className="mt-4 space-y-4 p-4 bg-sf-deep border-2 border-sf-border-medium">
                   <div>
-                    <label className="block text-sm font-medium text-sf-body mb-1">
+                    <label htmlFor={`${id}-rate`} className="block text-sm font-medium text-sf-body mb-1">
                       {t('rateLimit')}
                     </label>
                     <div className="flex items-center gap-2">
                       <input
+                        id={`${id}-rate`}
                         type="number"
                         min={1}
                         max={1000}
@@ -281,11 +295,12 @@ export default function ApiKeyFormModal({
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-sf-body mb-1">
+                    <label htmlFor={`${id}-expiry`} className="block text-sm font-medium text-sf-body mb-1">
                       {t('expiration')}
                     </label>
                     <input
-                      type="datetime-local"
+                      id={`${id}-expiry`}
+                        type="datetime-local"
                       value={formData.expires_at}
                       onChange={(e) => setFormData({ ...formData, expires_at: e.target.value })}
                       min={new Date().toISOString().slice(0, 16)}

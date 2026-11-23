@@ -68,10 +68,10 @@ export function buildPostCheckoutMagicLinkRedirect(input: PostCheckoutInput): st
  * keeps a `?` in the URL — required because email templates append
  * `&token_hash=...` after it; the callback ignores unrecognized params.
  */
-export function buildLoginMagicLinkRedirect(origin: string, redirectTo?: string): string {
+export function buildLoginMagicLinkRedirect(origin: string, redirectTo?: string, locale?: string): string {
   const path = getLoginReturnPath(redirectTo);
   if (path) return buildAuthCallbackUrl(origin, path);
-  return `${origin}/auth/callback?flow=login`;
+  return `${origin}/auth/callback?flow=login${locale === 'pl' || locale === 'en' ? `&locale=${locale}` : ''}`;
 }
 
 /**

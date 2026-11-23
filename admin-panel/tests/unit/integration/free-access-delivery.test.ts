@@ -104,8 +104,8 @@ it.each(['magic-link', 'signed-in', 'pending', 'lead-confirmation', 'lead-no-con
     const token = crypto.randomUUID().replaceAll('-', '').repeat(2);
     const lead = await db.from('lead_submissions').insert({ token_hash: createHash('sha256').update(token).digest('hex'), email, product_id: productId, product_slug: slug, source: 'https://example.com/guide', locale: 'pl', marketing_consent: flow !== 'lead-no-consent', consent_version: flow === 'lead-no-consent' ? null : '1:pl', consent_text: flow === 'lead-no-consent' ? null : 'Zgoda' }).select('id').single();
     expect(lead.error).toBeNull();
-    expect(await confirmLead(token, user, state.client)).toEqual({ ok: true, productSlug: slug });
-    expect(await confirmLead(token, user, state.client)).toEqual({ ok: true, productSlug: slug });
+    expect(await confirmLead(token, user, state.client)).toEqual({ ok: true, productSlug: slug, locale: 'pl' });
+    expect(await confirmLead(token, user, state.client)).toEqual({ ok: true, productSlug: slug, locale: 'pl' });
   } else if (flow === 'magic-link') {
     await expect(productAccess(new Request(`${process.env.SITE_URL}/pl/auth/product-access?product=${slug}`))).rejects.toThrow('NEXT_REDIRECT');
   } else if (flow === 'pending') {

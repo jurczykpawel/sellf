@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { WebhookLog } from '@/types/webhooks';
 import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -36,6 +36,7 @@ export default function WebhookLogsTable({
   selectedIds,
   onToggleSelected,
 }: WebhookLogsTableProps) {
+  const id = useId();
   const selectionEnabled = !!selectedIds && !!onToggleSelected;
   const isSelectable = (log: WebhookLog) =>
     log.status === 'permanently_failed' || log.status === 'pending_retry';
@@ -198,7 +199,11 @@ export default function WebhookLogsTable({
                 )}
 
                 <td className="px-4 py-3 text-sm text-sf-heading font-mono text-[10px]">
-                  {log.event_type}
+                  <button type="button" aria-expanded={expandedLog === log.id} aria-controls={`${id}-${log.id}`}
+                    onClick={(e) => { e.stopPropagation(); setExpandedLog(expandedLog === log.id ? null : log.id); }}
+                    className="min-h-11 underline decoration-dotted focus-visible:outline-2 focus-visible:outline-sf-accent">
+                    {log.event_type}
+                  </button>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
                   {getStatusBadge(log)}
@@ -266,7 +271,7 @@ export default function WebhookLogsTable({
                 </td>
               </tr>
               {expandedLog === log.id && (
-                <tr className="bg-sf-raised">
+                <tr id={`${id}-${log.id}`} className="bg-sf-raised">
                   <td colSpan={showEndpointColumn ? 6 : 5} className="px-4 py-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>

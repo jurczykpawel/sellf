@@ -76,14 +76,14 @@ describe('Magic-link gateway', () => {
     expect(access.data).toHaveLength(0);
   });
 
-  it('sends a login magic link with a token_hash callback link', async () => {
-    const email = `gw-${Date.now()}@example.com`;
+  it.each([['pl', undefined], ['pl', 'en'], ['en', undefined], ['en', 'pl']] as const)('sends a %s login link that retains its language with cookie %s', async (locale, cookie) => {
+    const email = `gw-${crypto.randomUUID()}@example.com`;
     const captchaToken = await getAltchaPayload();
 
     const response = await fetch(`${API_URL}/api/auth/magic-link`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, captchaToken, flow: 'login' }),
+      body: JSON.stringify({ email, captchaToken, flow: 'login', locale }),
     });
     expect(response.status).toBe(200);
     createdEmails.push(email);
@@ -96,19 +96,17 @@ describe('Magic-link gateway', () => {
     expect(href).not.toContain('/auth/v1/verify');
     expect(href).not.toContain('redirect_to=');
 
-    const linkUrl = new URL(href!);
-    const rewritten = new URL(API_URL);
-    linkUrl.protocol = rewritten.protocol;
-    linkUrl.host = rewritten.host;
-
-    const callbackResponse = await fetch(linkUrl.toString(), { redirect: 'manual' });
-    expect(callbackResponse.status).toBeGreaterThanOrEqual(300);
-    expect(callbackResponse.status).toBeLessThan(400);
-    const location = callbackResponse.headers.get('location') || '';
-    expect(location).not.toContain('/login?error=');
-    // Fresh, non-admin signup: no redirect_to was requested, so the callback
-    // falls back to its own role-based default rather than always /dashboard.
-    expect(location).toContain('/my-products');
+    expect(new URL(href!).origin).toBe(new URL(API_URL).origin);
+    const options = { redirect: 'manual' as const, ...(cookie ? { headers: { Cookie: `NEXT_LOCALE=${cookie}` } } : {}) };
+    let callbackResponse = await fetch(href!, options);
+    let destination = new URL(callbackResponse.headers.get('location')!, href!);
+    for (let hop = 0; hop < 3 && destination.pathname.endsWith('/auth/callback'); hop++) {
+      expect(destination.origin).toBe(new URL(API_URL).origin);
+      callbackResponse = await fetch(destination, options);
+      destination = new URL(callbackResponse.headers.get('location')!, destination);
+    }
+    expect(callbackResponse.status).toBe(307);
+    expect(destination.pathname).toBe(`/${locale}/my-products`);
     expect(callbackResponse.headers.get('set-cookie')).toBeTruthy();
   });
 

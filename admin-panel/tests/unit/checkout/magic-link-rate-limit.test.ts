@@ -37,3 +37,9 @@ it.each([['en', en], ['pl', pl]] as const)('translates a magic-link 429 and keep
   expect(fetch).toHaveBeenCalledTimes(1);
   expect(fetch.mock.calls[0][0]).toBe('/api/auth/magic-link');
 });
+it.each([['en', en], ['pl', pl]] as const)('shows the daily address limit in %s through the gateway client', async (locale, messages) => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: false, code: 'address_rate_limited', retryAfterSeconds: 3600 }), { status: 429 })));
+  const view = render(React.createElement(NextIntlClientProvider, { locale, messages }, React.createElement(Fixture)));
+  await waitFor(() => expect(view.getByText(messages.auth.magicLinkAddressRateLimit.split('{time}')[0], { exact: false })).toBeTruthy());
+  expect(view.queryByText(messages.auth.magicLinkRateLimit)).toBeNull();
+});

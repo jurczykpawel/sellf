@@ -160,6 +160,8 @@ export async function GET(request: NextRequest) {
     } catch {
       redirectPath = '/my-products'
     }
+    const locale = requestUrl.searchParams.get('locale')
+    if (locale === 'pl' || locale === 'en') redirectPath = `/${locale}${redirectPath}`
   }
 
   // Free products requested by e-mail reach the user on any sign-in, not only
