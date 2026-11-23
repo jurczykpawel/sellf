@@ -1178,6 +1178,14 @@ describe.skipIf(!hasSupabase)('paid offer withdrawn before the webhook @J185', (
 });
 
 describe.skipIf(!hasSupabase)('subscription receipt verification @J730', () => {
+  it.each(['open', 'unpaid'])('does not complete a subscription while it is %s', async state => {
+    const recorded = (await import('../../fixtures/stripe/trial-first-mail-checkout.json')).default;
+    h.stripe = makeStripeShim({ session: { ...recorded, id: uniq('cs'), status: state === 'open' ? 'open' : 'complete', payment_status: state === 'unpaid' ? 'unpaid' : 'paid' } });
+    const result = await verifyPaymentSession('cs_not_paid');
+    expect(result.access_granted).toBeUndefined();
+    expect(result.scenario).toBeUndefined();
+    expect(purchaseCalls()).toHaveLength(0);
+  });
   it.each(['refunded', 'disputed', 'completed', 'partially_refunded'])('uses the saved invoice %s state for both visitors @J730', async status => {
     const recorded = (await import('../../fixtures/stripe/trial-first-mail-checkout.json')).default;
     const product = await createProduct({ product_type: 'subscription', price: 0, recurring_price: 10, billing_interval: 'month', billing_interval_count: 1 });
