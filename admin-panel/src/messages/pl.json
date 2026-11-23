@@ -948,7 +948,7 @@
     "oauthFailed": "Logowanie przez serwis zewnętrzny nie powiodło się lub zostało anulowane. Spróbuj ponownie lub użyj magic linka.",
     "magicLinkRateLimit": "Zbyt wiele prób wysłania linku. Poczekaj 15 minut i spróbuj ponownie. Jeśli limit nadal obowiązuje, spróbuj następnego dnia.",
     "magicLinkExpiredTitle": "Link wygasł lub został już użyty",
-    "magicLinkExpired": "Ten link został już użyty lub wygasł — wpisz email poniżej, aby otrzymać nowy link.",
+    "magicLinkExpired": "Ten link został już użyty lub wygasł. Zaloguj się, aby uzyskać dostęp.",
     "sessionLostTitle": "Sesja przeglądarki przerwana",
     "sessionLost": "Wygląda na to, że kliknąłeś w link w innej przeglądarce lub incognito niż ta, z której wysłałeś zapytanie. Ze względów bezpieczeństwa musisz kliknąć link w tej samej przeglądarce. Wpisz email poniżej i spróbuj ponownie.",
     "disposableEmailBlocked": "Rejestracja zablokowana: Tymczasowe adresy email nie są dozwolone. Użyj stałego adresu email.",

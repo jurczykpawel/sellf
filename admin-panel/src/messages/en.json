@@ -948,7 +948,7 @@
     "oauthFailed": "Social login failed or was cancelled. Please try again or use a magic link.",
     "magicLinkRateLimit": "Too many link requests. Wait 15 minutes and try again. If the limit remains, try again the next day.",
     "magicLinkExpiredTitle": "Link expired or already used",
-    "magicLinkExpired": "This link has already been used or has expired — enter your email below to request a new one.",
+    "magicLinkExpired": "This link has already been used or has expired. Sign in to access your products.",
     "sessionLostTitle": "Browser session interrupted",
     "sessionLost": "Looks like you clicked the link in a different browser or incognito window than the one you requested it from. For security reasons you must click the link in the same browser. Enter your email below to try again.",
     "disposableEmailBlocked": "Registration blocked: Disposable email addresses are not allowed. Please use a permanent email address.",
