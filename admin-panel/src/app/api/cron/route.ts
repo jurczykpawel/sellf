@@ -17,8 +17,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { handleWebhookDeliveriesRetry } from './webhook-deliveries';
 import { createHash, timingSafeEqual } from 'crypto';
-import { storeBuyerPayload } from '@/lib/webhooks/buyer-payload-storage';
 import { retryInvoices } from '@/lib/invoicing/service';
 import { drainAffiliateWork } from '@/lib/affiliates/sync/worker';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -27,9 +27,6 @@ import { runTransferJob } from '@/lib/orders/bank-transfer-service';
 import { runParticipantsReminders } from '@/lib/orders/participants-service';
 import { runBusinessEvents } from '@/lib/services/business-events';
 import { runAuthMailRetries } from '@/lib/auth/magic-link/retry';
-import { getWebhookQueue } from '@/lib/services/webhook-queue';
-import { WebhookDispatcher } from '@/lib/services/webhook-queue/dispatcher';
-import { computeNextRetry, hasMoreAttempts } from '@/lib/services/webhook-queue/retry-policy';
 
 // ===== TYPES =====
 
@@ -99,74 +96,8 @@ async function handleCleanupWebhookLogs(): Promise<CronJobResult> {
 
 // ===== JOB: webhook-deliveries-retry =====
 
-const WEBHOOK_RETRY_BATCH = 50;
 
-export async function handleWebhookDeliveriesRetry(): Promise<CronJobResult> {
-  const adminClient = createAdminClient();
-  const queue = getWebhookQueue();
-
-  const due = await queue.pickDue(WEBHOOK_RETRY_BATCH);
-  if (due.length === 0) {
-    return { processed: 0, errors: 0 };
-  }
-
-  let processed = 0;
-  let errors = 0;
-
-  await Promise.allSettled(
-    due.map(async (delivery) => {
-      try {
-        const { data: endpoint, error } = await adminClient
-          .from('webhook_endpoints')
-          .select('id, url, secret, is_active, custom_headers_encrypted')
-          .eq('id', delivery.endpointId)
-          .single();
-
-        if (error || !endpoint || !endpoint.is_active) {
-          await queue.markPermanentlyFailed(delivery.id, {
-            ok: false,
-            httpStatus: 0,
-            responseBody: null,
-            errorMessage: 'Endpoint missing or inactive',
-            durationMs: 0,
-          });
-          errors++;
-          return;
-        }
-
-        const payload = { ...((delivery.payload ?? {}) as Record<string, unknown>), id: delivery.id };
-        const { error: payloadError } = await adminClient.from('webhook_logs').update({ payload: await storeBuyerPayload(delivery.eventType, payload) }).eq('id', delivery.id);
-        if (payloadError) throw new Error('Delivery payload unavailable');
-        const nextAttempt = delivery.attemptCount + 1;
-        const result = await WebhookDispatcher.dispatch(
-          // Carry the encrypted custom headers into the slice so retried
-          // deliveries re-apply them — without this they were dropped, sending
-          // unauthenticated (e.g. → 401 → DLQ, PII posted without auth).
-          { id: endpoint.id, url: endpoint.url, secret: endpoint.secret, custom_headers_encrypted: endpoint.custom_headers_encrypted },
-          delivery.eventType,
-          payload,
-          { attemptCount: nextAttempt, deliveryId: delivery.id, client: adminClient },
-        );
-
-        if (result.ok) {
-          await queue.markDelivered(delivery.id, result);
-        } else if (!hasMoreAttempts(nextAttempt, delivery.maxAttempts)) {
-          await queue.markPermanentlyFailed(delivery.id, result);
-        } else {
-          await queue.markFailed(delivery.id, result, computeNextRetry(nextAttempt));
-        }
-        processed++;
-      } catch (err) {
-        console.error('[cron/webhook-deliveries-retry] processing error', delivery.id, err);
-        errors++;
-      }
-    }),
-  );
-
-  return { processed, errors };
-}
-
-export async function handleSeatReservationsExpire(): Promise<CronJobResult> {
+async function handleSeatReservationsExpire(): Promise<CronJobResult> {
   const { data, error } = await createAdminClient().rpc('expire_seat_reservations');
   if (error) throw new Error('Seat reservation cleanup failed');
   return { processed: data ?? 0, errors: 0 };

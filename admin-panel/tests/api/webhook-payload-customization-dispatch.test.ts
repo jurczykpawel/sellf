@@ -114,7 +114,7 @@ it.each(['manual', 'cron'])('retains order delivery metadata after %s retry @J72
   try {
     if (mode === 'manual') expect(await WebhookService.retry(row!.id, admin)).toMatchObject({ success: true, status: 200 });
     else {
-      const { handleWebhookDeliveriesRetry } = await import('@/app/api/cron/route');
+      const { handleWebhookDeliveriesRetry } = await import('@/app/api/cron/webhook-deliveries');
       expect((await handleWebhookDeliveriesRetry()).processed).toBeGreaterThan(0);
     }
     expect(deliveries.get(row!.id)?.body.data.order.payUrl).toBe(outgoing.data.order.payUrl);
