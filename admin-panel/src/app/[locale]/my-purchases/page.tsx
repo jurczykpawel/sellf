@@ -9,6 +9,7 @@ import { formatAdminDate } from '@/lib/timezone';
 import { toast } from 'sonner';
 import DashboardLayout from '@/components/DashboardLayout';
 import MySubscriptions from '@/components/MySubscriptions';
+import BaseModal from '@/components/ui/BaseModal';
 import type { UserPurchase } from '@/types';
 import { getCustomerRefundAction } from '@/lib/refunds/flow';
 import { buildPurchaseDiscountSummary } from '@/lib/purchases/discounts';
@@ -532,9 +533,9 @@ export default function MyPurchasesPage() {
 
         {/* Refund Request Modal */}
         {refundModalOpen && selectedPurchase && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <BaseModal isOpen onClose={() => setRefundModalOpen(false)} labelledBy="buyer-refund-title" initialFocusSelector="#buyer-refund-reason" showCloseButton={false} closeOnBackdropClick={false}>
             <div className="bg-sf-raised border border-sf-border rounded-2xl max-w-md w-full p-6">
-              <h2 className="text-xl font-bold text-sf-heading mb-4">
+              <h2 id="buyer-refund-title" className="text-xl font-bold text-sf-heading mb-4">
                 {t('refundRequestTitle', { defaultValue: 'Request Refund' })}
               </h2>
 
@@ -597,7 +598,7 @@ export default function MyPurchasesPage() {
                 </button>
               </div>
             </div>
-          </div>
+          </BaseModal>
         )}
       </div>
     </DashboardLayout>

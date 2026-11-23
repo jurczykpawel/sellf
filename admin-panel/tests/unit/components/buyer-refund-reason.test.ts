@@ -25,3 +25,19 @@ it('shows a field error for an overlong reason and allows correcting it before s
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'submitRequest' })); });
   expect(rpc).toHaveBeenCalledWith('create_refund_request', { transaction_id_param: 'tx', reason_param: 'wrong edition' });
 });
+
+it('opens a named refund dialog, contains focus, closes with Escape and restores focus', async () => {
+  rpc.mockResolvedValue({ data: [{ transaction_id: 'tx', product_name: 'Course', amount: 900, currency: 'PLN', status: 'completed', is_refundable: true, refund_eligible: true, refund_request_status: null, purchase_date: new Date().toISOString(), refund_period_days: 14 }], error: null });
+  await act(async () => { render(createElement(MyPurchasesPage)); });
+  const opener = screen.getByRole('button', { name: 'requestRefund' }); opener.focus();
+  fireEvent.click(opener);
+  const dialog = screen.getByRole('dialog', { name: 'refundRequestTitle' });
+  const input = screen.getByRole('textbox');
+  expect(document.activeElement).toBe(input);
+  const submit = screen.getByRole('button', { name: 'submitRequest' }); submit.focus();
+  fireEvent.keyDown(submit, { key: 'Tab' });
+  expect(dialog.contains(document.activeElement)).toBe(true);
+  fireEvent.keyDown(document, { key: 'Escape' });
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(document.activeElement).toBe(opener);
+});
