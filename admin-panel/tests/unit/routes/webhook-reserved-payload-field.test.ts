@@ -118,3 +118,37 @@ describe('webhook write endpoints — reserved custom_payload_fields keys', () =
     expect(body.error.message).toContain('reserved for the webhook envelope: data');
   });
 });
+
+function headerClient() {
+  const query={select:vi.fn().mockReturnThis(),eq:vi.fn().mockReturnThis(),insert:vi.fn().mockReturnThis(),update:vi.fn().mockReturnThis(),
+    single:vi.fn(async()=>({data:{id:WEBHOOK_ID,secret:'fixture-signing-secret'},error:null})),
+    then:(resolve:(value:object)=>void)=>resolve({data:[],error:null,count:0})};
+  mocks.authenticate.mockResolvedValue({supabase:{from:vi.fn(()=>query)}});
+  return query;
+}
+
+it.each([
+  {'Bad Header':'value'}, {'X:Header':'value'}, {'Żółć':'value'}, {'Host':'value'},
+  {'content-type':'value'}, {'X-Sellf-Signature':'value'}, {'x-sellf-event':'value'},
+  {'Content-Length':'1'}, {'X-Tenant':'value\r\nsecond'}, {'X-Tenant':42},
+])('refuses unsupported custom headers on POST and PATCH: %j', async custom_headers => {
+  mocks.checkFeature.mockResolvedValue(true);
+  const query=headerClient();
+  const post=await POST(makePostRequest({url:'https://example.com/hook',events:['purchase.completed'],custom_headers}) as never);
+  const patch=await PATCH(makePatchRequest({custom_headers}) as never,{params:Promise.resolve({id:WEBHOOK_ID})});
+  expect([post.status,patch.status]).toEqual([400,400]);
+  for (const response of [post,patch]) {
+    expect((await response.json()).error.details.custom_headers).toBeTruthy();
+  }
+  expect(query.insert).not.toHaveBeenCalled();
+  expect(query.update).not.toHaveBeenCalled();
+});
+
+it('persists supported custom headers on POST and PATCH',async()=>{
+  const query=headerClient();
+  const custom_headers={Authorization:'Bearer fixture','X-Tenant':'one'};
+  const post=await POST(makePostRequest({url:'https://example.com/hook',events:['purchase.completed'],custom_headers}) as never);
+  const patch=await PATCH(makePatchRequest({custom_headers}) as never,{params:Promise.resolve({id:WEBHOOK_ID})});
+  expect(post.status).toBe(201);expect(patch.status).toBe(200);
+  expect(query.insert).toHaveBeenCalledOnce();expect(query.update).toHaveBeenCalledOnce();
+});

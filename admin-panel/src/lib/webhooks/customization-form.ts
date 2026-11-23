@@ -53,3 +53,34 @@ export function buildCustomizationPayload(s: CustomizationFormState): Customizat
   }                                             // else: omit → unchanged
   return out;
 }
+
+export function isValidCustomHeader(name: string, value: unknown): boolean {
+  return /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(name)
+    && !name.toLowerCase().startsWith('x-sellf-')
+    && !['host','content-type','content-length','content-encoding','connection','transfer-encoding','te','trailer','upgrade','expect'].includes(name.toLowerCase())
+    && typeof value === 'string' && /^[\t\x20-\x7e\x80-\xff]*$/.test(value);
+}
+
+export function validateCustomHeaders(headers: unknown): boolean {
+  return headers == null || (typeof headers === 'object' && !Array.isArray(headers)
+    && Object.entries(headers).every(([key,value])=>isValidCustomHeader(key,value)));
+}
+
+export const WEBHOOK_URL_REASONS = [
+  'https_required',
+  'localhost',
+  'internal_service',
+  'private_ip',
+  'loopback',
+  'link_local',
+  'unspecified',
+  'reserved_ipv4',
+  'ipv4_mapped_ipv6',
+  'private_ipv6',
+  'invalid_format',
+  'unresolvable',
+  'no_dns_records',
+  'resolves_private',
+] as const;
+
+export type WebhookUrlReason = typeof WEBHOOK_URL_REASONS[number];

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { test, expect, Page } from '@playwright/test';
 import { acceptAllCookies } from './helpers/consent';
 import { setAuthSession, createTestAdmin, supabaseAdmin } from './helpers/admin-auth';
@@ -210,6 +211,44 @@ test.describe('Webhook payload customization form', () => {
     // has_custom_headers is now false.
     await expect.poll(async () => (await fetchEndpoint(url)).custom_headers_encrypted, { timeout: 10000 }).toBeNull();
   });
+  test('validates custom header names beside the field before saving @J68', async ({page}) => {
+    await gotoWebhooks(page,admin.email,admin.password); await openAddEndpoint(page);
+    const url=`${URL_PREFIX}validation-${Date.now()}`;
+    await fillUrlAndEvent(page,url); await expandCustomization(page);
+    await page.getByRole('button',{name:'+ Add header'}).click();
+    await page.getByPlaceholder('Header name', {exact:true}).fill('Bad Header');
+    await page.locator('#webhook-form input[type=password]').fill('fixture-value');
+    await page.getByRole('button',{name:'Create',exact:true}).click();
+    await expect(page.getByPlaceholder('Header name', {exact:true})).toHaveAttribute('aria-invalid','true');
+    await expect(page.locator('#webhook-header-error-0')).toContainText('valid HTTP header');
+    expect((await supabaseAdmin.from('webhook_endpoints').select('id').eq('url',url)).data).toEqual([]);
+    await page.getByPlaceholder('Header name', {exact:true}).fill('X-Tenant');
+    await page.getByRole('button',{name:'Create',exact:true}).click();
+    await expect(page.locator('tr',{hasText:url})).toBeVisible();
+    const endpoint=await fetchEndpoint(url);
+    for (const method of ['post','patch'] as const) {
+      const response=await page.request[method](`/api/v1/webhooks${method==='patch'?`/${endpoint.id}`:''}`,{data:{url,events:['purchase.completed'],custom_headers:{'Bad Header':'fixture-value'}}});
+      expect(response.status()).toBe(400);
+      expect((await response.json()).error.details.custom_headers).toEqual(['invalid']);
+    }
+    expect((await fetchEndpoint(url)).custom_headers_encrypted).toBe(endpoint.custom_headers_encrypted);
+    if (process.env.STRIPE_LIVE_RECEIVER_URL) {
+      const path=`/headers-${endpoint.id}`;
+      try {
+        expect((await page.request.patch(`/api/v1/webhooks/${endpoint.id}`,{data:{url:process.env.STRIPE_LIVE_RECEIVER_URL+path}})).status()).toBe(200);
+        const probe=await page.request.post(`/api/v1/webhooks/${endpoint.id}/test`,{data:{event_type:'purchase.completed'}});
+        expect(probe.status()).toBe(200);expect((await probe.json()).data).toMatchObject({success:true,http_status:200});
+        const received=readFileSync(`${process.env.STRIPE_LIVE_ARTIFACTS}/deliveries.jsonl`,'utf8').split('\n').filter(Boolean).map(line=>JSON.parse(line)).find(row=>row.path===path);
+        expect(received?.headers['x-tenant']).toBe('fixture-value');
+      } finally {
+        expect((await page.request.patch(`/api/v1/webhooks/${endpoint.id}`,{data:{url}})).status()).toBe(200);
+      }
+    }
+
+  });
+
+
+
 });
 
 /**

@@ -2786,6 +2786,7 @@
         "keyPlaceholder": "field name",
         "valuePlaceholder": "value or a placeholder token",
         "placeholdersHint": "Available: {tokens}",
+        "headerInvalid": "Use a valid HTTP header name and a single-line value. Transport and X-Sellf headers are reserved.",
         "headersLabel": "Custom headers",
         "headersConfigured": "Custom headers configured",
         "deleteHeaders": "Delete",

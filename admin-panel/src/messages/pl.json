@@ -2786,6 +2786,7 @@
         "keyPlaceholder": "nazwa pola",
         "valuePlaceholder": "wartość lub token placeholder",
         "placeholdersHint": "Dostępne: {tokens}",
+        "headerInvalid": "Podaj poprawną nazwę nagłówka HTTP i wartość w jednym wierszu. Nagłówki transportowe i X-Sellf są zastrzeżone.",
         "headersLabel": "Własne nagłówki",
         "headersConfigured": "Własne nagłówki skonfigurowane",
         "deleteHeaders": "Usuń",

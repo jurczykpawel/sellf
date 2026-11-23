@@ -7,6 +7,7 @@
 
 import { isPrivateOrReservedIp } from '@/lib/security/ip-blocklist';
 import { RESERVED_ENVELOPE_KEYS } from '@/lib/webhooks/payload-customization';
+import type { WebhookUrlReason } from '@/lib/webhooks/customization-form';
 
 async function resolveAuthoritative(hostname: string): Promise<string[]> {
   const dns = await import('node:dns/promises');
@@ -20,24 +21,7 @@ async function resolveAuthoritative(hostname: string): Promise<string[]> {
   return addrs;
 }
 
-export const WEBHOOK_URL_REASONS = [
-  'https_required',
-  'localhost',
-  'internal_service',
-  'private_ip',
-  'loopback',
-  'link_local',
-  'unspecified',
-  'reserved_ipv4',
-  'ipv4_mapped_ipv6',
-  'private_ipv6',
-  'invalid_format',
-  'unresolvable',
-  'no_dns_records',
-  'resolves_private',
-] as const;
-
-export type WebhookUrlReason = typeof WEBHOOK_URL_REASONS[number];
+export { WEBHOOK_URL_REASONS, type WebhookUrlReason } from '@/lib/webhooks/customization-form';
 
 export interface WebhookUrlValidation {
   valid: boolean;
