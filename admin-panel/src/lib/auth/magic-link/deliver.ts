@@ -37,7 +37,7 @@ export async function deliverMagicLink(input: DeliverMagicLinkInput): Promise<Ma
     });
     if (!error) return { ok: true };
     console.error(`[magic-link] send failed: status=${error.status ?? 'n/a'} code=${error.code ?? 'n/a'}`);
-    return { ok: false, code: error.status === 429 ? 'rate_limited' : 'send_failed', ...(!error.status || error.status >= 500 ? { deliveryUnknown: true as const } : {}) };
+    return { ok: false, code: error.status === 429 ? 'rate_limited' : 'send_failed', ...(!error.status || error.status > 500 ? { deliveryUnknown: true as const } : {}) };
   } catch {
     console.error('[magic-link] send unavailable');
     return { ok: false, code: 'send_failed', ...(deliveryStarted ? { deliveryUnknown: true as const } : {}) };

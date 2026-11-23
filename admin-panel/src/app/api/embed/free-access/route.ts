@@ -1,4 +1,3 @@
-import { requiresStandardCheckout } from '@/lib/checkout-modules/profile';
 import { NextRequest, NextResponse } from 'next/server';
 
 import {
@@ -12,6 +11,7 @@ import {
 import { DEMO_MODE_ERROR } from '@/lib/demo-guard';
 import { requestMagicLink } from '@/lib/auth/magic-link/request';
 import { maintenanceErrorBody } from '@/lib/maintenance/guard';
+import { requiresStandardCheckout } from '@/lib/checkout-modules/profile';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { attributionRequestContext, storeFreeCheckoutAttribution } from '@/lib/attribution/store';

@@ -1,4 +1,3 @@
-import { requiresStandardCheckout } from '@/lib/checkout-modules/profile';
 import { NextRequest, NextResponse } from 'next/server';
 import { randomUUID } from 'crypto';
 
@@ -12,6 +11,7 @@ import {
   parseEmbedCheckoutBody,
   requireEmbedCaptcha,
 } from '@/lib/embed/checkout-embed';
+import { requiresStandardCheckout } from '@/lib/checkout-modules/profile';
 import { checkRateLimit } from '@/lib/rate-limiting';
 import { COUPON_REJECTED_CODE, recordRejectedCouponAttempt } from '@/lib/coupons/rejection-limit';
 import { getCaptchaConfig } from '@/lib/captcha/config';

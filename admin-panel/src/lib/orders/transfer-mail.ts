@@ -18,7 +18,7 @@ const NOTICE = {
   paid: { kind: undefined, column: 'transfer_paid_mail_sent_at', statuses: ['completed'] },
 } as const;
 
-/** Sends each notice at most once per order; a failed delivery stays pending for the reservation job. */
+/** Reserves one notice per order; confirmed refusals remain eligible for recovery. */
 export async function sendOrderNotice(db: SupabaseClient<Database>, id: string, notice: OrderNotice): Promise<void> {
   const spec = NOTICE[notice];
   try {
@@ -66,5 +66,5 @@ export async function sendOrderNotice(db: SupabaseClient<Database>, id: string, 
     } else if (!result.ok) {
       console.error('[transfer-mail] Delivery outcome unknown; automatic retry held:', id);
     }
-  } catch { console.error('[transfer-mail] Delivery awaiting recovery:', id); }
+  } catch { console.error('[transfer-mail] Delivery unavailable; check saved notice state:', id); }
 }
