@@ -50,6 +50,7 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
   const subscription = ['guest', 'signed-in', 'trial'].includes(kind);
   let groupId: string | undefined, couponId: string | undefined;
   let buyerId: string | undefined;
+  let receiptSessionId: string | undefined;
   let bankConfig: Record<string, unknown> | undefined;
   const customerIds = new Set<string>();
   try {
@@ -138,6 +139,7 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
       await page.locator('button[type="submit"]').click();
       await page.waitForURL(/payment-status.*session_id=/, { timeout: 120000 });
       const sessionId = new URL(page.url()).searchParams.get('session_id')!;
+      receiptSessionId = sessionId;
       const session = await stripe.checkout.sessions.retrieve(sessionId);
       if (session.customer) customerIds.add(typeof session.customer === 'string' ? session.customer : session.customer.id);
       expect(session.status).toBe('complete');
@@ -213,7 +215,7 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
     expect(hydrationErrors).toEqual([]);
     await page.screenshot({ path: test.info().outputPath('first-mail-access.png'), fullPage: true });
     if (cancelBeforeClaim) {
-      const sessionId = sessions.at(-1)!;
+      const sessionId = receiptSessionId!;
       const before = await page.request.post('/api/verify-payment', { data: { session_id: sessionId } });
       expect(await before.json()).toMatchObject({ payment_status: 'paid', access_granted: true });
       const [payment] = await rows('payment_transactions', 'product_id', product.id);
