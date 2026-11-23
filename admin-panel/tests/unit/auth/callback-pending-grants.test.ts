@@ -14,12 +14,14 @@ const claimPendingFreeGrants = vi.hoisted(() => vi.fn());
 const exchangeCodeForSession = vi.hoisted(() => vi.fn());
 const verifyOtp = vi.hoisted(() => vi.fn());
 const rpc = vi.hoisted(() => vi.fn());
+const signOut = vi.hoisted(() => vi.fn());
+const validateEmail = vi.hoisted(() => vi.fn(async () => ({ isValid: true })));
 
 vi.mock('@supabase/ssr', () => ({
-  createServerClient: () => ({ auth: { verifyOtp, exchangeCodeForSession, signOut: vi.fn() }, rpc }),
+  createServerClient: () => ({ auth: { verifyOtp, exchangeCodeForSession, signOut }, rpc }),
 }));
 vi.mock('@/lib/services/disposable-email', () => ({
-  DisposableEmailService: { validateEmail: async () => ({ isValid: true }) },
+  DisposableEmailService: { validateEmail },
 }));
 vi.mock('@/lib/services/pending-free-grants', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/services/pending-free-grants')>();
@@ -198,6 +200,17 @@ describe('demo auth callback', () => {
 
 describe('auth error return destination', () => {
   afterEach(() => vi.unstubAllEnvs());
+  it('explains a rejected email and retains the supported destination', async () => {
+    vi.stubEnv('DEMO_MODE', 'false'); vi.stubEnv('SITE_URL', 'https://shop.example.com');
+    validateEmail.mockResolvedValueOnce({ isValid: false }); signOut.mockClear(); claimPendingFreeGrants.mockClear();
+    verifyOtp.mockResolvedValueOnce({ data: { session: { user: USER } }, error: null });
+    const target = '/auth/product-access?product=course';
+    const response = await callback(`type=signup&token_hash=valid&redirect_to=${encodeURIComponent(target)}`);
+    const url = new URL(response.headers.get('location')!);
+    expect(url.pathname).toBe('/login'); expect(url.searchParams.get('error')).toBe('disposable_email');
+    expect(url.searchParams.get('redirect_to')).toBe(target);
+    expect(signOut).toHaveBeenCalledOnce(); expect(claimPendingFreeGrants).not.toHaveBeenCalled();
+  });
   it.each(['', 'type=signup&token_hash=used&'])('keeps the supported destination when a link fails (%s)', async prefix => {
     vi.stubEnv('DEMO_MODE', 'false'); vi.stubEnv('SITE_URL', 'https://shop.example.com');
     verifyOtp.mockResolvedValue({ data: { session: null }, error: { code: 'otp_expired' } });
