@@ -523,3 +523,5 @@ The issued-license list and license lifecycle webhooks report the tier saved in 
 An invalid imported signing key shows an English or Polish message beside the private-key field and returns focus there. Paste an EC P-256 private key in PKCS8 PEM format. Validation leaves the existing signing key unchanged.
 
 The buyer product page and content API prefer a current license over newer revoked or expired keys, including when a refunded bundle previously issued another key for the same product. Account ownership is required; unassigned guest keys are matched only to the confirmed account email. When no valid key remains, the latest account history still shows its revoked or expired state.
+
+The product page and content API read issued licenses only for products configured to issue a key on purchase. A registry read error is logged; buyers keep the content permitted by their access, without the key. Reloading the page retries the read.

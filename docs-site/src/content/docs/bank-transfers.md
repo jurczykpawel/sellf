@@ -52,3 +52,5 @@ The signed public transfer receipt wraps long transfer references on narrow scre
 Each transfer notice is reserved before delivery, so concurrent payment handlers and recovery attempts send one notice for that order event. A refused send can be retried. If the delivery outcome is unknown, automatic retry is held to avoid replacing an already delivered sign-in link; the buyer can request a fresh sign-in link.
 
 After a successful transfer declaration the receipt refreshes its reservation heading and payment instructions from the saved order. Printing uses that updated deadline too. A declaration after the deadline does not extend it.
+
+If the mail provider does not confirm the outcome, payment details show **delivery outcome unknown** for transfer instructions, reminders, cancellations or payment receipts. Automatic retry stays held, including if the process stopped during delivery. After 5 minutes an administrator can choose **Retry email**; this explicit request is recorded and may send a duplicate if the first message arrived. A confirmed refusal remains eligible for automatic recovery.

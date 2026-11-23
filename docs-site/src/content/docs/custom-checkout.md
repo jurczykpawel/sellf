@@ -22,7 +22,11 @@ Products without a profile keep their existing checkout and webhook format.
 - **Participants:** requires Quantity. Collect one first name, last name and unique email per
   seat. Optional participants may be left entirely empty. At one seat, buyer prefill is available.
 
-Embedded checkout does not collect profile modules. Products with a nonempty checkout profile require the standard product checkout; the embed API refuses session creation with `422 STANDARD_CHECKOUT_REQUIRED`, and the loader explains how to continue. The same rule applies to embedded free access. Quantity limits, including a hidden fixed minimum, are validated on the server before payment preparation.
+Embedded checkout sells one unit and does not collect profile modules. Buyer, phone and recipient modules remain compatible; completed orders mark missing required details with `details_missing`. A quantity module is compatible only when its range includes 1 and its mode is `checkout`. Participants, other quantity modes, a minimum above 1, and invalid profiles require the product checkout. The API returns `422 STANDARD_CHECKOUT_REQUIRED` with `productUrl`; the loader shows a clickable product-page link and the refusal is saved in the embed log.
+
+Disable embed explicitly before saving a blocking profile; the product form reports the conflict without changing your settings. The snippet dialog offers profile settings instead of code. The profile editor warns when embed is enabled or previously used, showing its latest recorded origin and date to administrators only.
+
+For products priced at zero without event mode, subscriptions or custom pricing, embedded free access follows the standard free form: neither collects profile modules or requires them before access. Profiles therefore do not block this free access. Zero-base-price products routed through the payment form (such as events) retain the quantity and participant restrictions. Server-side quantity limits still apply when preparing a paid checkout, including a 100% coupon.
 
 Profiles support the default checkout template and one-time products. Subscriptions, tips,
 pay-what-you-want products, bundles and OTO are unsupported. Products issuing licenses cannot
@@ -125,3 +129,5 @@ Mixed-product element gates resolve each requested slug separately when at least
 Catalogue searches accept at most 100 Unicode characters after trimming and NFC normalization; longer input shows an error beside the search field. Legacy checkout names accept at most 200 UTF-16 code units, matching the stored field; longer names show a field error and cannot be submitted. Participant paste/CSV imports immediately revalidate the filled rows when participant errors are already displayed. Partial imports before the first submission do not introduce errors or move focus.
 
 The refund request dialog supports keyboard focus containment, Escape to close, and focus return to its opening button.
+
+If none of the requested element-gate products is visible to the visitor, the gate shows a generic error page with a link back to the shop. Unknown and unavailable products use the same page. It does not redirect to an unverified destination; successful handoffs still require an allowed origin and a signed token.

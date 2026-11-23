@@ -866,5 +866,17 @@
   ],
   "070fa7b16bf5f1acbadb82e77376b4714fc9d21e": [
     "api.md"
+  ],
+  "4535c36e0808a6cc8f3bcef27fe11bacfeda93bd": [
+    "custom-checkout.md"
+  ],
+  "36d04b4fca75747b1bb13ae54fcb5f1ce79c6c92": [
+    "bank-transfers.md"
+  ],
+  "b30706ed21901af4a49ee8e21966e6553512ff1b": [
+    "license-integration.md"
+  ],
+  "9234bc56e4c88d5ad349ab9db2bebb4ec2aa67ad": [
+    "custom-checkout.md"
   ]
 }
