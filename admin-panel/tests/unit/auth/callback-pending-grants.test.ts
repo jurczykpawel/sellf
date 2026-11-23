@@ -54,6 +54,14 @@ describe('auth callback pending free grants', () => {
     rpc.mockResolvedValue({ data: false });
   });
 
+  it.each(['pl', 'en'])('keeps %s for a plain login while preserving the role destination', async locale => {
+    for (const admin of [false, true]) {
+      rpc.mockResolvedValueOnce({ data: admin });
+      const response = await callback(`flow=login&locale=${locale}&type=magiclink&token_hash=abc`);
+      expect(response.headers.get('location')).toBe(`https://shop.example.com/${locale}/${admin ? 'dashboard' : 'my-products'}`);
+    }
+  });
+
   it('claims pending grants on a plain login and still lands on my-products', async () => {
     const response = await callback('flow=login&type=magiclink&token_hash=abc');
 

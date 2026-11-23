@@ -130,7 +130,7 @@ export async function requestMagicLink(input: MagicLinkRequestInput): Promise<Ma
   if (input.flow === 'login') {
     return sendTrustedMagicLink({
       email: input.email,
-      redirectTo: buildLoginMagicLinkRedirect(origin, input.redirectTo),
+      redirectTo: buildLoginMagicLinkRedirect(origin, input.redirectTo, input.locale),
       data: { locale: input.locale === 'pl' ? 'pl' : 'en' },
     });
   }

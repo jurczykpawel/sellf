@@ -385,3 +385,13 @@ it('identifies the daily address allowance independently from the IP limit', asy
   expect(await requestMagicLink({ ...BASE_INPUT, locale: 'pl' })).toMatchObject({ ok: false, code: 'address_rate_limited', retryAfterSeconds: expect.any(Number) });
   vi.unstubAllEnvs();
 });
+
+it.each(['pl', 'en'])('keeps %s in the plain login callback', async locale => {
+  vi.stubEnv('DEMO_MODE', 'false');
+  checkRateLimit.mockResolvedValue(true); checkRateLimitForIdentifier.mockResolvedValue(true);
+  verifyCaptchaToken.mockResolvedValue({ success: true }); validateEmailAction.mockResolvedValue({ isValid: true });
+  deliverMagicLink.mockResolvedValue({ ok: true });
+  await requestMagicLink({ ...BASE_INPUT, locale });
+  expect(new URL(deliverMagicLink.mock.calls.at(-1)![0].redirectTo).searchParams.get('locale')).toBe(locale);
+  vi.unstubAllEnvs();
+});

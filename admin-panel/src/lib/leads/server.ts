@@ -161,7 +161,7 @@ export async function playerstackConfig(request: Request, id: string): Promise<N
     });
   } catch { return reply(request, origins, 503, { error: 'Unavailable' }); }
 }
-export async function confirmLead(token: string, user: { id: string; email?: string | null }, userClient: SupabaseClient): Promise<{ ok: boolean; productSlug?: string }> {
+export async function confirmLead(token: string, user: { id: string; email?: string | null }, userClient: SupabaseClient): Promise<{ ok: boolean; productSlug?: string; locale?: string }> {
   if (!leadTokenSchema.safeParse(token).success || !user.email) return { ok: false };
   try {
     const client = createAdminClient();
@@ -189,6 +189,6 @@ export async function confirmLead(token: string, user: { id: string; email?: str
     if (product) {
       if (!await emitFreeAccessLead(client, { product, user: { id: user.id, email: user.email }, locale }, { data: payload, sendMail })) return { ok: false };
     } else await WebhookService.trigger('lead.captured', payload, client, undefined, `lead:${confirmed.id}`);
-    return { ok: true, productSlug: product?.slug };
+    return { ok: true, productSlug: product?.slug, locale };
   } catch { return { ok: false }; }
 }
