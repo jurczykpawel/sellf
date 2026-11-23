@@ -206,5 +206,9 @@ it.each([null, { id: USER_ID }])('keeps visible ownership when another requested
 });
 it('keeps an entirely unavailable request indistinguishable from unknown products', async () => {
   vi.mocked(createClient).mockResolvedValue(makeSupabaseMock({ user: null }) as never);
-  expect((await GET(req(q('a,b')))).status).toBe(400);
+  const res = await GET(req(q('a,b')));
+  expect(res.status).toBe(400);
+  expect(res.headers.get('content-type')).toContain('text/html');
+  expect(await res.text()).toContain('href=');
+  expect(res.headers.get('location')).toBeNull();
 });

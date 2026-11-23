@@ -61,6 +61,7 @@
     "memberCocreator": "Współtwórca (nie partner)"
   },
   "loginwallError": {
+    "back": "Wr\u00f3\u0107 do sklepu",
     "title": "Nieprawidłowy adres powrotu",
     "description": "Adres powrotu nie jest dozwolony. Wróć na stronę sprzedawcy i skontaktuj się z nim, jeśli problem się powtarza."
   },
