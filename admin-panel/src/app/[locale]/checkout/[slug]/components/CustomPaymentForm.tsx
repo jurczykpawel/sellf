@@ -1,5 +1,6 @@
 'use client';
 
+import { BUYER_FULL_NAME_MAX_LENGTH } from '@/lib/payment/buyer-details';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { PaymentElement, useCheckoutElements } from '@stripe/react-stripe-js/checkout';
@@ -213,6 +214,8 @@ export default function CustomPaymentForm({
       setErrorMessage(t('confirmEmailRequired', { defaultValue: 'Please confirm the product assignment to your account' }));
       return;
     }
+
+    if (!profile && invoice.fullName.trim().length > BUYER_FULL_NAME_MAX_LENGTH) return;
 
     if (!profile && (!invoice.fullName || invoice.fullName.trim().length === 0)) {
       setErrorMessage(t('nameRequired', { defaultValue: 'Name is required' }));
@@ -467,6 +470,8 @@ export default function CustomPaymentForm({
         <input
           type="text"
           id="fullName"
+          aria-invalid={invoice.fullName.trim().length > BUYER_FULL_NAME_MAX_LENGTH}
+          aria-describedby={invoice.fullName.trim().length > BUYER_FULL_NAME_MAX_LENGTH ? 'fullName-error' : undefined}
           value={invoice.fullName}
           onChange={(e) => invoice.setFullName(e.target.value)}
           placeholder={t('fullNamePlaceholder')}
@@ -474,6 +479,7 @@ export default function CustomPaymentForm({
           disabled={invoice.isLoadingProfile}
           className="w-full px-3 py-2.5 bg-sf-input border border-sf-border rounded-lg text-sf-heading placeholder-sf-muted focus:outline-none focus:ring-2 focus:ring-sf-accent focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed"
         />
+        {invoice.fullName.trim().length > BUYER_FULL_NAME_MAX_LENGTH && <p id="fullName-error" role="alert" className="mt-1 text-sm text-sf-danger">{t('profile.errors.tooLong', { max: BUYER_FULL_NAME_MAX_LENGTH })}</p>}
       </div>}
       {profile && !profileHandled && <CheckoutProfileFields profile={profile} state={profileForm} errors={moduleErrors} disabled={isProcessing} />}
 

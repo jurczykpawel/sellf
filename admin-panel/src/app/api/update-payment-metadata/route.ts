@@ -21,7 +21,7 @@ import {
 } from '@/lib/validations/custom-checkout-fields';
 import type { CustomFieldValues } from '@/lib/validations/custom-checkout-fields';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
-import { buildBuyerDetails } from '@/lib/payment/buyer-details';
+import { buildBuyerDetails, BUYER_FULL_NAME_MAX_LENGTH } from '@/lib/payment/buyer-details';
 import type { BuyerDetails } from '@/lib/payment/buyer-details';
 import { invoiceSectionFromFlatFields, validateInvoiceSection } from '@/lib/checkout/invoice-section';
 import { readInvoiceRecipientEnabled } from '@/lib/checkout/invoice-recipient-setting';
@@ -108,6 +108,10 @@ export async function POST(request: NextRequest) {
       // Invoice section of the standard checkout; when present it replaces the flat fields above.
       invoice,
     } = await readJsonBody<any>(request);
+
+    if (typeof fullName === 'string' && fullName.trim().length > BUYER_FULL_NAME_MAX_LENGTH) {
+      return NextResponse.json({ success: false, error: 'Name is too long', code: 'name_too_long' }, { status: 400 });
+    }
 
     if (!clientSecret) {
       return NextResponse.json(

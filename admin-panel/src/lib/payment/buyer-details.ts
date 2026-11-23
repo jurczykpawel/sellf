@@ -50,13 +50,15 @@ export interface RawBuyerInput {
   buyerType?: 'person' | 'organization';
 }
 
+export const BUYER_FULL_NAME_MAX_LENGTH = 200;
+
 const text = (value: unknown, max: number): string =>
   sanitizeMetadataField(typeof value === 'string' ? value : undefined, max);
 
 export function buildBuyerDetails(input: RawBuyerInput, source: BuyerDetails['source']): BuyerDetails {
   let firstName = text(input.firstName, 100);
   let lastName = text(input.lastName, 100);
-  const fullNameInput = text(input.fullName, 200);
+  const fullNameInput = text(input.fullName, BUYER_FULL_NAME_MAX_LENGTH);
 
   if (fullNameInput && !firstName && !lastName) {
     const [first, ...rest] = fullNameInput.split(/\s+/);
