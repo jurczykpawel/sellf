@@ -206,13 +206,12 @@ describe('auth error return destination', () => {
     expect(url.pathname).toBe('/login');
     expect(url.searchParams.get('redirect_to')).toBe(target);
   });
-});
-it.each(['https://elsewhere.example/path', '//elsewhere.example/path'])('omits unsupported recovery destination %s', async target => {
-  vi.stubEnv('DEMO_MODE', 'false'); vi.stubEnv('SITE_URL', 'https://shop.example.com');
-  const response = await callback(`redirect_to=${encodeURIComponent(target)}`);
-  const url = new URL(response.headers.get('location')!);
-  expect(url.origin).toBe('https://shop.example.com');
-  expect(url.pathname).toBe('/login');
-  expect(url.searchParams.has('redirect_to')).toBe(false);
-  vi.unstubAllEnvs();
+  it.each(['https://elsewhere.example/path', '//elsewhere.example/path'])('omits unsupported recovery destination %s', async target => {
+    vi.stubEnv('DEMO_MODE', 'false'); vi.stubEnv('SITE_URL', 'https://shop.example.com');
+    const response = await callback(`redirect_to=${encodeURIComponent(target)}`);
+    const url = new URL(response.headers.get('location')!);
+    expect(url.origin).toBe('https://shop.example.com');
+    expect(url.pathname).toBe('/login');
+    expect(url.searchParams.has('redirect_to')).toBe(false);
+  });
 });
