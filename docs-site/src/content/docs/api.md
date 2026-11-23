@@ -703,3 +703,9 @@ Subscribe the Stripe endpoint to the events listed by `STRIPE_WEBHOOK_EVENTS` in
 ## PlayerStack leads
 
 [Email-confirmed lead forms and marketing consent](/playerstack-leads/).
+
+### Dictionary and analytics validation
+
+In the admin category and tag forms, invalid slugs and overlong names or descriptions show a localized error beside the field and focus the first invalid field. Correct the value and save again; refused edits leave stored data unchanged. API validation remains in place.
+
+`GET /api/v1/analytics/dashboard` and `/api/v1/analytics/revenue` accept an optional UUID `product_id`; an absent or empty filter means all products. Invalid UUIDs return HTTP 400 with `error.code: INVALID_INPUT` before report data is read. Revenue also rejects invalid `period` or `group_by` values, unparseable dates and a start date after the end date. Valid filters and existing authentication/scopes are unchanged.

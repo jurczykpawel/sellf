@@ -212,3 +212,9 @@ Licencje samego Sellfa wydaje w ten sam sposób instancja TSA, osobny generator 
 Wydanie i cofnięcie klucza wymaga dodatkowo `licenses:write`. Bez tego zakresu zmienia się sam dostęp, a `license_warning` wyjaśnia pominięcie licencji. Błąd wystawienia albo mail, którego nie udało się ani wysłać, ani odłożyć do ponowienia, zwraca `LICENSE_ISSUANCE_FAILED` wraz z zapisanym dostępem. Ponowienie POST kontynuuje to samo nadanie i klucz.
 
 `DELETE /users/{id}/access?product_id={uuid}` i `DELETE /users/{id}/access/{accessId}` przyjmują `revoke_license=true|false` (domyślnie `true`). Cofają tylko licencję z tego nadania; klucze z zakupu zostają. `false` świadomie zachowuje klucz. Zwykłe powodzenie to 204; brak zakresu licencji zwraca 200 z `license_warning`.
+
+### Walidacja słowników i analityki
+
+W formularzach kategorii i tagów błędny slug oraz za długa nazwa lub opis wyświetlają komunikat w języku panelu przy polu i przenoszą fokus do pierwszego błędu. Popraw wartość i zapisz ponownie; odmowa nie zmienia zapisanych danych. Walidacja API nadal obowiązuje.
+
+`GET /api/v1/analytics/dashboard` i `/api/v1/analytics/revenue` przyjmują opcjonalny UUID `product_id`; brak lub pusty filtr oznacza wszystkie produkty. Błędny UUID zwraca HTTP 400 z `error.code: INVALID_INPUT` przed odczytem raportu. Raport przychodów odrzuca też nieprawidłowy `period` lub `group_by`, nierozpoznawalne daty oraz początek po końcu zakresu. Poprawne filtry, uwierzytelnianie i zakresy uprawnień działają jak dotąd.

@@ -52,3 +52,7 @@ Wyłączenie lub archiwizacja oferty po rozpoczęciu zakupu nie anuluje opłacon
 W **Moich zakupach** karta subskrypcji zachowuje nazwę, cenę, walutę i okres rozliczeniowy z zakupu także po wyłączeniu lub archiwizacji oferty.
 
 Przy wstrzymanej ofercie biblioteka zachowuje zakup i zapisany dostęp, ale zamiast linku do niedostępnej treści pokazuje informację o wstrzymaniu. Treść archiwalnego produktu nadal otwiera się kupującym. Dla subskrypcji sprzed tej aktualizacji podsumowanie używa kwoty pierwszego zapisanego dodatniego opłaconego rachunku (z VAT i rabatami); przy braku opłaconego rachunku używa warunków katalogowych dostępnych podczas aktualizacji.
+
+## Decyzje o zwrotach
+
+Kupujący sprawdza status prośby o zwrot w **Moich zakupach**. Sellf nie wysyła natywnego maila Supabase o zatwierdzeniu ani odrzuceniu. Opcjonalne maile o decyzji zależą od odbiorcy webhooków sprzedawcy: `refund.request_approved` i `refund.request_rejected` opisują decyzję, a `refund.issued` opisuje zwrot u operatora płatności. Samo włączenie maili do kupujących przez Supabase nie uruchamia powiadomień o decyzji. Modal prośby nie obiecuje więc odpowiedzi e-mailem.

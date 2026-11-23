@@ -52,3 +52,7 @@ Withdrawing or archiving an offer after checkout has started does not cancel a c
 In **My purchases**, subscription cards retain the purchased name, price, currency and billing cadence when an offer is deactivated or archived.
 
 A paused offer keeps its recorded purchase and access in the buyer library, with a paused message instead of an unavailable content link. Archived content remains open to its buyers. For subscriptions created before this update, the summary uses the first saved positive paid invoice amount (including its VAT and discounts); if no paid invoice exists, it uses the catalogue terms available during the update.
+
+## Refund decisions
+
+Buyers check a refund request’s status in **My purchases**. Sellf does not send a native Supabase email for approval or rejection. Optional decision emails depend on the seller’s webhook receiver: `refund.request_approved` and `refund.request_rejected` describe the decision; `refund.issued` describes the processor refund. Enabling Supabase buyer emails alone does not enable decision notifications. The request modal therefore does not promise an email response.
