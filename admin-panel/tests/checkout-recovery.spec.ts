@@ -76,7 +76,7 @@ for (const locale of ['en', 'pl'] as const) for (const width of [390, 1280]) {
     } finally { await db.from('payment_transactions').delete().in('id', [orderId, lateId]); await db.from('products').delete().eq('id', id); }
   });
 }
-test('a consumed provider link explains the error returned in its fragment', async ({ page }) => {
+test('a consumed provider link explains the error returned in its fragment @J87', async ({ page }) => {
   const email = `used-link-${randomUUID()}@example.com`, target = '/auth/product-access?product=course';
   const { data, error } = await db.auth.admin.generateLink({ type: 'signup', email, password: 'Checkout-test-123!', options: { redirectTo: `${process.env.PLAYWRIGHT_BASE_URL}/auth/callback?redirect_to=${encodeURIComponent(target)}` } }); check(error);
   try {
