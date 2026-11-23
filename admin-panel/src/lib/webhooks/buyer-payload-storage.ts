@@ -56,3 +56,12 @@ export async function readBuyerPayload(payload: unknown): Promise<unknown> {
     return config ? JSON.parse(await decryptSecret(config)) : value;
   });
 }
+
+export async function readBuyerPayloadForLog(payload: unknown): Promise<unknown> {
+  try {
+    return await mapValues(await readBuyerPayload(payload), [], async (value,path) =>
+      isStoredBuyerValue(value,path) ? '[REDACTED]' : value);
+  } catch {
+    return null;
+  }
+}

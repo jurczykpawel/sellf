@@ -1,7 +1,9 @@
 import { readFileSync } from 'node:fs';
+import fixtures from './fixtures/stripe/buyer-delivery-logs.json';
+import { storeBuyerPayload } from '@/lib/webhooks/buyer-payload-storage';
 import { test, expect, Page } from '@playwright/test';
 import { acceptAllCookies } from './helpers/consent';
-import { setAuthSession, createTestAdmin, supabaseAdmin } from './helpers/admin-auth';
+import { setAuthSession, createTestAdmin, createTestUser, supabaseAdmin } from './helpers/admin-auth';
 import { PAYLOAD_TOP_LEVEL_KEYS } from '@/lib/webhooks/customization-form';
 
 // Playwright's web server always runs with E2E_MODE=true, which intentionally
@@ -247,7 +249,40 @@ test.describe('Webhook payload customization form', () => {
 
   });
 
-
+  test('shows readable delivery logs in both admin views and refuses buyer sessions @J68',async({page,request})=>{
+    await gotoWebhooks(page,admin.email,admin.password);
+    const url=`${URL_PREFIX}readable-${Date.now()}`;
+    expect((await page.request.post('/api/v1/webhooks',{data:{url,events:['purchase.completed']}})).status()).toBe(201);
+    const endpoint=await fetchEndpoint(url);
+    for (const fixture of fixtures) {
+      expect((await supabaseAdmin.from('webhook_logs').insert({endpoint_id:endpoint.id,event_type:fixture.event,payload:await storeBuyerPayload(fixture.event,fixture),status:'permanently_failed',duration_ms:0})).error).toBeNull();
+    }
+    expect((await request.get('/api/v1/webhooks/logs')).status()).toBe(401);
+    const buyer=await createTestUser('log-reader');
+    try {
+      await setAuthSession(page,buyer.email,buyer.password);
+      expect((await page.request.get('/api/v1/webhooks/logs')).status()).toBe(401);
+      await setAuthSession(page,admin.email,admin.password);
+      const response=await page.request.get(`/api/v1/webhooks/logs?endpoint_id=${endpoint.id}`);
+      expect(response.status()).toBe(200);
+      const logs=(await response.json()).data;
+      expect(logs).toHaveLength(3);
+      expect(logs.every((log:{payload:unknown})=>!Array.isArray(log.payload))).toBe(true);
+      expect(JSON.stringify(logs)).not.toMatch(/fixture-credential|encrypted_key|encryption_iv|encryption_tag/);
+      await page.reload();
+      await page.locator('tr',{hasText:url}).getByRole('button',{name:'Logs',exact:true}).click();
+      const dialog = page.getByRole('dialog');
+      await expect(dialog).toBeVisible();
+      for (const fixture of fixtures) {
+        await dialog.locator('tr',{hasText:fixture.event}).click();
+        await expect(dialog.locator('pre').first()).toContainText(fixture.id);
+      }
+      await page.goto('/en/dashboard/webhooks/deliveries');
+      await page.locator('tr',{hasText:'order.participants_needed'}).first().click();
+      await expect(page.locator('pre').first()).toContainText('order.participants_needed');
+      await expect(page.locator('pre').first()).not.toContainText('encrypted_key');
+    } finally {await buyer.cleanup();}
+  });
 
 });
 
