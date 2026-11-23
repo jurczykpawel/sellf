@@ -9,7 +9,7 @@ test('a paid return offers account recovery without showing the other buyer @J73
   const id = randomUUID(), session = `cs_test_${randomUUID()}`;
   try {
     expect((await db.from('products').insert({ id, slug: id, name: 'Account receipt', price: 10, currency: 'PLN' })).error).toBeNull();
-    expect((await db.from('payment_transactions').insert({ product_id: id, user_id: b.userId, customer_email: b.email, amount: 1000, currency: 'PLN', status: 'completed', session_id: session })).error).toBeNull();
+    expect((await db.from('payment_transactions').insert({ product_id: id, user_id: b.userId, customer_email: b.email, amount: 1000, currency: 'PLN', status: 'completed', session_id: session, stripe_payment_intent_id: `pi_test_${id}` })).error).toBeNull();
     expect((await db.from('user_product_access').insert({ product_id: id, user_id: b.userId })).error).toBeNull();
     await setAuthSession(page, a.email, a.password);
     await page.goto(`/en/p/${id}/payment-status?session_id=${session}`);
