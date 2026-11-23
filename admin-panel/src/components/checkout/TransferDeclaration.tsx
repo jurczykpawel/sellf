@@ -4,11 +4,13 @@
  * promises no extension. @see app/api/orders/bank-transfer/declare/route.ts
  */
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 
 interface Declaration { declaredAt: string; releaseAt: string | null; afterDeadline?: boolean }
 
 export default function TransferDeclaration({ orderId, token, declaredAt, overdue = false }: { orderId: string; token: string; declaredAt: string | null; overdue?: boolean }) {
+  const router = useRouter();
   const t = useTranslations('bankTransfer'), locale = useLocale();
   const [note, setNote] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState('');
   const [done, setDone] = useState<Declaration | null>(declaredAt ? { declaredAt, releaseAt: null, afterDeadline: overdue } : null);
@@ -18,7 +20,7 @@ export default function TransferDeclaration({ orderId, token, declaredAt, overdu
     try {
       const response = await fetch('/api/orders/bank-transfer/declare', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId, token, ...(note.trim() ? { note: note.trim() } : {}) }) });
-      if (response.ok) setDone(await response.json()); else setError(t('declareError'));
+      if (response.ok) { setDone(await response.json()); router.refresh(); } else setError(t('declareError'));
     } catch { setError(t('declareError')); } finally { setBusy(false); }
   }
   if (done) return <p role="status" className="my-4 rounded-xl border border-sf-border p-4 print:hidden">
