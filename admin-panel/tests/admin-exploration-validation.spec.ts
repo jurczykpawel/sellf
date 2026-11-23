@@ -41,6 +41,27 @@ for (const [locale, messages] of Object.entries({ en, pl })) {
     } finally { await admin.cleanup(); }
   });
 
+  test(`${locale} required tutorial steps keep Next until completion @J212`, async ({ page }) => {
+    const admin = await tutorialAdmin(page, 'tutorial-action-label', false);
+    const texts = messages.tutorials;
+    const tour = page.locator('.driver-popover.sellf-tour');
+    const next = tour.locator('.driver-popover-next-btn');
+    try {
+      await page.goto(`${prefix}/dashboard/products?open=new&tutorial=b2b-checkout-profile`);
+      await expect(tour.locator('.driver-popover-title')).toHaveText(texts['b2b-checkout-profile'].steps.intro.title);
+      await next.click();
+      await expect(next).toHaveText(texts.next);
+      await next.click();
+      await expect(tour.locator('.driver-popover-description')).toHaveText(texts.mustAct);
+      await page.locator('[data-tour="profile-enable"]').getByRole('checkbox').check();
+      await expect(tour.locator('.driver-popover-title')).toHaveText(texts['b2b-checkout-profile'].steps.buyer.title);
+      for (let index = 0; index < 3; index++) await next.click();
+      await expect(next).toHaveText(texts.done);
+      await next.click();
+      await expect(tour).toHaveCount(0);
+    } finally { await admin.cleanup(); }
+  });
+
   test(`${locale} offer refusal opens that product's sales settings @J211`, async ({ page }) => {
     const admin = await tutorialAdmin(page, 'offer-publication-hint', false);
     const { data, error } = await db.from('products').insert({ name: `Private offer ${randomUUID()}`, slug: `private-${randomUUID()}`, price: 49, currency: 'PLN', is_active: true, is_listed: false }).select().single();
