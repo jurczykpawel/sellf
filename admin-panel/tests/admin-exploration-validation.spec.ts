@@ -7,7 +7,7 @@ import pl from '@/messages/pl.json';
 
 test.setTimeout(90_000);
 for (const [locale, messages] of Object.entries({ en, pl })) {
-  const prefix = locale === 'pl' ? '/pl' : '';
+  const prefix = `/${locale}`;
   test(`${locale} taxonomy errors focus fields and valid edits persist @J99`, async ({ page }) => {
     const admin = await tutorialAdmin(page, 'taxonomy-validation', false);
     try {
