@@ -16,7 +16,8 @@ for (const [locale, messages] of Object.entries({ en, pl })) {
         const { data, error } = await db.from(kind).insert({ name, slug: `valid-${randomUUID()}` }).select().single();
         expect(error).toBeNull();
         try {
-          await page.goto(`${prefix}/dashboard/${kind}`);
+          await page.goto(`${prefix}/dashboard/categories`);
+          if (kind === 'tags') await page.getByRole('tab', { name: messages.admin.categoriesTags.tagsTab, exact: true }).click();
           await page.getByRole('row').filter({ hasText: name }).getByRole('button').first().click();
           const slug = page.getByLabel(messages.admin[kind].slug, { exact: true });
           await slug.fill('bad slug <script>');
@@ -30,6 +31,7 @@ for (const [locale, messages] of Object.entries({ en, pl })) {
           await page.getByRole('button', { name: messages.common.save, exact: true }).click();
           await expect(slug).toHaveCount(0);
           await page.reload();
+          if (kind === 'tags') await page.getByRole('tab', { name: messages.admin.categoriesTags.tagsTab, exact: true }).click();
           await expect(page.getByRole('row').filter({ hasText: name })).toContainText(fixed);
         } finally { await db.from(kind).delete().eq('id', data!.id); }
       }
