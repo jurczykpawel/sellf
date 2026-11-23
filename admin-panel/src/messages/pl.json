@@ -262,6 +262,7 @@
       "publishVersion": "Opublikuj tę wersję"
   },
   "checkout": {
+    "updatingCart": "Aktualizujemy koszyk. Płatność będzie dostępna po ustaleniu kwoty.",
     "cartChanged": "Koszyk się zmienił. Sprawdź go przed ponowną próbą płatności.",
     "invoiceSection": {
       "wantInvoice": "Chcę fakturę na firmę",

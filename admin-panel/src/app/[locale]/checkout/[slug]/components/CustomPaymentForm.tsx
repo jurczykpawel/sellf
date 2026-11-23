@@ -39,6 +39,7 @@ interface CustomPaymentFormProps {
   onChangeAccount?: () => void;
   customAmountError?: string | null;
   quantityInvalid?: boolean;
+  cartUpdating?: boolean;
   cartSignature?: string;
   clientSecret?: string;
   bindingToken?: string;
@@ -85,7 +86,7 @@ export default function CustomPaymentForm({
   bumpProducts = [],
   selectedBumpIds = new Set(),
   onChangeAccount,
-  customAmountError, quantityInvalid = false, cartSignature,
+  customAmountError, quantityInvalid = false, cartUpdating = false, cartSignature,
   clientSecret,
   bindingToken, sessionDeadline,
   onConfirmationChange, onProcessingChange,
@@ -310,7 +311,7 @@ export default function CustomPaymentForm({
             return;
           }
           console.error('[CustomPaymentForm] Failed to update payment metadata');
-          setErrorMessage(t('detailsNotSaved'));
+          setErrorMessage(t(errorBody?.code === 'quantity_snapshot_mismatch' ? 'cartChanged' : 'detailsNotSaved'));
           setIsProcessing(false);
           return;
         }
@@ -564,7 +565,7 @@ export default function CustomPaymentForm({
         disabled={quantityInvalid || checkoutResult.type !== 'success' || !paymentElementReady || isProcessing || !!customAmountError || (emailMismatch && !emailConfirmed)}
         // Session readiness can precede the Element's interactive DOM. Keep
         // initialization distinct from processing and validation restrictions.
-        {...(checkoutResult.type !== 'success' || !paymentElementReady ? { 'data-checkout-pending': true } : {})}
+        {...(checkoutResult.type !== 'success' || !paymentElementReady || cartUpdating ? { 'data-checkout-pending': true } : {})}
         className={`w-full px-6 py-4 text-white font-bold rounded-full shadow-[var(--sf-shadow-accent)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] ${
           customAmountError
             ? 'bg-sf-muted/30 cursor-not-allowed'
@@ -594,6 +595,7 @@ export default function CustomPaymentForm({
         )}
       </button>
 
+      {cartUpdating && <p role="status" className="text-sm text-sf-muted">{t('updatingCart')}</p>}
       {checkoutResult.type === 'loading' && !paymentInputPending && <p role="status" className="text-sm text-sf-muted">{t('loadingPaymentMethods')}</p>}
 
       <p className="text-xs text-sf-muted text-center">{t('securePayment')}</p>

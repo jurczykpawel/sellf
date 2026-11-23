@@ -158,6 +158,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const [bindingToken, setBindingToken] = useState<string | null>(null);
   const [checkoutSessionId, setCheckoutSessionId] = useState<string | null>(null);
   const [lastCheckoutSessionSignature, setLastCheckoutSessionSignature] = useState<string | null>(null);
+  const [sessionQueuePending, setSessionQueuePending] = useState(false);
   const [sessionQueue] = useState(() => createCheckoutSessionQueue<CheckoutSessionResponse>(async identity => {
     // Dynamic recurring support uses a PaymentIntent rather than a Checkout Session.
     if (!identity.clientSecret?.startsWith('cs_')) return;
@@ -168,7 +169,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
       body: JSON.stringify({ productId: product.id, ...identity, expireOnly: true }),
     });
     if (!response.ok) throw new Error('Unable to expire checkout session');
-  }));
+  }, setSessionQueuePending));
 
   useEffect(() => {
     const handlePageHide = () => {
@@ -400,7 +401,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
     sessionId: product.event_mode ? eventSessionId : undefined,
     repurchase: explicitRepurchase,
   });
-  const cartReady = !quantityInvalid && !coupon.isVerifyingCoupon && lastCheckoutSessionSignature === checkoutSessionSignature;
+  const cartReady = !sessionQueuePending && !quantityInvalid && !coupon.isVerifyingCoupon && lastCheckoutSessionSignature === checkoutSessionSignature;
 
   // Free-access flow (shared by PWYW=0 and full-discount coupons)
   const pwyw = useFreeAccess({
@@ -821,6 +822,7 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
                 onTermsAcceptedChange={setTermsAccepted}
                 cartSignature={checkoutSessionSignature}
                 quantityInvalid={!cartReady}
+                cartUpdating={!cartReady && !quantityInvalid}
                 onRegisterServerUpdate={registerServerUpdate}
                 product={product}
                 email={user?.email ?? formEmail ?? email}
