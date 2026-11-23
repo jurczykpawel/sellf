@@ -4084,6 +4084,7 @@
       "sendEmail": "Email the key and product link to the buyer",
       "revokedStatus": "Revoked",
       "unlimited": "Unlimited",
+      "durationDays": "{count, plural, one {# day} other {# days}}",
       "policy": "Token policy: tier {tier}, validity: {days}",
       "issue": "Issue license",
       "issuing": "Issuing...",
