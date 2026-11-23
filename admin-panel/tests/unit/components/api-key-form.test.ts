@@ -22,3 +22,19 @@ it('names advanced inputs', () => {
   expect(screen.getByLabelText(pl.admin.apiKeys.rateLimit)).toBeTruthy();
   expect(screen.getByLabelText(pl.admin.apiKeys.expiration)).toBeTruthy();
 });
+it.each(['pl', 'en'])('validates 101 characters inline in %s for create and edit', async locale => {
+  for (const edit of [false, true]) {
+    const submit = open(locale, edit);
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: 'X'.repeat(101) } });
+    fireEvent.submit(input.closest('form')!);
+    expect(submit).not.toHaveBeenCalled();
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    const error = document.getElementById(input.getAttribute('aria-describedby')!);
+    expect(error?.textContent).toBe(locale === 'pl' ? 'Nazwa klucza może mieć najwyżej 100 znaków.' : 'Key name must be at most 100 characters.');
+    fireEvent.change(input, { target: { value: 'X'.repeat(100) } });
+    fireEvent.submit(input.closest('form')!);
+    expect(submit).toHaveBeenCalledOnce();
+    cleanup();
+  }
+});

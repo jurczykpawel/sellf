@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useId, useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from './ui/Modal';
 import { useTranslations } from 'next-intl';
 import { Key } from 'lucide-react';
@@ -42,6 +42,8 @@ export default function ApiKeyFormModal({
   scopesLocked = false,
 }: ApiKeyFormModalProps) {
   const id = useId();
+  const nameRef = useRef<HTMLInputElement>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
   const t = useTranslations('admin.apiKeys');
   const tCommon = useTranslations('common');
 
@@ -130,6 +132,11 @@ export default function ApiKeyFormModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.name.trim() || formData.name.length > 100) {
+      setNameError(t(formData.name.trim() ? 'nameTooLong' : 'nameRequired'));
+      nameRef.current?.focus();
+      return;
+    }
     const submitData: ApiKeyFormData = {
       name: formData.name,
       scopes: formData.scopes.length > 0 ? formData.scopes : [WILDCARD_SCOPE],
@@ -158,14 +165,18 @@ export default function ApiKeyFormModal({
               {t('keyName')} <span className="text-red-500">*</span>
             </label>
             <input
+              ref={nameRef}
               id={`${id}-name`}
+              aria-invalid={Boolean(nameError)}
+              aria-describedby={nameError ? `${id}-name-error` : undefined}
               type="text"
               required
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) => { setFormData({ ...formData, name: e.target.value }); setNameError(null); }}
               className="w-full px-3 py-2 bg-sf-input text-sf-heading border-2 border-sf-border-medium focus:ring-2 focus:ring-sf-accent focus:border-transparent outline-none transition-all"
               placeholder={t('keyNamePlaceholder')}
             />
+            {nameError && <p id={`${id}-name-error`} className="mt-1 text-sm text-sf-danger">{nameError}</p>}
           </div>
 
           {/* Scope Presets & Scopes — create only */}
