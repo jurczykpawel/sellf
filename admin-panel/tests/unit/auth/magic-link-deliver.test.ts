@@ -60,7 +60,7 @@ describe('deliverMagicLink', () => {
       shouldCreateUser: false,
     });
 
-    expect(result).toEqual({ ok: false, code: 'send_failed' });
+    expect(result).toEqual({ ok: false, code: 'send_failed', deliveryUnknown: true });
     expect(errorSpy).toHaveBeenCalledTimes(1);
     const [loggedMessage] = errorSpy.mock.calls[0];
     expect(loggedMessage).toContain('[magic-link]');
@@ -80,7 +80,7 @@ describe('deliverMagicLink', () => {
       shouldCreateUser: true,
     });
 
-    expect(result).toEqual({ ok: false, code: 'send_failed' });
+    expect(result).toEqual({ ok: false, code: 'send_failed', deliveryUnknown: true });
     expect(errorSpy).toHaveBeenCalled();
 
     errorSpy.mockRestore();

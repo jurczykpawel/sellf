@@ -9,7 +9,8 @@ useSupabaseBuyerEmails();
  * @see supabase/templates/confirmation.html, supabase/templates/magic-link.html
  */
 import { createClient } from '@supabase/supabase-js';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import * as mailGateway from '@/lib/auth/magic-link/request';
 import { sendOrderNotice, type OrderNotice } from '@/lib/orders/transfer-mail';
 import { formatTransferDeadline, transferDeadline } from '@/lib/orders/transfer-format';
 import { mailOrderLicenses } from '@/lib/license-keys/license-mail';
@@ -83,6 +84,41 @@ it('mails the license key of a paid order to a guest buyer @J01', async () => {
   } finally {
     const user = (await db.auth.admin.listUsers({ perPage: 1000 })).data.users.find(u => u.email === email);
     if (user) await db.auth.admin.deleteUser(user.id);
+    await db.from('products').delete().eq('id', product!.id);
+  }
+});
+
+it('sends one paid notice for concurrent attempts and keeps its first link usable @J231', async () => {
+  const { searchMessages, extractMagicLink } = await import('../../helpers/mailpit');
+  // Each fresh guest must receive only the link created by the winning delivery.
+  const email = `paid-once-${crypto.randomUUID()}@example.com`;
+  const { data: product, error } = await db.from('products').insert({ name: 'Paid once', slug: `paid-once-${crypto.randomUUID()}`, price: 10, currency: 'PLN' }).select('id').single();
+  expect(error).toBeNull();
+  try {
+    const { data: tx, error } = await db.from('payment_transactions').insert({ product_id: product!.id, customer_email: email, amount: 1000, currency: 'PLN', payment_provider: 'bank_transfer', pricing_snapshot_version: 1, status: 'completed', metadata: { locale: 'en' } }).select('id').single();
+    expect(error).toBeNull();
+    const sender = vi.spyOn(mailGateway, 'sendTrustedMagicLink');
+    try {
+      sender.mockResolvedValueOnce({ ok: false, code: 'send_failed' });
+      await sendOrderNotice(db, tx!.id, 'paid');
+      expect((await db.from('payment_transactions').select('transfer_paid_mail_sent_at').eq('id', tx!.id).single()).data?.transfer_paid_mail_sent_at).toBeNull();
+      sender.mockClear();
+      await Promise.all(Array.from({ length: 8 }, () => sendOrderNotice(db, tx!.id, 'paid')));
+      expect(sender).toHaveBeenCalledTimes(1);
+    } finally { sender.mockRestore(); }
+    const mail = await waitForEmail(email);
+    const inbox = await searchMessages(email);
+    expect(inbox).toHaveLength(1);
+    const link = new URL(extractMagicLink(mail.HTML!)!);
+    const verified = await db.auth.verifyOtp({ token_hash: link.searchParams.get('token_hash')!, type: link.searchParams.get('type') as 'email' });
+    expect(verified.error).toBeNull();
+    expect(verified.data.user?.email).toBe(email);
+    await sendOrderNotice(db, tx!.id, 'paid');
+    expect((await searchMessages(email))).toHaveLength(1);
+  } finally {
+    const user = (await db.auth.admin.listUsers({ perPage: 1000 })).data.users.find(u => u.email === email);
+    if (user) await db.auth.admin.deleteUser(user.id);
+    await db.from('payment_transactions').delete().eq('product_id', product!.id);
     await db.from('products').delete().eq('id', product!.id);
   }
 });

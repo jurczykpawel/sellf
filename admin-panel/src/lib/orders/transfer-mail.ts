@@ -55,8 +55,14 @@ export async function sendOrderNotice(db: SupabaseClient<Database>, id: string, 
       if (licenses.error) throw new Error('Order mail state unavailable');
       if (licenses.data?.length) data.license_mail_managed = 'true';
     }
+    const claimedAt = new Date().toISOString();
+    const claim = await db.from('payment_transactions').update({ [spec.column]: claimedAt })
+      .eq('id', id).is(spec.column, null).in('status', [...spec.statuses]).select('id').maybeSingle();
+    if (claim.error || !claim.data) return;
     const result = await sendTrustedMagicLink({ transactionalOnly: !!tx.user_id || (notice !== 'paid' && !(notice === 'placed' && meta?.access_on_placement === true)), email: tx.customer_email,
       redirectTo: buildPostCheckoutMagicLinkRedirect({ origin: base, productSlug: product.slug, locale, sessionId: undefined, paymentIntentId: undefined }), data });
-    if (result.ok) await db.from('payment_transactions').update({ [spec.column]: new Date().toISOString() } as Database['public']['Tables']['payment_transactions']['Update']).eq('id', id);
+    if (!result.ok && !result.deliveryUnknown) {
+      await db.from('payment_transactions').update({ [spec.column]: null }).eq('id', id).eq(spec.column, claimedAt);
+    }
   } catch { console.error('[transfer-mail] Delivery awaiting recovery:', id); }
 }
