@@ -281,4 +281,4 @@ test.describe('localized trial offer', () => {
   test('English buyer sees zero today, billing terms and first trial mail @J148', async ({ page }) => run(page, 'trial', 'en', true));
 });
 
-test('guest canceled subscription first mail retains paid access', async ({ page }) => run(page, 'guest', 'en', false, true));
+test('guest canceled subscription first mail retains paid access @J730', async ({ page }) => run(page, 'guest', 'en', false, true));
