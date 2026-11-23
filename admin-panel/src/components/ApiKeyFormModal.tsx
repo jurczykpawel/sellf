@@ -103,6 +103,7 @@ export default function ApiKeyFormModal({
   if (initialData !== trackedInitialData) {
     setTrackedInitialData(initialData);
     setFormData(buildFormData(initialData));
+    setNameError(null);
     setShowAdvanced((initialData?.rate_limit_per_minute ?? 60) !== 60);
   }
 
