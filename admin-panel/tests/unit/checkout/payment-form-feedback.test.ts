@@ -125,3 +125,16 @@ it.each([en, pl])('keeps email validation messages in checkout only', messages =
   expect(messages.checkout.emailTooLong).toBeTruthy();
   expect(messages.checkout.emailInvalidFormat).toBeTruthy();
 });
+
+it.each(['en', 'pl'] as const)('rejects a legacy name longer than the stored limit beside the field in %s', async locale => {
+  const fetcher = vi.fn(async () => Response.json({ success: true, data: { isValid: true } })); vi.stubGlobal('fetch', fetcher);
+  const view = form(locale, { invoice: { fullName: 'R'.repeat(200) + 'Ż', setFullName: vi.fn() } });
+  fireEvent.submit(view.container.querySelector('form')!);
+  const input = view.container.querySelector('#fullName')!;
+  expect(input.getAttribute('aria-invalid')).toBe('true');
+  expect(document.getElementById(input.getAttribute('aria-describedby')!)?.textContent).toContain('200');
+  expect(fetcher).not.toHaveBeenCalled();
+  expect(stripe.confirm).not.toHaveBeenCalled();
+  view.rerender(tree(locale, { invoice: { fullName: 'R'.repeat(199) + 'Ż', setFullName: vi.fn() } }));
+  expect(view.container.querySelector('#fullName')?.getAttribute('aria-invalid')).toBe('false');
+});

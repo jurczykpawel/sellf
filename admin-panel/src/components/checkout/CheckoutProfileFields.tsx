@@ -127,7 +127,12 @@ export default function CheckoutProfileFields({ profile, state, errors, disabled
     participants: config => config.id === 'participants' && <ParticipantsEditor people={state.people as Person[]} required={config.required} allowLater={!!config.allow_later} later={state.later} setLater={state.setLater}
         includeParticipants={state.includeParticipants} setIncludeParticipants={state.setIncludeParticipants} errorText={errorText} inputClass={inputClass}
         update={(index, key, value) => state.setParticipants(previous => ({ ...previous, [index]: { ...previous[index], [key]: value } }))}
-        fill={rows => state.setParticipants(Object.fromEntries(rows.map((row, index) => [index, row])))} />,
+        fill={rows => {
+          state.setParticipants(Object.fromEntries(rows.map((row, index) => [index, row])));
+          if (!errors.some(error => error.field.startsWith('participants'))) return;
+          const result = validateModuleValues(profile, { ...state.values, participants: state.people.map((_, index) => rows[index] ?? { first_name: '', last_name: '', email: '' }) }, { locale: 'en', currency: '', quantity: state.people.length });
+          state.setErrors([...errors.filter(error => !error.field.startsWith('participants')), ...(result.success ? [] : result.errors.filter(error => error.field.startsWith('participants')))]);
+        }} />,
   };
   return <div ref={fieldsRef} className="space-y-6">{profile.modules.map(config => {
     // The recipient is part of the organization's invoice section (rendered by the buyer module).

@@ -75,3 +75,30 @@ it('keeps bulk import collapsed by default, with an accessible disclosure in bot
     unmount();
   }
 });
+
+it.each(['en', 'pl'] as const)('revalidates participants after bulk filling in %s', locale => {
+  show(make(false), 2, locale);
+  act(() => { latest!.validate(); });
+  expect(document.getElementById('participants.0.first_name')?.getAttribute('aria-invalid')).toBe('true');
+  fireEvent.change(screen.getByLabelText(locale === 'pl' ? 'Wklej listę' : 'Paste a list'), { target: { value: 'Jan;Nowak;jan@example.com\nAnna;Kowalska;anna@example.com' } });
+  fireEvent.click(screen.getByRole('button', { name: (locale === 'pl' ? pl : en).checkout.profile.pasteApply }));
+  expect(document.querySelector('[aria-invalid="true"]')).toBeNull();
+});
+
+it.each(['invalid', 'same@example.com'])('retains validation after importing %s emails and preserves other errors', email => {
+  show(make(false), 2);
+  act(() => { latest!.validate(); });
+  act(() => latest!.setErrors([...latest!.errors, { field: 'buyer.first_name', code: 'required' }]));
+  fireEvent.change(screen.getByLabelText('Paste a list'), { target: { value: `Jan;Nowak;${email}\nAnna;Kowalska;${email}` } });
+  fireEvent.click(screen.getByRole('button', { name: 'Fill from list' }));
+  expect(latest!.errors.some(error => error.field.startsWith('participants.'))).toBe(true);
+  expect(latest!.errors).toContainEqual({ field: 'buyer.first_name', code: 'required' });
+});
+it('allows a partial paste before submission without showing errors or moving focus', () => {
+  show(make(false), 2);
+  const paste = screen.getByLabelText('Paste a list'); paste.focus();
+  fireEvent.change(paste, { target: { value: 'Jan;Nowak;jan@example.com' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Fill from list' }));
+  expect(latest!.errors).toEqual([]);
+  expect(document.activeElement).toBe(paste);
+});

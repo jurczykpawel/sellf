@@ -50,3 +50,5 @@ Cancellation removes the access period granted by that transfer, including when 
 The signed public transfer receipt wraps long transfer references on narrow screens and in print, preserving the complete title and account details.
 
 Each transfer notice is reserved before delivery, so concurrent payment handlers and recovery attempts send one notice for that order event. A refused send can be retried. If the delivery outcome is unknown, automatic retry is held to avoid replacing an already delivered sign-in link; the buyer can request a fresh sign-in link.
+
+After a successful transfer declaration the receipt refreshes its reservation heading and payment instructions from the saved order. Printing uses that updated deadline too. A declaration after the deadline does not extend it.

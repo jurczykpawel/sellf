@@ -119,3 +119,9 @@ Produkty z niepustym profilem zamówienia wymagają standardowego formularza na 
 Potwierdzenie subskrypcji korzysta z zapisanej płatności za fakturę i bieżącego uprawnienia. Pełny zwrot pokazuje **Płatność zwrócona** z `access_granted: false`; anulowanie bez zwrotu zachowuje opłacony okres. Powrót z płatności na innym zalogowanym koncie wyjaśnia, że zakup należy do innego konta, i udostępnia przycisk **Wyloguj się i kontynuuj**, bez ujawniania adresu kupującego. API weryfikacji nadal zwraca HTTP 403 dla obcego konta.
 
 Stan terminalny obowiązuje także dla starszych linków powrotu z parametrem `payment_intent`.
+
+Bramka elementów z kilkoma produktami ustala dostęp do każdego slugu osobno, jeśli przynajmniej jeden produkt jest widoczny dla wywołującego. Niedostępne slugi otrzymują brak dostępu i nie blokują posiadanego drugiego produktu. Żądanie bez widocznych produktów pozostaje niedostępne. Zwracane stany wymagają dozwolonego originu sprzedawcy.
+
+Wyszukiwanie katalogu przyjmuje najwyżej 100 znaków Unicode po usunięciu skrajnych spacji i normalizacji NFC; dłuższa treść pokazuje błąd przy polu. Imię i nazwisko w starszym formularzu checkoutu przyjmuje najwyżej 200 jednostek UTF-16, zgodnie z zapisywanym polem; dłuższa wartość pokazuje błąd i blokuje wysłanie. Import uczestników z listy lub CSV od razu przelicza błędy uzupełnionych wierszy, jeśli błędy uczestników były już wyświetlone. Częściowy import przed pierwszym wysłaniem nie dodaje błędów i nie przenosi fokusu.
+
+Dialog prośby o zwrot utrzymuje fokus w środku, zamyka się klawiszem Escape i oddaje fokus przyciskowi, który go otworzył.

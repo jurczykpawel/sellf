@@ -235,3 +235,16 @@ for (const locale of ['en', 'pl'] as const)
         expect(hosts.every((host) => host === 'catalogue.test')).toBe(true);
       });
     }
+
+test('search reports the 100-character boundary locally with Unicode normalization', async ({ page }) => {
+  await page.route('https://catalogue.test/**', async route => route.fulfill(route.request().url().endsWith('/fixture.js') ? { contentType: 'application/javascript', body: script } : { contentType: 'text/html', body: `<html><head><style>${css}</style></head><body><div id="root"></div><script src="/fixture.js"></script></body></html>` }));
+  await page.goto('https://catalogue.test/?locale=pl');
+  const input = page.getByRole('searchbox');
+  await input.fill('😀'.repeat(101));
+  await page.getByRole('button', { name: 'Szukaj', exact: true }).click();
+  await expect(input).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.getByRole('alert')).toContainText('100');
+  await input.fill('e\u0301'.repeat(100));
+  await expect(input).toHaveAttribute('aria-invalid', 'false');
+  await expect(page.getByRole('alert')).toHaveCount(0);
+});

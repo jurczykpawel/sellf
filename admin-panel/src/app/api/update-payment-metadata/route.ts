@@ -21,7 +21,7 @@ import {
 } from '@/lib/validations/custom-checkout-fields';
 import type { CustomFieldValues } from '@/lib/validations/custom-checkout-fields';
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
-import { buildBuyerDetails } from '@/lib/payment/buyer-details';
+import { buildBuyerDetails, BUYER_FULL_NAME_MAX_LENGTH } from '@/lib/payment/buyer-details';
 import type { BuyerDetails } from '@/lib/payment/buyer-details';
 import { invoiceSectionFromFlatFields, validateInvoiceSection } from '@/lib/checkout/invoice-section';
 import { readInvoiceRecipientEnabled } from '@/lib/checkout/invoice-recipient-setting';
@@ -248,6 +248,10 @@ export async function POST(request: NextRequest) {
     const usesProfile = !isSubscription && profileProduct?.checkout_profile != null;
     let standard: { buyer: BuyerDetails; metadata: Record<string, string>; recipientToStore: StoredRecipient | null } | null = null;
     if (!usesProfile) {
+      if (typeof fullName === 'string' && fullName.trim().length > BUYER_FULL_NAME_MAX_LENGTH) {
+        return NextResponse.json({ success: false, error: 'Name is too long', code: 'name_too_long' }, { status: 400 });
+      }
+
       // A subscription has no pending order row to keep a recipient on, so it never takes one.
       const recipientEnabled = !isSubscription && await readInvoiceRecipientEnabled(createAdminClient());
       const section = validateInvoiceSection(

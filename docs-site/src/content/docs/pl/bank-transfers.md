@@ -50,3 +50,5 @@ Anulowanie usuwa okres dostępu nadany przez ten przelew, także gdy inny zakup 
 Publiczny paragon przelewu otwierany podpisanym linkiem zawija długie tytuły na wąskich ekranach i w wydruku, zachowując pełny tytuł oraz dane rachunku.
 
 Każde powiadomienie o przelewie jest rezerwowane przed wysyłką. Równoległe przetwarzanie wpłaty i ponowienia wysyłają jedną wiadomość dla danego zdarzenia zamówienia. Po odmowie wysyłki można ponowić próbę. Gdy wynik doręczenia jest nieznany, automatyczne ponowienie zostaje wstrzymane, aby nie unieważnić już dostarczonego linku; kupujący może poprosić o nowy link do logowania.
+
+Po pomyślnej deklaracji przelewu pokwitowanie odświeża nagłówek rezerwacji i instrukcje płatności z zapisanego zamówienia. Wydruk również korzysta z aktualnego terminu. Deklaracja po terminie nie przedłuża rezerwacji.

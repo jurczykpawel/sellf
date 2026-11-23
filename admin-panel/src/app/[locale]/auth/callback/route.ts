@@ -45,13 +45,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/login?error=demo_mode', origin));
   }
 
+  const recoveryUrl = new URL('/login', origin)
+  const recoveryPath = getLoginReturnPath(requestUrl.searchParams.get('redirect_to'))
+  if (recoveryPath) recoveryUrl.searchParams.set('redirect_to', recoveryPath)
+
   // Upstream error from Supabase verify or OAuth provider.
   // Distinguish magic link expiry (common UX pitfall: clicking link in different browser)
   // from genuine OAuth failures (user denied access, provider error).
   const oauthError = requestUrl.searchParams.get('error')
   if (oauthError) {
     const errorCode = requestUrl.searchParams.get('error_code')
-    const loginUrl = new URL('/login', origin)
+    const loginUrl = recoveryUrl
     if (errorCode === 'otp_expired') {
       loginUrl.searchParams.set('error', 'magic_link_expired')
     } else {
@@ -62,7 +66,7 @@ export async function GET(request: NextRequest) {
 
   // Check if we have code or token_hash parameter
   if (!code && !tokenHash) {
-    return NextResponse.redirect(new URL('/login', origin))
+    return NextResponse.redirect(recoveryUrl)
   }
   
   // Create server client to exchange the code for a session first
@@ -114,7 +118,7 @@ export async function GET(request: NextRequest) {
   
   
   if (error || !session) {
-    const loginUrl = new URL('/login', origin)
+    const loginUrl = recoveryUrl
     const expired = tokenHash || error?.code === 'otp_expired' || error?.code === 'flow_state_expired';
     loginUrl.searchParams.set('error', expired ? 'magic_link_expired' : 'session_lost')
     return NextResponse.redirect(loginUrl)
@@ -130,7 +134,7 @@ export async function GET(request: NextRequest) {
         await supabase.auth.signOut();
         
         // Redirect to login with error
-        const loginUrl = new URL('/login', origin);
+        const loginUrl = recoveryUrl;
         loginUrl.searchParams.set('error', 'disposable_email');
         return NextResponse.redirect(loginUrl);
       }

@@ -8,6 +8,7 @@ import { createElement } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 import TransferDeclaration from '@/components/checkout/TransferDeclaration';
 import en from '@/messages/en.json';
 import pl from '@/messages/pl.json';

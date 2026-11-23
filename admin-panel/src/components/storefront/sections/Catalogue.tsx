@@ -32,6 +32,7 @@ export default function Catalogue({
   const [groups, setGroups] = useState(initialGroups);
   const [query, setQuery] = useState<Query>(initialQuery);
   const [search, setSearch] = useState(initialQuery.search);
+  const searchInvalid = Array.from(search.trim().normalize('NFC')).length > 100;
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState<'INVALID' | 'UNAVAILABLE' | null>(null);
   const generation = useRef(0);
@@ -55,6 +56,7 @@ export default function Catalogue({
   }, [groups]);
 
   async function request(next: Query, more: CatalogueGroup | null = null, focusAfter = more !== null) {
+    if (Array.from(next.search.trim().normalize('NFC')).length > 100) return;
     const version = ++generation.current;
     controller.current?.abort();
     const abort = new AbortController();
@@ -166,12 +168,14 @@ export default function Catalogue({
               id={`${id}-search`}
               type="search"
               placeholder={variant === 'compact' ? labels.search : undefined}
-              maxLength={200}
+              aria-invalid={searchInvalid}
+              aria-describedby={searchInvalid ? `${id}-search-error` : undefined}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
             <button type="submit">{labels.submit}</button>
           </div>
+          {searchInvalid && <p id={`${id}-search-error`} role="alert">{labels.searchTooLong}</p>}
         </form>
         <div className={styles.filters}>
           {filters.includes('category') && categories.length > 0 && (

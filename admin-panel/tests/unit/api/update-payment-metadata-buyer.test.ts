@@ -427,3 +427,19 @@ it('returns an actionable expired session code before saving buyer data', async 
   expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
   expect(mocks.adminRpc).not.toHaveBeenCalled();
 });
+
+it('refuses a legacy full name beyond the stored limit without updating buyer details', async () => {
+  const res = await POST(makeRequest(SESSION_ID, { fullName: 'R'.repeat(200) + 'Ż' }));
+  expect(res.status).toBe(400);
+  expect(mocks.adminRpc).not.toHaveBeenCalled();
+  expect(mocks.sessionsUpdate).not.toHaveBeenCalled();
+});
+it('stores a legacy name at the boundary including its final Polish letter', async () => {
+  const fullName = 'R'.repeat(199) + 'Ż';
+  expect((await POST(makeRequest(SESSION_ID, { fullName }))).status).toBe(200);
+  expect(mocks.adminRpc).toHaveBeenCalledWith('set_payment_order_buyer', expect.objectContaining({ p_buyer: expect.objectContaining({ full_name: fullName }) }));
+});
+it('uses configured profile names independently of an unused legacy name', async () => {
+  mocks.productRead.mockResolvedValue({ data: { checkout_profile: { v: 1, modules: [] }, currency: 'PLN' }, error: null });
+  expect((await POST(makeRequest(SESSION_ID, { moduleValues: {}, fullName: 'R'.repeat(201) }))).status).toBe(200);
+});
