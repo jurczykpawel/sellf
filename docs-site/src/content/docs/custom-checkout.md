@@ -22,6 +22,8 @@ Products without a profile keep their existing checkout and webhook format.
 - **Participants:** requires Quantity. Collect one first name, last name and unique email per
   seat. Optional participants may be left entirely empty. At one seat, buyer prefill is available.
 
+Embedded checkout does not collect profile modules. Products with a nonempty checkout profile require the standard product checkout; the embed API refuses session creation with `422 STANDARD_CHECKOUT_REQUIRED`, and the loader explains how to continue. The same rule applies to embedded free access. Quantity limits, including a hidden fixed minimum, are validated on the server before payment preparation.
+
 Profiles support the default checkout template and one-time products. Subscriptions, tips,
 pay-what-you-want products, bundles and OTO are unsupported. Products issuing licenses cannot
 use quantities above one. Invalid combinations are rejected when saving.
@@ -113,3 +115,5 @@ For time-limited products, another order retains access only until its own perio
 Video loading and unavailable messages follow the buyer view language (English or Polish).
 
 Cancelling an unpaid bank transfer with access granted on placement removes that order's period even if a later purchase extended the same product. Refunding a subscription invoice ends that subscription's rights while preserving separately purchased periods and administrator grants.
+
+Subscription receipt verification uses the saved invoice payment and current entitlement. A full refund shows **Payment refunded** with `access_granted: false`; cancellation without a refund keeps the paid period. When returning from checkout in another signed-in account, the page explains that the purchase belongs to a different account and offers **Sign out and continue**, without revealing the buyer email. Verification still returns HTTP 403 for the other account.

@@ -212,6 +212,23 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
     await expect(page.getByText(`First mail ${kind}`, { exact: true }).first()).toBeVisible();
     expect(hydrationErrors).toEqual([]);
     await page.screenshot({ path: test.info().outputPath('first-mail-access.png'), fullPage: true });
+    if (cancelBeforeClaim) {
+      const sessionId = sessions.at(-1)!;
+      const before = await page.request.post('/api/verify-payment', { data: { session_id: sessionId } });
+      expect(await before.json()).toMatchObject({ payment_status: 'paid', access_granted: true });
+      const [payment] = await rows('payment_transactions', 'product_id', product.id);
+      await stripe.refunds.create({ payment_intent: payment.stripe_payment_intent_id });
+      await expect.poll(async () => (await rows('payment_transactions', 'product_id', product.id))[0]?.status, { timeout: 60000 }).toBe('refunded');
+      const after = await page.request.post('/api/verify-payment', { data: { session_id: sessionId } });
+      expect(after.status()).toBe(200);
+      expect(await after.json()).toMatchObject({ payment_status: 'refunded', access_granted: false, send_magic_link: false });
+      await page.goto(`/en/p/${slug}/payment-status?session_id=${sessionId}`);
+      await expect(page.getByText('Payment refunded', { exact: true })).toBeVisible();
+      await expect(page.getByText('Access granted', { exact: true })).toHaveCount(0);
+      expect(await rows('user_product_access', 'product_id', product.id)).toHaveLength(0);
+      await page.screenshot({ path: test.info().outputPath('subscription-refund-receipt.png') });
+    }
+
   } finally {
     for (const id of ids) for (const sub of await rows('subscriptions', 'product_id', id)) {
       if (sub.status !== 'canceled') await stripe.subscriptions.cancel(sub.stripe_subscription_id);
