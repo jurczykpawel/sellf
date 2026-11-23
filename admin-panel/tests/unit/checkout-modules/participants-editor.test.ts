@@ -75,3 +75,12 @@ it('keeps bulk import collapsed by default, with an accessible disclosure in bot
     unmount();
   }
 });
+
+it.each(['en', 'pl'] as const)('revalidates participants after bulk filling in %s', locale => {
+  show(make(false), 2, locale);
+  act(() => { latest!.validate(); });
+  expect(document.getElementById('participants.0.first_name')?.getAttribute('aria-invalid')).toBe('true');
+  fireEvent.change(screen.getByLabelText(locale === 'pl' ? 'Wklej listę' : 'Paste a list'), { target: { value: 'Jan;Nowak;jan@example.com\nAnna;Kowalska;anna@example.com' } });
+  fireEvent.click(screen.getByRole('button', { name: (locale === 'pl' ? pl : en).checkout.profile.pasteApply }));
+  expect(document.querySelector('[aria-invalid="true"]')).toBeNull();
+});
