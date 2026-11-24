@@ -126,7 +126,7 @@ jobs:
       - &lane
         name: Run gate lane
         run: |
-          ( while sleep 30; do echo "HOST disk_free=$(df -h / | awk 'NR==2{print $4}') mem_avail_mb=$(free -m | awk '/Mem/{print $7}') load=$(cut -d' ' -f1 /proc/loadavg)"; done ) &
+          ( while sleep 15; do echo "HOST disk_free=$(df -h / | awk 'NR==2{print $4}') mem_avail_mb=$(free -m | awk '/Mem/{print $7}') load=$(cut -d' ' -f1 /proc/loadavg) top=$(ps -eo rss=,comm= --sort=-rss | head -4 | awk '{printf "%s:%dMB,", $2, $1/1024}') ctr=$(docker stats --no-stream --format '{{.Name}}:{{.MemUsage}}' 2>/dev/null | sort -t: -k2 -rh | head -3 | cut -d/ -f1 | tr '\n' ',')"; done ) &
           python3 -B gate/scripts/release-gate/all.py "$RC_GATE_LANE"
       - *validate-receipt
       - &lane-failure
