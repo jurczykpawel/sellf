@@ -107,6 +107,15 @@ def candidate_stack():
     configure()
 
 
+def describe_error(error):
+    """Public receipt text: assertion messages are the harness's own fixed strings, so they are published
+    (redacted, max 190 chars) to make GHA failures diagnosable; any other exception stays a type name."""
+    if not isinstance(error, AssertionError) or not error.args:
+        return type(error).__name__
+    text = re.sub(r'(sk|pk|rk|whsec|sb_secret|sb_publishable)_[A-Za-z0-9_]+|eyJ[A-Za-z0-9_.-]+', '[redacted]', str(error.args[0]))
+    return ('AssertionError: ' + ' '.join(text.split()))[:190]
+
+
 def execute(lane):
     from first import api, database, reset, unit
     from tools_linux import install
@@ -183,7 +192,7 @@ def run_lane(lane):
         before = frozen_source()
         execute(lane)
     except Exception as error:
-        record('lane-error', 1, error=type(error).__name__)
+        record('lane-error', 1, error=describe_error(error))
     finally:
         try:
             spec = importlib.util.spec_from_file_location('final_cleanup', TOOLS / 'final-cleanup.py')
