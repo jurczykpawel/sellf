@@ -32,6 +32,15 @@ describe('build-release.yml hardening', () => {
     expect(unpinnedThirdPartyActions(buildRelease)).toEqual([]);
   });
 
+  it('builds releases without a shared build cache', () => {
+    expect(buildRelease).not.toMatch(/^\s*cache-(from|to):/m);
+    const bunSteps = [...buildRelease.matchAll(/uses: oven-sh\/setup-bun@[^\n]+\n\s+with:\n((?: {10}\S[^\n]*\n)+)/g)];
+    expect(bunSteps.length).toBeGreaterThan(0);
+    for (const [, inputs] of bunSteps) {
+      expect(inputs).toContain('no-cache: true');
+    }
+  });
+
   it('publishes the plain sha256 checksum next to the release tarball', () => {
     expect(buildRelease).toContain('sha256sum sellf-build.tar.gz > sellf-build.tar.gz.sha256');
   });
@@ -193,14 +202,13 @@ describe('build-release.yml version consistency', () => {
 });
 
 describe('sync-ksef-example.yml hardening', () => {
-  it('opens a pull request instead of pushing straight to main', () => {
+  it('publishes a patch for review with a read-only token', () => {
     expect(syncKsef).not.toMatch(/\bgit push\b/);
-    expect(syncKsef).not.toContain('git commit');
-    expect(syncKsef).toContain('create-pull-request');
-  });
-
-  it('requests pull-requests:write instead of only contents:write', () => {
-    expect(syncKsef).toMatch(/permissions:\s*\n\s*contents:\s*write\s*\n\s*pull-requests:\s*write/);
+    expect(syncKsef).not.toContain('create-pull-request');
+    expect(syncKsef).not.toMatch(/:\s*write\b/);
+    expect(syncKsef).toMatch(/permissions:\s*\n\s*contents:\s*read\b/);
+    expect(syncKsef).toContain('actions/upload-artifact@');
+    expect(syncKsef).toContain('ksef-example.patch');
   });
 
   it('pins its actions to full commit SHAs', () => {

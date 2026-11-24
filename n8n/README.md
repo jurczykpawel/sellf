@@ -42,8 +42,9 @@ Import whichever file matches your preference (n8n → Workflows → Import from
 `sellf-ksef.json` / `sellf-ksef-PL.json` turn Sellf purchases into KSeF e-invoices via
 [KSeF Gateway](https://github.com/jurczykpawel/ksef-gateway). These two files are a **read-only
 mirror** - the source of truth is `examples/n8n/` in that repo, where they are maintained and
-tested. Local review may correct explanatory notes without changing execution logic: `.github/workflows/sync-ksef-example.yml` periodically overwrites
-this copy with the upstream version, including those notes.
+tested. The [mirror sync workflow](../.github/workflows/sync-ksef-example.yml)
+prepares a patch when upstream differs. Maintainers can download the patch from
+the run summary, review it and open a pull request.
 
 
 #### KSeF setup and operating limits
