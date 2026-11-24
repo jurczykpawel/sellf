@@ -45,5 +45,5 @@ export function requiresStandardCheckout(value: unknown, product: CheckoutProduc
   if (value == null || usesFreeProductForm(product)) return false;
   const profile = storedCheckoutProfileSchema.safeParse(value);
   return !profile.success || !parseCheckoutProfile(profile.data, { ...product, embed_enabled: false }).success || profile.data.modules.some(m => m.id === 'participants'
-    || (m.id === 'quantity' && (m.min > 1 || m.max < 1 || m.mode !== 'checkout')));
+    || (m.id === 'quantity' && (m.min > 1 || m.max < 1 || (m.mode === 'product_page' && m.max !== 1))));
 }

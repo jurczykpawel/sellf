@@ -193,3 +193,14 @@ describe('embed product validation', () => {
     expect(await checkoutProfileErrors({ ...product, checkout_profile: profile })).toEqual([]);
   });
 });
+
+
+it.each([
+  ['hidden', 1, 1, false], ['hidden', 1, 5, false], ['hidden', 2, 5, true],
+  ['product_page', 1, 1, false], ['product_page', 1, 5, true], ['product_page', 2, 5, true],
+  ['checkout', 1, 5, false], ['checkout', 2, 5, true],
+])('embed compatibility for %s %s..%s is %s', (mode, min, max, blocked) => {
+  const profile = { v: 1, modules: [{ id: 'quantity', mode, min, max }] };
+  expect(requiresStandardCheckout(profile, { price: 10 })).toBe(blocked);
+  expect(parseCheckoutProfile(profile, { price: 10, embed_enabled: true }).success).toBe(!blocked);
+});

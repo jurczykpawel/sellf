@@ -436,7 +436,6 @@ describe('embed error response origins', () => {
 
 it.each([
   ...['hidden', 'checkout', 'product_page'].map(mode => ({ modules: [{ id: 'quantity', min: 2, max: 3, mode }] })),
-  { modules: [{ id: 'quantity', min: 1, max: 3, mode: 'hidden' }] },
   { modules: [{ id: 'quantity', min: 1, max: 3, mode: 'product_page' }] },
   { modules: [{ id: 'quantity', min: 1, max: 0, mode: 'checkout' }] },
   { modules: [{ id: 'quantity', min: 1, max: 3, mode: 'checkout' }, { id: 'participants', required: true, prefill_from_buyer: false }] },
@@ -452,6 +451,9 @@ it.each([
   [{ id: 'buyer', types: ['organization'] }], [{ id: 'phone', required: true }],
   [{ id: 'buyer', types: ['organization'] }, { id: 'recipient', for: ['organization'] }],
   [{ id: 'quantity', min: 1, max: 5, mode: 'checkout' }],
+  [{ id: 'quantity', min: 1, max: 5, mode: 'hidden' }],
+  [{ id: 'quantity', min: 1, max: 1, mode: 'hidden' }],
+  [{ id: 'quantity', min: 1, max: 1, mode: 'product_page' }],
 ])('keeps selling one unit with compatible modules %j', async (...modules) => {
   mocks.createAdminClient.mockReturnValue(makeDbMock({ product: { ...product, checkout_profile: { v: 1, modules } } }));
   const response = await POST(makeRequest({ productSlug: product.slug }, 'https://landing.example.com'));
