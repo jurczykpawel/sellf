@@ -162,13 +162,19 @@ export default function PaidProductForm({ product, paymentMethodOrder, expressCh
   const [sessionQueue] = useState(() => createCheckoutSessionQueue<CheckoutSessionResponse>(async identity => {
     // Dynamic recurring support uses a PaymentIntent rather than a Checkout Session.
     if (!identity.clientSecret?.startsWith('cs_')) return;
-    const response = await fetch('/api/create-payment-intent', {
-      method: 'POST',
-      keepalive: true,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId: product.id, ...identity, expireOnly: true }),
-    });
-    if (!response.ok) throw new Error('Unable to expire checkout session');
+    try {
+      const response = await fetch('/api/create-payment-intent', {
+        signal: AbortSignal.timeout(15000),
+        method: 'POST',
+        keepalive: true,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: product.id, ...identity, expireOnly: true }),
+      });
+      if (!response.ok) throw new Error('Unable to expire checkout session');
+    } catch (error) {
+      if (!departed.current) setError(t('createSessionError'));
+      throw error;
+    }
   }, setSessionQueuePending));
 
   useEffect(() => {
