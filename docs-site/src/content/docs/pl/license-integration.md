@@ -524,4 +524,4 @@ Niepoprawny importowany klucz podpisujący pokazuje komunikat po polsku lub angi
 
 Strona produktu kupującego i API treści wybierają ważną licencję przed nowszymi cofniętymi lub wygasłymi kluczami, także po zwrocie pakietu zawierającego ten sam produkt. Klucz musi należeć do konta; nieprzypisane klucze gościa są dopasowywane wyłącznie do potwierdzonego adresu konta. Gdy nie ma już ważnego klucza, historia konta nadal pokazuje stan cofnięcia lub wygaśnięcia.
 
-Strona produktu i API treści odpytują rejestr kluczy tylko wtedy, gdy produkt wydaje licencję po zakupie. Błąd odczytu rejestru jest logowany; kupujący nadal widzi treść zgodnie ze swoim dostępem, bez klucza. Odświeżenie strony ponawia odczyt.
+Strona produktu i API treści pokazują wydaną licencję kupującego także po wyłączeniu przez sprzedawcę wystawiania nowych licencji przy zakupie. Błąd odczytu rejestru jest logowany; kupujący nadal widzi treść zgodnie ze swoim dostępem, bez klucza. Odświeżenie strony ponawia odczyt.

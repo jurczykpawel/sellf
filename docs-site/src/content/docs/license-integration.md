@@ -524,4 +524,4 @@ An invalid imported signing key shows an English or Polish message beside the pr
 
 The buyer product page and content API prefer a current license over newer revoked or expired keys, including when a refunded bundle previously issued another key for the same product. Account ownership is required; unassigned guest keys are matched only to the confirmed account email. When no valid key remains, the latest account history still shows its revoked or expired state.
 
-The product page and content API read issued licenses only for products configured to issue a key on purchase. A registry read error is logged; buyers keep the content permitted by their access, without the key. Reloading the page retries the read.
+The product page and content API keep showing the buyer’s issued license even after the seller disables issuing new licenses on purchase. A registry read error is logged; buyers keep the content permitted by their access, without the key. Reloading the page retries the read.

@@ -114,7 +114,7 @@ Zamknięcie okna sprzedaży (`available_until`) zatrzymuje nowe zakupy; kupując
 
 Na liście produktów **Escape** zamyka menu **Więcej akcji** i przywraca fokus na jego przycisku, również wtedy, gdy fokus był na akcji wewnątrz menu.
 
-Osadzony checkout sprzedaje jedną sztukę i nie zbiera danych modułów. Moduły kupującego, telefonu i odbiorcy pozostają zgodne; zakończone zamówienie oznacza brak wymaganych danych przez `details_missing`. Moduł ilości jest zgodny, gdy zakres obejmuje 1, a tryb to `checkout`. Uczestnicy, inne tryby ilości, minimum powyżej 1 i niepoprawny profil wymagają koszyka na stronie produktu. API zwraca `422 STANDARD_CHECKOUT_REQUIRED` z `productUrl`; skrypt pokazuje klikalny link, a odmowa zapisuje się w logu embedu.
+Osadzony checkout sprzedaje jedną sztukę i nie zbiera danych modułów. Moduły kupującego, telefonu i odbiorcy pozostają zgodne; zakończone zamówienie oznacza brak wymaganych danych przez `details_missing`. Moduł ilości jest zgodny, gdy zakres obejmuje 1 w trybie `checkout`, gdy `hidden` ustala ilość na 1 (`min=1`, także przy większym `max`) lub gdy `product_page` ma `min=max=1`. Uczestnicy, możliwość wyboru innej ilości na stronie produktu, minimum powyżej 1 i niepoprawny profil wymagają koszyka na stronie produktu. API zwraca `422 STANDARD_CHECKOUT_REQUIRED` z `productUrl`; skrypt pokazuje klikalny link, a odmowa zapisuje się w logu embedu.
 
 Przed zapisaniem blokującego profilu wyłącz embed samodzielnie. Formularz zgłasza konflikt, ale nie zmienia ustawień. Okno generowania kodu pokazuje wtedy link do ustawień profilu. Edytor profilu ostrzega, gdy embed jest włączony lub był używany; ostatnią zapisaną domenę i datę widzi tylko administrator.
 
