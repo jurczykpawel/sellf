@@ -129,3 +129,5 @@ The refund request dialog supports keyboard focus containment, Escape to close, 
 ## Cart updates before payment
 
 While a cart update is running or queued, the Pay button is disabled and checkout explains that the total is being updated. This also applies when a buyer changes a quantity and immediately returns to its previous value. If the server detects a changed quantity at submission, checkout asks the buyer to review the cart before paying again.
+
+Expiring the previous session also has a 15-second timeout. If expiration stalls or fails, the form shows the session-creation error and ends the queue wait; payment remains unavailable under the existing cart-update error handling. Cleanup after leaving the page does not display an error.

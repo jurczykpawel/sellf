@@ -129,3 +129,5 @@ Dialog prośby o zwrot utrzymuje fokus w środku, zamyka się klawiszem Escape i
 ## Aktualizacja koszyka przed płatnością
 
 Gdy aktualizacja koszyka trwa lub czeka w kolejce, przycisk płatności jest wyłączony, a koszyk informuje o ustalaniu kwoty. Dotyczy to także zmiany ilości i natychmiastowego powrotu do poprzedniej wartości. Jeśli serwer wykryje zmianę ilości podczas zatwierdzania, koszyk prosi kupującego o sprawdzenie zamówienia przed ponowną próbą płatności.
+
+Wygaszanie poprzedniej sesji ma także limit 15 sekund. Jeśli żądanie wygaszenia nie odpowie w tym czasie lub zakończy się błędem, formularz pokazuje błąd utworzenia sesji i kończy oczekiwanie w kolejce; płatność pozostaje niedostępna zgodnie z obsługą błędu aktualizacji koszyka. Sprzątanie po opuszczeniu strony nie pokazuje błędu.
