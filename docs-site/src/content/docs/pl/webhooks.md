@@ -269,6 +269,10 @@ harmonogramu. Brak harmonogramu wstrzymuje ponowienia, ale nie pierwszą próbę
 ani zapis logów. Ręczne ponowienie starej dostawy o statusie `failed` aktualizuje
 ten sam wpis, zachowując identyfikator dostawy.
 
+Na stronie **Dostawy webhooków** wybierz status i użyj przycisku **Następna strona**,
+aby przejść do starszych wpisów. Lista pokazuje 50 wpisów na stronę, od najnowszego
+według czasu utworzenia. Zmiana filtra statusu przywraca pierwszą stronę.
+
 ### Zdarzenia porzucone przed wysyłką
 
 Zmiany zamówień, dostępów, licencji i katalogu najpierw trafiają do kolejki zdarzeń

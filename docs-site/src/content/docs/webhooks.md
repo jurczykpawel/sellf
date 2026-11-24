@@ -436,6 +436,10 @@ When a delivery fails (network error, non-2xx response, SSRF block) the worker r
 
 After the 5th failed attempt the delivery enters the **dead-letter queue** (status `permanently_failed`). It stays there until an admin clicks **Replay** in `/dashboard/webhooks/deliveries`, at which point the attempt counter resets to 0 and the row goes back to `pending_retry` with `next_retry_at = NOW()` for the worker to pick up.
 
+In **Webhook deliveries**, choose a status and use **Next page** to browse older
+deliveries. The list shows 50 records per page, newest first by creation time.
+Changing the status filter returns to the first page.
+
 ### Concurrency safety
 
 `pick_due_webhook_deliveries(limit)` uses `FOR UPDATE SKIP LOCKED` plus a 60-second `next_retry_at` lease, so:
