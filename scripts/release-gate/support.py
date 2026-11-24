@@ -20,7 +20,34 @@ OUT = Path(os.environ.get('RC_GATE_OUT', RUNNER_TEMP / 'release-gate'))
 STACK = OUT / 'stack'
 RUNTIME = OUT / 'tools'
 RECEIPT = OUT / 'public' / 'results.jsonl'
-CLI = shutil.which('supabase') or 'supabase'
+
+
+def native_supabase_cli():
+    """Path of the native Supabase CLI, never the npm `dist/supabase.js` shim.
+
+    The shim execs SUPABASE_CLI_BINARY_OVERRIDE; pointing that at the shim itself made it exec itself forever
+    (GHA runs 45451064020/45454122537: thousands of node processes exhausted 16 GB during `supabase start`).
+    """
+    found = shutil.which('supabase')
+    if not found:
+        return 'supabase'
+    real = Path(os.path.realpath(found))
+    with real.open('rb') as handle:
+        if handle.read(4) != b'#!/u' and not real.name.endswith('.js'):
+            return str(real)
+    for parent in real.parents:
+        candidates = sorted(parent.glob('node_modules/@supabase/cli-linux-*/bin/supabase')) + sorted(
+            parent.glob('@supabase/cli-linux-*/bin/supabase')
+        )
+        candidates = [c for c in candidates if 'musl' not in c.parts[-3]]
+        if candidates:
+            return str(candidates[0])
+        if parent.name == 'node_modules' and parent.parent.name.startswith('setup-cli'):
+            break
+    raise AssertionError('Native Supabase CLI binary not found next to the npm shim')
+
+
+CLI = native_supabase_cli()
 env = {
     **os.environ,
     'SUPABASE_CLI_BINARY_OVERRIDE': CLI,
