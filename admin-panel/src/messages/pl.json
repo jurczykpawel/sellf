@@ -2795,7 +2795,7 @@
         "keyPlaceholder": "nazwa pola",
         "valuePlaceholder": "wartość lub token placeholder",
         "placeholdersHint": "Dostępne: {tokens}",
-        "headerInvalid": "Podaj poprawną nazwę nagłówka HTTP i wartość w jednym wierszu. Nagłówki transportowe i X-Sellf są zastrzeżone.",
+        "headerInvalid": "Podaj najwyżej 20 nagłówków o poprawnych nazwach HTTP i wartościach w jednym wierszu. Nazwy muszą być unikalne bez względu na wielkość liter i mieć do 64 znaków, a wartości do 2048 znaków. Nagłówki transportowe i X-Sellf są zastrzeżone.",
         "headersLabel": "Własne nagłówki",
         "headersConfigured": "Własne nagłówki skonfigurowane",
         "deleteHeaders": "Usuń",

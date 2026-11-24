@@ -2795,7 +2795,7 @@
         "keyPlaceholder": "field name",
         "valuePlaceholder": "value or a placeholder token",
         "placeholdersHint": "Available: {tokens}",
-        "headerInvalid": "Use a valid HTTP header name and a single-line value. Transport and X-Sellf headers are reserved.",
+        "headerInvalid": "Use at most 20 headers with valid HTTP header names and single-line values. Use unique names (case-insensitive), names up to 64 characters and values up to 2048 characters. Transport and X-Sellf headers are reserved.",
         "headersLabel": "Custom headers",
         "headersConfigured": "Custom headers configured",
         "deleteHeaders": "Delete",
