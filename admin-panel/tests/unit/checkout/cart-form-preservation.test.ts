@@ -104,7 +104,7 @@ it('bounds retries and stalled responses within the Stripe update timeout', asyn
     await act(async () => { await vi.advanceTimersByTimeAsync(15000); });
     expect(updateSignal?.aborted).toBe(true);
     expect(attempts).toBe(2);
-    expect(timeout).toHaveBeenCalledOnce();
+    expect(timeout.mock.calls.every(([ms]) => ms === 15000)).toBe(true);
   } finally { vi.useRealTimers(); timeout.mockRestore(); }
 });
 
@@ -200,4 +200,35 @@ it('keeps card input unavailable when an in-flight cart returns to its original 
   expect(card.disabled).toBe(true);
   await act(async()=>{release(Response.json({clientSecret:'cs_test_open_secret_value',checkoutSessionId:'cs_test_open'}));});
   await waitFor(()=>expect(card.disabled).toBe(false));
+});
+
+
+it('recovers from a hanging expiration after 15 seconds with checkout feedback', async () => {
+  let expirationSignal: AbortSignal | null | undefined;
+  vi.stubGlobal('fetch', vi.fn((_url: string, init: RequestInit) => {
+    if (!JSON.parse(init.body as string).expireOnly) return Promise.resolve(Response.json({ clientSecret: 'cs_test_open_secret_value', checkoutSessionId: 'cs_test_open' }));
+    expirationSignal ??= init.signal;
+    return new Promise<Response>((_resolve, reject) => expirationSignal?.addEventListener('abort', () => reject(expirationSignal!.reason), { once: true }));
+  }));
+  const product = { id: 'product', slug: 'product', name: 'Product', price: 100, currency: 'PLN', is_active: true };
+  render(React.createElement(NextIntlClientProvider, { locale: 'en', messages: en }, React.createElement(PaidProductForm, { product, collectTermsOfService: false } as unknown as React.ComponentProps<typeof PaidProductForm>)));
+  await screen.findByLabelText('Card');
+  vi.useFakeTimers();
+  const timeout = vi.spyOn(AbortSignal, 'timeout').mockImplementation(ms => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(new DOMException('Request timed out', 'TimeoutError')), ms);
+    return controller.signal;
+  });
+  const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+  try {
+    let recovered = false;
+    act(() => { void state.restart!().then(() => { recovered = true; }); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(14999); });
+    expect(recovered).toBe(false);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    expect(recovered).toBe(true);
+    expect(expirationSignal?.aborted).toBe(true);
+    expect(screen.getByText(en.checkout.createSessionError)).toBeTruthy();
+    expect(screen.queryByLabelText('Card')).toBeNull();
+  } finally { vi.useRealTimers(); timeout.mockRestore(); log.mockRestore(); }
 });

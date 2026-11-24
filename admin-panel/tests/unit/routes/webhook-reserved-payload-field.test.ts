@@ -120,6 +120,7 @@ describe('webhook write endpoints — reserved custom_payload_fields keys', () =
 });
 
 function headerClient() {
+  process.env.APP_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString('base64');
   const query={select:vi.fn().mockReturnThis(),eq:vi.fn().mockReturnThis(),insert:vi.fn().mockReturnThis(),update:vi.fn().mockReturnThis(),
     single:vi.fn(async()=>({data:{id:WEBHOOK_ID,secret:'fixture-signing-secret'},error:null})),
     then:(resolve:(value:object)=>void)=>resolve({data:[],error:null,count:0})};
@@ -128,6 +129,9 @@ function headerClient() {
 }
 
 it.each([
+  {Authorization:'one', authorization:'two'},
+  Object.fromEntries(Array.from({length:21},(_,i)=>[`X-${i}`,'value'])),
+  {['X'.repeat(65)]:'value'}, {'X-Tenant':'v'.repeat(2049)},
   {'Bad Header':'value'}, {'X:Header':'value'}, {'Żółć':'value'}, {'Host':'value'},
   {'content-type':'value'}, {'X-Sellf-Signature':'value'}, {'x-sellf-event':'value'},
   {'Content-Length':'1'}, {'X-Tenant':'value\r\nsecond'}, {'X-Tenant':42},
@@ -146,9 +150,18 @@ it.each([
 
 it('persists supported custom headers on POST and PATCH',async()=>{
   const query=headerClient();
-  const custom_headers={Authorization:'Bearer fixture','X-Tenant':'one'};
+  const custom_headers=Object.fromEntries(Array.from({length:20},(_,i)=>[i===0?'X'.repeat(64):`X-${i}`,'v'.repeat(2048)]));
   const post=await POST(makePostRequest({url:'https://example.com/hook',events:['purchase.completed'],custom_headers}) as never);
   const patch=await PATCH(makePatchRequest({custom_headers}) as never,{params:Promise.resolve({id:WEBHOOK_ID})});
   expect(post.status).toBe(201);expect(patch.status).toBe(200);
   expect(query.insert).toHaveBeenCalledOnce();expect(query.update).toHaveBeenCalledOnce();
+});
+
+
+it('preserves saved headers when PATCH only changes another field', async () => {
+  const query=headerClient();
+  query.single.mockResolvedValue({data:{id:WEBHOOK_ID,secret:'fixture-signing-secret',custom_headers_encrypted:'saved-headers'},error:null});
+  const response=await PATCH(makePatchRequest({description:'Updated'}) as never,{params:Promise.resolve({id:WEBHOOK_ID})});
+  expect(response.status).toBe(200);
+  expect(query.update.mock.calls[0][0]).not.toHaveProperty('custom_headers_encrypted');
 });

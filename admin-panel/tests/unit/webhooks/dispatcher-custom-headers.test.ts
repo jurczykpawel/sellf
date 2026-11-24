@@ -33,6 +33,13 @@ describe('dispatcher custom headers', () => {
     expect(captured.headers!['X-Sellf-Signature']).toBeDefined();
   });
 
+  it('continues delivering saved headers above the new write limits', async () => {
+    const headers = Object.fromEntries(Array.from({length:21},(_,i)=>[i===0?'X'.repeat(65):`X-${i}`,'v'.repeat(2049)]));
+    const res = await WebhookDispatcher.dispatch({ id:'e1', url:'https://example.com/h', secret:'s', custom_headers_encrypted:await encryptHeaderMap(headers) }, 'purchase.completed', {}, {attemptCount:1});
+    expect(res.ok).toBe(true);
+    for (const [key,value] of Object.entries(headers)) expect(captured.headers![key]).toBe(value);
+  });
+
   // C1 regression: retried deliveries (attemptCount > 1) must re-apply the
   // endpoint's custom headers. The cron + legacy retry paths regressed by
   // building the dispatch slice WITHOUT custom_headers_encrypted, so retries

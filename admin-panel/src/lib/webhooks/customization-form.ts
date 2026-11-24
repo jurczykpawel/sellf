@@ -55,15 +55,25 @@ export function buildCustomizationPayload(s: CustomizationFormState): Customizat
 }
 
 export function isValidCustomHeader(name: string, value: unknown): boolean {
-  return /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(name)
+  return name.length <= 64 && /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(name)
     && !name.toLowerCase().startsWith('x-sellf-')
     && !['host','content-type','content-length','content-encoding','connection','transfer-encoding','te','trailer','upgrade','expect'].includes(name.toLowerCase())
-    && typeof value === 'string' && /^[\t\x20-\x7e\x80-\xff]*$/.test(value);
+    && typeof value === 'string' && value.length <= 2048 && /^[\t\x20-\x7e\x80-\xff]*$/.test(value);
+}
+
+export function validateCustomHeaderRows(rows: { key: string; value: unknown }[]): boolean {
+  const names = new Set<string>();
+  return rows.length <= 20 && rows.every(({ key, value }) => {
+    const name = key.toLowerCase();
+    if (names.has(name) || !isValidCustomHeader(key, value)) return false;
+    names.add(name);
+    return true;
+  });
 }
 
 export function validateCustomHeaders(headers: unknown): boolean {
   return headers == null || (typeof headers === 'object' && !Array.isArray(headers)
-    && Object.entries(headers).every(([key,value])=>isValidCustomHeader(key,value)));
+    && validateCustomHeaderRows(Object.entries(headers).map(([key, value]) => ({ key, value }))));
 }
 
 export const WEBHOOK_URL_REASONS = [

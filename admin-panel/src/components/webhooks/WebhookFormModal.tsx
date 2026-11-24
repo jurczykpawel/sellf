@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useProductsDropdown } from '@/hooks/useProducts';
-import { buildCustomizationPayload, isValidCustomHeader, PAYLOAD_TOP_LEVEL_KEYS, PLACEHOLDER_HINTS } from '@/lib/webhooks/customization-form';
+import { buildCustomizationPayload, validateCustomHeaderRows, PAYLOAD_TOP_LEVEL_KEYS, PLACEHOLDER_HINTS } from '@/lib/webhooks/customization-form';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from '@/components/ui/Modal';
 import { Tooltip } from '@/components/ui/Tooltip';
 import WebhookSecretRotation from '@/components/webhooks/WebhookSecretRotation';
@@ -137,15 +137,16 @@ export default function WebhookFormModal({
           id="webhook-form"
           onSubmit={(e) => {
             e.preventDefault();
-            const invalidHeader = customizationLocked ? -1 : customState.headerRows.findIndex(row => row.key.trim() && !isValidCustomHeader(row.key.trim(), row.value));
+            const invalidHeaders = !customizationLocked && !validateCustomHeaderRows(customState.headerRows
+              .filter(row => row.key.trim()).map(row => ({ ...row, key: row.key.trim() })));
             const errors = {
-              headers: invalidHeader >= 0 ? t('customization.headerInvalid') : undefined,
+              headers: invalidHeaders ? t('customization.headerInvalid') : undefined,
               description: formData.description.length > 500 ? t('descriptionTooLong') : undefined,
               events: formData.events.length === 0 ? t('eventsRequired') : undefined,
             };
             setFieldErrors(errors);
             if (errors.description || errors.events || errors.headers) {
-              document.getElementById(errors.headers ? `webhook-header-${invalidHeader}` : errors.description ? 'webhook-description' : 'webhook-events')?.focus();
+              document.getElementById(errors.headers ? 'webhook-header-0' : errors.description ? 'webhook-description' : 'webhook-events')?.focus();
               return;
             }
             const mode = scopingLocked ? 'all' : formData.product_filter_mode;
@@ -444,7 +445,7 @@ export default function WebhookFormModal({
                   )}
                   {customState.headerRows.map((row, i) => (
                     <div key={i} className="flex gap-2 mb-2">
-                      <input id={`webhook-header-${i}`} aria-invalid={fieldErrors.headers && !isValidCustomHeader(row.key.trim(),row.value) ? true : undefined} aria-describedby={fieldErrors.headers ? 'webhook-header-error-0' : undefined} value={row.key} placeholder={t('customization.headerNamePlaceholder')}
+                      <input id={`webhook-header-${i}`} aria-invalid={fieldErrors.headers ? true : undefined} aria-describedby={fieldErrors.headers ? 'webhook-header-error-0' : undefined} value={row.key} placeholder={t('customization.headerNamePlaceholder')}
                         onChange={(e) => { setFieldErrors(prev=>({...prev,headers:undefined})); setCustomState((s) => ({ ...s, headerRows: s.headerRows.map((r, j) => j === i ? { ...r, key: e.target.value } : r) })); }}
                         className="flex-1 px-2 py-1.5 bg-sf-input text-sf-heading border-2 border-sf-border-medium text-sm" />
                       <input type="password" autoComplete="off" value={row.value} placeholder={t('customization.headerValuePlaceholder')}

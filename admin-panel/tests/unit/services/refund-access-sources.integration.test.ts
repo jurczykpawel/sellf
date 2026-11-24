@@ -546,6 +546,8 @@ it('keeps an unlimited add-on when its guest receipt precedes the main receipt @
         jsonb_build_object('product_id','${f.bundle}','item_type','order_bump','order_bump_id',(SELECT id FROM public.order_bumps WHERE main_product_id='${f.product}'),'quantity',1,'unit_price',60,'total_price',60,'discounted_total',60,'currency','PLN','access_duration_override',0)));`));
     expect(placed.transaction_id).toBeTruthy();
     expect(JSON.parse(sql(`SELECT public.complete_offline_order('${placed.transaction_id}',10000);`)).success).toBe(true);
+    // Compact the heap so reinserting the main receipt places it after the add-on.
+    sql('VACUUM FULL public.guest_purchases;');
     sql(`WITH main AS (DELETE FROM public.guest_purchases WHERE transaction_id='${placed.transaction_id}' AND product_id='${f.product}' RETURNING *)
       INSERT INTO public.guest_purchases SELECT * FROM main;`);
     expect(JSON.parse(sql(`SET enable_indexscan=off; SET enable_bitmapscan=off; SELECT json_agg(product_id) FROM public.guest_purchases WHERE transaction_id='${placed.transaction_id}';`))).toEqual([f.bundle,f.product]);

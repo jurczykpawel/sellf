@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildCustomizationPayload, isValidCustomHeader, validateCustomHeaders, PAYLOAD_TOP_LEVEL_KEYS } from '@/lib/webhooks/customization-form';
+import { buildCustomizationPayload, isValidCustomHeader, validateCustomHeaders, validateCustomHeaderRows, PAYLOAD_TOP_LEVEL_KEYS } from '@/lib/webhooks/customization-form';
 
 const base = { payloadFieldsSelected: [...PAYLOAD_TOP_LEVEL_KEYS], extraFields: [], headerRows: [], deleteHeaders: false, hadHeaders: false };
 
@@ -37,4 +37,20 @@ it('accepts HTTP token punctuation and authorization header values',()=>{
   expect(validateCustomHeaders({Authorization:'Bearer test','X-Tenant':'one'})).toBe(true);
   expect(validateCustomHeaders(null)).toBe(true);
   expect(validateCustomHeaders(['Header'])).toBe(false);
+});
+
+
+it.each([
+  {Authorization:'one', authorization:'two'},
+  Object.fromEntries(Array.from({length:21},(_,i)=>[`X-${i}`,'value'])),
+  {['X'.repeat(65)]:'value'}, {'X-Tenant':'v'.repeat(2049)},
+])('rejects header collections outside the write contract', headers => {
+  expect(validateCustomHeaders(headers)).toBe(false);
+});
+it('accepts header collections exactly at the write limits', () => {
+  expect(validateCustomHeaders(Object.fromEntries(Array.from({length:20},(_,i)=>[i===0?'X'.repeat(64):`X-${i}`,'v'.repeat(2048)])))).toBe(true);
+});
+
+it('rejects repeated form rows before they become a map', () => {
+  expect(validateCustomHeaderRows([{key:'X-Tenant',value:'one'},{key:'X-Tenant',value:'two'}])).toBe(false);
 });
