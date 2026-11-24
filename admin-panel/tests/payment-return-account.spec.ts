@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { test, expect } from './helpers/proxy-test';
 import { createTestUser, setAuthSession, supabaseAdmin as db } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
-import { useSupabaseBuyerEmails } from './helpers/buyer-email-setting-playwright';
-useSupabaseBuyerEmails();
+import { useSupabaseBuyerEmails as registerSupabaseBuyerEmails } from './helpers/buyer-email-setting-playwright';
+registerSupabaseBuyerEmails();
 
 test('a paid return offers account recovery without showing the other buyer @J732', async ({ page }) => {
   const a = await createTestUser('return-a'), b = await createTestUser('return-b');
@@ -34,21 +34,24 @@ test('a paid return offers account recovery without showing the other buyer @J73
 });
 
 test('profile quantities are enforced by both checkout entry points @J733', async ({ request }) => {
-  const id = randomUUID();
+  const id = randomUUID(), seller = await createTestUser('profile-seller'), origin = 'https://merchant.example.com';
   try {
-    expect((await db.from('products').insert({ id, slug: id, name: 'Minimum two', price: 100, currency: 'PLN', embed_enabled: true })).error).toBeNull();
+    expect((await db.from('seller_embed_settings').upsert({ seller_id: seller.userId, allowed_embed_origins: [origin] })).error).toBeNull();
+    expect((await db.from('products').insert({ id, slug: id, seller_id: seller.userId, name: 'Minimum two', price: 100, currency: 'PLN', embed_enabled: true })).error).toBeNull();
     for (const mode of ['hidden', 'checkout', 'product_page']) {
       expect((await db.from('products').update({ checkout_profile: { v: 1, modules: [{ id: 'quantity', min: 2, max: 3, mode }] } }).eq('id', id)).error).toBeNull();
       const native = await request.post('/api/create-payment-intent', { data: { productId: id, quantity: 1 } });
       expect(native.status()).toBe(400);
       expect(await native.json()).toMatchObject({ error: 'Invalid order quantity' });
-      const embed = await request.post('/api/embed/checkout-session', { headers: { Origin: 'https://merchant.example.com' }, data: { productSlug: id } });
+      const denied = await request.post('/api/embed/checkout-session', { headers: { Origin: 'https://unknown.example.com' }, data: { productSlug: id } });
+      expect(denied.status()).toBe(403);
+      const embed = await request.post('/api/embed/checkout-session', { headers: { Origin: origin }, data: { productSlug: id } });
       expect(embed.status()).toBe(422);
-      expect(await embed.json()).toMatchObject({ code: 'STANDARD_CHECKOUT_REQUIRED' });
+      expect(await embed.json()).toMatchObject({ code: 'STANDARD_CHECKOUT_REQUIRED', productUrl: expect.stringContaining(`/en/p/${id}`) });
     }
     expect((await db.from('products').update({ price: 0, event_mode: true }).eq('id', id)).error).toBeNull();
-    const freeEvent = await request.post('/api/embed/free-access', { headers: { Origin: 'https://merchant.example.com' }, data: { productSlug: id, email: `${id}@example.com` } });
+    const freeEvent = await request.post('/api/embed/free-access', { headers: { Origin: origin }, data: { productSlug: id, email: `${id}@example.com` } });
     expect(freeEvent.status()).toBe(422);
     expect((await db.from('payment_transactions').select('id').eq('product_id', id)).data).toEqual([]);
-  } finally { await db.from('products').delete().eq('id', id); }
+  } finally { await db.from('products').delete().eq('id', id); await seller.cleanup(); }
 });

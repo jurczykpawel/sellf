@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Lookup failed' }, { status: 500 });
     }
 
-    if (data && typeof data === 'object' && 'discount_type' in data && data.discount_type === 'set_price' && 'code' in data && typeof data.code === 'string') {
+    if (data && typeof data === 'object' && 'found' in data && data.found && 'code' in data && typeof data.code === 'string') {
       const admin = createAdminClient();
       const product = await admin.from('products').select('currency').eq('id', productId).single();
       if (product.error || !product.data) return NextResponse.json({ found: false });

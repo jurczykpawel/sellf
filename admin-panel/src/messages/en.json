@@ -403,6 +403,7 @@
     "couponPriceGross": "{price} gross",
     "couponSetPrice": "Unit price set to {price}",
     "discountApplied": "{discount} discount applied",
+    "couponAutoApplied": "Coupon {code} applied",
     "paymentError": "Payment Error",
     "accessGranted": "Access Granted!",
     "alreadyHasAccess": "You already have access to this product.",

@@ -93,6 +93,7 @@ export function useCoupon({ productId, email, isOtoMode, enabled = true }: UseCo
 
   // Auto-apply coupon for email change
   useEffect(() => {
+    let active = true;
     const checkAutoApply = async () => {
       if (!enabled || !email || appliedCoupon || couponManuallyRemoved) return;
       try {
@@ -102,10 +103,10 @@ export function useCoupon({ productId, email, isOtoMode, enabled = true }: UseCo
           body: JSON.stringify({ email, productId }),
         });
         const data = await res.json();
-        if (data.found) {
+        if (active && data.found) {
           setAppliedCoupon(data);
           setCouponCode(data.code);
-          toast.success(t('discountApplied', { discount: '' }).replace('  ', ' '));
+          toast.success(t('couponAutoApplied', { code: data.code }));
         }
       } catch {
         // Silent fail
@@ -113,7 +114,7 @@ export function useCoupon({ productId, email, isOtoMode, enabled = true }: UseCo
     };
 
     const timer = setTimeout(checkAutoApply, 500);
-    return () => clearTimeout(timer);
+    return () => { active = false; clearTimeout(timer); };
   }, [enabled, email, productId, appliedCoupon, couponManuallyRemoved, t]);
 
   const urlCoupon = enabled && !isOtoMode && searchParams.get('oto') !== '1' ? searchParams.get('coupon') : null;
