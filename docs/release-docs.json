@@ -941,5 +941,9 @@
   ],
   "88a8e4e5ebc3f080b151273229a109347a43a3b0": [
     "custom-checkout.md"
+  ],
+  "15cc36947210bc4d281cefedb8450aef34b6c34e": [
+    "custom-checkout.md",
+    "bank-transfers.md"
   ]
 }

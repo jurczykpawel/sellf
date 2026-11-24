@@ -58,3 +58,5 @@ Admin payment details show the complete buyer transfer note, including long iden
 If the mail provider does not confirm the outcome, payment details show **delivery outcome unknown** for transfer instructions, reminders, cancellations or payment receipts. Automatic retry stays held, including if the process stopped during delivery. **Retry email** appears after 5 minutes and only while the notice matches the current order status. Status changes clear outdated flags, such as a reminder after payment. History records both the request and the actual retry outcome; success requires confirmed sending. A retry may send a duplicate and sends a new link — the link in the first email may stop working. A confirmed refusal remains eligible for automatic recovery.
 
 The API v1 payment list and details include notice reservation times: `transfer_mail_sent_at`, `reminder_mail_sent_at`, `cancelled_mail_sent_at` and `transfer_paid_mail_sent_at`. Together with the `*_delivery_unknown` flags and current status, these determine whether a retry is available.
+
+Declining a late transfer shows one confirmation that the order remains cancelled.
