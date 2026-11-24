@@ -63,7 +63,7 @@ async function writeConsentCookie(page: Page, services: Record<string, boolean>)
     {
       name: CONSENT_COOKIE_NAME,
       value: buildCookieValue(services),
-      domain: 'localhost',
+      domain: new URL(process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3777').hostname,
       path: '/',
     },
   ]);

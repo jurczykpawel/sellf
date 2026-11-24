@@ -1,5 +1,5 @@
 /** Real Stripe Customer tax identity checks. @see buyer-tax-identity.ts */
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../helpers/proxy-test';
 import Stripe from 'stripe';
 import { applyBuyerTaxIdentityToCustomer } from '@/lib/stripe/buyer-tax-identity';
 import { checkoutProfileSchema } from '@/lib/checkout-modules/profile';

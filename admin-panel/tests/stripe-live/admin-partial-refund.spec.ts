@@ -5,7 +5,7 @@
  * @see src/lib/actions/payment.ts → processRefund
  */
 import { randomUUID } from 'node:crypto';
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../helpers/proxy-test';
 import Stripe from 'stripe';
 import { acceptAllCookies } from '../helpers/consent';
 import { createTestAdmin, loginAsAdmin, setAuthSession, supabaseAdmin as db } from '../helpers/admin-auth';

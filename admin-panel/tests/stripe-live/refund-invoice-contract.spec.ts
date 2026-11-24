@@ -1,7 +1,7 @@
 /** Real test-mode events through the local webhook and persisted outgoing deliveries. */
 import { createHmac, randomBytes, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../helpers/proxy-test';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import type { APIRequestContext } from '@playwright/test';

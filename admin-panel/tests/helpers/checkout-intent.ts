@@ -1,5 +1,5 @@
 /** Observe automatic online checkout, or confirm an available method choice. */
-import { test as base, expect } from '@playwright/test';
+import { test as base, expect } from './proxy-test';
 import type { Page, Request, Response } from '@playwright/test';
 import { assertStripeTransport } from './stripe-transport';
 

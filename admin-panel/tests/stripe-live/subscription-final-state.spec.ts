@@ -1,6 +1,6 @@
 /** Real invoice fulfillment, buyer mail and refunded subscription management. */
 import { randomUUID } from 'node:crypto';
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../helpers/proxy-test';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { generateSellerKeypair, storeSellerKey } from '@/lib/license-keys/keys';

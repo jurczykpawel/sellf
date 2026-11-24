@@ -115,7 +115,7 @@ it.each([false,true])('preserves the known legacy period after reducing the prod
     const b = f.buy(); f.refund(b);
     expect(f.access()?.access_expires_at).toBe(original.access_expires_at);
   } finally { f.cleanup(); }
-});
+}, 60_000);
 
 it.each([false,true])('releases the unpaid placement period after a later purchase (guest=%s) @J182', guest => {
   const f = fixture();

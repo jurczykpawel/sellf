@@ -5,7 +5,7 @@
  * production, so (as with the login wall E2E) we assert the redirect/token
  * shape and the server decisions; client DOM resolution is unit-tested.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/proxy-test';
 import { setAuthSession, supabaseAdmin } from './helpers/admin-auth';
 
 test.describe.configure({ mode: 'serial' });
