@@ -6409,7 +6409,7 @@
     "fromPrice": "od {price}"
   },
   "bankTransfer": {
-    "mailUnknown": "Mail ({notice}): stan doręczenia nieznany. Ponowienie jest możliwe po 5 minutach i może wysłać drugi mail.",
+    "mailUnknown": "Mail ({notice}): stan doręczenia nieznany. Ponowienie jest możliwe po 5 minutach i może wysłać drugi mail. Ponowienie wysyła nowy link; link z pierwszego maila może przestać działać.",
     "retryMail": "Ponów wysyłkę maila",
     "mailNotice_placed": "dane do przelewu",
     "mailNotice_reminder": "przypomnienie",

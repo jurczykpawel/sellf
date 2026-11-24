@@ -10,28 +10,24 @@ import { buildOrderPayLink } from '@/lib/orders/transfer-token';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 
-export type OrderNotice = 'placed' | 'reminder' | 'cancelled' | 'paid';
-const NOTICE = {
-  placed: { kind: 'transfer_placed', column: 'transfer_mail_sent_at', state: 'transfer_mail_delivery_unknown', statuses: ['awaiting_payment', 'completed'] },
-  reminder: { kind: 'payment_reminder', column: 'reminder_mail_sent_at', state: 'reminder_mail_delivery_unknown', statuses: ['awaiting_payment'] },
-  cancelled: { kind: 'order_cancelled', column: 'cancelled_mail_sent_at', state: 'cancelled_mail_delivery_unknown', statuses: ['cancelled'] },
-  paid: { kind: undefined, column: 'transfer_paid_mail_sent_at', state: 'transfer_paid_mail_delivery_unknown', statuses: ['completed'] },
-} as const;
+import { ORDER_NOTICES, NOTICE_RETRY_DELAY, noticeMatchesStatus, type OrderNotice } from '@/lib/orders/notice-state';
+export type { OrderNotice } from '@/lib/orders/notice-state';
+export type OrderNoticeResult = { sent: boolean; outcome: 'sent' | 'skipped' | 'refused' | 'unknown' | 'error' };
 
 /** Reserves one notice per order; confirmed refusals remain eligible for recovery. */
-export async function sendOrderNotice(db: SupabaseClient<Database>, id: string, notice: OrderNotice, retryUnknown = false): Promise<void> {
-  const spec = NOTICE[notice];
+export async function sendOrderNotice(db: SupabaseClient<Database>, id: string, notice: OrderNotice, retryUnknown = false): Promise<OrderNoticeResult> {
+  const spec = ORDER_NOTICES[notice];
   try {
     const { data: tx } = await db.from('payment_transactions').select('*').eq('id', id).single();
-    if (!tx || !(spec.statuses as readonly string[]).includes(tx.status) || !tx.customer_email || !tx.product_id) return;
+    if (!tx || !noticeMatchesStatus(notice, tx.status) || !tx.customer_email || !tx.product_id) return { sent: false, outcome: 'skipped' };
     const previous = tx[spec.column];
-    if (previous && (!retryUnknown || !tx[spec.state] || Date.parse(previous) > Date.now() - 300000)) return;
-    if (retryUnknown && !previous) return;
-    if (notice === 'reminder' && !tx.release_at) return;
-    if (notice === 'paid' && tx.fulfillment_pending) return;
+    if (previous && (!retryUnknown || !tx[spec.state] || Date.parse(previous) > Date.now() - NOTICE_RETRY_DELAY)) return { sent: false, outcome: 'skipped' };
+    if (retryUnknown && !previous) return { sent: false, outcome: 'skipped' };
+    if (notice === 'reminder' && !tx.release_at) return { sent: false, outcome: 'skipped' };
+    if (notice === 'paid' && tx.fulfillment_pending) return { sent: false, outcome: 'skipped' };
     const meta = tx.metadata as Record<string, unknown> | null;
     const { data: product } = await db.from('products').select('slug,name').eq('id', tx.product_id).single();
-    if (!product) return;
+    if (!product) return { sent: false, outcome: 'skipped' };
     const transfer = (tx.transfer_details ?? {}) as Record<string, string>, locale = await resolveCustomerLocale(db, meta?.locale);
     const pl = locale === 'pl', base = getSellfBaseUrl();
     const amount = formatPrice(fromMinorUnits(tx.amount, tx.currency), tx.currency, locale);
@@ -63,7 +59,7 @@ export async function sendOrderNotice(db: SupabaseClient<Database>, id: string, 
       .eq('id', id).in('status', [...spec.statuses]);
     query = previous ? query.eq(spec.column, previous).eq(spec.state, true) : query.is(spec.column, null);
     const claim = await query.select('id').maybeSingle();
-    if (claim.error || !claim.data) return;
+    if (claim.error || !claim.data) return { sent: false, outcome: 'skipped' };
     const result = await sendTrustedMagicLink({ transactionalOnly: !!tx.user_id || (notice !== 'paid' && !(notice === 'placed' && meta?.access_on_placement === true)), email: tx.customer_email,
       redirectTo: buildPostCheckoutMagicLinkRedirect({ origin: base, productSlug: product.slug, locale, sessionId: undefined, paymentIntentId: undefined }), data });
     if (!result.ok && !result.deliveryUnknown) {
@@ -73,5 +69,6 @@ export async function sendOrderNotice(db: SupabaseClient<Database>, id: string, 
     } else if (!result.ok) {
       console.error('[transfer-mail] Delivery outcome unknown; automatic retry held:', id);
     }
-  } catch { console.error('[transfer-mail] Delivery unavailable; check saved notice state:', id); }
+    return { sent: result.ok && !result.skipped, outcome: result.ok ? result.skipped ? 'skipped' : 'sent' : result.deliveryUnknown ? 'unknown' : 'refused' };
+  } catch { console.error('[transfer-mail] Delivery unavailable; check saved notice state:', id); return { sent: false, outcome: 'error' }; }
 }

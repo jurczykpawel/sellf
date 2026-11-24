@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
 const rpcMock = vi.fn();
+const rows: Record<string, unknown>[] = [];
+const selected = vi.fn();
 const platformFrom = vi.fn((table: string) => {
   if (table === 'admin_users') {
     return {
@@ -26,7 +28,7 @@ const platformFrom = vi.fn((table: string) => {
 function makePaymentsChain() {
   const chain: Record<string, unknown> = {};
   const self = () => chain;
-  chain.select = self;
+  chain.select = (fields: string) => { selected(fields); return chain; };
   chain.eq = self;
   chain.ilike = self;
   chain.gte = self;
@@ -35,7 +37,7 @@ function makePaymentsChain() {
   chain.order = self;
   chain.limit = self;
   chain.then = (resolve: (v: { data: unknown[]; error: null }) => void) =>
-    resolve({ data: [], error: null });
+    resolve({ data: rows, error: null });
   return chain;
 }
 
@@ -86,7 +88,7 @@ function mockKeyScopes(scopes: string[]) {
 }
 
 beforeEach(() => {
-  rpcMock.mockReset();
+  rpcMock.mockReset(); rows.length = 0; selected.mockClear();
   _resetApiKeyAuthCacheForTests();
 });
 
@@ -112,4 +114,14 @@ describe('GET /api/v1/payments — scope gate', () => {
     const body = await res.json();
     expect(body.error.code).toBe('FORBIDDEN');
   });
+});
+
+it('provides notice reservation times for the seller retry controls', async () => {
+  mockKeyScopes(['payments:read']);
+  const times = { transfer_mail_sent_at: '2026-11-24T12:00:00Z', reminder_mail_sent_at: null, cancelled_mail_sent_at: null, transfer_paid_mail_sent_at: null };
+  rows.push({ id: 'payment-1', created_at: '2026-11-24T11:00:00Z', products: null, ...times });
+  const response = await GET(makeRequest(makeKey('d')));
+  expect(response.status).toBe(200);
+  expect((await response.json()).data[0]).toMatchObject(times);
+  for (const key of Object.keys(times)) expect(selected.mock.calls[0][0]).toContain(key);
 });

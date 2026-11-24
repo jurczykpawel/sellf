@@ -9,6 +9,7 @@ import TransferInstructions from '@/components/checkout/TransferInstructions';
 import { getLateTransferPreview, updateBankTransfer, retryOrderNotice } from '@/lib/orders/bank-transfer-actions';
 import { formatPrice } from '@/lib/constants';
 import { fromMinorUnits, toMinorUnits, currencyExponent } from '@/lib/currency/minor-units';
+import { ORDER_NOTICES, NOTICE_RETRY_DELAY, noticeMatchesStatus } from '@/lib/orders/notice-state';
 import { transferDeadline } from '@/lib/orders/transfer-format';
 import type { LateTransferPreview } from '@/lib/orders/late-transfer-preview';
 import type { PaymentTransaction } from '@/types/payment';
@@ -32,6 +33,14 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
   const lock = useRef(false);
   const [pending, setPending] = useState<string | null>(null);
   const busy = pending !== null;
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const deadlines = Object.values(ORDER_NOTICES).filter(spec => tx[spec.state] && tx[spec.column])
+      .map(spec => Date.parse(tx[spec.column]!) + NOTICE_RETRY_DELAY).filter(at => at > now);
+    if (!deadlines.length) return;
+    const timer = setTimeout(() => setNow(Date.now()), Math.max(0, Math.min(...deadlines) - Date.now()));
+    return () => clearTimeout(timer);
+  }, [tx, now]);
   const [message, setMessage] = useState('');
   const lateDecision = tx.payment_provider === 'bank_transfer' && tx.status === 'cancelled' && tx.invoice?.status !== 'corrected';
   const [preview, setPreview] = useState<LateTransferPreview | null | 'error'>(null);
@@ -84,14 +93,15 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
   return <section aria-label={t('title')}>
     {tx.status === 'awaiting_payment' && <><TutorialTrigger id="unpaid-orders" /><TutorialHelpButton id="unpaid-orders" /></>}
     {(['placed', 'reminder', 'cancelled', 'paid'] as const).map(notice => {
-      const key = { placed: 'transfer_mail_delivery_unknown', reminder: 'reminder_mail_delivery_unknown', cancelled: 'cancelled_mail_delivery_unknown', paid: 'transfer_paid_mail_delivery_unknown' } as const;
-      return tx[key[notice]] && <div key={notice} className="my-3 text-sf-warning" role="status"><p>{t('mailUnknown', { notice: t(`mailNotice_${notice}`) })}</p>
-        <button type="button" disabled={busy} className={primaryButton} onClick={async () => {
+      const spec = ORDER_NOTICES[notice];
+      const retryAt = tx[spec.column] ? Date.parse(tx[spec.column]!) + NOTICE_RETRY_DELAY : Infinity;
+      return tx[spec.state] && noticeMatchesStatus(notice, tx.status) && <div key={notice} className="my-3 text-sf-warning" role="status"><p>{t('mailUnknown', { notice: t(`mailNotice_${notice}`) })}</p>
+        {retryAt <= now && <button type="button" disabled={busy} className={primaryButton} onClick={async () => {
           if (lock.current) return;
           lock.current = true; setPending('mail'); setMessage('');
-          try { const r = await retryOrderNotice(tx.id, notice); if (r.success) await onRefresh(); else setMessage(t('operationError')); }
+          try { const r = await retryOrderNotice(tx.id, notice); await onRefresh(); if (!r.success) setMessage(t('operationError')); }
           catch { setMessage(t('operationError')); } finally { lock.current = false; setPending(null); }
-        }}>{t('retryMail')}</button></div>;
+        }}>{t('retryMail')}</button>}</div>;
     })}
     <div data-tour="unpaid-instructions"><TransferInstructions transfer={tx.transfer_details ?? null} amount={tx.amount} currency={tx.currency} dueAt={transferDeadline(tx)} /></div>
     {tx.status === 'awaiting_payment' && <div className="space-y-3">
@@ -103,8 +113,8 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
         <label>{t('reason')}<input className={input} required maxLength={1000} value={reason} onChange={e => setReason(e.target.value)} /></label>
         <button aria-busy={busy} disabled={busy || !reason.trim()} className={`${buttonStyle} bg-sf-danger text-white hover:opacity-90`}>{progress('cancel', 'cancel')}</button>
       </form>
-      <p role="status">{message}</p>
     </div>}
+    <p role="status">{message}</p>
     <ul data-tour="unpaid-lifecycle" className="my-3 space-y-1 text-sm" aria-label={t('lifecycle')}>
       {tx.status === 'awaiting_payment' && tx.invoice_hold_at && <li>{t('invoiceHoldAdmin')}</li>}
       {tx.status === 'awaiting_payment' && tx.release_at && <li>{t('releaseAt', { date: date(tx.release_at) })}{tx.reminder_at ? ` · ${t('reminderAt', { date: date(tx.reminder_at) })}` : ''}</li>}
@@ -140,7 +150,6 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
         {/* Declining changes nothing: the order stays cancelled and the money is returned outside Sellf. */}
         <button type="button" disabled={busy} onClick={() => { setDeclined(true); setMessage(''); }} className={`${buttonStyle} border border-sf-border`}>{t('lateDecline')}</button>
       </form>}
-      {!declined && <p role="status">{message}</p>}
     </div>}
   </section>;
 }

@@ -56,8 +56,9 @@ export async function retryOrderNotice(id: string, notice: unknown) {
     const db = createAdminClient();
     const audit = await recordAuditEntry(db, { table_name: 'payment_transactions', operation: 'UPDATE', performed_by: user.id, new_values: { action: 'retry_order_notice_requested', order_id: id, notice: parsed.data } });
     if (!audit.ok) return { success: false, error: 'Could not record retry' };
-    await sendOrderNotice(db, id, parsed.data, true);
+    const result = await sendOrderNotice(db, id, parsed.data, true);
+    const outcome = await recordAuditEntry(db, { table_name: 'payment_transactions', operation: 'UPDATE', performed_by: user.id, new_values: { action: 'retry_order_notice_result', order_id: id, notice: parsed.data, outcome: result.outcome, sent: result.sent } });
     revalidatePath('/dashboard');
-    return { success: true };
+    return result.sent && outcome.ok ? { success: true } : { success: false, error: 'Notice delivery not confirmed' };
   }, { mutating: true });
 }

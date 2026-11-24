@@ -31,6 +31,10 @@ export interface PaymentTransaction {
   payment_provider?: string;
   payment_due_at?: string | null;
   transfer_details?: Json | null;
+  transfer_mail_sent_at?: string | null;
+  reminder_mail_sent_at?: string | null;
+  cancelled_mail_sent_at?: string | null;
+  transfer_paid_mail_sent_at?: string | null;
   transfer_mail_delivery_unknown?: boolean;
   reminder_mail_delivery_unknown?: boolean;
   cancelled_mail_delivery_unknown?: boolean;

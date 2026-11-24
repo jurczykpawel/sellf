@@ -4951,6 +4951,26 @@ END $$;
 ALTER FUNCTION public.clear_license_revocation_reason() OWNER TO postgres;
 
 --
+-- Name: clear_outdated_order_notice_state(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.clear_outdated_order_notice_state() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO ''
+    AS $$
+BEGIN
+  IF NEW.status NOT IN ('awaiting_payment', 'completed') THEN NEW.transfer_mail_delivery_unknown := false; END IF;
+  IF NEW.status <> 'awaiting_payment' THEN NEW.reminder_mail_delivery_unknown := false; END IF;
+  IF NEW.status <> 'cancelled' THEN NEW.cancelled_mail_delivery_unknown := false; END IF;
+  IF NEW.status <> 'completed' THEN NEW.transfer_paid_mail_delivery_unknown := false; END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.clear_outdated_order_notice_state() OWNER TO postgres;
+
+--
 -- Name: clear_pending_free_grant_on_access(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -19669,6 +19689,13 @@ CREATE TRIGGER clear_license_revocation_reason BEFORE UPDATE OF revoked_at ON pu
 
 
 --
+-- Name: payment_transactions clear_outdated_order_notice_state; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER clear_outdated_order_notice_state BEFORE INSERT OR UPDATE ON public.payment_transactions FOR EACH ROW EXECUTE FUNCTION public.clear_outdated_order_notice_state();
+
+
+--
 -- Name: user_product_access clear_pending_free_grant_on_access; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
@@ -23668,6 +23695,8 @@ function | public.clear_admin_cache() | postgres | EXECUTE | postgres | -
 function | public.clear_admin_cache() | service_role | EXECUTE | postgres | -
 function | public.clear_license_dispute_owner() | postgres | EXECUTE | postgres | -
 function | public.clear_license_revocation_reason() | postgres | EXECUTE | postgres | -
+function | public.clear_outdated_order_notice_state() | postgres | EXECUTE | postgres | -
+function | public.clear_outdated_order_notice_state() | service_role | EXECUTE | postgres | -
 function | public.clear_pending_free_grant_on_access() | postgres | EXECUTE | postgres | -
 function | public.clear_pending_free_grant_on_access() | service_role | EXECUTE | postgres | -
 function | public.close_previous_webhook_deliveries() | postgres | EXECUTE | postgres | -

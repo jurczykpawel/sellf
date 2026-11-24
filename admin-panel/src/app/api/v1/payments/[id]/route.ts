@@ -62,6 +62,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       .from('payment_transactions')
       .select(`
         id,order_number,payment_provider,payment_due_at,transfer_details,order_details,
+        transfer_mail_sent_at,reminder_mail_sent_at,cancelled_mail_sent_at,transfer_paid_mail_sent_at,
         transfer_mail_delivery_unknown,reminder_mail_delivery_unknown,cancelled_mail_delivery_unknown,transfer_paid_mail_delivery_unknown,
         reminder_at,release_at,invoice_hold_at,transfer_declared_at,transfer_declared_note,cancel_reason,reopened_at,
         customer_email,
@@ -139,6 +140,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         coupon_code: firstRelated<{ code: string }>(payment.coupons)?.code ?? firstRelated<{ code: string }>(firstRelated<{ coupons: unknown }>(payment.coupon_redemptions)?.coupons)?.code ?? null,
         invoice: firstRelated(payment.invoices) ?? null, payment_provider: payment.payment_provider, payment_due_at: payment.payment_due_at,
         transfer_details: payment.transfer_details, order_details: payment.order_details, line_items: lineItems ?? [],
+        transfer_mail_sent_at: payment.transfer_mail_sent_at,
+        reminder_mail_sent_at: payment.reminder_mail_sent_at,
+        cancelled_mail_sent_at: payment.cancelled_mail_sent_at,
+        transfer_paid_mail_sent_at: payment.transfer_paid_mail_sent_at,
         transfer_mail_delivery_unknown: payment.transfer_mail_delivery_unknown,
         reminder_mail_delivery_unknown: payment.reminder_mail_delivery_unknown,
         cancelled_mail_delivery_unknown: payment.cancelled_mail_delivery_unknown,

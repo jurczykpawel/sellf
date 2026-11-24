@@ -32,6 +32,8 @@ function makePaymentDetailChain() {
     Promise.resolve({
       data: {
         id: 'payment-1',
+        transfer_mail_sent_at: '2026-11-24T12:00:00Z',
+        reminder_mail_sent_at: null, cancelled_mail_sent_at: null, transfer_paid_mail_sent_at: null,
         customer_email: 'buyer@example.com',
         amount: 1000,
         currency: 'usd',
@@ -138,4 +140,11 @@ describe('GET /api/v1/payments/:id — scope gate', () => {
     const body = await res.json();
     expect(body.error.code).toBe('FORBIDDEN');
   });
+});
+
+it('provides notice reservation times in payment details', async () => {
+  mockKeyScopes(['payments:read']);
+  const response = await callRoute(makeKey('d'));
+  expect(response.status).toBe(200);
+  expect((await response.json()).data).toMatchObject({ transfer_mail_sent_at: '2026-11-24T12:00:00Z', reminder_mail_sent_at: null, cancelled_mail_sent_at: null, transfer_paid_mail_sent_at: null });
 });

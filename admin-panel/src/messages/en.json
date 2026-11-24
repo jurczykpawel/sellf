@@ -6409,7 +6409,7 @@
     "fromPrice": "from {price}"
   },
   "bankTransfer": {
-    "mailUnknown": "Email ({notice}): delivery outcome unknown. Retry is available after 5 minutes and may send a duplicate.",
+    "mailUnknown": "Email ({notice}): delivery outcome unknown. Retry is available after 5 minutes and may send a duplicate. Retrying sends a new link; the link in the first email may stop working.",
     "retryMail": "Retry email",
     "mailNotice_placed": "transfer instructions",
     "mailNotice_reminder": "reminder",
