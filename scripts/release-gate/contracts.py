@@ -10,7 +10,7 @@ from support import ROOT, env, record, validate_release_version
 import tempfile
 
 versions = {
-    str(p): json.loads(p.read_text())['version'] for p in [ROOT / 'package.json', ROOT / 'admin-panel/package.json']
+    path: json.loads((ROOT / path).read_text())['version'] for path in ('package.json', 'admin-panel/package.json')
 }
 assert len(set(versions.values())) == 1, versions
 version = validate_release_version(next(iter(versions.values())))

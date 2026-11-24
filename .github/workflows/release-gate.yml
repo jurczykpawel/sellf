@@ -67,16 +67,23 @@ jobs:
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.3.14
+          no-cache: true
       - name: Collect the Playwright inventory
         id: inventory
         run: python3 -B gate/scripts/release-gate/all.py inventory
-      - name: Upload inventory failure receipt
+      - &validate-receipt
+        name: Validate failure receipt
+        id: receipt
         if: failure()
+        run: python3 -B gate/scripts/release-gate/validate_receipt.py "$RUNNER_TEMP/release-gate/public/results.jsonl"
+      - name: Upload inventory failure receipt
+        if: failure() && steps.receipt.outcome == 'success'
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: gate-inventory-failure
           path: ${{ runner.temp }}/release-gate/public/results.jsonl
           retention-days: 3
+          if-no-files-found: ignore
 
   checks:
     needs: [preflight, inventory]
@@ -106,14 +113,16 @@ jobs:
           version: 2.109.1
       - name: Run gate lane
         run: python3 -B gate/scripts/release-gate/all.py "$RC_GATE_LANE"
+      - *validate-receipt
       - &lane-failure
         name: Upload lane failure receipt
-        if: failure()
+        if: failure() && steps.receipt.outcome == 'success'
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: gate-${{ matrix.lane }}-failure
           path: ${{ runner.temp }}/release-gate/public/results.jsonl
           retention-days: 3
+          if-no-files-found: ignore
 
   stripe:
     needs: [preflight, inventory]
@@ -122,6 +131,7 @@ jobs:
     environment: release-gate
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix: ${{ fromJSON(needs.preflight.outputs.stripe) }}
     env: *lane-env
     steps:
@@ -133,9 +143,10 @@ jobs:
       - name: Run Stripe sandbox lane
         env:
           STRIPE_SANDBOX_SECRET_KEY: ${{ secrets.STRIPE_SANDBOX_SECRET_KEY }}
-          STRIPE_SANDBOX_PUBLISHABLE_KEY: ${{ vars.STRIPE_SANDBOX_PUBLISHABLE_KEY }}
-          STRIPE_SANDBOX_ACCOUNT_ID: ${{ vars.STRIPE_SANDBOX_ACCOUNT_ID }}
+          STRIPE_SANDBOX_PUBLISHABLE_KEY: ${{ secrets.STRIPE_SANDBOX_PUBLISHABLE_KEY }}
+          STRIPE_SANDBOX_ACCOUNT_ID: ${{ secrets.STRIPE_SANDBOX_ACCOUNT_ID }}
         run: python3 -B gate/scripts/release-gate/all.py "$RC_GATE_LANE"
+      - *validate-receipt
       - *lane-failure
 
   gate-result:
@@ -151,10 +162,12 @@ jobs:
           RC_GATE_INVENTORY: ${{ needs.inventory.outputs.counts }}
           RC_GATE_STATUSES: ${{ toJSON(needs) }}
         run: python3 -B gate/scripts/release-gate/all.py aggregate
+      - *validate-receipt
       - name: Upload final failure receipt
-        if: failure()
+        if: failure() && steps.receipt.outcome == 'success'
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: gate-result-failure
           path: ${{ runner.temp }}/release-gate/public/results.jsonl
           retention-days: 3
+          if-no-files-found: ignore

@@ -27,36 +27,45 @@ def build_batch(output):
     script = (
         'set -euo pipefail\n' + updater[start:end] + '\nlog() { echo "$@" >&2; }\nbuild_migration_batch "$1" "$2"\n'
     )
-    subprocess.run(
-        ['bash', '-s', '--', str(output), MIGRATION],
-        input=script,
-        text=True,
-        env={**env, 'INSTALL_DIR': str(ROOT)},
-        check=True,
-    )
+    with (OUT / 'historical-build-batch.log').open('w') as log:
+        subprocess.run(
+            ['bash', '-s', '--', str(output), MIGRATION],
+            input=script,
+            text=True,
+            env={**env, 'INSTALL_DIR': str(ROOT)},
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            check=True,
+        )
 
 
 def sql(source):
-    return subprocess.check_output(
-        [
-            'docker',
-            'exec',
-            '-i',
-            'supabase_db_sellf-rcgate',
-            'psql',
-            '-X',
-            '-U',
-            'postgres',
-            '-d',
-            'postgres',
-            '-At',
-            '-v',
-            'ON_ERROR_STOP=1',
-        ],
-        input=source,
-        text=True,
-        env=env,
-    ).strip()
+    with (OUT / 'historical-psql.log').open('a') as log:
+        result = subprocess.run(
+            [
+                'docker',
+                'exec',
+                '-i',
+                'supabase_db_sellf-rcgate',
+                'psql',
+                '-X',
+                '-U',
+                'postgres',
+                '-d',
+                'postgres',
+                '-At',
+                '-v',
+                'ON_ERROR_STOP=1',
+            ],
+            input=source,
+            text=True,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=log,
+        )
+        log.write(result.stdout)
+    result.check_returncode()
+    return result.stdout.strip()
 
 
 def main():
@@ -141,9 +150,9 @@ def main():
             migration=MIGRATION,
             sqlBytes=batch.stat().st_size,
             repeatSkipped=True,
-            countsBefore=before,
-            countsAfter=after,
-            changedCounts=differences,
+            countsBefore=[{'table': name, 'count': count} for name, count in before.items()],
+            countsAfter=[{'table': name, 'count': count} for name, count in after.items()],
+            changedCounts=[{'table': name, **counts} for name, counts in differences.items()],
         )
     finally:
         if started:

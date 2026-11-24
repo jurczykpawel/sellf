@@ -16,6 +16,13 @@ import prepare
 import support
 
 
+def load_historical_upgrade():
+    spec = importlib.util.spec_from_file_location('historical_upgrade', support.TOOLS / 'historical-upgrade.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 class GateContractTests(unittest.TestCase):
     def test_prepare_copies_and_remaps_without_source_changes(self):
         source = support.ROOT / 'supabase/config.toml'
@@ -99,16 +106,43 @@ class GateContractTests(unittest.TestCase):
         request.assert_not_called()
 
     def test_real_candidate_batch_builder(self):
-        spec = importlib.util.spec_from_file_location('historical_upgrade', support.TOOLS / 'historical-upgrade.py')
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        module = load_historical_upgrade()
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary) / 'batch.sql'
-            module.build_batch(output)
+            with patch.object(module, 'OUT', output.parent):
+                module.build_batch(output)
             source = (support.ROOT / 'supabase/migrations/20261118000000_release_2026_11_1.sql').read_text()
             self.assertIn(source, output.read_text())
             self.assertIn('EXCEPTION WHEN OTHERS', output.read_text())
             self.assertGreater(output.stat().st_size, 120000)
+
+    def test_historical_batch_builder_writes_both_streams_to_log(self):
+        module = load_historical_upgrade()
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            updater = directory / 'admin-panel/scripts/upgrade.sh'
+            updater.parent.mkdir(parents=True)
+            updater.write_text('build_migration_batch() {\n  echo output\n  echo status >&2\n}\n')
+            with patch.object(module, 'OUT', directory), patch.object(module, 'ROOT', directory):
+                module.build_batch(directory / 'batch.sql')
+            self.assertEqual((directory / 'historical-build-batch.log').read_text(), 'output\nstatus\n')
+
+    def test_historical_sql_keeps_results_and_errors_in_the_log(self):
+        module = load_historical_upgrade()
+        run = subprocess.run
+
+        def run_fixture(_command, **options):
+            return run(['bash', '-c', 'echo status >&2; cat; test "$1" = ok', 'fixture', mode], **options)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            with patch.object(module, 'OUT', directory), patch.object(module.subprocess, 'run', run_fixture):
+                mode = 'ok'
+                self.assertEqual(module.sql('12\n'), '12')
+                mode = 'error'
+                with self.assertRaises(subprocess.CalledProcessError):
+                    module.sql('partial\n')
+            self.assertEqual((directory / 'historical-psql.log').read_text(), 'status\n12\nstatus\npartial\n')
 
     def test_release_layout_and_manifest_writer(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -119,6 +153,14 @@ class GateContractTests(unittest.TestCase):
                 text=True,
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            receipt = Path(temporary) / 'public' / 'results.jsonl'
+            self.assertTrue(receipt.is_file())
+            validation = subprocess.run(
+                ['python3', '-B', str(support.TOOLS / 'validate_receipt.py'), receipt],
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(validation.returncode, 0, validation.stderr)
 
     def test_busy_port_is_left_to_its_owner(self):
         with patch('support.subprocess.run', return_value=subprocess.CompletedProcess([], 0, stdout='12345\n')):
