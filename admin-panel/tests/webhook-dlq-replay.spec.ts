@@ -1,8 +1,17 @@
 import { lookup } from 'node:dns/promises';
 import { test, expect } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { supabaseAdmin, createTestAdmin, loginAsAdmin } from './helpers/admin-auth';
 import { webhookReceiver } from './helpers/webhook-receiver';
 import { webhookTunnel } from './helpers/webhook-tunnel';
+
+async function scopeDeliveryList(page: Page, endpointId: string) {
+  await page.route(url => url.pathname === '/api/v1/webhooks/logs' && url.searchParams.get('limit') === '50', route => {
+    const url = new URL(route.request().url());
+    url.searchParams.set('endpoint_id', endpointId);
+    return route.continue({ url: url.toString() });
+  });
+}
 
 test.describe('Webhook DLQ replay (UI + API)', () => {
   test.describe.configure({ mode: 'serial' });
@@ -65,6 +74,7 @@ test.describe('Webhook DLQ replay (UI + API)', () => {
   });
 
   test('DLQ page lists permanently_failed delivery and Replay resets state @J71', async ({ page }) => {
+    await scopeDeliveryList(page, endpointId);
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto('/pl/dashboard/webhooks/deliveries');
 
@@ -72,9 +82,6 @@ test.describe('Webhook DLQ replay (UI + API)', () => {
       timeout: 10000,
     });
 
-    // Default filter is permanently_failed. Scope to OUR row by the unique endpoint
-    // URL (the endpoint column renders it) — other specs / accumulated runs leave their
-    // own permanently_failed purchase.completed rows, so a global match is racy.
     const row = page.locator('tr', { hasText: endpointUrl });
     await expect(row).toBeVisible({ timeout: 10000 });
     await expect(row.locator('text=DLQ').first()).toBeVisible();
@@ -160,11 +167,10 @@ test.describe('Webhook DLQ batch replay (select-all + toolbar)', () => {
   });
 
   test('select-all checkbox + "Replay selected" toolbar resets all DLQ rows in one click', async ({ page }) => {
+    await scopeDeliveryList(page, endpointId);
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto('/pl/dashboard/webhooks/deliveries');
 
-    // Wait for OUR 3 rows to be visible (scope by unique endpoint URL — accumulated
-    // permanently_failed rows from other specs/runs must not inflate the count).
     await expect(page.locator('tr', { hasText: endpointUrl })).toHaveCount(3, {
       timeout: 10000,
     });
@@ -174,10 +180,7 @@ test.describe('Webhook DLQ batch replay (select-all + toolbar)', () => {
     await expect(selectAll).toBeVisible();
     await selectAll.check();
 
-    // Toolbar: Replay shows count of DLQ-eligible items. select-all selects ours + any
-    // accumulated DLQ rows, so the count is >= our 3 — assert the pattern, not an exact
-    // number (the DB check below verifies OUR 3 rows specifically).
-    const batchReplayBtn = page.getByRole('button', { name: /Powtórz \(\d+\)|Replay \(\d+\)/i });
+    const batchReplayBtn = page.getByRole('button', { name: /^(Powtórz|Replay) \(3\)$/i });
     await expect(batchReplayBtn).toBeVisible();
     await expect(batchReplayBtn).toBeEnabled();
 
@@ -219,6 +222,7 @@ test.describe('Webhook DLQ batch — pending_retry → Force retry batch path', 
   test.describe.configure({ mode: 'serial' });
 
   let endpointId: string;
+  let endpointUrl: string;
   const pendingIds: string[] = [];
   let cleanupAdmin: (() => Promise<void>) | null = null;
   let adminEmail: string;
@@ -226,10 +230,11 @@ test.describe('Webhook DLQ batch — pending_retry → Force retry batch path', 
 
   test.beforeAll(async () => {
     const random = Math.random().toString(36).slice(2, 8);
+    endpointUrl = `https://example.com/pending-batch-${random}`;
     const { data: endpoint } = await supabaseAdmin
       .from('webhook_endpoints')
       .insert({
-        url: `https://example.com/pending-batch-${random}`,
+        url: endpointUrl,
         events: ['purchase.completed'],
         is_active: true,
         secret: `whsec_pending_${random}`,
@@ -275,25 +280,15 @@ test.describe('Webhook DLQ batch — pending_retry → Force retry batch path', 
   });
 
   test('with pending_retry selection: Replay is disabled, Force retry + Cancel are enabled with correct counts', async ({ page }) => {
+    await scopeDeliveryList(page, endpointId);
     await loginAsAdmin(page, adminEmail, adminPassword);
     await page.goto('/pl/dashboard/webhooks/deliveries');
 
     // Switch to pending_retry filter.
     await page.getByRole('button', { name: /Oczekuje na ponowienie|Pending retry/i }).first().click();
 
-    // Scope row assertions to OUR endpoint URL (unique per test run via random
-    // suffix) — other specs in the full E2E run can leave their own
-    // pending_retry rows with purchase.completed events behind, so a global
-    // tr:has-text('purchase.completed') count is racy. The endpoint URL column
-    // renders the value we inserted in beforeAll.
-    const ourRows = page.locator('tbody tr', { hasText: `pending-batch-` });
-    await expect(ourRows).toHaveCount(2, { timeout: 10000 });
+    await expect(page.locator('tbody tr', { hasText: endpointUrl })).toHaveCount(2, { timeout: 10000 });
 
-    // Select all visible (header checkbox selects every selectable row on page,
-    // ours + any pollution). The toolbar count tells us the real eligibility
-    // total. We assert the modal-after-confirm path resets next_retry_at on
-    // OUR two rows specifically (DB check at the bottom) — pollution rows on
-    // top of ours would just get the same harmless force-retry treatment.
     const selectAll = page.getByRole('checkbox', { name: /Zaznacz wszystkie|Select all/i });
     await selectAll.check();
 
@@ -301,12 +296,10 @@ test.describe('Webhook DLQ batch — pending_retry → Force retry batch path', 
     const replayBtn = page.getByRole('button', { name: /Powtórz \(0\)|Replay \(0\)/i });
     await expect(replayBtn).toBeDisabled();
 
-    // Force retry shows count ≥ 2 (ours) and is clickable. We don't assert the
-    // exact number because of the pollution caveat above.
-    const forceRetryBtn = page.getByRole('button', { name: /Ponów teraz \(\d+\)|Retry now \(\d+\)/i });
+    const forceRetryBtn = page.getByRole('button', { name: /^(Ponów teraz|Retry now) \(2\)$/i });
     await expect(forceRetryBtn).toBeEnabled();
 
-    const cancelBtn = page.getByRole('button', { name: /Anuluj \(\d+\)|Cancel \(\d+\)/i });
+    const cancelBtn = page.getByRole('button', { name: /^(Anuluj|Cancel) \(2\)$/i });
     await expect(cancelBtn).toBeEnabled();
 
     await forceRetryBtn.click();
@@ -314,9 +307,7 @@ test.describe('Webhook DLQ batch — pending_retry → Force retry batch path', 
     await expect(modal).toBeVisible({ timeout: 5000 });
     await modal.getByRole('button', { name: /^Ponów teraz$|^Retry now$/i }).click();
 
-    // After batch, next_retry_at on OUR 2 rows moves to ~now (was +1h). The batch
-    // runs row by row and pollution rows from other specs can precede ours, so
-    // poll instead of sleeping a fixed amount.
+    // The batch changes both schedules from an hour in the future to now.
     await expect
       .poll(
         async () => {
@@ -341,7 +332,7 @@ test('order delivery retry retains metadata in the logs panel @J71', async ({ pa
   test.setTimeout(180_000);
   const receiver = await webhookReceiver('whsec_fixture');
   let tunnel: Awaited<ReturnType<typeof webhookTunnel>> | undefined;
-  const marker = `order-link-${Date.now()}`;
+  const marker = `order-link-${crypto.randomUUID()}`;
   const payload = { event: 'order.placed', data: { order: { payUrl: `https://shop.example/pay?token=${marker}` } } };
   let endpointId: string | undefined;
   try {
@@ -366,7 +357,10 @@ test('order delivery retry retains metadata in the logs panel @J71', async ({ pa
     const logId = inserted.data!.id;
     await loginAsAdmin(page, admin.email, admin.password);
     await page.goto('/pl/dashboard/webhooks');
-    const row = page.locator('tr', { hasText: marker }).filter({ has: page.getByRole('button', { name: /^Ponów$|^Retry$/i }) });
+    const endpointRow = page.getByRole('row').filter({ hasText: marker });
+    await endpointRow.getByRole('button', { name: 'Logi', exact: true }).click();
+    const drawer = page.getByRole('dialog').filter({ hasText: tunnel.url });
+    const row = drawer.getByRole('row').filter({ hasText: 'order.placed' });
     await expect(row).toBeVisible();
     const retryResponse = page.waitForResponse(r => r.url().includes(`/webhooks/logs/${logId}/retry`) && r.request().method() === 'POST');
     await row.getByRole('button', { name: /^Ponów$|^Retry$/i }).click();
@@ -404,7 +398,7 @@ test('URL changes keep earlier deliveries closed in API and panel @J71', async (
     const key = keyBody.data.key;
     expect(key).toMatch(/^sf_/);
     const headers = { Authorization: `Bearer ${key}` };
-    const url = `https://example.com/destination-${Date.now()}`;
+    const url = `https://example.com/destination-${crypto.randomUUID()}`;
     const endpoint = await supabaseAdmin.from('webhook_endpoints').insert({ url, secret: 'whsec_destination', events: ['purchase.completed'], is_active: true }).select('id').single();
     expect(endpoint.error).toBeNull();
     endpointId = endpoint.data!.id;
@@ -421,7 +415,14 @@ test('URL changes keep earlier deliveries closed in API and panel @J71', async (
     expect(closed.data).toMatchObject({ status: 'permanently_failed', next_retry_at: null });
     for (const [locale, message] of [['pl', 'Adres webhooka został zmieniony.'], ['en', 'The endpoint URL changed.']]) {
       await page.goto(`/${locale}/dashboard/webhooks/deliveries`);
-      const row = page.locator('tr', { hasText: `${url}-new` });
+      const table = page.getByRole('table').filter({ has: page.getByRole('columnheader', { name: 'Endpoint', exact: true }) });
+      const row = table.getByRole('row').filter({ hasText: `${url}-new` });
+      const next = page.getByRole('button', { name: /^(Następna strona|Next page)$/ });
+      await expect(table).toBeVisible();
+      while (await row.count() === 0 && await next.count() > 0 && await next.isEnabled()) {
+        await next.click();
+        await expect(table).toBeVisible();
+      }
       await expect(row).toBeVisible();
       await row.getByRole('button', { name: /Powtórz|Replay/i }).click();
       await expect(page.getByText(message, { exact: false })).toBeVisible();
@@ -431,6 +432,64 @@ test('URL changes keep earlier deliveries closed in API and panel @J71', async (
     expect((await page.request.post(`/api/v1/webhooks/logs/${fresh.data!.id}/replay`, { data: {} })).status()).toBe(200);
   } finally {
     if (endpointId) { await supabaseAdmin.from('webhook_logs').delete().eq('endpoint_id', endpointId); await supabaseAdmin.from('webhook_endpoints').delete().eq('id', endpointId); }
+    await admin.cleanup();
+  }
+});
+
+test('webhook deliveries can reach older records and reset the page on filter change @J71', async ({ page }) => {
+  const admin = await createTestAdmin('delivery-pagination');
+  let endpointId: string | undefined;
+  try {
+    const description = `Delivery history ${crypto.randomUUID()}`;
+    const endpoint = await supabaseAdmin.from('webhook_endpoints').insert({
+      url: 'https://example.com/delivery-history',
+      events: ['purchase.completed'],
+      is_active: false,
+      secret: 'whsec_fixture',
+      description,
+    }).select('id').single();
+    expect(endpoint.error).toBeNull();
+    endpointId = endpoint.data!.id;
+
+    const delivery = { endpoint_id: endpointId, event_type: 'purchase.completed', payload: {}, status: 'archived' as const };
+    const now = Date.now();
+    const inserted = await supabaseAdmin.from('webhook_logs').insert([
+      { ...delivery, event_type: 'order.placed', created_at: new Date(now - 1).toISOString() },
+      ...Array.from({ length: 50 }, () => ({ ...delivery, created_at: new Date(now).toISOString() })),
+    ]);
+    expect(inserted.error).toBeNull();
+
+    await scopeDeliveryList(page, endpointId);
+    await loginAsAdmin(page, admin.email, admin.password);
+    await page.goto('/pl/dashboard/webhooks/deliveries');
+    await page.getByRole('button', { name: 'Zarchiwizowane', exact: true }).click();
+    const rows = page.getByRole('row').filter({ hasText: description });
+    const older = rows.filter({ hasText: 'order.placed' });
+    await expect(rows.filter({ hasText: 'purchase.completed' }).first()).toBeVisible();
+    await expect(older).toHaveCount(0);
+
+    const next = page.getByRole('button', { name: 'Następna strona', exact: true });
+    const previous = page.getByRole('button', { name: 'Poprzednia strona', exact: true });
+    await expect(next).toBeEnabled();
+    await next.click();
+    await expect(older).toBeVisible();
+    await previous.click();
+    await expect(older).toHaveCount(0);
+
+    await next.click();
+    await expect(older).toBeVisible();
+    const changedFilter = page.waitForRequest(request => {
+      const url = new URL(request.url());
+      return url.pathname === '/api/v1/webhooks/logs' && url.searchParams.get('status') === 'permanently_failed';
+    });
+    await page.getByRole('button', { name: 'DLQ (trwale nieudane)', exact: true }).click();
+    expect(new URL((await changedFilter).url()).searchParams.has('cursor')).toBe(false);
+    await expect(older).toHaveCount(0);
+  } finally {
+    if (endpointId) {
+      await supabaseAdmin.from('webhook_logs').delete().eq('endpoint_id', endpointId);
+      await supabaseAdmin.from('webhook_endpoints').delete().eq('id', endpointId);
+    }
     await admin.cleanup();
   }
 });
