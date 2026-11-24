@@ -97,8 +97,7 @@ export async function GET(
     // issued_licenses is service-role only — must use admin client.
     const admin = createAdminClient();
     const contentConfig = await loadProductContentConfig(admin, productWithAccess.id);
-    const license = productWithAccess.issue_license_on_purchase
-      ? toIssuedLicenseResponse(await findIssuedLicense(admin, productWithAccess.id, user)) : null;
+    const license = toIssuedLicenseResponse(await findIssuedLicense(admin, productWithAccess.id, user));
 
     // For bundles, resolve the component products so the access view can link to
     // each owned component (the buyer has access to all of them). Non-bundles

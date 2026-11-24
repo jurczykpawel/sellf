@@ -26,6 +26,7 @@ vi.mock('@/lib/actions/shop-config', () => ({ getShopConfig: vi.fn() }));
 vi.mock('@/lib/services/product-content-config', () => ({ loadProductContentConfig: content }));
 vi.mock('@/components/ProductPurchasePage', () => ({ default: purchase }));
 vi.mock('@/app/[locale]/p/[slug]/components/ProductView', () => ({ default: view }));
+import { findIssuedLicense, toIssuedLicenseResponse } from '@/lib/license-keys/lookup';
 import ProductPage, { generateMetadata } from '@/app/[locale]/p/[slug]/page';
 
 afterEach(() => vi.unstubAllEnvs());
@@ -97,4 +98,15 @@ it.each(['coupon', 'email', 'oto'])('preserves campaign and handoff parameters w
     if (name !== 'ignored') expect(destination.searchParams.get(name)).toBe(value);
   }
   expect(destination.searchParams.has('ignored')).toBe(false);
+});
+
+it('keeps the issued key in buyer content after issuance is disabled', async () => {
+  state.userId = 'buyer';
+  state.access = [{ access_expires_at: null, access_duration_days: null, access_granted_at: '2026-01-01T00:00:00Z' }];
+  state.product.issue_license_on_purchase = false;
+  const license = { token: 'issued.token', status: 'active' };
+  vi.mocked(findIssuedLicense).mockResolvedValue({ license_key: 'issued.token' } as never);
+  vi.mocked(toIssuedLicenseResponse).mockReturnValue(license as never);
+  const result = await ProductPage({ params }) as ReactElement<{ initialSecureData: { license: unknown } }>;
+  expect(result.props.initialSecureData.license).toEqual(license);
 });
