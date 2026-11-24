@@ -120,13 +120,15 @@ jobs:
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
           docker image prune --all --force > /dev/null
           df -h / | tail -1; free -m | awk '/Mem/{print "mem available MB:", $7}'
+          df -h /tmp /dev/shm /var/lib/docker "$RUNNER_TEMP" 2>/dev/null; mount | grep -E 'tmpfs|overlay' | head -8
+          docker info --format 'docker root={{.DockerRootDir}} driver={{.Driver}}'
           type -a bun; bun --version
           type -a supabase; supabase --version
           node --version
       - &lane
         name: Run gate lane
         run: |
-          ( while sleep 15; do echo "HOST disk_free=$(df -h / | awk 'NR==2{print $4}') mem_avail_mb=$(free -m | awk '/Mem/{print $7}') load=$(cut -d' ' -f1 /proc/loadavg) top=$(ps -eo rss=,comm= --sort=-rss | head -4 | awk '{printf "%s:%dMB,", $2, $1/1024}') ctr=$(docker stats --no-stream --format '{{.Name}}:{{.MemUsage}}' 2>/dev/null | sort -t: -k2 -rh | head -3 | cut -d/ -f1 | tr '\n' ',')"; done ) &
+          ( while sleep 15; do echo "HOST disk_free=$(df -h / | awk 'NR==2{print $4}') mem_avail_mb=$(free -m | awk '/Mem/{print $7}') load=$(cut -d' ' -f1 /proc/loadavg) shmem_mb=$(awk '/^Shmem:/{print int($2/1024)}' /proc/meminfo) cached_mb=$(awk '/^Cached:/{print int($2/1024)}' /proc/meminfo) slab_mb=$(awk '/^Slab:/{print int($2/1024)}' /proc/meminfo) dockerdir=$(sudo du -sm /var/lib/docker 2>/dev/null | cut -f1)MB top=$(ps -eo rss=,comm= --sort=-rss | head -4 | awk '{printf "%s:%dMB,", $2, $1/1024}') ctr=$(docker stats --no-stream --format '{{.Name}}:{{.MemUsage}}' 2>/dev/null | sort -t: -k2 -rh | head -3 | cut -d/ -f1 | tr '\n' ',')"; done ) &
           python3 -B gate/scripts/release-gate/all.py "$RC_GATE_LANE"
       - *validate-receipt
       - &lane-failure
