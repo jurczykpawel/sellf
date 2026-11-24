@@ -1907,12 +1907,14 @@ gh workflow run build-release.yml -f version=v2026.3.0
 
 ### Dependabot policy
 
-Libraries and Docker images are grouped monthly; Actions quarterly, with a 14-day
-cooldown and one open version-update PR per ecosystem. Bun tracks the existing
+Libraries and Docker images are grouped monthly; Actions quarterly. Version
+updates have a 14-day cooldown (30 days for Bun/npm majors where enabled) and
+one open PR per ecosystem. Bun tracks the existing
 `admin-panel/bun.lock`; the built-in MCP endpoint shares that dependency tree.
 `.github/workflows/dependabot-auto-merge.yml` only classifies and labels PRs:
-**safe** (docs-site and Actions, non-major), **release-batch** (shipped dependencies,
-Docker and majors), and **security**. All merging is reviewed. Release-owned PRs
+**safe** (non-major docs-site updates), **ci** (Actions), **release-batch** (shipped
+dependencies, Docker and majors), and **security** (takes precedence). All
+merging is reviewed. Release-owned PRs
 are folded into the release branch with Bun 1.3.14 lockfiles and the full gate.
 `build-release.yml` blocks a release while a release-batch/security PR is older than
 24 hours. Bun version updates do not provide Dependabot security PRs; the blocking

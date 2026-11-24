@@ -1,50 +1,53 @@
 name: Sync KSeF n8n example
 
-# n8n/sellf-ksef*.json is a MIRROR — source of truth lives in
-# jurczykpawel/ksef-gateway (examples/n8n/). Edit it THERE; this job
-# copies changes here so the example ships in both repos.
-#
-# This opens a PR instead of pushing to main directly: the fetched content
-# comes from another repo and isn't reviewed before landing here, so a
-# human should look at the diff (and CI should run against it) before it
-# merges — a scheduled job with contents:write pushing straight to main
-# has no such gate.
+# Prepare a patch from the ksef-gateway mirror for a maintainer to review.
 on:
   schedule:
     - cron: '17 6 * * 1' # weekly, Monday morning
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   sync:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
-      - name: Fetch from ksef-gateway
+      - name: Prepare mirror patch
+        id: mirror
         run: |
           set -euo pipefail
-          base="https://raw.githubusercontent.com/jurczykpawel/ksef-gateway/main/examples/n8n"
-          for f in sellf-ksef.json sellf-ksef-PL.json; do
-            curl -fsSL "$base/$f" -o "n8n/$f"
+          source_sha=$(git ls-remote --exit-code https://github.com/jurczykpawel/ksef-gateway.git refs/heads/main | cut -f1)
+          [[ "$source_sha" =~ ^[0-9a-f]{40}$ ]]
+          base="https://raw.githubusercontent.com/jurczykpawel/ksef-gateway/$source_sha/examples"
+          files=(n8n/sellf-ksef.json n8n/sellf-ksef-PL.json)
+          for file in "${files[@]}"; do
+            curl -fsSL "$base/$file" -o "$file"
+            jq -es 'length == 1 and (.[0] | type == "object")' "$file" >/dev/null
           done
 
-      - name: Open a PR if the mirror changed
-        uses: peter-evans/create-pull-request@3ffccacd46053766916f087ce41d627c0b8cf2d1 # v8.1.3
-        with:
-          commit-message: "chore(n8n): sync Sellf→KSeF example from ksef-gateway"
-          title: "chore(n8n): sync Sellf→KSeF example from ksef-gateway"
-          body: |
-            Automated mirror sync from `jurczykpawel/ksef-gateway`
-            (`examples/n8n/sellf-ksef.json`, `examples/n8n/sellf-ksef-PL.json`).
+          if git diff --quiet -- "${files[@]}"; then
+            echo 'The KSeF examples match upstream.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
 
-            Review the diff before merging — this content comes from another
-            repository and hasn't been reviewed yet.
-          branch: chore/sync-ksef-example
-          delete-branch: true
-          add-paths: |
-            n8n/sellf-ksef.json
-            n8n/sellf-ksef-PL.json
+          git diff --binary --no-ext-diff --no-textconv -- "${files[@]}" > "$RUNNER_TEMP/ksef-example.patch"
+          echo 'changed=true' >> "$GITHUB_OUTPUT"
+          {
+            printf 'Upstream commit: %s\n\n' "$source_sha"
+            echo 'Download the **ksef-example-patch** artifact and review and apply it on a branch from main.'
+            echo "Run \`git apply --check ksef-example.patch\`, then \`git apply ksef-example.patch\` and open a PR for review."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload patch for review
+        if: steps.mirror.outputs.changed == 'true'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ksef-example-patch
+          path: ${{ runner.temp }}/ksef-example.patch
+          if-no-files-found: error
