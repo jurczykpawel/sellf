@@ -7,6 +7,11 @@ on:
         description: Candidate commit SHA or full Git ref
         required: true
         type: string
+      stripe:
+        description: Run the Stripe sandbox lanes (off while a Mac gate uses the same sandbox; the result is then not a full gate)
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -142,6 +147,7 @@ jobs:
 
   stripe:
     needs: [preflight, inventory]
+    if: inputs.stripe
     runs-on: ubuntu-latest
     timeout-minutes: 90
     environment: release-gate
