@@ -1,7 +1,8 @@
 import shutil
-
-from support import ADMIN, CLI, OUT, ROOT, STACK, clean, require, run
 import sys
+
+from diagnostics import run_vitest, verify_vitest, vitest_report_path
+from support import ADMIN, CLI, OUT, ROOT, STACK, clean, require, run
 
 
 def unit():
@@ -11,7 +12,7 @@ def unit():
         ['python3', '-B', '-m', 'unittest', 'discover', '-s', 'supabase/tests', '-p', 'test_local_stack.py'],
     )
     run('migration-lint', ['bun', 'run', 'lint:migrations'], ROOT / 'admin-panel')
-    run(
+    run_vitest(
         'return-path-focused',
         [
             'bun',
@@ -27,9 +28,8 @@ def unit():
             'tests/unit/auth/magic-link-request.test.ts',
             'tests/unit/security/magic-link-redirect-url.test.ts',
         ],
-        ROOT / 'admin-panel',
     )
-    run('unit', ['bun', 'run', 'tt'], ROOT / 'admin-panel')
+    run_vitest('unit', ['bun', 'run', 'tt'])
     shutil.rmtree(ROOT / 'admin-panel/.next/types', ignore_errors=True)
     for name, cmd, cwd in [
         ('typecheck-admin', ['bun', 'run', 'typecheck'], 'admin-panel'),
@@ -88,13 +88,12 @@ def database():
     for kind in ['postgrest', 'concurrency']:
         run('affiliates-' + kind, ['python3', str(ROOT / f'supabase/tests/affiliates-phase1-{kind}.py')])
     for suite in ['admin', 'first-run', 'payouts', 'payouts/mode', 'portal', 'products', 'restore', 'sync']:
-        run(
+        run_vitest(
             'affiliate-db-' + suite.replace('/', '-'),
             ['bun', 'x', 'vitest', 'run', f'tests/affiliates/{suite}/database.test.ts'],
-            ROOT / 'admin-panel',
             {'AFFILIATE_TEST_ENV': str(OUT / 'affiliates.env')},
         )
-    run('invoicing-db', ['bun', 'x', 'vitest', 'run', '--config', 'vitest.invoicing.config.ts'], ROOT / 'admin-panel')
+    run_vitest('invoicing-db', ['bun', 'x', 'vitest', 'run', '--config', 'vitest.invoicing.config.ts'])
     with (OUT / 'database.ts').open('w') as output:
         require(
             'types-generate', [CLI, 'gen', 'types', 'typescript', '--local', '--workdir', str(STACK)], stdout=output
@@ -104,7 +103,24 @@ def database():
 
 def api():
     clean()
-    run('api', ['bash', 'scripts/run-api-tests.sh'], ADMIN, {'TEST_API_LOG': str(OUT / 'api-server.log')})
+    # Forward reporter flags through the frozen candidate's API server driver.
+    driver = """
+bun() {
+    if [[ $# == 2 && "$1" == run && "$2" == test:api ]]; then
+        set -- "$@" --reporter=json "--outputFile=$RC_GATE_VITEST_REPORT"
+    fi
+    command bun "$@"
+}
+export -f bun
+exec bash scripts/run-api-tests.sh
+"""
+    run(
+        'api',
+        ['bash', '-c', driver],
+        ADMIN,
+        {'TEST_API_LOG': str(OUT / 'api-server.log'), 'RC_GATE_VITEST_REPORT': str(vitest_report_path('api'))},
+    )
+    verify_vitest('api')
 
 
 def reset(name, ready):

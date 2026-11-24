@@ -128,7 +128,9 @@ try {
   const envFile = resolve(scratch, '.env');
   await writeFile(envFile, Object.entries(env).map(([key, value]) => `${key}=${value}`).join('\n') + '\n', { mode: 0o600 });
   console.log('Running runtime, route, UI and script unit checks');
-  await run('bun', ['x', 'vitest', 'run', 'tests/unit/lib/system', 'tests/unit/routes/upgrade.test.ts', 'tests/unit/routes/update-check-started-at.test.ts', 'tests/unit/hooks/use-update-check.test.ts', 'tests/unit/scripts/upgrade-migration-reporting.test.ts', 'tests/unit/scripts/upgrade-pm2.test.ts', 'tests/unit/scripts/upgrade-working-directory.test.ts'], adminDir);
+  const vitestReport = process.env.RC_GATE_VITEST_REPORT;
+  const reporterArgs = vitestReport ? ['--reporter=json', `--outputFile=${vitestReport}`] : [];
+  await run('bun', ['x', 'vitest', 'run', ...reporterArgs, 'tests/unit/lib/system', 'tests/unit/routes/upgrade.test.ts', 'tests/unit/routes/update-check-started-at.test.ts', 'tests/unit/hooks/use-update-check.test.ts', 'tests/unit/scripts/upgrade-migration-reporting.test.ts', 'tests/unit/scripts/upgrade-pm2.test.ts', 'tests/unit/scripts/upgrade-working-directory.test.ts'], adminDir);
   Object.assign(process.env, env);
   delete process.env.SELLF_DEPLOYMENT_RUNTIME;
   console.log('Building the current production Dockerfile');

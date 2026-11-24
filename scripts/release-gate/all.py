@@ -29,6 +29,7 @@ from support import (
     generate_credentials,
     mask,
     record,
+    redact,
     require,
     resolve_gate_head,
     validate_release_version,
@@ -112,7 +113,7 @@ def describe_error(error):
     (redacted, max 190 chars) to make GHA failures diagnosable; any other exception stays a type name."""
     if not isinstance(error, AssertionError) or not error.args:
         return type(error).__name__
-    text = re.sub(r'(sk|pk|rk|whsec|sb_secret|sb_publishable)_[A-Za-z0-9_]+|eyJ[A-Za-z0-9_.-]+', '[redacted]', str(error.args[0]))
+    text = redact(str(error.args[0]))
     return ('AssertionError: ' + ' '.join(text.split()))[:190]
 
 

@@ -4,8 +4,9 @@ from collections import Counter
 from dataclasses import dataclass
 
 import json
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
+from diagnostics import public_test_file, read_test_report, record_failures, test_identifier
 from support import ADMIN, OUT, RUNTIME, record, require, run
 
 MAIN_PROJECTS = ('chromium', 'chromium-heavy', 'maintenance', 'accessibility', 'rate-limiting', 'rate-limiting-v1')
@@ -139,14 +140,14 @@ def verify_result(suite, expected, report):
     skipped = stats['skipped']
     bad = stats['unexpected'] + stats['flaky']
     completed = sum(bool(test.get('results')) for *_, test in tests)
-    allowed = (
-        0
-        if suite == 'stripe'
-        else sum(
-            test['status'] == 'skipped' and (PurePosixPath(file).name, title) in ALLOWED_SKIPS
-            for _, file, title, _, test in tests
-        )
-    )
+    allowed = 0
+    failures = []
+    for project, file, title, line, test in tests:
+        status = test['status']
+        if status == 'skipped' and suite != 'stripe' and (PurePosixPath(file).name, title) in ALLOWED_SKIPS:
+            allowed += 1
+        elif status in ('unexpected', 'flaky', 'skipped'):
+            failures.append((project, file, title, line))
     ok = (
         not report.get('errors')
         and expected > 0
@@ -155,7 +156,7 @@ def verify_result(suite, expected, report):
         and not bad
         and allowed == skipped
     )
-    return record(
+    code = record(
         suite + '-count',
         int(not ok),
         expected=expected,
@@ -165,6 +166,15 @@ def verify_result(suite, expected, report):
         failedOrFlaky=bad,
         completed=completed,
     )
+    root = Path(report.get('config', {}).get('rootDir', ADMIN))
+    record_failures(
+        suite,
+        (
+            test_identifier(public_test_file(root / file), title, project, line)
+            for project, file, title, line in failures
+        ),
+    )
+    return code
 
 
 def run_browser(suite, inventory):
@@ -188,7 +198,9 @@ def run_browser(suite, inventory):
     else:
         command = [*suite.args(), *options]
     run(suite.name, command, ADMIN, extra)
-    if not path.is_file():
+    report = read_test_report(path)
+    if report is None:
         record(suite.name + '-count', 1, expected=inventory[suite.name], reportMissing=True)
+        record_failures(suite.name, ())
     else:
-        verify_result(suite.name, inventory[suite.name], json.loads(path.read_text()))
+        verify_result(suite.name, inventory[suite.name], report)

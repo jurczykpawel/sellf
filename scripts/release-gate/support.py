@@ -13,6 +13,8 @@ import sys
 import tempfile
 import time
 
+from validate_receipt import CREDENTIAL
+
 TOOLS = Path(__file__).resolve().parent
 ROOT = Path(os.environ.get('RC_GATE_ROOT', TOOLS.parents[1])).resolve()
 ADMIN = ROOT / 'admin-panel'
@@ -21,6 +23,7 @@ OUT = Path(os.environ.get('RC_GATE_OUT', RUNNER_TEMP / 'release-gate'))
 STACK = OUT / 'stack'
 RUNTIME = OUT / 'tools'
 RECEIPT = OUT / 'public' / 'results.jsonl'
+masked_values = set()
 
 
 def native_supabase_cli():
@@ -76,9 +79,17 @@ for name in (
 
 
 def mask(value):
+    masked_values.add(value)
     if os.environ.get('GITHUB_ACTIONS') == 'true':
         assert value and not re.search(r'[\r\n]', value), 'Expected a single-line credential'
         print('::add-mask::' + value.replace('%', '%25'), flush=True)
+
+
+def redact(text):
+    for value in sorted(masked_values, key=len, reverse=True):
+        if value:
+            text = text.replace(value, '[redacted]')
+    return CREDENTIAL.sub('[redacted]', text)
 
 
 def record(name, code, **data):

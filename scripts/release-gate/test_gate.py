@@ -12,6 +12,8 @@ from unittest.mock import patch
 
 import all as gate
 import browser
+import diagnostics
+import first
 import prepare
 import support
 
@@ -206,7 +208,7 @@ class GateContractTests(unittest.TestCase):
             ],
             'stats': {'expected': 0, 'skipped': 1, 'unexpected': 0, 'flaky': 0},
         }
-        with patch('browser.record', side_effect=lambda _, code, **kwargs: code):
+        with patch('browser.record', side_effect=lambda _, code, **kwargs: code), patch('browser.record_failures'):
             self.assertEqual(browser.verify_result('ordinary', 1, report), 0)
             self.assertEqual(browser.verify_result('stripe', 1, report), 1)
             self.assertEqual(browser.verify_result('ordinary', 2, report), 1)
@@ -214,6 +216,128 @@ class GateContractTests(unittest.TestCase):
             self.assertEqual(browser.verify_result('ordinary', 1, report), 1)
             report['suites'][0]['specs'][0]['tests'][0]['results'].clear()
             self.assertEqual(browser.verify_result('ordinary', 1, report), 1)
+
+    def test_browser_publishes_only_unexpected_test_ids(self):
+        allowed = 'two production replicas bound lost invalidation and scheduled availability/sale'
+        title = 'https://example.com/private /tmp/data ' + 'x' * 150
+        specs = []
+        for line, (name, status) in enumerate(
+            [(title, 'unexpected'), ('flaky test', 'flaky'), ('other skip', 'skipped'),
+             (allowed, 'skipped'), ('passed test', 'expected')], 1
+        ):
+            specs.append({
+                'file': 'tests/offer-public.spec.ts',
+                'title': name,
+                'line': line,
+                'tests': [{
+                    'projectName': 'chromium',
+                    'status': status,
+                    'results': [{'error': {'message': 'private error'}, 'stdout': ['private stdout']}],
+                }],
+            })
+        report = {
+            'config': {'rootDir': str(support.ADMIN)},
+            'suites': [{'suites': [{'specs': specs}]}],
+            'stats': {'expected': 1, 'skipped': 2, 'unexpected': 1, 'flaky': 1},
+        }
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            redirect_stdout(io.StringIO()) as log,
+            patch.object(support, 'RECEIPT', Path(tmp) / 'results.jsonl'),
+        ):
+            self.assertEqual(browser.verify_result('ordinary', 5, report), 1)
+            receipt = support.RECEIPT.read_text()
+        rows = {row['name']: row for row in map(json.loads, receipt.splitlines())}
+        ids = rows['ordinary-failures']['testIds']
+        self.assertEqual(rows['ordinary-count']['unexpectedSkips'], 1)
+        self.assertEqual(ids, [
+            'chromium|tests/offer-public.spec.ts:1|' + ('[redacted] [redacted] ' + 'x' * 150)[:120],
+            'chromium|tests/offer-public.spec.ts:2|flaky test',
+            'chromium|tests/offer-public.spec.ts:3|other skip',
+        ])
+        self.assertIn(json.dumps(ids[1]), log.getvalue())
+        for marker in ('example.com', '/tmp/data', 'private error', 'private stdout'):
+            self.assertNotIn(marker, receipt + log.getvalue())
+
+    def test_vitest_counts_and_limits_ids_from_private_report(self):
+        path = support.ADMIN / 'tests/unit/coupon-shop-currency.test.ts'
+        file_failure = support.ADMIN / 'tests/unit/proxy-public-files.test.ts'
+        secret = 'fixture-value-123'
+        report = {
+            'numTotalTests': 43,
+            'numPassedTests': 1,
+            'numFailedTests': 41,
+            'numPendingTests': 0,
+            'numTodoTests': 1,
+            'numFailedTestSuites': 2,
+            'success': False,
+            'testResults': [
+                {'name': str(file_failure), 'status': 'failed', 'assertionResults': []},
+                {
+                    'name': str(path),
+                    'status': 'failed',
+                    'message': 'private file description',
+                    'assertionResults': [
+                        {
+                            'fullName': f'tests/unit/{path.name} currency accepts {secret} ({index})',
+                            'status': 'failed',
+                            'failureMessages': ['private assertion failure'],
+                        }
+                        for index in range(41)
+                    ] + [{'fullName': 'passing test', 'status': 'passed'}],
+                },
+                {'name': '/tmp/private.test.ts', 'status': 'failed', 'assertionResults': []},
+            ],
+        }
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            redirect_stdout(io.StringIO()) as log,
+            patch.object(diagnostics, 'OUT', Path(tmp)),
+            patch.object(support, 'RECEIPT', Path(tmp) / 'results.jsonl'),
+            patch.object(support, 'masked_values', {secret}),
+        ):
+            diagnostics.vitest_report_path('unit').write_text(json.dumps(report))
+            diagnostics.verify_vitest('unit')
+            diagnostics.verify_vitest('missing')
+            receipt = support.RECEIPT.read_text()
+        rows = {row['name']: row for row in map(json.loads, receipt.splitlines())}
+        self.assertEqual(rows['unit-count'], {
+            'name': 'unit-count', 'exit': 1, 'total': 43, 'passed': 1, 'failed': 41, 'skipped': 1, 'failedSuites': 2,
+        })
+        ids = rows['unit-failures']['testIds']
+        self.assertEqual(len(ids), 41)
+        self.assertEqual(ids[0], f'tests/unit/{file_failure.name}|[file failed]')
+        self.assertEqual(ids[1], f'tests/unit/{path.name}|currency accepts [redacted] (0)')
+        self.assertEqual(ids[-1], '+3 omitted')
+        self.assertTrue(rows['missing-count']['reportMissing'])
+        self.assertEqual(rows['missing-failures']['testIds'], [])
+        self.assertIn(json.dumps(ids[1]), log.getvalue())
+        for marker in (str(support.ADMIN), secret, 'private', 'passing test'):
+            self.assertNotIn(marker, receipt + log.getvalue())
+
+    def test_api_driver_forwards_reporter_only_to_test_command(self):
+        with tempfile.TemporaryDirectory() as tmp, patch.object(first, 'clean'), patch.object(first, 'run') as run:
+            with patch.object(first, 'verify_vitest') as verify:
+                first.api()
+            _, command, _, extra = run.call_args.args
+            verify.assert_called_once_with('api')
+            root = Path(tmp)
+            (root / 'scripts').mkdir()
+            (root / 'scripts/run-api-tests.sh').write_text('bun run dev\nbun run test:api\n')
+            bun = root / 'bun'
+            bun.write_text('#!/bin/bash\nprintf "%s\\n" "$@"\n')
+            bun.chmod(0o700)
+            result = subprocess.run(
+                command,
+                cwd=root,
+                env={'PATH': f'{root}:/usr/bin:/bin', **extra},
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+        self.assertEqual(result.stdout.splitlines(), [
+            'run', 'dev', 'run', 'test:api', '--reporter=json', f'--outputFile={extra["RC_GATE_VITEST_REPORT"]}',
+        ])
 
     def test_aggregate_fails_if_a_job_or_count_is_missing(self):
         counts = {suite.name: 1 for suites in browser.LANES.values() for suite in suites}

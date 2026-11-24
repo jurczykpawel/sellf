@@ -7,8 +7,19 @@ import re
 import sys
 
 
+MAX_TEST_IDS = 40
+MAX_TEXT = 200
+CREDENTIAL = re.compile(r'(sk|pk|rk|whsec|sb_secret|sb_publishable|sf_live|sf_test)_[A-Za-z0-9_-]+|eyJ[A-Za-z0-9_.-]+')
+PRIVATE_REFERENCE = re.compile(
+    r'(?<!\S)\S*[/\\]\S*|(?:data:|mailto:|www\.)\S+|(?<![\w.+-])[\w.+-]+@[\w.-]+\.[a-z]{2,}',
+    re.IGNORECASE,
+)
+TEST_FILE = r'(?:tests/(?:[\w-][\w.-]*/)*[\w-][\w.-]*\.(?:tsx?|jsx?)|acceptance\.spec\.ts)'
+TEST_ID = re.compile(rf'(?:[\w.-]+\|{TEST_FILE}:[1-9][0-9]*|{TEST_FILE})\|([^|]+)')
+
+
 def short_text(value):
-    return isinstance(value, str) and len(value) <= 200
+    return isinstance(value, str) and len(value) <= MAX_TEXT
 
 
 def integer(value):
@@ -27,6 +38,21 @@ def count_text(value):
     return short_text(value) and re.fullmatch(r'[0-9]+', value) is not None
 
 
+def test_id(value):
+    if not short_text(value) or not value.isprintable() or CREDENTIAL.search(value):
+        return False
+    match = TEST_ID.fullmatch(value)
+    return bool(match and not PRIVATE_REFERENCE.search(match[1]))
+
+
+def test_ids(value):
+    if not isinstance(value, list) or len(value) > MAX_TEST_IDS + 1:
+        return False
+    if value and short_text(value[-1]) and re.fullmatch(r'\+[1-9][0-9]* omitted', value[-1]):
+        value = value[:-1]
+    return len(value) <= MAX_TEST_IDS and all(test_id(item) for item in value)
+
+
 TABLE_COUNTS = items(lambda value: fields(value, {'table': short_text, 'count': count_text}))
 RECEIPT_FIELDS = {
     **dict.fromkeys(('name', 'lane', 'head', 'version', 'error', 'baseline', 'migration', 'manifest'), short_text),
@@ -36,6 +62,9 @@ RECEIPT_FIELDS = {
             'expected',
             'passed',
             'skipped',
+            'total',
+            'failed',
+            'failedSuites',
             'unexpectedSkips',
             'failedOrFlaky',
             'completed',
@@ -51,6 +80,7 @@ RECEIPT_FIELDS = {
     ),
     **dict.fromkeys(('reportMissing', 'repeatSkipped', 'rcChecked'), lambda value: type(value) is bool),
     **dict.fromkeys(('failures', 'mismatched', 'addedMigrations', 'changedReleasedMigrations'), items(short_text)),
+    'testIds': test_ids,
     'seconds': lambda value: type(value) in (int, float) and math.isfinite(value),
     'checks': lambda value: fields(
         value, dict.fromkeys(('/', '/api/health', '/login'), lambda item: integer(item) or short_text(item))

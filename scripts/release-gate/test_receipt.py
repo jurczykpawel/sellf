@@ -58,3 +58,27 @@ class ReceiptTests(unittest.TestCase):
 
     def test_missing_receipt_is_allowed(self):
         self.assertEqual(self.validate(None).returncode, 0)
+
+    def test_accepts_test_ids_and_omission_count(self):
+        prefix = 'chromium|tests/example.spec.ts:12|'
+        ids = [prefix + 'x' * (200 - len(prefix))] * 40 + ['+3 omitted']
+        row = {'name': 'chromium-failures', 'exit': 0, 'testIds': ids}
+        result = self.validate(json.dumps(row))
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_rejects_unsafe_test_ids(self):
+        prefix = 'tests/example.test.ts|'
+        for ids in (
+            [prefix + 'sk_' + 'test_diagnostic_marker'],
+            [prefix + 'https://example.com/data'],
+            [prefix + '/tmp/private.log'],
+            [prefix + 'a\nb'],
+            [prefix + 'x' * 200],
+            [prefix + 'test'] * 42,
+            [17],
+        ):
+            with self.subTest(ids=ids):
+                row = {'name': 'unit-failures', 'exit': 0, 'testIds': ids}
+                result = self.validate(json.dumps(row))
+                self.assertEqual(result.returncode, 1)
+                self.assertNotIn('diagnostic_marker', result.stdout + result.stderr)

@@ -28,6 +28,7 @@ from support import (
     validate_release_version,
     write_env,
 )
+from diagnostics import verify_vitest, vitest_report_path
 from first import reset
 
 
@@ -258,7 +259,13 @@ def deployment_matrix():
     require('upgrade-owned-restart', [CLI, 'start', '--workdir', str(STACK)])
     configure()
     reset('matrix-reset', 'matrix-kong')
-    run('matrix', ['bun', str(RUNTIME / 'upgrade-matrix-runner.ts'), '--stack=' + str(STACK)], ROOT / 'admin-panel')
+    run(
+        'matrix',
+        ['bun', str(RUNTIME / 'upgrade-matrix-runner.ts'), '--stack=' + str(STACK)],
+        ROOT / 'admin-panel',
+        {'RC_GATE_VITEST_REPORT': str(vitest_report_path('matrix-vitest'))},
+    )
+    verify_vitest('matrix-vitest')
 
 
 def source_checks():
