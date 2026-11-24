@@ -9,6 +9,7 @@ import secrets
 import shutil
 import signal
 import subprocess
+import sys
 import tempfile
 import time
 
@@ -36,13 +37,16 @@ def native_supabase_cli():
         if handle.read(4) != b'#!/u' and not real.name.endswith('.js'):
             return str(real)
     for parent in real.parents:
-        candidates = sorted(parent.glob('node_modules/@supabase/cli-linux-*/bin/supabase')) + sorted(
-            parent.glob('@supabase/cli-linux-*/bin/supabase')
+        platform = 'darwin' if sys.platform == 'darwin' else 'linux'
+        candidates = sorted(parent.glob(f'node_modules/@supabase/cli-{platform}-*/bin/supabase')) + sorted(
+            parent.glob(f'@supabase/cli-{platform}-*/bin/supabase')
         )
         candidates = [c for c in candidates if 'musl' not in c.parts[-3]]
         if candidates:
             return str(candidates[0])
         if parent.name == 'node_modules' and parent.parent.name.startswith('setup-cli'):
+            break
+        if parent == Path(real.anchor):
             break
     raise AssertionError('Native Supabase CLI binary not found next to the npm shim')
 
