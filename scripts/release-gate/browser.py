@@ -119,14 +119,14 @@ def test_ids(report):
 
 def list_suite(suite):
     path = OUT / ('list-' + suite.name + '.json')
-    with path.open('w') as report:
-        require(
-            'list-' + suite.name,
-            suite.args() + ['--list', '--reporter=json'],
-            ADMIN,
-            LIST_ENV | {'RC_GATE_EVIDENCE': str(OUT)} | dict(suite.variables),
-            stdout=report,
-        )
+    # The JSON reporter writes to a file: config-time stdout (e.g. the dotenv 17 banner) must not
+    # corrupt the listing, as it did on the first GHA run (JSONDecodeError in inventory).
+    require(
+        'list-' + suite.name,
+        suite.args() + ['--list', '--reporter=json'],
+        ADMIN,
+        LIST_ENV | {'RC_GATE_EVIDENCE': str(OUT), 'PLAYWRIGHT_JSON_OUTPUT_FILE': str(path)} | dict(suite.variables),
+    )
     data = json.loads(path.read_text())
     assert not data.get('errors'), f'{suite.name}: collection errors'
     return data
