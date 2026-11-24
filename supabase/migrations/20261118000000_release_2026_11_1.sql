@@ -18,6 +18,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.subscription_checkout_fields TO s
 CREATE POLICY subscription_checkout_fields_service ON public.subscription_checkout_fields TO service_role
   USING ((SELECT auth.role()) = 'service_role') WITH CHECK ((SELECT auth.role()) = 'service_role');
 
+-- ===== Embed usage =====
+CREATE INDEX IF NOT EXISTS idx_embed_checkout_log_product_created ON public.embed_checkout_log(product_id, created_at DESC);
+
 -- ===== Checkout details =====
 -- ===== Source: 20261111000000_checkout_details_reconciliation.sql =====
 -- Preserve completion while recording missing required checkout modules.
@@ -4307,3 +4310,30 @@ BEGIN
 END $$;
 REVOKE ALL ON FUNCTION public.update_webhook_endpoint_scoping(uuid, text, uuid[], jsonb) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.update_webhook_endpoint_scoping(uuid, text, uuid[], jsonb) TO service_role;
+
+-- Mail delivery markers are held until the provider confirms its result.
+ALTER TABLE public.payment_transactions
+  ADD COLUMN transfer_mail_delivery_unknown boolean NOT NULL DEFAULT false,
+  ADD COLUMN reminder_mail_delivery_unknown boolean NOT NULL DEFAULT false,
+  ADD COLUMN cancelled_mail_delivery_unknown boolean NOT NULL DEFAULT false,
+  ADD COLUMN transfer_paid_mail_delivery_unknown boolean NOT NULL DEFAULT false;
+
+
+CREATE OR REPLACE FUNCTION public.clear_outdated_order_notice_state()
+RETURNS trigger LANGUAGE plpgsql SET search_path = '' AS $$
+BEGIN
+  IF NEW.status NOT IN ('awaiting_payment', 'completed') THEN NEW.transfer_mail_delivery_unknown := false; END IF;
+  IF NEW.status <> 'awaiting_payment' THEN NEW.reminder_mail_delivery_unknown := false; END IF;
+  IF NEW.status <> 'cancelled' THEN NEW.cancelled_mail_delivery_unknown := false; END IF;
+  IF NEW.status <> 'completed' THEN NEW.transfer_paid_mail_delivery_unknown := false; END IF;
+  RETURN NEW;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.clear_outdated_order_notice_state() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.clear_outdated_order_notice_state() TO service_role;
+CREATE TRIGGER clear_outdated_order_notice_state
+  BEFORE INSERT OR UPDATE ON public.payment_transactions
+  FOR EACH ROW EXECUTE FUNCTION public.clear_outdated_order_notice_state();
+UPDATE public.payment_transactions SET status = status
+WHERE transfer_mail_delivery_unknown OR reminder_mail_delivery_unknown
+  OR cancelled_mail_delivery_unknown OR transfer_paid_mail_delivery_unknown;

@@ -32,6 +32,12 @@ export async function GET(request: NextRequest) {
       adminClient,
       (product as { seller_id: string | null }).seller_id,
     );
+    if (request.nextUrl.searchParams.get('usage') === '1') {
+      const { data: lastUsage, error } = await adminClient.from('embed_checkout_log').select('origin,created_at')
+        .eq('product_id', parsed.data.productId).order('created_at', { ascending: false }).limit(1).maybeSingle();
+      if (error) return NextResponse.json({ error: 'Embed usage unavailable' }, { status: 500 });
+      return NextResponse.json({ origins, lastUsage }, { headers: { 'Cache-Control': 'no-store' } });
+    }
     return NextResponse.json({ origins });
   } catch (error) {
     if (error instanceof Error && error.message === 'Unauthorized') {

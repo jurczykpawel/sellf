@@ -97,7 +97,7 @@ async function ids(query: PromiseLike<{ data: { id: string }[] | null; error: un
 }
 
 /** Reminder, release and recovery of every timer-driven notification. Time comes from one clock read per run. */
-async function runReservations(db: SupabaseClient<Database>, run: (id: string, action: () => Promise<void>) => Promise<void>): Promise<void> {
+async function runReservations(db: SupabaseClient<Database>, run: (id: string, action: () => Promise<unknown>) => Promise<void>): Promise<void> {
   const now = new Date().toISOString();
   const transfers = () => db.from('payment_transactions').select('id').eq('payment_provider', 'bank_transfer');
   for (const id of await ids(transfers().eq('status', 'awaiting_payment').lte('reminder_at', now).not('release_at', 'is', null).is('order_reminder_notified_at', null).limit(BATCH))) {
@@ -128,7 +128,7 @@ async function runReservations(db: SupabaseClient<Database>, run: (id: string, a
 
 export async function runTransferJob(db: SupabaseClient<Database>, job: 'bank-transfer-overdue' | 'fulfillment-resume' | 'transfer-reservations'): Promise<{ processed: number; errors: number }> {
   let processed = 0; let errors = 0;
-  const run = async (id: string, action: () => Promise<void>) => {
+  const run = async (id: string, action: () => Promise<unknown>) => {
     try { await action(); processed++; } catch { console.error('[runTransferJob] Order failed:', id); errors++; }
   };
   if (job === 'transfer-reservations') {

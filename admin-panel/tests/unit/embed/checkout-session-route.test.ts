@@ -44,7 +44,7 @@ const product = {
 
 function makeDbMock(overrides: {
   allowedOrigins?: string[];
-  product?: (typeof product & { checkout_profile?: unknown }) | null;
+  product?: (typeof product & { checkout_profile?: unknown; event_mode?: boolean }) | null;
 } = {}) {
   const allowedOrigins = overrides.allowedOrigins ?? ['https://landing.example.com'];
   const selectedProduct = overrides.product === undefined ? product : overrides.product;
@@ -436,14 +436,44 @@ describe('embed error response origins', () => {
 
 it.each([
   ...['hidden', 'checkout', 'product_page'].map(mode => ({ modules: [{ id: 'quantity', min: 2, max: 3, mode }] })),
-  { modules: [{ id: 'buyer', types: ['organization'] }] },
-  { modules: [{ id: 'phone', required: true }] },
-  { modules: [{ id: 'buyer', types: ['organization'] }, { id: 'recipient', for: ['organization'] }] },
+  { modules: [{ id: 'quantity', min: 1, max: 3, mode: 'product_page' }] },
+  { modules: [{ id: 'quantity', min: 1, max: 0, mode: 'checkout' }] },
   { modules: [{ id: 'quantity', min: 1, max: 3, mode: 'checkout' }, { id: 'participants', required: true, prefill_from_buyer: false }] },
 ])('directs profile $modules to standard checkout before creating a session', async ({ modules }) => {
   mocks.createAdminClient.mockReturnValue(makeDbMock({ product: { ...product, checkout_profile: { v: 1, modules } } }));
   const response = await POST(makeRequest({ productSlug: product.slug }, 'https://landing.example.com'));
   expect(response.status).toBe(422);
-  expect(await response.json()).toMatchObject({ code: 'STANDARD_CHECKOUT_REQUIRED' });
+  expect(await response.json()).toMatchObject({ code: 'STANDARD_CHECKOUT_REQUIRED', productUrl: 'https://sellf.example.com/en/p/kurs-ai' });
   expect(mocks.createCheckoutSession).not.toHaveBeenCalled();
+});
+
+it.each([
+  [{ id: 'buyer', types: ['organization'] }], [{ id: 'phone', required: true }],
+  [{ id: 'buyer', types: ['organization'] }, { id: 'recipient', for: ['organization'] }],
+  [{ id: 'quantity', min: 1, max: 5, mode: 'checkout' }],
+  [{ id: 'quantity', min: 1, max: 5, mode: 'hidden' }],
+  [{ id: 'quantity', min: 1, max: 1, mode: 'hidden' }],
+  [{ id: 'quantity', min: 1, max: 1, mode: 'product_page' }],
+])('keeps selling one unit with compatible modules %j', async (...modules) => {
+  mocks.createAdminClient.mockReturnValue(makeDbMock({ product: { ...product, checkout_profile: { v: 1, modules } } }));
+  const response = await POST(makeRequest({ productSlug: product.slug }, 'https://landing.example.com'));
+  expect(response.status).toBe(200);
+  expect(mocks.createCheckoutSession).toHaveBeenCalled();
+});
+
+it('keeps the product link and refusal log if the profile changes during session preparation', async () => {
+  const db = makeDbMock();
+  const insert = vi.fn().mockResolvedValue({ error: null });
+  const from = db.from.getMockImplementation()!;
+  db.from.mockImplementation((table: string) => table === 'embed_checkout_log' ? { insert } as ReturnType<typeof from> : from(table));
+  mocks.createAdminClient.mockReturnValue(db);
+  mocks.createCheckoutSession.mockRejectedValue(new CheckoutError(CheckoutErrorType.VALIDATION_ERROR, 'Standard checkout required', 422, 'STANDARD_CHECKOUT_REQUIRED'));
+  const response = await POST(makeRequest({ productSlug: product.slug, locale: 'pl' }, 'https://landing.example.com'));
+  expect(await response.json()).toMatchObject({ code: 'STANDARD_CHECKOUT_REQUIRED', productUrl: 'https://sellf.example.com/pl/p/kurs-ai' });
+  expect(insert).toHaveBeenCalledWith(expect.objectContaining({ status: 'standard_checkout_required' }));
+});
+
+it('requires event profile data even when the base price is zero', async () => {
+  mocks.createAdminClient.mockReturnValue(makeDbMock({ product: { ...product, price: 0, event_mode: true, checkout_profile: { v: 1, modules: [{ id: 'quantity', min: 2, max: 3, mode: 'checkout' }] } } }));
+  expect((await POST(makeRequest({ productSlug: product.slug }, 'https://landing.example.com'))).status).toBe(422);
 });

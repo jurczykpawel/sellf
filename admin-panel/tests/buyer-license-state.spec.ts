@@ -32,6 +32,18 @@ test('a working license is shown valid with a copy button @J235', async ({ page 
   await expect(page.getByText(TOKEN)).toBeVisible();
   await expect(page.getByRole('button', { name: 'Kopiuj' })).toBeVisible();
 });
+test('an issued key remains visible after purchase issuance is disabled @J235', async ({ page }) => {
+  try {
+    expect((await db.from('products').update({ issue_license_on_purchase: false }).eq('id', ids.product!)).error).toBeNull();
+    await page.goto(`/pl/p/${slug}`);
+    await expect(page.getByText(TOKEN)).toBeVisible();
+    const response = await page.request.get(`/api/public/products/${slug}/content`);
+    expect(response.status()).toBe(200);
+    expect((await response.json()).license).toMatchObject({ token: TOKEN, status: 'active' });
+  } finally {
+    expect((await db.from('products').update({ issue_license_on_purchase: true }).eq('id', ids.product!)).error).toBeNull();
+  }
+});
 test('a dated license status stays on one line at 390 pixels @J235', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   expect((await db.from('issued_licenses').update({ expires_at: new Date(Date.now() + 30 * 86400_000).toISOString() }).eq('id', ids.license!)).error).toBeNull();

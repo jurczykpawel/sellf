@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import {
   buildEmbedCorsHeaders,
+  getSellfBaseUrl,
   embedJson,
   loadAllowedOriginsForProduct,
   loadEmbedErrorOrigins,
@@ -18,7 +19,7 @@ import { attributionRequestContext, storeFreeCheckoutAttribution } from '@/lib/a
 import { readJsonBody, ApiPayloadTooLargeError } from '@/lib/api/body-limit';
 
 const PRODUCT_SELECT =
-  'id, slug, name, price, is_active, available_from, available_until, embed_enabled, seller_id, checkout_profile' as const;
+  'id, slug, name, price, is_active, available_from, available_until, embed_enabled, seller_id, checkout_profile, event_mode, allow_custom_price, checkout_template, is_bundle, issue_license_on_purchase, product_type' as const;
 
 type FreeEmbedProduct = {
   id: string;
@@ -31,6 +32,12 @@ type FreeEmbedProduct = {
   embed_enabled: boolean;
   seller_id: string | null;
   checkout_profile?: unknown;
+  event_mode?: boolean;
+  checkout_template?: string;
+  is_bundle?: boolean;
+  issue_license_on_purchase?: boolean;
+  allow_custom_price?: boolean;
+  product_type?: string;
 };
 
 export async function OPTIONS(request: NextRequest) {
@@ -110,8 +117,10 @@ export async function POST(request: Request) {
     return embedJson({ error: 'Product is not available' }, 404, origin, allowedOrigins);
   }
 
-  if (requiresStandardCheckout(product.checkout_profile)) {
-    return embedJson({ error: 'This product requires the standard checkout. Open the product page to continue.', code: 'STANDARD_CHECKOUT_REQUIRED' }, 422, origin, allowedOrigins);
+  if (requiresStandardCheckout(product.checkout_profile, product)) {
+    await logEmbedFreeAccessEvent(adminClient, { productId: product.id, productSlug: product.slug, origin, email: parsed.value.email, status: 'standard_checkout_required' });
+    return embedJson({ error: 'This product requires the standard checkout.', code: 'STANDARD_CHECKOUT_REQUIRED',
+      productUrl: `${getSellfBaseUrl()}/${parsed.value.locale === 'pl' ? 'pl' : 'en'}/p/${encodeURIComponent(product.slug)}` }, 422, origin, allowedOrigins);
   }
 
   const result = await requestMagicLink({
@@ -208,7 +217,7 @@ async function logEmbedFreeAccessEvent(
     productSlug: string;
     origin: string | null;
     email: string;
-    status: 'magic_link_sent' | 'failed' | 'bot_filtered';
+    status: 'magic_link_sent' | 'failed' | 'bot_filtered' | 'standard_checkout_required';
   },
 ): Promise<void> {
   try {

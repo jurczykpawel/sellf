@@ -273,7 +273,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
                   setFieldErrors={setFieldErrors}
                 />
               )}
-              {currentSection === 'cart' && <CartPanel formData={formData} setFormData={setFormData} t={t} />}
+              {currentSection === 'cart' && <CartPanel productId={product?.id} formData={formData} setFormData={setFormData} t={t} />}
               {currentSection === 'schedule' && <EventSection formData={formData} setFormData={setFormData} showErrors={'sessions' in fieldErrors} />}
               {currentSection === 'offer' && (
                 <OfferPanel

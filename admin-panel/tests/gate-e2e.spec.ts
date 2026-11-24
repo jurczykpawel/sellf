@@ -5,7 +5,7 @@
  * production, so (as with the login wall E2E) we assert the redirect/token
  * shape and the server decisions; client DOM resolution is unit-tested.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect } from './helpers/proxy-test';
 import { setAuthSession, supabaseAdmin } from './helpers/admin-auth';
 
 test.describe.configure({ mode: 'serial' });
@@ -152,10 +152,12 @@ test.describe('Gate route (non-bouncing token mint)', () => {
     expect(res.status()).toBe(400);
   });
 
-  test('rejects an unknown slug', async ({ request }) => {
-    const url = `/loginwall/gate?products=${productA.slug},${RUN_ID}-nope&redirect=${encodeURIComponent(CUSTOMER_PAGE)}`;
+  test('keeps visible product state when another requested slug is unknown', async ({ request }) => {
+    const unknown = `${RUN_ID}-nope`;
+    const url = `/loginwall/gate?products=${productA.slug},${unknown}&redirect=${encodeURIComponent(CUSTOMER_PAGE)}`;
     const res = await request.get(url, { maxRedirects: 0 });
-    expect(res.status()).toBe(400);
+    expect(res.status()).toBe(307);
+    expect(decodePayload(tokenFromLocation(res.headers()['location'] ?? ''))).toMatchObject({ v: 2, auth: false, owned: [], req: [productA.slug, unknown] });
   });
 
   test('rejects a redirect host not in the seller allowlist', async ({ request }) => {

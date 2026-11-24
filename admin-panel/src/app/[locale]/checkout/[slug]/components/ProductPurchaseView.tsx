@@ -1,5 +1,6 @@
 'use client';
 
+import { usesFreeProductForm } from '@/lib/checkout-modules/profile';
 import WaitlistForm from '@/components/WaitlistForm';
 import FloatingToolbar from '@/components/FloatingToolbar';
 import { DemoResetCountdown } from '@/components/DemoCheckoutNotice';
@@ -69,7 +70,7 @@ export default function ProductPurchaseView({ product, paymentMethodOrder, expre
       <div id="main-content" tabIndex={-1}>
       {showWaitlist ? (
         <WaitlistForm product={product} unavailableReason={unavailableReason} />
-      ) : !product.event_mode && product.product_type !== 'subscription' && product.price === 0 && !product.allow_custom_price ? (
+      ) : usesFreeProductForm(product) ? (
         <FreeProductForm product={product} collectTermsOfService={collectTermsOfService} bundleComponents={bundleComponents} />
       ) : (
         <PaidProductForm product={product} paymentMethodOrder={paymentMethodOrder} expressCheckoutConfig={expressCheckoutConfig} taxMode={taxMode} layoutMode={layoutMode} afterCheckoutSlot={afterCheckoutSlot} collectTermsOfService={collectTermsOfService} collectInvoiceRecipient={collectInvoiceRecipient} bundleComponents={bundleComponents} />

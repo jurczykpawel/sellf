@@ -205,7 +205,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Check product exists before update
     const { data: existingCheck, error: existsError } = await supabase
       .from('products')
-      .select('id, product_type, is_bundle, is_active, checkout_profile, checkout_template, allow_custom_price, issue_license_on_purchase, currency, custom_price_min, custom_price_presets, show_price_presets')
+      .select('id, price, embed_enabled, event_mode, product_type, is_bundle, is_active, checkout_profile, checkout_template, allow_custom_price, issue_license_on_purchase, currency, custom_price_min, custom_price_presets, show_price_presets')
       .eq('id', id)
       .single();
 

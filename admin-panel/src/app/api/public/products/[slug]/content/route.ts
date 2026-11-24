@@ -49,7 +49,8 @@ export async function GET(
         is_bundle,
         available_from,
         available_until,
-        content_delivery_type
+        content_delivery_type,
+        issue_license_on_purchase
       `)
       .eq('slug', slug)
       .single();

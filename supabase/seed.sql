@@ -1622,3 +1622,7 @@ INSERT INTO public.subscription_checkout_fields(reference,stripe_object_id,produ
 SELECT 'cs_test_seedSubscriptionFields','cs_test_seedSubscriptionFields',id,'{"department":"Training"}'::jsonb
 FROM public.products WHERE slug='trial-invoice-example'
 ON CONFLICT (reference) DO NOTHING;
+
+-- Example of a held notice awaiting an administrator decision.
+UPDATE public.payment_transactions SET transfer_mail_delivery_unknown = true
+WHERE id = 'e4000000-0000-4000-a000-000000000020';

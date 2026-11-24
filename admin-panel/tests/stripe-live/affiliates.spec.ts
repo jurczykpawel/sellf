@@ -206,7 +206,7 @@ for (const withCoupon of [true, false]) test(`external embed paid ${withCoupon ?
   expect((await db.from('seller_embed_settings').upsert({ seller_id: actor, allowed_embed_origins: [origin] })).error).toBeNull();
   try {
     const [response] = await Promise.all([
-      page.waitForResponse(res => res.url().includes('/api/embed/checkout-session') && res.request().method() === 'POST'),
+      page.waitForResponse(async res => res.url().includes('/api/embed/checkout-session') && res.request().method() === 'POST' && res.ok() && typeof (await res.json()).sessionId === 'string'),
       page.goto(origin),
     ]);
     expect(response.request().postDataJSON().couponCode).toBe(withCoupon ? coupon.code : undefined);

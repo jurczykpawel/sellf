@@ -114,7 +114,11 @@ Zamknięcie okna sprzedaży (`available_until`) zatrzymuje nowe zakupy; kupując
 
 Na liście produktów **Escape** zamyka menu **Więcej akcji** i przywraca fokus na jego przycisku, również wtedy, gdy fokus był na akcji wewnątrz menu.
 
-Produkty z niepustym profilem zamówienia wymagają standardowego formularza na stronie produktu. Osadzony checkout nie zbiera danych modułów: API odmawia utworzenia sesji kodem `422 STANDARD_CHECKOUT_REQUIRED`, a komunikat kieruje do strony produktu. Ta sama reguła obowiązuje przy darmowym dostępie przez embed. Serwer sprawdza zakres ilości, także ukryte minimum, przed przygotowaniem płatności.
+Osadzony checkout sprzedaje jedną sztukę i nie zbiera danych modułów. Moduły kupującego, telefonu i odbiorcy pozostają zgodne; zakończone zamówienie oznacza brak wymaganych danych przez `details_missing`. Moduł ilości jest zgodny, gdy zakres obejmuje 1 w trybie `checkout`, gdy `hidden` ustala ilość na 1 (`min=1`, także przy większym `max`) lub gdy `product_page` ma `min=max=1`. Uczestnicy, możliwość wyboru innej ilości na stronie produktu, minimum powyżej 1 i niepoprawny profil wymagają koszyka na stronie produktu. API zwraca `422 STANDARD_CHECKOUT_REQUIRED` z `productUrl`; skrypt pokazuje klikalny link, a odmowa zapisuje się w logu embedu.
+
+Przed zapisaniem blokującego profilu wyłącz embed samodzielnie. Formularz zgłasza konflikt, ale nie zmienia ustawień. Okno generowania kodu pokazuje wtedy link do ustawień profilu. Edytor profilu ostrzega, gdy embed jest włączony lub był używany; ostatnią zapisaną domenę i datę widzi tylko administrator.
+
+Dla produktu z ceną zero, bez trybu wydarzeń, subskrypcji i własnej ceny, embed działa jak zwykły darmowy formularz: oba nie zbierają modułów profilu i nie wymagają ich przed nadaniem dostępu. Profil nie blokuje więc tego darmowego dostępu. Produkty z ceną bazową zero, które korzystają ze standardowego formularza płatności (np. wydarzenia), zachowują blokadę niezgodnej ilości i uczestników. Serwer nadal sprawdza ilość przy przygotowaniu płatnego koszyka, także z kuponem 100%.
 
 Potwierdzenie subskrypcji korzysta z zapisanej płatności za fakturę i bieżącego uprawnienia. Pełny zwrot pokazuje **Płatność zwrócona** z `access_granted: false`; anulowanie bez zwrotu zachowuje opłacony okres. Powrót z płatności na innym zalogowanym koncie wyjaśnia, że zakup należy do innego konta, i udostępnia przycisk **Wyloguj się i kontynuuj**, bez ujawniania adresu kupującego. API weryfikacji nadal zwraca HTTP 403 dla obcego konta.
 
@@ -131,3 +135,5 @@ Dialog prośby o zwrot utrzymuje fokus w środku, zamyka się klawiszem Escape i
 Gdy aktualizacja koszyka trwa lub czeka w kolejce, przycisk płatności jest wyłączony, a koszyk informuje o ustalaniu kwoty. Dotyczy to także zmiany ilości i natychmiastowego powrotu do poprzedniej wartości. Jeśli serwer wykryje zmianę ilości podczas zatwierdzania, koszyk prosi kupującego o sprawdzenie zamówienia przed ponowną próbą płatności.
 
 Wygaszanie poprzedniej sesji ma także limit 15 sekund. Jeśli żądanie wygaszenia nie odpowie w tym czasie lub zakończy się błędem, formularz pokazuje błąd utworzenia sesji i kończy oczekiwanie w kolejce; płatność pozostaje niedostępna zgodnie z obsługą błędu aktualizacji koszyka. Sprzątanie po opuszczeniu strony nie pokazuje błędu.
+
+Jeśli żaden produkt wskazany przez bramkę elementów nie jest widoczny dla odwiedzającego, bramka pokazuje ogólną stronę błędu z linkiem powrotu do sklepu. Widok jest taki sam dla nieznanych i niedostępnych produktów. Nie wykonuje przekierowania na niezweryfikowaną stronę; przy prawidłowym powrocie nadal obowiązują lista dozwolonych domen i podpis tokenu.

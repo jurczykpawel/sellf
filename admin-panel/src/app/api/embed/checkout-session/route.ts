@@ -9,6 +9,7 @@ import {
   loadEmbedErrorOrigins,
   getEnvAllowedEmbedOrigins,
   parseEmbedCheckoutBody,
+  getSellfBaseUrl,
   requireEmbedCaptcha,
 } from '@/lib/embed/checkout-embed';
 import { requiresStandardCheckout } from '@/lib/checkout-modules/profile';
@@ -23,7 +24,7 @@ import { attributionRequestContext, storeCheckoutAttribution } from '@/lib/attri
 import { isBelowMinimumCharge, minimumChargeAmount, toMinorUnits } from '@/lib/currency/minor-units';
 
 const PRODUCT_SELECT =
-  'id, slug, name, price, currency, is_active, available_from, available_until, product_type, embed_enabled, seller_id, checkout_profile' as const;
+  'id, slug, name, price, currency, is_active, available_from, available_until, product_type, embed_enabled, seller_id, checkout_profile, event_mode, allow_custom_price, checkout_template, is_bundle, issue_license_on_purchase' as const;
 
 type EmbedProduct = {
   id: string;
@@ -38,6 +39,11 @@ type EmbedProduct = {
   embed_enabled: boolean;
   seller_id: string | null;
   checkout_profile?: unknown;
+  event_mode?: boolean;
+  checkout_template?: string;
+  is_bundle?: boolean;
+  issue_license_on_purchase?: boolean;
+  allow_custom_price?: boolean;
 };
 
 export async function OPTIONS(request: NextRequest) {
@@ -112,9 +118,11 @@ export async function POST(request: Request) {
     return embedJson({ error: 'Product is not available' }, 404, origin, allowedOrigins);
   }
 
-  if (requiresStandardCheckout(product.checkout_profile)) {
-    return embedJson({ error: 'This product requires the standard checkout. Open the product page to continue.', code: 'STANDARD_CHECKOUT_REQUIRED' }, 422, origin, allowedOrigins);
-  }
+  const standardCheckoutRequired = async () => {
+    await logEmbedCheckoutEvent(adminClient, { productId: product.id, productSlug: product.slug, origin, email: parsed.value.email, action: 'paid_checkout', status: 'standard_checkout_required' });
+    return embedJson({ productUrl: `${getSellfBaseUrl()}/${parsed.value.locale === 'pl' ? 'pl' : 'en'}/p/${encodeURIComponent(product.slug)}`, error: 'This product requires the standard checkout. Open the product page to continue.', code: 'STANDARD_CHECKOUT_REQUIRED' }, 422, origin, allowedOrigins);
+  };
+  if (requiresStandardCheckout(product.checkout_profile, product)) return standardCheckoutRequired();
 
   // W146 B6: legacy products priced under Stripe's minimum exist in seller databases;
   // answer with a code the loader translates instead of a Stripe 500.
@@ -239,6 +247,7 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     if (error instanceof CheckoutError) {
+      if (error.code === 'STANDARD_CHECKOUT_REQUIRED') return standardCheckoutRequired();
       // Same per-code rule as the storefront check: only a rejected code spends the budget.
       // Reached after the captcha, so it cannot be probed anonymously.
       if (error.code === COUPON_REJECTED_CODE && parsed.value.couponCode
@@ -332,7 +341,7 @@ async function logEmbedCheckoutEvent(
     origin: string | null;
     email?: string;
     action: 'paid_checkout';
-    status: 'session_created' | 'denied' | 'failed' | 'rate_limited';
+    status: 'session_created' | 'denied' | 'failed' | 'rate_limited' | 'standard_checkout_required';
     stripeSessionId?: string;
     embedSessionId?: string;
   },

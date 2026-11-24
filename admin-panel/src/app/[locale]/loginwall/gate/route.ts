@@ -76,7 +76,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const products = (productsResult.data ?? []) as ProductRow[];
 
   if (products.length === 0) {
-    return jsonError('Unknown product', 400);
+    return invalidRedirectPage(request.nextUrl.pathname);
   }
 
   const sellerIds = new Set(products.map((p) => p.seller_id));

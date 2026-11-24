@@ -527,3 +527,5 @@ Niepoprawny importowany klucz podpisujący pokazuje komunikat po polsku lub angi
 Strona produktu kupującego i API treści wybierają ważną licencję przed nowszymi cofniętymi lub wygasłymi kluczami, także po zwrocie pakietu zawierającego ten sam produkt. Klucz musi należeć do konta; nieprzypisane klucze gościa są dopasowywane wyłącznie do potwierdzonego adresu konta. Gdy nie ma już ważnego klucza, historia konta nadal pokazuje stan cofnięcia lub wygaśnięcia.
 
 Podsumowanie polityki przy ręcznym wystawianiu licencji podaje jednostkę ważności (np. „1 dzień”, „2 dni”, „5 dni”) albo ważność bezterminową, jeśli okresu nie ustawiono.
+
+Strona produktu i API treści pokazują wydaną licencję kupującego także po wyłączeniu przez sprzedawcę wystawiania nowych licencji przy zakupie. Błąd odczytu rejestru jest logowany; kupujący nadal widzi treść zgodnie ze swoim dostępem, bez klucza. Odświeżenie strony ponawia odczyt.

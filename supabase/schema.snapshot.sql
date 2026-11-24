@@ -4951,6 +4951,26 @@ END $$;
 ALTER FUNCTION public.clear_license_revocation_reason() OWNER TO postgres;
 
 --
+-- Name: clear_outdated_order_notice_state(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.clear_outdated_order_notice_state() RETURNS trigger
+    LANGUAGE plpgsql
+    SET search_path TO ''
+    AS $$
+BEGIN
+  IF NEW.status NOT IN ('awaiting_payment', 'completed') THEN NEW.transfer_mail_delivery_unknown := false; END IF;
+  IF NEW.status <> 'awaiting_payment' THEN NEW.reminder_mail_delivery_unknown := false; END IF;
+  IF NEW.status <> 'cancelled' THEN NEW.cancelled_mail_delivery_unknown := false; END IF;
+  IF NEW.status <> 'completed' THEN NEW.transfer_paid_mail_delivery_unknown := false; END IF;
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.clear_outdated_order_notice_state() OWNER TO postgres;
+
+--
 -- Name: clear_pending_free_grant_on_access(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -9310,6 +9330,10 @@ CREATE TABLE public.payment_transactions (
     product_name text,
     bundle_components_recorded_at timestamp with time zone,
     access_terms jsonb DEFAULT '{}'::jsonb NOT NULL,
+    transfer_mail_delivery_unknown boolean DEFAULT false NOT NULL,
+    reminder_mail_delivery_unknown boolean DEFAULT false NOT NULL,
+    cancelled_mail_delivery_unknown boolean DEFAULT false NOT NULL,
+    transfer_paid_mail_delivery_unknown boolean DEFAULT false NOT NULL,
     CONSTRAINT payment_transactions_access_terms_check CHECK ((jsonb_typeof(access_terms) = 'object'::text)),
     CONSTRAINT payment_transactions_amount_check CHECK (((amount <= (99999999)::numeric) AND ((amount > (0)::numeric) OR ((amount = (0)::numeric) AND (subscription_id IS NOT NULL) AND (stripe_invoice_id IS NOT NULL))))),
     CONSTRAINT payment_transactions_cancel_note_check CHECK (((cancel_note IS NULL) OR (length(cancel_note) <= 1000))),
@@ -18340,6 +18364,13 @@ CREATE INDEX idx_coupons_source_transaction ON public.coupons USING btree (sourc
 
 
 --
+-- Name: idx_embed_checkout_log_product_created; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX idx_embed_checkout_log_product_created ON public.embed_checkout_log USING btree (product_id, created_at DESC);
+
+
+--
 -- Name: idx_guest_purchases_claimed_by_user_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -19704,6 +19735,13 @@ CREATE TRIGGER clear_license_dispute_owner BEFORE UPDATE OF revoked_at ON public
 --
 
 CREATE TRIGGER clear_license_revocation_reason BEFORE UPDATE OF revoked_at ON public.issued_licenses FOR EACH ROW EXECUTE FUNCTION public.clear_license_revocation_reason();
+
+
+--
+-- Name: payment_transactions clear_outdated_order_notice_state; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER clear_outdated_order_notice_state BEFORE INSERT OR UPDATE ON public.payment_transactions FOR EACH ROW EXECUTE FUNCTION public.clear_outdated_order_notice_state();
 
 
 --
@@ -23735,6 +23773,8 @@ function | public.clear_admin_cache() | postgres | EXECUTE | postgres | -
 function | public.clear_admin_cache() | service_role | EXECUTE | postgres | -
 function | public.clear_license_dispute_owner() | postgres | EXECUTE | postgres | -
 function | public.clear_license_revocation_reason() | postgres | EXECUTE | postgres | -
+function | public.clear_outdated_order_notice_state() | postgres | EXECUTE | postgres | -
+function | public.clear_outdated_order_notice_state() | service_role | EXECUTE | postgres | -
 function | public.clear_pending_free_grant_on_access() | postgres | EXECUTE | postgres | -
 function | public.clear_pending_free_grant_on_access() | service_role | EXECUTE | postgres | -
 function | public.close_previous_webhook_deliveries() | postgres | EXECUTE | postgres | -

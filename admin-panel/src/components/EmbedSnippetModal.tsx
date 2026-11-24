@@ -11,11 +11,13 @@
  * NOT to be confused with the content protection snippet (ProtectionCodeModal),
  * which gates DOM on the seller's own page.
  */
+import Link from 'next/link';
 import { useState } from 'react';
-import BaseModal from './ui/BaseModal';
-import { Product } from '@/types';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { requiresStandardCheckout } from '@/lib/checkout-modules/profile';
 import { buildEmbedSnippet } from '@/lib/embed/snippet';
+import type { Product } from '@/types';
+import BaseModal from './ui/BaseModal';
 
 interface EmbedSnippetModalProps {
   isOpen: boolean;
@@ -24,7 +26,7 @@ interface EmbedSnippetModalProps {
 }
 
 export default function EmbedSnippetModal({ isOpen, onClose, product }: EmbedSnippetModalProps) {
-  const t = useTranslations('embedSnippet');
+  const t = useTranslations('embedSnippet'), locale = useLocale();
   const [copied, setCopied] = useState(false);
 
   // Optional snippet params. Defaults keep the snippet 2-line minimal.
@@ -56,7 +58,13 @@ export default function EmbedSnippetModal({ isOpen, onClose, product }: EmbedSni
     }
   };
 
-  const snippet = generateSnippet();
+  const blocked = requiresStandardCheckout(product.checkout_profile, product);
+  const snippet = blocked ? '' : generateSnippet();
+  if (blocked) return <BaseModal isOpen={isOpen} onClose={onClose} size="lg">
+    <div className="p-6 space-y-4"><h2 className="text-2xl font-bold">{t('title')}</h2><p>{t('profileBlocked')}</p>
+      <Link className="inline-flex min-h-11 items-center underline" href={`/${locale}/dashboard/products?open=${product.id}&section=cart`} onClick={onClose}>{t('profileSettings')}</Link>
+    </div>
+  </BaseModal>;
 
   return (
     <BaseModal isOpen={isOpen} onClose={onClose} size="lg" closeOnBackdropClick={false}>

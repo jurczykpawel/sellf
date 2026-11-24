@@ -121,7 +121,7 @@ describe('buyer mail', () => {
     expect(data.mail_kind).toBe('payment_reminder');
     expect(new URL(data.pay_url).pathname).toBe(`/pl/order/${id}/transfer`);
     expect(data.release_text).toContain('3 lutego 2026');
-    expect(queries[2].update).toHaveBeenCalledWith({ reminder_mail_sent_at: expect.any(String) });
+    expect(queries[2].update).toHaveBeenCalledWith(expect.objectContaining({ reminder_mail_sent_at: expect.any(String) }));
   });
   it.each([false, true])('placed mail carries the saved access policy %s', async access => {
     const { db } = client([{ data: { ...row, metadata: { access_on_placement: access, locale: 'en' } } }, { data: { slug: 'w', name: 'Workshop' } }, { data: { id } }]);
@@ -137,8 +137,8 @@ describe('buyer mail', () => {
     magic.mockResolvedValue({ ok: false, code: 'rate_limited' });
     const { db, queries } = client([{ data: row }, { data: { slug: 'w', name: 'Warsztat' } }, { data: { id } }, {}]);
     await sendOrderNotice(db, id, 'reminder');
-    expect(queries[2].update).toHaveBeenCalledWith({ reminder_mail_sent_at: expect.any(String) });
-    expect(queries[3].update).toHaveBeenCalledWith({ reminder_mail_sent_at: null });
+    expect(queries[2].update).toHaveBeenCalledWith(expect.objectContaining({ reminder_mail_sent_at: expect.any(String) }));
+    expect(queries[3].update).toHaveBeenCalledWith({ reminder_mail_sent_at: null, reminder_mail_delivery_unknown: false });
   });
 });
 
@@ -196,4 +196,28 @@ describe('administrator decisions', () => {
     expect(rpc).toHaveBeenCalledWith('admin_bank_transfer_order', expect.objectContaining({ p_action: 'invoice-issued' }));
     expect(trigger.mock.calls[0][0]).toBe('order.invoice_issued');
   });
+});
+
+it.each(['unknown', 'throw'])('persists an uncertain notice before contacting the mail provider (%s)', async mode => {
+  if (mode === 'throw') magic.mockRejectedValue(new Error('connection ended'));
+  else magic.mockResolvedValue({ ok: false, deliveryUnknown: true });
+  const { db, queries } = client([{ data: row }, { data: { slug: 'w', name: 'Workshop' } }, { data: { id } }]);
+  await sendOrderNotice(db, id, 'placed');
+  expect(magic).toHaveBeenCalledOnce();
+  expect(queries[2].update).toHaveBeenCalledWith(expect.objectContaining({ transfer_mail_delivery_unknown: true }));
+});
+it('requires an explicit administrator retry of an old unknown delivery', async () => {
+  const tx = { ...row, transfer_mail_sent_at: new Date(Date.now() - 600000).toISOString(), transfer_mail_delivery_unknown: true };
+  const { db, queries } = client([{ data: tx }, { data: { slug: 'w', name: 'Workshop' } }, { data: { id } }, {}]);
+  await sendOrderNotice(db, id, 'placed', true);
+  expect(magic).toHaveBeenCalledOnce();
+  expect(queries[2].eq).toHaveBeenCalledWith('transfer_mail_sent_at', tx.transfer_mail_sent_at);
+  expect(queries[3].update).toHaveBeenCalledWith({ transfer_mail_delivery_unknown: false });
+});
+it('does not retry a recent or confirmed delivery', async () => {
+  for (const unknown of [true, false]) {
+    const { db } = client([{ data: { ...row, transfer_mail_sent_at: new Date().toISOString(), transfer_mail_delivery_unknown: unknown } }]);
+    await sendOrderNotice(db, id, 'placed', true);
+  }
+  expect(magic).not.toHaveBeenCalled();
 });

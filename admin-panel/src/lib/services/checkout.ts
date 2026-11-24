@@ -163,7 +163,7 @@ export class CheckoutService {
    */
   async createStripeSession(options: CheckoutSessionOptions): Promise<{ clientSecret: string; sessionId: string; minimumApplied?: boolean }> {
     options = { ...options, email: options.email ? normalizePurchaseEmail(options.email) : options.email };
-    if (requiresStandardCheckout(options.product.checkout_profile)) {
+    if (requiresStandardCheckout(options.product.checkout_profile, options.product)) {
       throw new CheckoutError(CheckoutErrorType.VALIDATION_ERROR, 'This product requires the standard checkout. Open the product page to continue.', 422, 'STANDARD_CHECKOUT_REQUIRED');
     }
     try {

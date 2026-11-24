@@ -64,7 +64,7 @@ export async function createTestAdmin(prefix: string = 'test-admin') {
     await testUser.cleanup();
   };
 
-  return { email: testUser.email, password: testUser.password, cleanup };
+  return { userId: testUser.userId, email: testUser.email, password: testUser.password, cleanup };
 }
 
 /**

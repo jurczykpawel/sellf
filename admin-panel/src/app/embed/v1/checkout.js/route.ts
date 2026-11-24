@@ -50,6 +50,7 @@ ${buildAttributionRuntime()}
           var failure = new Error(body && body.error ? body.error : 'Request failed');
           failure.status = response.status;
           failure.code = body && body.code;
+          failure.productUrl = body && body.productUrl;
           throw failure;
         }
         return body;
@@ -95,6 +96,21 @@ ${buildAttributionRuntime()}
 
   function showMessage(root, message) {
     root.textContent = message;
+  }
+
+  function showCheckoutError(root, error, language) {
+    showMessage(root, errorMessage(error, language));
+    root.setAttribute('role', 'alert');
+    if (error.code !== 'STANDARD_CHECKOUT_REQUIRED' || !error.productUrl) return;
+    try {
+      var url = new URL(error.productUrl);
+      if (url.origin !== sellfOrigin || !/^https?:$/.test(url.protocol)) return;
+      var link = document.createElement('a');
+      link.href = url.href;
+      link.textContent = language === 'pl' ? 'Przejdź do strony produktu' : 'Open the product page';
+      root.appendChild(document.createTextNode(' '));
+      root.appendChild(link);
+    } catch (e) { /* keep the message */ }
   }
 
   function formatPrice(amount, currency, language) {
@@ -245,7 +261,7 @@ ${buildAttributionRuntime()}
       }).then(function (body) {
         status.textContent = language === 'pl' ? 'Sprawdź pocztę.' : 'Check your email.';
       }).catch(function (error) {
-        status.textContent = errorMessage(error, language);
+        showCheckoutError(status, error, language);
       }).finally(function () {
         button.disabled = false;
       });
@@ -496,9 +512,9 @@ ${buildAttributionRuntime()}
         if (applyButton) applyButton.disabled = false;
         if (mounted && coupon) setStatus(couponAppliedText(coupon, sessionBody, language), false);
       }, function (error) {
-        var couponProblem = coupon && error.status !== 403 && error.status !== 404;
+        var couponProblem = coupon && error.status !== 403 && error.status !== 404 && error.code !== 'STANDARD_CHECKOUT_REQUIRED';
         if (!couponProblem) {
-          showMessage(host, errorMessage(error, language));
+          showCheckoutError(host, error, language);
           return;
         }
         var message = errorMessage(error, language, true);

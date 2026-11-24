@@ -22,7 +22,11 @@ Products without a profile keep their existing checkout and webhook format.
 - **Participants:** requires Quantity. Collect one first name, last name and unique email per
   seat. Optional participants may be left entirely empty. At one seat, buyer prefill is available.
 
-Embedded checkout does not collect profile modules. Products with a nonempty checkout profile require the standard product checkout; the embed API refuses session creation with `422 STANDARD_CHECKOUT_REQUIRED`, and the loader explains how to continue. The same rule applies to embedded free access. Quantity limits, including a hidden fixed minimum, are validated on the server before payment preparation.
+Embedded checkout sells one unit and does not collect profile modules. Buyer, phone and recipient modules remain compatible; completed orders mark missing required details with `details_missing`. A quantity module is compatible when its range includes 1 in `checkout` mode, when `hidden` fixes the quantity at 1 (`min=1`, even with a larger `max`), or when `product_page` has `min=max=1`. Participants, a choice of other quantities on the product page, a minimum above 1, and invalid profiles require the product checkout. The API returns `422 STANDARD_CHECKOUT_REQUIRED` with `productUrl`; the loader shows a clickable product-page link and the refusal is saved in the embed log.
+
+Disable embed explicitly before saving a blocking profile; the product form reports the conflict without changing your settings. The snippet dialog offers profile settings instead of code. The profile editor warns when embed is enabled or previously used, showing its latest recorded origin and date to administrators only.
+
+For products priced at zero without event mode, subscriptions or custom pricing, embedded free access follows the standard free form: neither collects profile modules or requires them before access. Profiles therefore do not block this free access. Zero-base-price products routed through the payment form (such as events) retain the quantity and participant restrictions. Server-side quantity limits still apply when preparing a paid checkout, including a 100% coupon.
 
 Profiles support the default checkout template and one-time products. Subscriptions, tips,
 pay-what-you-want products, bundles and OTO are unsupported. Products issuing licenses cannot
@@ -131,3 +135,5 @@ The refund request dialog supports keyboard focus containment, Escape to close, 
 While a cart update is running or queued, the Pay button is disabled and checkout explains that the total is being updated. This also applies when a buyer changes a quantity and immediately returns to its previous value. If the server detects a changed quantity at submission, checkout asks the buyer to review the cart before paying again.
 
 Expiring the previous session also has a 15-second timeout. If expiration stalls or fails, the form shows the session-creation error and ends the queue wait; payment remains unavailable under the existing cart-update error handling. Cleanup after leaving the page does not display an error.
+
+If none of the requested element-gate products is visible to the visitor, the gate shows a generic error page with a link back to the shop. Unknown and unavailable products use the same page. It does not redirect to an unverified destination; successful handoffs still require an allowed origin and a signed token.

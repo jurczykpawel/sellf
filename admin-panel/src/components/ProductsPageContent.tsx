@@ -365,7 +365,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
         <ProductCreationWizard
           isOpen={showProductForm}
           tutorial={searchParams.get('tutorial') ?? undefined}
-          initialFormSection={searchParams.get('section') === 'sales' ? 'sales' : undefined}
+          initialFormSection={searchParams.get('section') === 'sales' ? 'sales' : searchParams.get('section') === 'cart' ? 'cart' : undefined}
           onClose={() => {
             setShowProductForm(false);
             setEditingProduct(null);

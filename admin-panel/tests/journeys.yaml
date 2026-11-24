@@ -5677,7 +5677,7 @@
     },
     {
       "id": "J733",
-      "title": "Embedded checkout respects profile quantity requirements",
+      "title": "Embedded checkout respects profile compatibility",
       "values": {
         "persona": "guest",
         "entry": "embed",
@@ -5688,8 +5688,8 @@
       },
       "status": "automated",
       "end_state": {
-        "buyer": "Uses standard checkout for profiles; no below-minimum session is created.",
-        "seller": "Existing offer and entitlement rules are preserved.",
+        "buyer": "Buys one unit with compatible data-only modules; blocking quantity/participant profiles offer a clickable product-page link. An entirely unavailable gate shows a generic page with shop navigation.",
+        "seller": "Sees last embed origin/date, explicit profile conflict before saving and no incompatible snippet. Unknown transfer notice delivery remains visible and can be explicitly retried.",
         "integrator": "Receives explicit verification or validation state."
       },
       "layers": [

@@ -61,6 +61,7 @@
     "memberCocreator": "Co-creator (not a partner)"
   },
   "loginwallError": {
+    "back": "Return to the shop",
     "title": "Invalid return address",
     "description": "This return address is not allowed. Return to the seller’s page and contact them if the problem persists."
   },
@@ -114,6 +115,10 @@
     "missing": "Participants missing"
   },
   "checkoutProfile": {
+    "embedWarningFree": "This product is used in an embed on {origin} (last used: {date}). The free form does not collect the profile. With a paid price, participants or incompatible quantity settings will require disabling embed.",
+    "embedWarning": "This product is used in an embed on {origin} (last used: {date}). A different quantity mode, a minimum above 1 or participants will stop embed sales.",
+    "embedOriginUnknown": "an external page",
+    "embedDateUnknown": "no recorded attempt",
     "title": "Checkout",
     "enabled": "Custom checkout for this product",
     "buyer": "Buyer",
@@ -135,6 +140,7 @@
     "checkout": "In checkout",
     "product_page": "On product page",
     "errors": {
+      "embed_incompatible": "Disable embed in product settings before adding this module or changing the quantity mode.",
       "invalid": "Check module settings (quantity 1–100, at least one buyer type).",
       "duplicate_module": "Each module may be enabled once.",
       "duplicate_type": "Buyer types must be unique.",
@@ -1057,6 +1063,8 @@
     }
   },
   "embedSnippet": {
+    "profileSettings": "Product profile settings",
+    "profileBlocked": "This profile requires the standard checkout. Disable embed to save this profile, or change quantity and participants.",
     "title": "Generate embed checkout snippet",
     "subtitle": "Sell this product on any external page. Stripe Embedded for paid, email gate for free.",
     "slug": "Slug",
@@ -6407,6 +6415,12 @@
     "fromPrice": "from {price}"
   },
   "bankTransfer": {
+    "mailUnknown": "Email ({notice}): delivery outcome unknown. Retry is available after 5 minutes and may send a duplicate. Retrying sends a new link; the link in the first email may stop working.",
+    "retryMail": "Retry email",
+    "mailNotice_placed": "transfer instructions",
+    "mailNotice_reminder": "reminder",
+    "mailNotice_cancelled": "cancellation",
+    "mailNotice_paid": "payment received",
     "markPaidPending": "Recording payment…",
     "cancelPending": "Cancelling…",
     "markInvoiceIssuedPending": "Recording invoice…",

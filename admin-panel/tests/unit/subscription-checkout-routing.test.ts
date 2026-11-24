@@ -1,15 +1,11 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
+import { usesFreeProductForm } from '@/lib/checkout-modules/profile';
 import {
   formatBillingIntervalLabel,
   formatRecurringProductPrice,
 } from '@/lib/product-pricing-display';
-
-const productPurchaseViewSource = readFileSync(
-  resolve(__dirname, '../../src/app/[locale]/checkout/[slug]/components/ProductPurchaseView.tsx'),
-  'utf-8'
-);
 
 const productShowcaseSource = readFileSync(
   resolve(__dirname, '../../src/app/[locale]/checkout/[slug]/components/ProductShowcase.tsx'),
@@ -33,7 +29,11 @@ const paidProductFormSource = readFileSync(
 
 describe('subscription checkout and price display routing', () => {
   it('does not route subscription products with price=0 through the free checkout form', () => {
-    expect(productPurchaseViewSource).toContain("product.product_type !== 'subscription' && product.price === 0");
+    expect(usesFreeProductForm({ product_type: 'subscription', price: 0 })).toBe(false);
+    expect(usesFreeProductForm({ product_type: 'one_time', price: 0 })).toBe(true);
+    expect(usesFreeProductForm({ price: 0, event_mode: true })).toBe(false);
+    expect(usesFreeProductForm({ price: 0, allow_custom_price: true })).toBe(false);
+    expect(usesFreeProductForm({ price: 10 })).toBe(false);
   });
 
   it('uses recurring subscription price in admin table and checkout showcase displays', () => {

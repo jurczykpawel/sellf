@@ -2,7 +2,7 @@
  * Buyer: pays on the order page; seller: order completed, settled via Stripe; integrator: order.* / purchase.completed. */
 import { randomUUID, createHash } from 'node:crypto';
 import { generateSellerKeypair, storeSellerKey } from '@/lib/license-keys/keys';
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../helpers/proxy-test';
 import Stripe from 'stripe';
 import { createTestAdmin, loginAsAdmin, setAuthSession, supabaseAdmin as db } from '../helpers/admin-auth';
 import { signTransferToken } from '@/lib/orders/transfer-token';

@@ -2712,6 +2712,7 @@ export type Database = {
           bundle_components_recorded_at: string | null
           cancel_note: string | null
           cancel_reason: string | null
+          cancelled_mail_delivery_unknown: boolean
           cancelled_mail_sent_at: string | null
           coupon_id: string | null
           created_at: string
@@ -2751,6 +2752,7 @@ export type Database = {
           refunded_by: string | null
           release_at: string | null
           reminder_at: string | null
+          reminder_mail_delivery_unknown: boolean
           reminder_mail_sent_at: string | null
           reopened_at: string | null
           session_id: string | null
@@ -2764,7 +2766,9 @@ export type Database = {
           transfer_declared_at: string | null
           transfer_declared_note: string | null
           transfer_details: Json | null
+          transfer_mail_delivery_unknown: boolean
           transfer_mail_sent_at: string | null
+          transfer_paid_mail_delivery_unknown: boolean
           transfer_paid_mail_sent_at: string | null
           updated_at: string
           user_id: string | null
@@ -2776,6 +2780,7 @@ export type Database = {
           bundle_components_recorded_at?: string | null
           cancel_note?: string | null
           cancel_reason?: string | null
+          cancelled_mail_delivery_unknown?: boolean
           cancelled_mail_sent_at?: string | null
           coupon_id?: string | null
           created_at?: string
@@ -2815,6 +2820,7 @@ export type Database = {
           refunded_by?: string | null
           release_at?: string | null
           reminder_at?: string | null
+          reminder_mail_delivery_unknown?: boolean
           reminder_mail_sent_at?: string | null
           reopened_at?: string | null
           session_id?: string | null
@@ -2828,7 +2834,9 @@ export type Database = {
           transfer_declared_at?: string | null
           transfer_declared_note?: string | null
           transfer_details?: Json | null
+          transfer_mail_delivery_unknown?: boolean
           transfer_mail_sent_at?: string | null
+          transfer_paid_mail_delivery_unknown?: boolean
           transfer_paid_mail_sent_at?: string | null
           updated_at?: string
           user_id?: string | null
@@ -2840,6 +2848,7 @@ export type Database = {
           bundle_components_recorded_at?: string | null
           cancel_note?: string | null
           cancel_reason?: string | null
+          cancelled_mail_delivery_unknown?: boolean
           cancelled_mail_sent_at?: string | null
           coupon_id?: string | null
           created_at?: string
@@ -2879,6 +2888,7 @@ export type Database = {
           refunded_by?: string | null
           release_at?: string | null
           reminder_at?: string | null
+          reminder_mail_delivery_unknown?: boolean
           reminder_mail_sent_at?: string | null
           reopened_at?: string | null
           session_id?: string | null
@@ -2892,7 +2902,9 @@ export type Database = {
           transfer_declared_at?: string | null
           transfer_declared_note?: string | null
           transfer_details?: Json | null
+          transfer_mail_delivery_unknown?: boolean
           transfer_mail_sent_at?: string | null
+          transfer_paid_mail_delivery_unknown?: boolean
           transfer_paid_mail_sent_at?: string | null
           updated_at?: string
           user_id?: string | null
@@ -7313,6 +7325,7 @@ export type Database = {
           bundle_components_recorded_at: string | null
           cancel_note: string | null
           cancel_reason: string | null
+          cancelled_mail_delivery_unknown: boolean
           cancelled_mail_sent_at: string | null
           coupon_id: string | null
           created_at: string
@@ -7352,6 +7365,7 @@ export type Database = {
           refunded_by: string | null
           release_at: string | null
           reminder_at: string | null
+          reminder_mail_delivery_unknown: boolean
           reminder_mail_sent_at: string | null
           reopened_at: string | null
           session_id: string | null
@@ -7365,7 +7379,9 @@ export type Database = {
           transfer_declared_at: string | null
           transfer_declared_note: string | null
           transfer_details: Json | null
+          transfer_mail_delivery_unknown: boolean
           transfer_mail_sent_at: string | null
+          transfer_paid_mail_delivery_unknown: boolean
           transfer_paid_mail_sent_at: string | null
           updated_at: string
           user_id: string | null

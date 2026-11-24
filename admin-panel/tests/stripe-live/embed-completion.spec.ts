@@ -6,7 +6,7 @@ test.beforeEach(({ page }) => { assertStripeTransport(page); });
 import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../helpers/proxy-test';
 import Stripe from 'stripe';
 import type { AddressInfo } from 'node:net';
 import { supabaseAdmin as db, createTestUser } from '../helpers/admin-auth';
@@ -39,7 +39,7 @@ for (const scenario of ['coupon-stripe-email', 'plain-stripe-email', 'plain-stri
         await storeSellerKey(db, { sellerId: seller.userId, ...pair, custody: 'managed' });
       }
       const product = await db.from('products').insert({ slug, name: 'Embedded payment', price: 20, currency: 'USD', vat_exempt: true,
-        is_active: true, embed_enabled: true, seller_id: seller.userId, ...(polish ? { issue_license_on_purchase: true, license_tier: 'pro', license_duration_days: 30 } : {}) }).select('id').single();
+        is_active: true, embed_enabled: true, seller_id: seller.userId, checkout_profile: { v: 1, modules: [{ id: 'buyer', types: ['person', 'organization'] }, { id: 'phone', required: true }] }, ...(polish ? { issue_license_on_purchase: true, license_tier: 'pro', license_duration_days: 30 } : {}) }).select('id').single();
       expect(product.error).toBeNull(); productId = product.data!.id;
       const endpoint = await db.from('webhook_endpoints').insert({ url: `${process.env.STRIPE_LIVE_RECEIVER_URL}/${slug}`, secret: randomUUID(), events: ['purchase.completed'], product_filter_mode: 'selected', is_active: true }).select('id').single();
       expect(endpoint.error).toBeNull(); endpointId = endpoint.data!.id;
@@ -90,7 +90,7 @@ for (const scenario of ['coupon-stripe-email', 'plain-stripe-email', 'plain-stri
       await expect.poll(() => deliveries().length, { timeout: 90000 }).toBe(1);
       expect(deliveries()[0].body.data.customer.locale).toBe(polish ? 'pl' : 'en');
       const tx = await db.from('payment_transactions').select('*').eq('session_id', sessionId).single();
-      expect(tx.data).toMatchObject({ status: 'completed', customer_email: email, amount: coupon ? 1800 : 2000, currency: 'USD' });
+      expect(tx.data).toMatchObject({ status: 'completed', customer_email: email, amount: coupon ? 1800 : 2000, currency: 'USD', order_details: { details_missing: true, missing_modules: ['buyer', 'phone'] } });
       await expect.poll(async () => (await db.from('guest_purchases').select('customer_email').eq('session_id', sessionId)).data).toEqual([{ customer_email: email }]);
       await expect(page.getByText(/order details need review|Payment Failed/i)).toHaveCount(0);
       await expect(page.getByText(polish ? /Dostęp|Płatność|email|e-mail/i : /Access granted|You now have access|Payment successful|Check your email|magic link/i).first()).toBeVisible({ timeout: 60000 });
