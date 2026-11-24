@@ -403,6 +403,7 @@
     "couponPriceGross": "{price} brutto",
     "couponSetPrice": "Cena za sztukę: {price}",
     "discountApplied": "Zastosowano zniżkę {discount}",
+    "couponAutoApplied": "Zastosowano kupon {code}",
     "paymentError": "Błąd płatności",
     "accessGranted": "Dostęp przyznany!",
     "alreadyHasAccess": "Masz już dostęp do tego produktu.",

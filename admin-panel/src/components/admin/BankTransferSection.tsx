@@ -114,7 +114,7 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
         <button aria-busy={busy} disabled={busy || !reason.trim()} className={`${buttonStyle} bg-sf-danger text-white hover:opacity-90`}>{progress('cancel', 'cancel')}</button>
       </form>
     </div>}
-    <p role="status">{message}</p>
+    {message && <p role="status">{message}</p>}
     <ul data-tour="unpaid-lifecycle" className="my-3 space-y-1 text-sm" aria-label={t('lifecycle')}>
       {tx.status === 'awaiting_payment' && tx.invoice_hold_at && <li>{t('invoiceHoldAdmin')}</li>}
       {tx.status === 'awaiting_payment' && tx.release_at && <li>{t('releaseAt', { date: date(tx.release_at) })}{tx.reminder_at ? ` · ${t('reminderAt', { date: date(tx.reminder_at) })}` : ''}</li>}

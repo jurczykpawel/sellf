@@ -76,16 +76,21 @@ for (const locale of ['en', 'pl'] as const) for (const width of [390, 1280]) {
     } finally { await db.from('payment_transactions').delete().in('id', [orderId, lateId]); await db.from('products').delete().eq('id', id); }
   });
 }
-test('a consumed provider link explains the error returned in its fragment @J87', async ({ page }) => {
+test('a consumed provider link explains the error returned in its fragment @J87', async ({ page, baseURL }) => {
   const email = `used-link-${randomUUID()}@example.com`, target = '/auth/product-access?product=course';
-  const { data, error } = await db.auth.admin.generateLink({ type: 'signup', email, password: 'Checkout-test-123!', options: { redirectTo: `${process.env.PLAYWRIGHT_BASE_URL}/auth/callback?redirect_to=${encodeURIComponent(target)}` } }); check(error);
+  const { data, error } = await db.auth.admin.generateLink({ type: 'signup', email, password: 'Checkout-test-123!', options: { redirectTo: `${baseURL}/auth/callback?redirect_to=${encodeURIComponent(target)}` } }); check(error);
+  const actionLink = new URL(data.properties!.action_link);
+  const api = new URL(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!);
+  actionLink.host = api.host; actionLink.protocol = api.protocol;
+  // The provider may advertise its default site URL instead of the test callback.
+  actionLink.searchParams.set('redirect_to', `${baseURL}/auth/callback?redirect_to=${encodeURIComponent(target)}`);
   try {
-    await page.request.get(data.properties!.action_link, { maxRedirects: 0 });
-    await acceptAllCookies(page); await page.goto(data.properties!.action_link);
+    expect((await page.request.get(actionLink.href, { maxRedirects: 0 })).status()).toBe(303);
+    await acceptAllCookies(page); await page.goto(actionLink.href);
     await expect(page.getByText(en.auth.magicLinkExpired, { exact: true })).toBeVisible();
     const login = page.locator('a[href*="error=magic_link_expired"]');
     await expect(login).toBeVisible();
-    expect(new URL((await login.getAttribute('href'))!, process.env.PLAYWRIGHT_BASE_URL).searchParams.get('redirect_to')).toBe(target);
+    expect(new URL((await login.getAttribute('href'))!, baseURL).searchParams.get('redirect_to')).toBe(target);
   } finally { await db.auth.admin.deleteUser(data.user!.id); }
 });
 

@@ -58,18 +58,19 @@ describe('POST /api/coupons/auto-apply', () => {
     expect(serviceClient.rpc).not.toHaveBeenCalled();
   });
 
-  it('checks a found set-price coupon without holding a slot of it', async () => {
+  it.each(['percentage', 'fixed', 'set_price'])('keeps the verified scope of an automatically selected %s coupon without holding a slot', async (discount_type) => {
     userClient.auth.getUser.mockResolvedValue({ data: { user: null }, error: null });
     const productQuery = { select: () => productQuery, eq: () => productQuery, single: async () => ({ data: { currency: 'PLN' }, error: null }) };
     serviceClient.from.mockReturnValue(productQuery);
     serviceClient.rpc.mockImplementation(async (name: string) => name === 'find_auto_apply_coupon'
-      ? { data: { found: true, code: 'fixed49', discount_type: 'set_price' }, error: null }
-      : { data: { valid: true, code: 'FIXED49', discount_type: 'set_price' }, error: null });
+      ? { data: { found: true, code: 'fixed49', discount_type }, error: null }
+      : { data: { valid: true, code: 'FIXED49', discount_type, allowed_product_ids: [PRODUCT_ID], exclude_order_bumps: false }, error: null });
 
     const res = await POST(request({ email: 'guest@example.com', productId: PRODUCT_ID }));
 
     expect(res.status).toBe(200);
     expect(serviceClient.rpc).toHaveBeenCalledWith('verify_coupon', expect.objectContaining({ product_id_param: PRODUCT_ID, reserve_param: false }));
+    expect(await res.json()).toMatchObject({ found: true, allowed_product_ids: [PRODUCT_ID], exclude_order_bumps: false });
   });
 
   it('returns 429 before any lookup when the client is over its limit', async () => {

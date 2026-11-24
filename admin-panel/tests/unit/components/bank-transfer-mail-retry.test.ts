@@ -32,3 +32,8 @@ it('reports a refused retry in a completed order panel', async () => {
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'retryMail' })); });
   expect(screen.getByText('operationError')).toBeTruthy();
 });
+
+it('does not expose an empty operation status', () => {
+  render(createElement(BankTransferSection, { transaction: { ...tx, status: 'completed', reminder_mail_delivery_unknown: false }, onRefresh: vi.fn() }));
+  expect(screen.queryByRole('status')).toBeNull();
+});

@@ -74,6 +74,8 @@ Zmiana koszyka aktualizuje pozycje w tej samej otwartej sesji Stripe Checkout na
 
 Zastosowanie lub usunięcie kodu rabatowego również zachowuje tę samą sesję spełniającą warunki aktualizacji oraz wpisane dane karty. Sellf uwzględnia rabat w cenach pozycji, zamiast zmieniać rabaty Stripe. Podczas sprawdzania kodu i aktualizacji koszyka przycisk płatności i pola karty są chwilowo nieaktywne. Po kliknięciu przycisku płatności kontrolki koszyka pozostają zablokowane do zakończenia potwierdzania; tuż przed potwierdzeniem formularz ponownie sprawdza koszyk. Aktualizacja ma wspólny limit 15 sekund na żądania, krótszy niż 20-sekundowy limit `runServerUpdate` Stripe. Formularz pozostaje na stronie i odświeża się przez `runServerUpdate` Stripe. Ponowne użycie sesji dotyczy płatności jednorazowych poza wydarzeniami, z co najmniej dwiema minutami do wygaśnięcia; pozostałe koszyki mogą wymagać nowej sesji.
 
+Automatycznie dobrane kupony zachowują zweryfikowany zakres produktów. Rabat OTO ograniczony do produktu głównego nie zmienia cen wybranych dodatków. Wolniejszy dobór po adresie e-mail nie zastępuje kuponu już wybranego przez kupującego lub zweryfikowanego dla oferty OTO. Potwierdzenie automatycznego doboru zawiera kod zastosowanego kuponu.
+
 Zmiany koszyka wykonane podczas ładowania pól karty czekają na gotowość formularza płatności. Płatność staje się dostępna po odświeżeniu kwoty, z zachowaniem wpisanych danych karty.
 
 Po potwierdzeniu zakupu przez serwer przekierowanie pod ustawiony adres działa także wtedy, gdy przeglądarka chwilowo nie może sprawdzić sesji.
