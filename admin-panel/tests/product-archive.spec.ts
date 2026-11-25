@@ -263,3 +263,43 @@ test('Escape closes product actions and returns focus to the trigger @J600', asy
     await expect(trigger).toBeFocused();
   }
 });
+
+test('a debounced search closes a vanished product menu and moves focus to results @W330', async ({ page }) => {
+  const name = `Vanishing actions ${crypto.randomUUID()}`;
+  await soldProduct(name);
+  await openProducts(page, name);
+  const search = page.getByPlaceholder(/szukaj/i);
+  const trigger = page.locator('tr').filter({ hasText: name }).locator('button[aria-expanded]');
+  await expect(trigger).toBeVisible();
+
+  const noMatch = `No match ${crypto.randomUUID()}`;
+  const matchesSearch = (url: URL) => url.pathname === '/api/v1/products' && url.searchParams.get('search') === noMatch;
+  let releaseResponse!: () => void;
+  const holdResponse = new Promise<void>(resolve => { releaseResponse = resolve; });
+  await page.route(matchesSearch, async route => {
+    const response = await route.fetch();
+    await holdResponse;
+    await route.fulfill({ response });
+  });
+
+  const results = page.getByRole('region', { name: pl.admin.products.title });
+  try {
+    const requested = page.waitForRequest(request => matchesSearch(new URL(request.url())));
+    await search.fill(noMatch);
+    await requested;
+    await expect(results).toHaveCSS('opacity', '0.5');
+    await trigger.press('Enter');
+    const action = page.getByRole('button', { name: /Testuj lejek/ });
+    await action.focus();
+    await expect(action).toBeFocused();
+  } finally {
+    releaseResponse();
+  }
+
+  await expect(results.getByRole('heading', { name: pl.admin.products.noProducts })).toBeVisible();
+  await expect(trigger).toHaveCount(0);
+  await expect(results).toBeFocused();
+  await search.fill(name);
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await expect(search).toBeFocused();
+});

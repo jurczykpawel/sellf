@@ -86,7 +86,7 @@ export function useProducts(params: UseProductsParams = {}): UseProductsResult {
   } = params;
 
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
     currentPage: 1,
