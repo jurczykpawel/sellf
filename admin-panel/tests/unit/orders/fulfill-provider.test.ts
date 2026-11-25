@@ -48,7 +48,7 @@ it.each(['pi_order', null])('identifies the saved order and explicit minor-unit 
 it('a paid Stripe order schedules the first access link before the outbound webhooks (W336)', async () => {
   mocks.schedule.mockImplementation(async () => { expect(mocks.trigger).not.toHaveBeenCalled(); return true; });
   await fulfillPaidOrder({ ...common(), stripe: {} as Stripe, sessionId: 'cs_order', metadata: { locale: 'pl' } });
-  expect(mocks.schedule).toHaveBeenCalledWith(expect.anything(), { email: tx.customer_email, productSlug: 'course', locale: 'pl' });
+  expect(mocks.schedule).toHaveBeenCalledWith(expect.anything(), { email: tx.customer_email, productSlug: 'course', locale: 'pl', order: 'cs_order' });
   expect(mocks.trigger).toHaveBeenCalled();
 });
 

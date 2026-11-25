@@ -30,7 +30,9 @@ const due = (email: string) => db.from('auth_mail_retries').update({ next_attemp
 const callsFor = (email: string) => deliverMagicLink.mock.calls.filter(([input]) => input.email === email);
 const lastCallFor = (email: string) => callsFor(email).at(-1)?.[0];
 const pageLink = (email: string, locale = 'pl') => requestMagicLink({ email, captchaToken: 'ok', flow: 'post_checkout', productSlug: 'course', locale });
-const schedule = (email: string, locale: 'pl' | 'en' = 'pl') => scheduleGuestAccessMail(db, { email, productSlug: 'course', locale });
+const schedule = (email: string, locale: 'pl' | 'en' = 'pl', order = `pi_${email}`) => scheduleGuestAccessMail(db, { email, productSlug: 'course', locale, order });
+// The one-hour window that covers a recent link has passed: only the order itself can still match.
+const ageMarkers = (email: string) => db.from('auth_mail_retries').update({ given_up_at: new Date(Date.now() - 2 * 3600_000).toISOString() }).eq('email', email).not('given_up_at', 'is', null);
 const newEmail = (name: string) => { const email = `guest-access-${name}-${run}@example.com`; emails.push(email); return email; };
 
 beforeEach(() => {
@@ -60,7 +62,69 @@ describe('first access mail for a guest who does not return (W336)', () => {
     expect(callsFor(email)).toHaveLength(1);
     expect(lastCallFor(email)).toEqual(expect.objectContaining({ email, redirectTo: parked[0].redirect_to, shouldCreateUser: true,
       data: { locale: 'pl', purchase_product: 'Course', purchase_amount: '10 PLN' } }));
-    expect((await rows(email)).data).toEqual([]);
+    // The delivered link stays as a sent marker for this order, not a pending mail.
+    expect((await rows(email)).data!.filter(row => row.given_up_at === null)).toEqual([]);
+  });
+
+  it('a delivered access link is not scheduled again when the same order is retried later (W336r P2-1)', async () => {
+    const email = newEmail('order-retry');
+    expect(await schedule(email, 'pl', 'pi_retry')).toBe(true);
+    await due(email);
+    await runAuthMailRetries(db);
+    expect(callsFor(email)).toHaveLength(1);
+    await ageMarkers(email);
+    // Stripe redelivers the payment because fulfillment failed after the link was scheduled.
+    expect(await schedule(email, 'pl', 'pi_retry')).toBe(false);
+    expect(await schedule(email, 'en', 'pi_retry')).toBe(false);
+    await due(email);
+    await runAuthMailRetries(db);
+    expect(callsFor(email)).toHaveLength(1);
+    // A new order of the same product is a new purchase and gets its own link.
+    expect(await schedule(email, 'pl', 'pi_next')).toBe(true);
+  });
+
+  it('a link the page sent before the order was recorded covers a late retry of that order (W336r P2-1)', async () => {
+    const email = newEmail('page-then-late-retry');
+    expect(await pageLink(email)).toEqual({ ok: true });
+    expect(await schedule(email, 'en', 'pi_late')).toBe(false);
+    await ageMarkers(email);
+    expect(await schedule(email, 'en', 'pi_late')).toBe(false);
+    await due(email);
+    await runAuthMailRetries(db);
+    expect(callsFor(email)).toHaveLength(1);
+  });
+
+  it('a page link in another language cancels the scheduled mail (W336r P2-2)', async () => {
+    const email = newEmail('locale-switch');
+    expect(await schedule(email, 'en')).toBe(true);
+    expect(await pageLink(email, 'pl')).toEqual({ ok: true });
+    await due(email);
+    await runAuthMailRetries(db);
+    expect(callsFor(email)).toHaveLength(1);
+  });
+
+  it('a page link parked by the send limit is due on its own short retry, not after the return window (W336r P3-1)', async () => {
+    const email = newEmail('page-parked');
+    expect(await schedule(email)).toBe(true);
+    deliverMagicLink.mockResolvedValueOnce({ ok: false, code: 'rate_limited' });
+    expect(await pageLink(email)).toMatchObject({ ok: false, queued: true });
+    const parked = (await rows(email)).data!;
+    expect(parked).toHaveLength(1);
+    expect(Date.parse(parked[0].next_attempt_at)).toBeLessThanOrEqual(Date.now() + 3 * 60_000);
+    await due(email);
+    await runAuthMailRetries(db);
+    expect(callsFor(email)).toHaveLength(2);
+    expect((await rows(email)).data!.filter(row => row.given_up_at === null)).toEqual([]);
+  });
+
+  it('a purchase that cannot be read yet keeps the scheduled link for the next attempt (W336r P3-2)', async () => {
+    const email = newEmail('pending-read');
+    expect(await schedule(email)).toBe(true);
+    eventMailForSlug.mockResolvedValue({ purchase_mail_pending: 'true' });
+    await due(email);
+    await runAuthMailRetries(db);
+    expect(callsFor(email)).toHaveLength(0);
+    expect((await rows(email)).data).toHaveLength(1);
   });
 
   it('a link already sent by the confirmation page is not sent again by the scheduled mail', async () => {

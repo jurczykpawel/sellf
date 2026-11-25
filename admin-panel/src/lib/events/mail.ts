@@ -7,12 +7,13 @@ import { trialMailAmount } from '@/lib/checkout/trial-display';
 interface PurchaseMailOptions { allowPending?: boolean; transactionId?: string; /** Poll briefly for a payment still being stored (default); false reads once. */ wait?: boolean }
 async function readPurchaseEventMail(email: string, productId: string, sessionId?: string, paymentIntentId?: string, locale = 'en', options: PurchaseMailOptions = {}): Promise<Record<string, string>> {
   const db = createAdminClient();
-  let q = db.from('payment_transactions').select('id,amount,currency,subscription_id,session_id,stripe_payment_intent_id,stripe_invoice_id,fulfillment_pending').eq('product_id', productId).eq('customer_email', email).eq('status', 'completed');
+  let q = db.from('payment_transactions').select('id,amount,currency,subscription_id,session_id,stripe_payment_intent_id,stripe_invoice_id,fulfillment_pending').eq('product_id', productId).eq('customer_email', email).in('status', ['completed', 'partially_refunded']);
   if (options.transactionId) q = q.eq('id', options.transactionId);
   else if (sessionId) q = q.eq('session_id', sessionId);
   else if (paymentIntentId) q = q.eq('stripe_payment_intent_id', paymentIntentId);
   q = q.order('created_at', { ascending: false }).limit(1);
-  const { data: tx, error } = await q.maybeSingle(); if (error || !tx) return {};
+  // A failed read means the purchase is not known yet, not that there is none (W336r P3-2).
+  const { data: tx, error } = await q.maybeSingle(); if (error) return { purchase_mail_pending: 'true' }; if (!tx) return {};
   if (tx.fulfillment_pending === true && !options.allowPending) return { purchase_mail_pending: 'true' };
   const { data: product } = await db.from('products').select('name').eq('id', productId).maybeSingle();
   const receipt: Record<string, string> = product ? { purchase_product: product.name, purchase_amount: formatPrice(fromMinorUnits(tx.amount, tx.currency), tx.currency, locale) } : {};

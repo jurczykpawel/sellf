@@ -53,7 +53,8 @@ describe('daily per-address limit on queued purchase mails @J292', () => {
     await runAuthMailRetries(db);
 
     expect(callsFor(email)).toHaveLength(5);
-    const [row] = (await db.from('auth_mail_retries').select('*').eq('email', email)).data!;
+    // The delivered links left sent markers (W336); the parked link is the row for its own redirect.
+    const row = (await db.from('auth_mail_retries').select('*').eq('email', email).eq('redirect_to', redirectTo).single()).data!;
     expect(row).toMatchObject({ given_up_at: null, attempts: 0, last_error: 'rate_limited' });
     expect(new Date(row.next_attempt_at).getTime()).toBeGreaterThan(Date.now() + 20 * 3_600_000);
   });

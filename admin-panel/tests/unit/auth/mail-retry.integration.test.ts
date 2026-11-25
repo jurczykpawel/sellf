@@ -55,7 +55,9 @@ describe('auth mail retry @J292', () => {
     deliverMagicLink.mockResolvedValue({ ok: true });
     await runAuthMailRetries(db);
     expect(lastCallFor(email)).toEqual(expect.objectContaining({ email, redirectTo: parked[0].redirect_to, data: parked[0].data }));
-    expect((await rows(email)).data).toEqual([]);
+    // Delivered: nothing left to send, only sent markers without purchase details (W336).
+    expect((await rows(email)).data!.map(row => ({ given_up: row.given_up_at !== null, last_error: row.last_error, data: row.data })))
+      .toEqual([{ given_up: true, last_error: 'sent', data: {} }, { given_up: true, last_error: 'sent', data: {} }]);
   });
 
   it('a retried post-payment link carries only the purchase details current at delivery @J292', async () => {

@@ -78,11 +78,13 @@ export async function fulfillPaidOrder(args: ProviderFulfillmentInput | StripeFu
   if (provider.kind === 'stripe' && !licenses.length) {
     // A guest who closes the payment tab never reaches the confirmation page that sends the first
     // access link, so the paid order schedules it (W336); a license mail carries its own link. Before
-    // the outbound webhooks: a failure here leaves the order pending and the fulfillment retry repeats it.
+    // the outbound webhooks: a failure here leaves the order pending, so purchase.completed and the
+    // invoice wait until Stripe redelivers the payment (or verify-payment retries it); the order key
+    // keeps that retry from scheduling a second link.
     const { data: product, error: productError } = await args.supabase.from('products').select('slug').eq('id', args.productId).single();
     if (productError || !product) throw new Error('Order product unavailable');
     await scheduleGuestAccessMail(args.supabase, { email: tx.customer_email || args.customerEmail, productSlug: product.slug,
-      locale: metadata.locale === 'pl' ? 'pl' : 'en' });
+      locale: metadata.locale === 'pl' ? 'pl' : 'en', order: orderKey });
   }
   const taxSnapshot = provider.kind === 'offline' ? snapshotFromRows(items ?? []) : await captureAndPersistOrderTax({
     stripe: provider.stripe, supabase: args.supabase, transactionId: tx.id,

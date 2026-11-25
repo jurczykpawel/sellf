@@ -1184,7 +1184,7 @@ export async function handleInvoicePaid(
     // access link, so the first paid invoice schedules it (W336); a license mail carries its own link.
     if (!licenseMailed && invoice.billing_reason === 'subscription_create') {
       try {
-        await scheduleGuestAccessMail(supabase, { email: ctx.email, productSlug: ctx.product.slug, locale: sub.metadata.locale === 'pl' ? 'pl' : 'en' });
+        await scheduleGuestAccessMail(supabase, { email: ctx.email, productSlug: ctx.product.slug, locale: sub.metadata.locale === 'pl' ? 'pl' : 'en', order: invoice.id! });
       } catch (error) {
         return { processed: false, message: error instanceof Error ? error.message : 'Access mail schedule unavailable' };
       }

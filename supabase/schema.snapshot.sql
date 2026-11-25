@@ -10012,10 +10012,10 @@ COMMENT ON FUNCTION public.mark_expired_pending_payments() IS '@graphql({"includ
 
 
 --
--- Name: mark_post_checkout_mail_sent(text, text); Type: FUNCTION; Schema: public; Owner: postgres
+-- Name: mark_post_checkout_mail_sent(text, text[]); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
-CREATE FUNCTION public.mark_post_checkout_mail_sent(p_email text, p_redirect_to text) RETURNS void
+CREATE FUNCTION public.mark_post_checkout_mail_sent(p_email text, p_redirects text[]) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO ''
     AS $$
@@ -10024,13 +10024,16 @@ DECLARE
 BEGIN
   PERFORM pg_advisory_xact_lock(hashtext('post_checkout_mail:' || v_email));
   INSERT INTO public.auth_mail_retries(email, redirect_to, data, kind, next_attempt_at, last_error, given_up_at)
-  VALUES (v_email, p_redirect_to, '{}'::jsonb, 'post_checkout', now(), 'sent', now())
-  ON CONFLICT (email, redirect_to) DO UPDATE SET data = '{}'::jsonb, last_error = 'sent', given_up_at = now()
+  SELECT DISTINCT v_email, r.redirect_to, '{}'::jsonb, 'post_checkout', now(), 'sent', now()
+  FROM unnest(p_redirects) AS r(redirect_to) WHERE r.redirect_to IS NOT NULL
+  ON CONFLICT (email, redirect_to) DO UPDATE SET last_error = 'sent', given_up_at = now(),
+    data = CASE WHEN public.auth_mail_retries.data ? 'order'
+      THEN jsonb_build_object('order', public.auth_mail_retries.data->'order') ELSE '{}'::jsonb END
     WHERE public.auth_mail_retries.kind = 'post_checkout';
 END $$;
 
 
-ALTER FUNCTION public.mark_post_checkout_mail_sent(p_email text, p_redirect_to text) OWNER TO postgres;
+ALTER FUNCTION public.mark_post_checkout_mail_sent(p_email text, p_redirects text[]) OWNER TO postgres;
 
 --
 -- Name: migrate_guest_payment_data_to_profile(uuid); Type: FUNCTION; Schema: public; Owner: postgres
@@ -11616,13 +11619,20 @@ CREATE FUNCTION public.queue_auth_mail_retry(p_email text, p_redirect_to text, p
     AS $$
   INSERT INTO public.auth_mail_retries(email, redirect_to, data, kind, next_attempt_at, last_error)
   VALUES (lower(btrim(p_email)), p_redirect_to, coalesce(p_data, '{}'::jsonb), p_kind, now() + interval '2 minutes', left(p_error, 40))
-  ON CONFLICT (email, redirect_to) DO UPDATE SET data = CASE WHEN public.auth_mail_retries.kind='license' AND EXCLUDED.kind='post_checkout' THEN public.auth_mail_retries.data ELSE EXCLUDED.data END,
+  -- A link scheduled by a paid order (W336) keeps its order key, so a redelivered payment does not schedule it again.
+  ON CONFLICT (email, redirect_to) DO UPDATE SET data = CASE WHEN public.auth_mail_retries.kind='license' AND EXCLUDED.kind='post_checkout' THEN public.auth_mail_retries.data
+      WHEN public.auth_mail_retries.kind='post_checkout' AND EXCLUDED.kind='post_checkout' AND public.auth_mail_retries.data ? 'order'
+        THEN EXCLUDED.data || jsonb_build_object('order', public.auth_mail_retries.data->'order')
+      ELSE EXCLUDED.data END,
     kind = CASE WHEN public.auth_mail_retries.kind='license' THEN 'license' ELSE EXCLUDED.kind END, last_error = EXCLUDED.last_error,
     given_up_at = NULL,
     attempts = CASE WHEN public.auth_mail_retries.given_up_at IS NULL THEN public.auth_mail_retries.attempts
       WHEN public.auth_mail_retries.kind = 'post_checkout' AND EXCLUDED.kind = 'post_checkout' THEN public.auth_mail_retries.attempts
       ELSE 0 END,
-    next_attempt_at = CASE WHEN public.auth_mail_retries.given_up_at IS NULL THEN public.auth_mail_retries.next_attempt_at
+    -- A link still waiting out the buyer's return window (W336) must not delay the page's own short retry.
+    next_attempt_at = CASE WHEN public.auth_mail_retries.given_up_at IS NULL AND public.auth_mail_retries.last_error = 'awaiting_return'
+        THEN least(public.auth_mail_retries.next_attempt_at, EXCLUDED.next_attempt_at)
+      WHEN public.auth_mail_retries.given_up_at IS NULL THEN public.auth_mail_retries.next_attempt_at
       ELSE greatest(public.auth_mail_retries.next_attempt_at, EXCLUDED.next_attempt_at) END;
 $$;
 
@@ -12737,13 +12747,24 @@ CREATE FUNCTION public.schedule_post_checkout_mail(p_email text, p_redirects tex
     AS $$
 DECLARE
   v_email text := lower(btrim(p_email));
+  v_order text := nullif(p_data->>'order', '');
   v_rows integer;
 BEGIN
   IF coalesce(array_length(p_redirects, 1), 0) = 0 THEN RETURN false; END IF;
   PERFORM pg_advisory_xact_lock(hashtext('post_checkout_mail:' || v_email));
-  -- A link pending, retried or sent in the last hour (any page language) already covers the order.
+  -- This order already has its link pending or delivered.
+  IF v_order IS NOT NULL AND EXISTS (SELECT 1 FROM public.auth_mail_retries r WHERE r.email = v_email
+      AND r.kind = 'post_checkout' AND r.data->>'order' = v_order) THEN
+    RETURN false;
+  END IF;
+  -- A link pending, retried or sent in the last hour (any page language) already covers the order:
+  -- it takes the order key, so a later redelivery of this order is recognised after that hour too.
   IF EXISTS (SELECT 1 FROM public.auth_mail_retries r WHERE r.email = v_email AND r.redirect_to = ANY(p_redirects)
       AND (r.given_up_at IS NULL OR r.given_up_at > now() - interval '1 hour')) THEN
+    IF v_order IS NOT NULL THEN
+      UPDATE public.auth_mail_retries r SET data = r.data || jsonb_build_object('order', v_order)
+      WHERE r.email = v_email AND r.redirect_to = ANY(p_redirects) AND r.kind = 'post_checkout';
+    END IF;
     RETURN false;
   END IF;
   INSERT INTO public.auth_mail_retries(email, redirect_to, data, kind, next_attempt_at, last_error)
@@ -24065,8 +24086,8 @@ function | public.mark_checkout_details_missing() | postgres | EXECUTE | postgre
 function | public.mark_checkout_details_missing() | service_role | EXECUTE | postgres | -
 function | public.mark_expired_pending_payments() | postgres | EXECUTE | postgres | -
 function | public.mark_expired_pending_payments() | service_role | EXECUTE | postgres | -
-function | public.mark_post_checkout_mail_sent(p_email text, p_redirect_to text) | postgres | EXECUTE | postgres | -
-function | public.mark_post_checkout_mail_sent(p_email text, p_redirect_to text) | service_role | EXECUTE | postgres | -
+function | public.mark_post_checkout_mail_sent(p_email text, p_redirects text[]) | postgres | EXECUTE | postgres | -
+function | public.mark_post_checkout_mail_sent(p_email text, p_redirects text[]) | service_role | EXECUTE | postgres | -
 function | public.migrate_guest_payment_data_to_profile(p_user_id uuid) | postgres | EXECUTE | postgres | -
 function | public.migrate_guest_payment_data_to_profile(p_user_id uuid) | service_role | EXECUTE | postgres | -
 function | public.migrate_guest_purchases(p_user_id uuid, p_email text) | postgres | EXECUTE | postgres | -

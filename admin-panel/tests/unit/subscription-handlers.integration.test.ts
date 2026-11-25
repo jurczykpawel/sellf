@@ -563,7 +563,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     createdStripeCustomerIds.push(customer.id);
     const subStripe = makeFakeSubscription(customer.id, product.id);
     const stripeShim = { ...stripe!, subscriptions: { ...stripe!.subscriptions, retrieve: async () => subStripe }, customers: stripe!.customers } as unknown as Stripe;
-    const scheduled = () => platformClient!.from('auth_mail_retries').select('kind,given_up_at,next_attempt_at').eq('email', email);
+    const scheduled = () => platformClient!.from('auth_mail_retries').select('kind,given_up_at,next_attempt_at,data').eq('email', email);
     try {
       await handleSubscriptionCreated(subStripe, supabaseSeller as never, platformClient as never, stripeShim);
       expect((await scheduled()).data).toEqual([]);
@@ -571,7 +571,7 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
       expect((await handleInvoicePaid(inv1, supabaseSeller as never, platformClient as never, stripeShim)).processed).toBe(true);
       const first = await scheduled();
       expect(first.data).toHaveLength(1);
-      expect(first.data![0]).toMatchObject({ kind: 'post_checkout', given_up_at: null });
+      expect(first.data![0]).toMatchObject({ kind: 'post_checkout', given_up_at: null, data: { order: inv1.id } });
       expect(Date.parse(first.data![0].next_attempt_at)).toBeGreaterThan(Date.now());
       const inv2 = makeFakeInvoice(subStripe.id, customer.id, email, { billing_reason: 'subscription_cycle' });
       expect((await handleInvoicePaid(inv2, supabaseSeller as never, platformClient as never, stripeShim)).processed).toBe(true);

@@ -6695,7 +6695,7 @@ export type Database = {
       }
       mark_expired_pending_payments: { Args: never; Returns: number }
       mark_post_checkout_mail_sent: {
-        Args: { p_email: string; p_redirect_to: string }
+        Args: { p_email: string; p_redirects: string[] }
         Returns: undefined
       }
       migrate_guest_payment_data_to_profile: {

@@ -99,6 +99,7 @@ test('paid subscription delivers its license, full refund ends management and a 
     if (disputeBuyerId) await deleteAuthUsers(db,[disputeBuyerId]);
     await deleteChecked('seller_license_keys',db.from('seller_license_keys').delete().eq('original_seller_id',userId));
     await deleteChecked('stripe_customers',db.from('stripe_customers').delete().eq('user_id',userId));
+    await deleteChecked('auth_mail_retries',db.from('auth_mail_retries').delete().eq('email',email));
     await deleteAuthUsers(db,[userId]);
     if(customer) await stripe.customers.del(customer.id);
     if(price) await stripe.prices.update(price.id,{active:false});
