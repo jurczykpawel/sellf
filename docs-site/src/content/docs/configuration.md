@@ -50,9 +50,12 @@ A malformed value stops payments with an error. Details and both migration cases
 
 When a signed-in buyer starts a new checkout that needs a Stripe customer, Sellf
 checks the saved customer in the configured Stripe account or sandbox. If Stripe
-reports the customer is missing or deleted, Sellf creates a replacement for this
+reports the customer is missing or deleted, or the customer carries another
+installation's marker or another buyer's ID, Sellf creates a replacement for this
 installation and saves it for future checkouts. Existing subscriptions and
-payments keep their original Stripe references.
+payments keep their original Stripe references. If you change `SELLF_INSTANCE_ID`,
+put the previous marker in `SELLF_INSTANCE_ALIASES`; otherwise customers created
+under the old marker are replaced at their next checkout.
 
 ## Internal address for the MCP endpoint
 
