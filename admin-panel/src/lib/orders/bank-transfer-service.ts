@@ -4,6 +4,7 @@ import { getSellfBaseUrl } from '@/lib/embed/checkout-embed';
 import { transferDeadline } from '@/lib/orders/transfer-format';
 import { orderMoney, minorOrderLines } from '@/lib/orders/event-money';
 import { sendOrderNotice } from '@/lib/orders/transfer-mail';
+import { paidNoticeDue } from '@/lib/orders/notice-state';
 import { buildOrderPayLink } from '@/lib/orders/transfer-token';
 import { expireOrderPaymentSessions, sessionsToExpire } from '@/lib/orders/payment-attempt-sessions';
 import { getStripeServer } from '@/lib/stripe/server';
@@ -126,6 +127,13 @@ async function runReservations(db: SupabaseClient<Database>, run: (id: string, a
   }
 }
 
+/** Booked transfers whose payment confirmation is unsent and due at `now`. */
+export function paidNoticeCandidates(db: SupabaseClient<Database>, now: Date) {
+  return db.from('payment_transactions').select('id').eq('payment_provider', 'bank_transfer')
+    .eq('status', 'completed').eq('fulfillment_pending', false).is('transfer_paid_mail_sent_at', null)
+    .or(paidNoticeDue(now.toISOString()));
+}
+
 export async function runTransferJob(db: SupabaseClient<Database>, job: 'bank-transfer-overdue' | 'fulfillment-resume' | 'transfer-reservations'): Promise<{ processed: number; errors: number }> {
   let processed = 0; let errors = 0;
   const run = async (id: string, action: () => Promise<unknown>) => {
@@ -156,8 +164,7 @@ export async function runTransferJob(db: SupabaseClient<Database>, job: 'bank-tr
       .gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString()).limit(BATCH);
     if (mail.error) throw new Error('Transfer mail unavailable');
     for (const tx of mail.data ?? []) await run(tx.id, () => sendOrderNotice(db, tx.id, 'placed'));
-    const paid = await db.from('payment_transactions').select('id').eq('payment_provider', 'bank_transfer')
-      .eq('status', 'completed').eq('fulfillment_pending', false).is('transfer_paid_mail_sent_at', null).limit(BATCH);
+    const paid = await paidNoticeCandidates(db, new Date(Date.now())).limit(BATCH);
     if (paid.error) throw new Error('Transfer payment mail unavailable');
     for (const tx of paid.data ?? []) await run(tx.id, () => sendOrderNotice(db, tx.id, 'paid'));
   }

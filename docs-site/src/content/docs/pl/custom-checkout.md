@@ -23,6 +23,12 @@ Produkty bez profilu zachowują dotychczasowy formularz oraz format webhooka.
   i unikalny e-mail. Opcjonalną listę można pozostawić całkiem pustą. Przy jednym miejscu
   można wstępnie wypełnić uczestnika danymi nabywcy.
 
+Osadzony checkout sprzedaje jedną sztukę i nie zbiera danych modułów. Moduły kupującego, telefonu i odbiorcy pozostają zgodne; zakończone zamówienie oznacza brak wymaganych danych przez `details_missing`. Moduł ilości jest zgodny, gdy zakres obejmuje 1 w trybie `checkout`, gdy `hidden` ustala ilość na 1 (`min=1`, także przy większym `max`) lub gdy `product_page` ma `min=max=1`. Uczestnicy, możliwość wyboru innej ilości na stronie produktu, minimum powyżej 1 i niepoprawny profil wymagają koszyka na stronie produktu. API zwraca `422 STANDARD_CHECKOUT_REQUIRED` z `productUrl`; skrypt pokazuje klikalny link, a odmowa zapisuje się w logu embedu.
+
+Przed zapisaniem blokującego profilu wyłącz embed samodzielnie. Formularz zgłasza konflikt, ale nie zmienia ustawień. Okno generowania kodu pokazuje wtedy link do ustawień profilu. Edytor profilu ostrzega, gdy embed jest włączony lub był używany; ostatni zapisany origin i datę widzi tylko administrator.
+
+Dla produktu z ceną zero, bez trybu wydarzeń, subskrypcji i własnej ceny, embed działa jak zwykły darmowy formularz: oba nie zbierają modułów profilu i nie wymagają ich przed nadaniem dostępu. Profil nie blokuje więc tego darmowego dostępu. Produkty z ceną bazową zero, które korzystają ze standardowego formularza płatności (np. wydarzenia), zachowują blokadę niezgodnej ilości i uczestników. Serwer nadal sprawdza ilość przy przygotowaniu płatnego koszyka, także z kuponem 100%.
+
 Profil obsługuje domyślny szablon koszyka i produkty jednorazowe. Subskrypcje, napiwki,
 płatność własną kwotą, zestawy i OTO nie są obsługiwane. Produkt wydający licencje nie może
 mieć ilości większej od jednego. Nieprawidłowe kombinacje są odrzucane przy zapisie.
@@ -100,6 +106,10 @@ Jeśli koszyk zmieni się podczas przygotowywania płatności, Sellf zatrzymuje 
 
 Wyłączenie produktu zachowuje zakup w **Moich produktach**, ale wstrzymuje dostęp do treści, login wall i bramek elementów. Zalogowany posiadacz zapisanego dostępu, także wygasłego, otrzymuje HTTP 200 z `hasAccess: false` i `reason: "inactive"` z `/api/public/products/{slug}/access`; odpowiedź opisuje zapisany zakup i nie przyznaje dostępu. Endpoint treści zwraca HTTP 403. Nieaktywny produkt bez posiadanego dostępu pozostaje niedostępny. Archiwizacja zachowuje treści dla dotychczasowych kupujących, dopóki ich dostęp jest ważny. Po wygaśnięciu dostępu kupujący nadal widzi stronę z informacją o wygaśnięciu; `/access` zwraca HTTP 200 z `hasAccess: false` i `reason: "expired"`, a endpoint treści — HTTP 403. Dla produktu wstrzymanego lub archiwalnego login wall kieruje kupującego z wygasłym dostępem na `/p/{slug}` bez przyznania dostępu do treści. Weryfikacja bramki przez ważny token działa także bez ciasteczek Sellf, również po archiwizacji; nadal sprawdza bieżące uprawnienie kupującego.
 
+Zamknięcie okna sprzedaży (`available_until`) zatrzymuje nowe zakupy; kupujący z ważnym dostępem zachowują stronę produktu, chronioną treść, bramkę logowania i bramki elementów. Goście, osoby bez dostępu i z wygasłym dostępem nie otworzą zamkniętej oferty. Wstrzymanie i archiwizacja zachowują opisane wyżej działanie.
+
+Na liście produktów **Escape** zamyka menu **Więcej akcji** i przywraca fokus na jego przycisku, również wtedy, gdy fokus był na akcji wewnątrz menu. Jeśli po odświeżeniu listy produkt nadal jest w wynikach, fokus pozostaje na jego przycisku. Gdy produkt znika z wyników, menu się zamyka. Jeśli fokus był w menu lub na jego przycisku, przechodzi do obszaru wyników.
+
 ## Dostęp z kilku zakupów
 
 Pełny zwrot kończy uprawnienie z danego zamówienia. Kupujący zachowuje produkt, jeśli nadal uprawnia do niego inny zakup, opłacony przelew, pakiet, dodatek do zamówienia lub aktywna subskrypcja. Zwrot ostatniego uprawniającego zamówienia odbiera odpowiadający mu dostęp.
@@ -112,23 +122,13 @@ Komunikaty ładowania i niedostępności filmu są wyświetlane w języku widoku
 
 Anulowanie nieopłaconego przelewu z dostępem od złożenia usuwa okres tego zamówienia, nawet gdy późniejszy zakup przedłużył ten sam produkt. Zwrot faktury subskrypcji kończy uprawnienia z tej subskrypcji, zachowując osobno kupione okresy i nadania administratora.
 
-Zamknięcie okna sprzedaży (`available_until`) zatrzymuje nowe zakupy; kupujący z ważnym dostępem zachowują stronę produktu, chronioną treść, bramkę logowania i bramki elementów. Goście, osoby bez dostępu i z wygasłym dostępem nie otworzą zamkniętej oferty. Wstrzymanie i archiwizacja zachowują opisane wyżej działanie.
-
-Na liście produktów **Escape** zamyka menu **Więcej akcji** i przywraca fokus na jego przycisku, również wtedy, gdy fokus był na akcji wewnątrz menu.
-
-Osadzony checkout sprzedaje jedną sztukę i nie zbiera danych modułów. Moduły kupującego, telefonu i odbiorcy pozostają zgodne; zakończone zamówienie oznacza brak wymaganych danych przez `details_missing`. Moduł ilości jest zgodny, gdy zakres obejmuje 1 w trybie `checkout`, gdy `hidden` ustala ilość na 1 (`min=1`, także przy większym `max`) lub gdy `product_page` ma `min=max=1`. Uczestnicy, możliwość wyboru innej ilości na stronie produktu, minimum powyżej 1 i niepoprawny profil wymagają koszyka na stronie produktu. API zwraca `422 STANDARD_CHECKOUT_REQUIRED` z `productUrl`; skrypt pokazuje klikalny link, a odmowa zapisuje się w logu embedu.
-
-Przed zapisaniem blokującego profilu wyłącz embed samodzielnie. Formularz zgłasza konflikt, ale nie zmienia ustawień. Okno generowania kodu pokazuje wtedy link do ustawień profilu. Edytor profilu ostrzega, gdy embed jest włączony lub był używany; ostatnią zapisaną domenę i datę widzi tylko administrator.
-
-Dla produktu z ceną zero, bez trybu wydarzeń, subskrypcji i własnej ceny, embed działa jak zwykły darmowy formularz: oba nie zbierają modułów profilu i nie wymagają ich przed nadaniem dostępu. Profil nie blokuje więc tego darmowego dostępu. Produkty z ceną bazową zero, które korzystają ze standardowego formularza płatności (np. wydarzenia), zachowują blokadę niezgodnej ilości i uczestników. Serwer nadal sprawdza ilość przy przygotowaniu płatnego koszyka, także z kuponem 100%.
-
 Potwierdzenie subskrypcji korzysta z zapisanej płatności za fakturę i bieżącego uprawnienia. Pełny zwrot pokazuje **Płatność zwrócona** z `access_granted: false`; anulowanie bez zwrotu zachowuje opłacony okres. Powrót z płatności na innym zalogowanym koncie wyjaśnia, że zakup należy do innego konta, i udostępnia przycisk **Wyloguj się i kontynuuj**, bez ujawniania adresu kupującego. API weryfikacji nadal zwraca HTTP 403 dla obcego konta.
 
-Stan terminalny obowiązuje także dla starszych linków powrotu z parametrem `payment_intent`.
+Starsze linki powrotu z parametrem `payment_intent` również uwzględniają zapisany status pełnego zwrotu lub sporu. Kupujący, który zapłacił jako gość, nadal może odebrać zakup po zalogowaniu się na adres użyty przy płatności.
 
-Bramka elementów z kilkoma produktami ustala dostęp do każdego slugu osobno, jeśli przynajmniej jeden produkt jest widoczny dla wywołującego. Niedostępne slugi otrzymują brak dostępu i nie blokują posiadanego drugiego produktu. Żądanie bez widocznych produktów pozostaje niedostępne. Zwracane stany wymagają dozwolonego originu sprzedawcy.
+Bramka elementów z kilkoma produktami ustala dostęp do każdego slugu osobno, jeśli przynajmniej jeden produkt jest widoczny dla odwiedzającego, a widoczne produkty należą do jednego sprzedawcy. Niedostępne slugi otrzymują brak dostępu i nie blokują posiadanego drugiego produktu. Żądanie bez widocznych produktów pozostaje niedostępne. Zwracane stany wymagają dozwolonego originu sprzedawcy.
 
-Wyszukiwanie katalogu przyjmuje najwyżej 100 znaków Unicode po usunięciu skrajnych spacji i normalizacji NFC; dłuższa treść pokazuje błąd przy polu. Imię i nazwisko w starszym formularzu checkoutu przyjmuje najwyżej 200 jednostek UTF-16, zgodnie z zapisywanym polem; dłuższa wartość pokazuje błąd i blokuje wysłanie. Import uczestników z listy lub CSV od razu przelicza błędy uzupełnionych wierszy, jeśli błędy uczestników były już wyświetlone. Częściowy import przed pierwszym wysłaniem nie dodaje błędów i nie przenosi fokusu.
+Wyszukiwanie katalogu przyjmuje najwyżej 100 znaków Unicode po usunięciu skrajnych spacji i normalizacji NFC; dłuższa treść pokazuje błąd przy polu. W standardowym koszyku bez profilu imię i nazwisko może mieć najwyżej 200 jednostek UTF-16 po usunięciu skrajnych spacji. Dłuższa wartość wyświetla błąd przy polu i blokuje płatność. Wklejenie lub import listy uczestników od razu ponownie sprawdza pola uczestników, jeśli formularz już pokazywał ich błędy. Częściowy import przed pierwszym wysłaniem nie dodaje błędów i nie przenosi fokusu.
 
 Dialog prośby o zwrot utrzymuje fokus w środku, zamyka się klawiszem Escape i oddaje fokus przyciskowi, który go otworzył.
 

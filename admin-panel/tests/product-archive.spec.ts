@@ -75,7 +75,7 @@ test.afterAll(async () => {
 });
 
 test('deleting a sold product moves it to the archive and restore brings it back inactive @J600', async ({ page }) => {
-  const name = `Archive Archiwum ${Date.now()}`;
+  const name = `Archive Archiwum ${crypto.randomUUID()}`;
   const product = await soldProduct(name);
   await openProducts(page, name);
   await expect(page.locator('tr').filter({ hasText: name })).toBeVisible();
@@ -117,7 +117,7 @@ test('deleting a sold product moves it to the archive and restore brings it back
 });
 
 test('permanent delete from the archive lists the kept records and keeps the order and license @J601', async ({ page }) => {
-  const name = `Archive Trwale ${Date.now()}`;
+  const name = `Archive Trwale ${crypto.randomUUID()}`;
   const product = await soldProduct(name);
   const buyer = await createTestUser('archive-perm-buyer');
   expect((await supabaseAdmin.from('user_product_access').insert({ user_id: buyer.userId, product_id: product.id, grant_source: 'purchase' })).error).toBeNull();
@@ -156,7 +156,7 @@ test('permanent delete from the archive lists the kept records and keeps the ord
 });
 
 test('a buyer keeps the content of an archived product while the public no longer sees it @J603', async ({ page, browser }) => {
-  const name = `Archive Kupujacy ${Date.now()}`;
+  const name = `Archive Kupujacy ${crypto.randomUUID()}`;
   const product = await soldProduct(name);
   const { data: row } = await supabaseAdmin.from('products').select('slug').eq('id', product.id).single();
   const buyer = await createTestUser('archive-buyer');
@@ -184,7 +184,7 @@ test('a buyer keeps the content of an archived product while the public no longe
 
 for (const state of ['unsold', 'sold', 'archived']) {
   test(`bundle component ${state} cannot be removed in the panel or API @J602`, async ({ page }) => {
-    const name = `Component ${state} ${Date.now()}`;
+    const name = `Component ${state} ${crypto.randomUUID()}`;
     const component = await soldProduct(name);
     if (state === 'unsold') {
       expect((await supabaseAdmin.from('issued_licenses').delete().eq('id', component.licenseId)).error).toBeNull();
@@ -251,7 +251,7 @@ for (const locale of ['en', 'pl']) {
 }
 
 test('Escape closes product actions and returns focus to the trigger @J600', async ({ page }) => {
-  const name = `Keyboard actions ${Date.now()}`;
+  const name = `Keyboard actions ${crypto.randomUUID()}`;
   await soldProduct(name); await openProducts(page, name);
   const trigger = page.locator('tr').filter({ hasText: name }).locator('button[aria-expanded]');
   for (const focusItem of [false, true]) {
@@ -262,4 +262,44 @@ test('Escape closes product actions and returns focus to the trigger @J600', asy
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
     await expect(trigger).toBeFocused();
   }
+});
+
+test('a debounced search closes a vanished product menu and moves focus to results @W330', async ({ page }) => {
+  const name = `Vanishing actions ${crypto.randomUUID()}`;
+  await soldProduct(name);
+  await openProducts(page, name);
+  const search = page.getByPlaceholder(/szukaj/i);
+  const trigger = page.locator('tr').filter({ hasText: name }).locator('button[aria-expanded]');
+  await expect(trigger).toBeVisible();
+
+  const noMatch = `No match ${crypto.randomUUID()}`;
+  const matchesSearch = (url: URL) => url.pathname === '/api/v1/products' && url.searchParams.get('search') === noMatch;
+  let releaseResponse!: () => void;
+  const holdResponse = new Promise<void>(resolve => { releaseResponse = resolve; });
+  await page.route(matchesSearch, async route => {
+    const response = await route.fetch();
+    await holdResponse;
+    await route.fulfill({ response });
+  });
+
+  const results = page.getByRole('region', { name: pl.admin.products.title });
+  try {
+    const requested = page.waitForRequest(request => matchesSearch(new URL(request.url())));
+    await search.fill(noMatch);
+    await requested;
+    await expect(results).toHaveCSS('opacity', '0.5');
+    await trigger.press('Enter');
+    const action = page.getByRole('button', { name: /Testuj lejek/ });
+    await action.focus();
+    await expect(action).toBeFocused();
+  } finally {
+    releaseResponse();
+  }
+
+  await expect(results.getByRole('heading', { name: pl.admin.products.noProducts })).toBeVisible();
+  await expect(trigger).toHaveCount(0);
+  await expect(results).toBeFocused();
+  await search.fill(name);
+  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await expect(search).toBeFocused();
 });

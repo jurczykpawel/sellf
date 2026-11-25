@@ -4,6 +4,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useWebhookDeliveries, type DeliveryFilter } from '@/hooks/useWebhookDeliveries';
 import { computeEligibility } from '@/lib/webhooks/selection-eligibility';
+import { Button } from './ui/Modal';
 import WebhookLogsTable from './webhooks/WebhookLogsTable';
 import WebhookBatchConfirmModal from './webhooks/WebhookBatchConfirmModal';
 import AbandonedEventsPanel from './webhooks/AbandonedEventsPanel';
@@ -34,8 +35,9 @@ function filterLabelKey(filter: DeliveryFilter): string {
 
 export default function WebhookDeliveriesPageContent() {
   const t = useTranslations('admin.webhooks.logs');
+  const tCommon = useTranslations('common');
   const {
-    logs, loading, filter, setFilter,
+    logs, loading, filter, setFilter, page, hasNextPage, nextPage, previousPage,
     replay, forceRetry, cancel,
     batchReplay, batchForceRetry, batchCancel, batchRunning,
     replayingId, actingId, refresh,
@@ -200,6 +202,18 @@ export default function WebhookDeliveriesPageContent() {
           selectedIds={visibleSelected}
           onToggleSelected={toggleSelected}
         />
+      )}
+
+      {(page > 1 || hasNextPage) && (
+        <nav aria-label={tCommon('pagination')} className="flex flex-wrap items-center justify-end gap-3">
+          <Button variant="secondary" className="min-h-11" onClick={previousPage} disabled={loading || page === 1}>
+            {t('previousPage')}
+          </Button>
+          <span role="status" className="text-sm text-sf-muted">{t('pageNumber', { page })}</span>
+          <Button variant="secondary" className="min-h-11" onClick={nextPage} disabled={loading || !hasNextPage}>
+            {t('nextPage')}
+          </Button>
+        </nav>
       )}
     </div>
   );

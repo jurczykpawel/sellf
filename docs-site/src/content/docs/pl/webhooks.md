@@ -269,6 +269,8 @@ harmonogramu. Brak harmonogramu wstrzymuje ponowienia, ale nie pierwszą próbę
 ani zapis logów. Ręczne ponowienie starej dostawy o statusie `failed` aktualizuje
 ten sam wpis, zachowując identyfikator dostawy.
 
+Strona **Dostawy webhooków** otwiera listę dostaw trwale nieudanych. Wybierz status i użyj przycisków **Następna strona** lub **Poprzednia strona**. Lista pokazuje do 50 wpisów na stronę, od najnowszego według czasu utworzenia. Zmiana filtra statusu przywraca pierwszą stronę.
+
 ### Zdarzenia porzucone przed wysyłką
 
 Zmiany zamówień, dostępów, licencji i katalogu najpierw trafiają do kolejki zdarzeń
@@ -669,10 +671,12 @@ Utworzenie lub edycja endpointu z nieistniejącym lub usuniętym produktem w `pr
 
 W logach dostaw przejdź klawiszem Tab do przycisku z nazwą zdarzenia. Enter lub Spacja rozwija i zwija payload oraz odpowiedź. Przycisk udostępnia stan rozwinięcia i zachowuje fokus klawiatury.
 
-### Walidacja nagłówków i dane w logach dostaw
+### Walidacja formularza webhooka i dane w logach dostaw
+
+Formularz wymaga co najmniej jednego zdarzenia i przyjmuje opis do 500 znaków. Komunikat o błędzie pojawia się przy odpowiednim polu.
 
 Nazwa własnego nagłówka musi być [tokenem HTTP](https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.2) (bez spacji, dwukropków i znaków spoza ASCII), a wartość mieścić się w jednym wierszu nagłówka HTTP. Nagłówki transportowe (`Host`, `Content-Type`, `Content-Length`, `Content-Encoding`, `Connection`, `Transfer-Encoding`, `TE`, `Trailer`, `Upgrade`, `Expect`) i `X-Sellf-*` są zastrzeżone bez względu na wielkość liter. Panel i API v1 odrzucają błędne wpisy przed zapisem. Możesz używać `Authorization` i nagłówków takich jak `X-Tenant`; ich wartości pozostają dostępne wyłącznie do zapisu.
 
-Panel logów endpointu i widok dostaw pokazują czytelne dane zdarzenia przez `GET /api/v1/webhooks/logs`. Klucze licencji, tokeny kupującego oraz linki do płatności i uczestników są zastępowane przez `[REDACTED]`, także w starszych logach. Gdy zapisanych danych nie da się odczytać, payload ma wartość `null`. Dostęp przez sesję wymaga administratora, a klucz API zakresu `webhooks:read`. Rzeczywista podpisana dostawa zachowuje pełny payload.
+Panel logów endpointu i widok dostaw pokazują czytelne dane zdarzenia przez `GET /api/v1/webhooks/logs`. Klucze licencji, tokeny kupującego oraz linki do płatności i uczestników są zastępowane przez `[REDACTED]`, także w starszych logach. Gdy zapisanych danych nie da się odczytać, payload ma wartość `null`. Dostęp przez sesję wymaga administratora, a klucz API zakresu `webhooks:read`. Maskowanie dotyczy widoku logów. Podpisana dostawa zawiera dane określone w konfiguracji endpointu.
 
 Przy zapisie możesz podać najwyżej 20 własnych nagłówków: nazwa do 64 znaków, wartość do 2048 znaków. Nazwy muszą być unikalne bez względu na wielkość liter (`Authorization` i `authorization` to duplikat). Panel pokazuje błąd przy polach nagłówków; API v1 POST/PATCH zwraca `INVALID_INPUT` ze szczegółem `custom_headers`. Limity obowiązują wyłącznie przy zapisie nowych wartości nagłówków. Wcześniej zapisane konfiguracje nadal są używane do dostaw; edycja innych pól bez przesłania `custom_headers` zachowuje je bez ponownej walidacji.

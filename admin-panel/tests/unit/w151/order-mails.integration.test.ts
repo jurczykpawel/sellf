@@ -1,5 +1,5 @@
-import { useSupabaseBuyerEmails } from '../../helpers/buyer-email-setting';
-useSupabaseBuyerEmails();
+import { useSupabaseBuyerEmails as enableSupabaseBuyerEmails } from '../../helpers/buyer-email-setting';
+enableSupabaseBuyerEmails();
 /**
  * W146 mail findings, rendered by the real local Auth + Mailpit:
  * - transfer / payment-received / cancellation mails carry their own heading and intro, never the
@@ -98,14 +98,19 @@ it('sends one paid notice for concurrent attempts and keeps its first link usabl
     const { data: tx, error } = await db.from('payment_transactions').insert({ product_id: product!.id, customer_email: email, amount: 1000, currency: 'PLN', payment_provider: 'bank_transfer', pricing_snapshot_version: 1, status: 'completed', metadata: { locale: 'en' } }).select('id').single();
     expect(error).toBeNull();
     const sender = vi.spyOn(mailGateway, 'sendTrustedMagicLink');
+    const clock = vi.spyOn(Date, 'now');
     try {
       sender.mockResolvedValueOnce({ ok: false, code: 'send_failed' });
+      const refusedAt = Date.now();
       await sendOrderNotice(db, tx!.id, 'paid');
-      expect((await db.from('payment_transactions').select('transfer_paid_mail_sent_at').eq('id', tx!.id).single()).data?.transfer_paid_mail_sent_at).toBeNull();
+      const refused = await db.from('payment_transactions').select('transfer_paid_mail_sent_at,transfer_paid_mail_retry_at,transfer_paid_mail_attempts').eq('id', tx!.id).single();
+      expect(refused.data).toMatchObject({ transfer_paid_mail_sent_at: null, transfer_paid_mail_attempts: 1 });
+      expect(Date.parse(refused.data!.transfer_paid_mail_retry_at!)).toBeGreaterThanOrEqual(refusedAt + 120000);
       sender.mockClear();
+      clock.mockReturnValue(Date.parse(refused.data!.transfer_paid_mail_retry_at!));
       await Promise.all(Array.from({ length: 8 }, () => sendOrderNotice(db, tx!.id, 'paid')));
       expect(sender).toHaveBeenCalledTimes(1);
-    } finally { sender.mockRestore(); }
+    } finally { sender.mockRestore(); clock.mockRestore(); }
     const mail = await waitForEmail(email);
     const inbox = await searchMessages(email);
     expect(inbox).toHaveLength(1);

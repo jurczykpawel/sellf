@@ -4167,13 +4167,20 @@ CREATE OR REPLACE FUNCTION public.queue_auth_mail_retry(p_email text, p_redirect
 RETURNS void LANGUAGE sql SECURITY DEFINER SET search_path = '' AS $$
   INSERT INTO public.auth_mail_retries(email, redirect_to, data, kind, next_attempt_at, last_error)
   VALUES (lower(btrim(p_email)), p_redirect_to, coalesce(p_data, '{}'::jsonb), p_kind, now() + interval '2 minutes', left(p_error, 40))
-  ON CONFLICT (email, redirect_to) DO UPDATE SET data = CASE WHEN public.auth_mail_retries.kind='license' AND EXCLUDED.kind='post_checkout' THEN public.auth_mail_retries.data ELSE EXCLUDED.data END,
+  -- A link scheduled by a paid order (W336) keeps its order key, so a redelivered payment does not schedule it again.
+  ON CONFLICT (email, redirect_to) DO UPDATE SET data = CASE WHEN public.auth_mail_retries.kind='license' AND EXCLUDED.kind='post_checkout' THEN public.auth_mail_retries.data
+      WHEN public.auth_mail_retries.kind='post_checkout' AND EXCLUDED.kind='post_checkout' AND public.auth_mail_retries.data ? 'order'
+        THEN EXCLUDED.data || jsonb_build_object('order', public.auth_mail_retries.data->'order')
+      ELSE EXCLUDED.data END,
     kind = CASE WHEN public.auth_mail_retries.kind='license' THEN 'license' ELSE EXCLUDED.kind END, last_error = EXCLUDED.last_error,
     given_up_at = NULL,
     attempts = CASE WHEN public.auth_mail_retries.given_up_at IS NULL THEN public.auth_mail_retries.attempts
       WHEN public.auth_mail_retries.kind = 'post_checkout' AND EXCLUDED.kind = 'post_checkout' THEN public.auth_mail_retries.attempts
       ELSE 0 END,
-    next_attempt_at = CASE WHEN public.auth_mail_retries.given_up_at IS NULL THEN public.auth_mail_retries.next_attempt_at
+    -- A link still waiting out the buyer's return window (W336) must not delay the page's own short retry.
+    next_attempt_at = CASE WHEN public.auth_mail_retries.given_up_at IS NULL AND public.auth_mail_retries.last_error = 'awaiting_return'
+        THEN least(public.auth_mail_retries.next_attempt_at, EXCLUDED.next_attempt_at)
+      WHEN public.auth_mail_retries.given_up_at IS NULL THEN public.auth_mail_retries.next_attempt_at
       ELSE greatest(public.auth_mail_retries.next_attempt_at, EXCLUDED.next_attempt_at) END;
 $$;
 REVOKE EXECUTE ON FUNCTION public.queue_auth_mail_retry(text, text, jsonb, text, text) FROM PUBLIC, anon, authenticated;
@@ -4316,7 +4323,9 @@ ALTER TABLE public.payment_transactions
   ADD COLUMN transfer_mail_delivery_unknown boolean NOT NULL DEFAULT false,
   ADD COLUMN reminder_mail_delivery_unknown boolean NOT NULL DEFAULT false,
   ADD COLUMN cancelled_mail_delivery_unknown boolean NOT NULL DEFAULT false,
-  ADD COLUMN transfer_paid_mail_delivery_unknown boolean NOT NULL DEFAULT false;
+  ADD COLUMN transfer_paid_mail_delivery_unknown boolean NOT NULL DEFAULT false,
+  ADD COLUMN transfer_paid_mail_retry_at timestamptz,
+  ADD COLUMN transfer_paid_mail_attempts integer NOT NULL DEFAULT 0;
 
 
 CREATE OR REPLACE FUNCTION public.clear_outdated_order_notice_state()
@@ -4325,7 +4334,11 @@ BEGIN
   IF NEW.status NOT IN ('awaiting_payment', 'completed') THEN NEW.transfer_mail_delivery_unknown := false; END IF;
   IF NEW.status <> 'awaiting_payment' THEN NEW.reminder_mail_delivery_unknown := false; END IF;
   IF NEW.status <> 'cancelled' THEN NEW.cancelled_mail_delivery_unknown := false; END IF;
-  IF NEW.status <> 'completed' THEN NEW.transfer_paid_mail_delivery_unknown := false; END IF;
+  IF NEW.status <> 'completed' THEN
+    NEW.transfer_paid_mail_delivery_unknown := false;
+    NEW.transfer_paid_mail_retry_at := NULL;
+    NEW.transfer_paid_mail_attempts := 0;
+  END IF;
   RETURN NEW;
 END;
 $$;
@@ -4337,3 +4350,65 @@ CREATE TRIGGER clear_outdated_order_notice_state
 UPDATE public.payment_transactions SET status = status
 WHERE transfer_mail_delivery_unknown OR reminder_mail_delivery_unknown
   OR cancelled_mail_delivery_unknown OR transfer_paid_mail_delivery_unknown;
+
+-- ===== First access link for a guest who does not come back from the payment page (W336) =====
+-- The confirmation page sends a paying guest's first sign-in link. A paid order also schedules
+-- that link here, due after a return window, so a guest who closes the payment tab still gets
+-- it. A delivered link (by the page or by the queue) leaves a sent marker for both page languages
+-- (given_up_at + last_error 'sent'), so the buyer gets one mail whichever comes first; the marker
+-- keeps the order key (data->>'order'), so a payment Stripe redelivers after a failed fulfillment
+-- does not schedule the link again. Markers are purged with other closed rows after 7 days.
+CREATE FUNCTION public.schedule_post_checkout_mail(p_email text, p_redirects text[], p_data jsonb, p_delay_minutes integer)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+  v_email text := lower(btrim(p_email));
+  v_order text := nullif(p_data->>'order', '');
+  v_rows integer;
+BEGIN
+  IF coalesce(array_length(p_redirects, 1), 0) = 0 THEN RETURN false; END IF;
+  PERFORM pg_advisory_xact_lock(hashtext('post_checkout_mail:' || v_email));
+  -- This order already has its link pending or delivered.
+  IF v_order IS NOT NULL AND EXISTS (SELECT 1 FROM public.auth_mail_retries r WHERE r.email = v_email
+      AND r.kind = 'post_checkout' AND r.data->>'order' = v_order) THEN
+    RETURN false;
+  END IF;
+  -- A link pending, retried or sent in the last hour (any page language) already covers the order:
+  -- it takes the order key, so a later redelivery of this order is recognised after that hour too.
+  IF EXISTS (SELECT 1 FROM public.auth_mail_retries r WHERE r.email = v_email AND r.redirect_to = ANY(p_redirects)
+      AND (r.given_up_at IS NULL OR r.given_up_at > now() - interval '1 hour')) THEN
+    IF v_order IS NOT NULL THEN
+      UPDATE public.auth_mail_retries r SET data = r.data || jsonb_build_object('order', v_order)
+      WHERE r.email = v_email AND r.redirect_to = ANY(p_redirects) AND r.kind = 'post_checkout';
+    END IF;
+    RETURN false;
+  END IF;
+  INSERT INTO public.auth_mail_retries(email, redirect_to, data, kind, next_attempt_at, last_error)
+  VALUES (v_email, p_redirects[1], coalesce(p_data, '{}'::jsonb), 'post_checkout',
+    now() + make_interval(mins => least(greatest(coalesce(p_delay_minutes, 0), 0), 1440)), 'awaiting_return')
+  ON CONFLICT (email, redirect_to) DO UPDATE SET data = EXCLUDED.data, next_attempt_at = EXCLUDED.next_attempt_at,
+    last_error = EXCLUDED.last_error, given_up_at = NULL, attempts = 0
+    WHERE public.auth_mail_retries.kind = 'post_checkout';
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  RETURN v_rows > 0;
+END $$;
+REVOKE EXECUTE ON FUNCTION public.schedule_post_checkout_mail(text, text[], jsonb, integer) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.schedule_post_checkout_mail(text, text[], jsonb, integer) TO service_role;
+
+-- A post-payment link was delivered: every page-language variant becomes a sent marker. Purchase
+-- details are dropped; only the order key stays.
+CREATE FUNCTION public.mark_post_checkout_mail_sent(p_email text, p_redirects text[])
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+  v_email text := lower(btrim(p_email));
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtext('post_checkout_mail:' || v_email));
+  INSERT INTO public.auth_mail_retries(email, redirect_to, data, kind, next_attempt_at, last_error, given_up_at)
+  SELECT DISTINCT v_email, r.redirect_to, '{}'::jsonb, 'post_checkout', now(), 'sent', now()
+  FROM unnest(p_redirects) AS r(redirect_to) WHERE r.redirect_to IS NOT NULL
+  ON CONFLICT (email, redirect_to) DO UPDATE SET last_error = 'sent', given_up_at = now(),
+    data = CASE WHEN public.auth_mail_retries.data ? 'order'
+      THEN jsonb_build_object('order', public.auth_mail_retries.data->'order') ELSE '{}'::jsonb END
+    WHERE public.auth_mail_retries.kind = 'post_checkout';
+END $$;
+REVOKE EXECUTE ON FUNCTION public.mark_post_checkout_mail_sent(text, text[]) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.mark_post_checkout_mail_sent(text, text[]) TO service_role;

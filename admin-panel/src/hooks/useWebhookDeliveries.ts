@@ -1,10 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { api, ApiError, isExpectedApiError } from '@/lib/api/client';
 import { runBatch } from '@/lib/webhooks/batch-runner';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 import type { WebhookLog } from '@/types/webhooks';
 
 export type DeliveryFilter =
@@ -23,44 +24,49 @@ export function useWebhookDeliveries() {
 
   const [logs, setLogs] = useState<WebhookLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<DeliveryFilter>('permanently_failed');
+  const [filter, setFilterValue] = useState<DeliveryFilter>('permanently_failed');
+  const [cursors, setCursors] = useState<string[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [replayingId, setReplayingId] = useState<string | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
-  const latestRequestRef = useRef(0);
+  const cursor = cursors.at(-1);
+  const beginRequest = useLatestRequest(JSON.stringify([filter, cursor]));
 
-  const loadLogs = useCallback(async () => {
-    // Responses can arrive out of order (filter switch, remount, refresh after an
-    // action); only the newest request may write state, or a stale list replaces
-    // the current one and silently drops the user's selection.
-    const requestId = ++latestRequestRef.current;
+  const loadLogs = useCallback(async (refresh = false) => {
+    const isCurrent = beginRequest();
+    if (!isCurrent()) return;
+    if (refresh) setLoading(true);
     try {
-      const response = await api.list<WebhookLog>('webhooks/logs', { status: filter, limit: 50 });
-      if (requestId !== latestRequestRef.current) return;
+      const response = await api.list<WebhookLog>('webhooks/logs', { status: filter, limit: 50, cursor });
+      if (!isCurrent()) return;
       setLogs(response.data || []);
+      setNextCursor(response.pagination?.next_cursor ?? null);
     } catch (err) {
-      if (requestId !== latestRequestRef.current || isExpectedApiError(err)) return;
+      if (!isCurrent() || isExpectedApiError(err)) return;
       console.error('[useWebhookDeliveries] fetch failed', err);
       toast.error(t('loadError'));
     } finally {
-      if (requestId === latestRequestRef.current) setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
-  }, [filter, t]);
+  }, [filter, cursor, beginRequest, t]);
 
-  const [previousFilter, setPreviousFilter] = useState(filter);
-  if (previousFilter !== filter) {
-    setPreviousFilter(filter);
+  const goToPage = (pageCursors: string[]) => {
     setLoading(true);
-  }
+    setLogs([]);
+    setNextCursor(null);
+    setCursors(pageCursors);
+  };
 
-  const fetchLogs = useCallback(() => {
-    setLoading(true);
-    return loadLogs();
-  }, [loadLogs]);
+  const setFilter = (value: DeliveryFilter) => {
+    if (value === filter) return;
+    setFilterValue(value);
+    goToPage([]);
+  };
+
+  const fetchLogs = useCallback(() => loadLogs(true), [loadLogs]);
 
   useEffect(() => {
-    const requestState = latestRequestRef;
     loadLogs();
-    return () => { requestState.current++; };
   }, [loadLogs]);
 
   const replay = useCallback(
@@ -178,6 +184,14 @@ export function useWebhookDeliveries() {
     loading,
     filter,
     setFilter,
+    page: cursors.length + 1,
+    hasNextPage: nextCursor !== null,
+    nextPage: () => {
+      if (!loading && nextCursor) goToPage([...cursors, nextCursor]);
+    },
+    previousPage: () => {
+      if (!loading && cursors.length) goToPage(cursors.slice(0, -1));
+    },
     replay,
     forceRetry,
     cancel,

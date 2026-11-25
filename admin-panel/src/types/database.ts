@@ -2768,7 +2768,9 @@ export type Database = {
           transfer_details: Json | null
           transfer_mail_delivery_unknown: boolean
           transfer_mail_sent_at: string | null
+          transfer_paid_mail_attempts: number
           transfer_paid_mail_delivery_unknown: boolean
+          transfer_paid_mail_retry_at: string | null
           transfer_paid_mail_sent_at: string | null
           updated_at: string
           user_id: string | null
@@ -2836,7 +2838,9 @@ export type Database = {
           transfer_details?: Json | null
           transfer_mail_delivery_unknown?: boolean
           transfer_mail_sent_at?: string | null
+          transfer_paid_mail_attempts?: number
           transfer_paid_mail_delivery_unknown?: boolean
+          transfer_paid_mail_retry_at?: string | null
           transfer_paid_mail_sent_at?: string | null
           updated_at?: string
           user_id?: string | null
@@ -2904,7 +2908,9 @@ export type Database = {
           transfer_details?: Json | null
           transfer_mail_delivery_unknown?: boolean
           transfer_mail_sent_at?: string | null
+          transfer_paid_mail_attempts?: number
           transfer_paid_mail_delivery_unknown?: boolean
+          transfer_paid_mail_retry_at?: string | null
           transfer_paid_mail_sent_at?: string | null
           updated_at?: string
           user_id?: string | null
@@ -6694,6 +6700,10 @@ export type Database = {
         Returns: undefined
       }
       mark_expired_pending_payments: { Args: never; Returns: number }
+      mark_post_checkout_mail_sent: {
+        Args: { p_email: string; p_redirects: string[] }
+        Returns: undefined
+      }
       migrate_guest_payment_data_to_profile: {
         Args: { p_user_id: string }
         Returns: Json
@@ -7265,6 +7275,15 @@ export type Database = {
         }
         Returns: Json
       }
+      schedule_post_checkout_mail: {
+        Args: {
+          p_data: Json
+          p_delay_minutes: number
+          p_email: string
+          p_redirects: string[]
+        }
+        Returns: boolean
+      }
       search_order_accesses: {
         Args: { p_search: string }
         Returns: {
@@ -7381,7 +7400,9 @@ export type Database = {
           transfer_details: Json | null
           transfer_mail_delivery_unknown: boolean
           transfer_mail_sent_at: string | null
+          transfer_paid_mail_attempts: number
           transfer_paid_mail_delivery_unknown: boolean
+          transfer_paid_mail_retry_at: string | null
           transfer_paid_mail_sent_at: string | null
           updated_at: string
           user_id: string | null

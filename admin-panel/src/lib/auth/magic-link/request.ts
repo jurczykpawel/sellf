@@ -18,7 +18,7 @@ import { prepareFreeGrantRequest } from '@/lib/services/free-grant-context';
 import { allowMailToAddress, addressMailRetryAfterSeconds } from './address-limit';
 import { readBuyerEmailPolicy } from './buyer-email-policy';
 import { deliverMagicLink } from './deliver';
-import { queueAuthMailRetry } from './retry';
+import { markPostCheckoutMailSent, queueAuthMailRetry } from './retry';
 import type { AuthMailRetryKind } from './retry';
 import type { MagicLinkFlow, MagicLinkResult } from './types';
 
@@ -36,6 +36,7 @@ export interface MagicLinkRequestInput {
 
 export interface SendTrustedMagicLinkInput {
   transactionalOnly?: boolean;
+  paidTransferAccess?: true;
   freeGrant?: { productSlug: string; locale?: string; couponCode?: string; successUrl?: string; customFieldValues?: Record<string, string> };
   email: string;
   redirectTo: string;
@@ -47,9 +48,8 @@ export interface SendTrustedMagicLinkInput {
 /**
  * Delivers a magic link for a caller that has already proven trust through
  * another mechanism (a completed Stripe payment, an already-passed captcha
- * check upstream). Still per-email rate limited — a URL carrying a trusted
- * flag can be reloaded any number of times, and this is the only thing
- * standing between that and inbox flooding.
+ * check upstream). The inbox limit protects reloadable requests. Booked guest
+ * transfers use the order's durable notice reservation and Supabase Auth's limits.
  */
 export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Promise<MagicLinkResult> {
   if (isDemoMode()) return { ok: false, code: 'demo_mode' };
@@ -86,7 +86,7 @@ export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Pr
   const normalizedEmail = input.email.trim().toLowerCase();
 
   // Address variants that reach the same inbox (+tag, Gmail dots) share one daily limit.
-  const emailAllowed = await allowMailToAddress(normalizedEmail);
+  const emailAllowed = input.paidTransferAccess || await allowMailToAddress(normalizedEmail);
   // Past the per-address limit only a mail for a known purchase waits in the queue (the queue
   // delivers it once the limit allows); anything else is refused.
   const knownPurchase = input.retry === 'license' || (input.retry === 'post_checkout' && Boolean(input.data?.purchase_product));
@@ -109,6 +109,8 @@ export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Pr
     transactionalOnly: input.transactionalOnly,
     data,
   });
+  // The link reached the buyer: the access link a paid order scheduled for them must not follow (W336).
+  if (result.ok && input.retry === 'post_checkout') await markPostCheckoutMailSent(normalizedEmail, redirectTo);
   if (result.ok || !input.retry || (result.code !== 'rate_limited' && result.code !== 'send_failed')) return result;
   return queueAuthMailRetry({ email: normalizedEmail, redirectTo, data, kind: input.retry, code: result.code });
 }

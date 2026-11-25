@@ -376,7 +376,7 @@ export async function POST(request: NextRequest) {
         ? await getOrCreateStripeCustomer({
             email: finalEmail,
             userId: user?.id,
-          })
+          }, stripe)
         : undefined;
 
       // Manual VAT rate for local mode only; skipped for stripe_tax and VAT-exempt products.
@@ -939,7 +939,7 @@ export async function POST(request: NextRequest) {
     // arrive on submit). A Checkout Session's customer can't be set after creation, so it must
     // be attached here. Gated on stripe_tax → the local guest path is byte-identical.
     if (checkoutConfig.tax_mode === 'stripe_tax' && finalEmail) {
-      const taxCustomerId = await getOrCreateStripeCustomer({ email: finalEmail, userId: user?.id });
+      const taxCustomerId = await getOrCreateStripeCustomer({ email: finalEmail, userId: user?.id }, stripe);
       checkoutSessionParams.customer = taxCustomerId;
       delete checkoutSessionParams.customer_email; // Stripe rejects customer + customer_email together
     }

@@ -5,6 +5,7 @@ import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@t
 import { NextIntlClientProvider } from 'next-intl';
 import { useWebhooks } from '@/hooks/useWebhooks';
 import { useWebhookDeliveries } from '@/hooks/useWebhookDeliveries';
+import WebhookDeliveriesPageContent from '@/components/WebhookDeliveriesPageContent';
 import WebhookLogsDrawer from '@/components/WebhookLogsDrawer';
 import WebhookFailuresPanel from '@/components/WebhookFailuresPanel';
 import en from '@/messages/en.json';
@@ -45,6 +46,32 @@ describe('webhook delivery feedback', () => {
     expect(new URL(fetch.mock.calls[0][0], 'http://localhost').searchParams.get('endpoint_id')).toBe('endpoint');
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'failed' } });
     await waitFor(() => expect(fetch).toHaveBeenCalledWith(expect.stringContaining('status=all_failed'), expect.anything()));
+  });
+
+  it('requests the next page of deliveries and resets the cursor on a filter change', async () => {
+    const fetch = vi.fn(async (input: string) => {
+      const url = new URL(input, 'http://localhost');
+      const firstPage = url.pathname.endsWith('/logs') && !url.searchParams.has('cursor')
+        && url.searchParams.get('status') === 'permanently_failed';
+      return new Response(JSON.stringify({
+        data: [],
+        pagination: { next_cursor: firstPage ? 'earlier-deliveries' : null, has_more: firstPage },
+      }));
+    });
+    vi.stubGlobal('fetch', fetch);
+
+    render(React.createElement(WebhookDeliveriesPageContent), { wrapper });
+    fireEvent.click(await screen.findByRole('button', { name: 'Next page' }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/status=permanently_failed.*cursor=earlier-deliveries/),
+      expect.anything(),
+    ));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Success Only' }));
+    await waitFor(() => expect(fetch).toHaveBeenLastCalledWith(
+      '/api/v1/webhooks/logs?status=success&limit=50',
+      expect.anything(),
+    ));
   });
 
   it('includes scheduled and exhausted deliveries in the failures panel', async () => {

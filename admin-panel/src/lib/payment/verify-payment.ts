@@ -256,7 +256,8 @@ export function mapVerifiedPaymentToStatus(result: VerifiedPaymentShape): Mapped
     };
   }
 
-  if (result.is_guest_purchase && result.send_magic_link) {
+  // Booked subscription invoices already have a user ID before the buyer confirms their address.
+  if (result.send_magic_link && (result.is_guest_purchase || result.scenario === 'subscription_guest')) {
     return { paymentStatus: 'magic_link_sent', accessGranted: false, errorMessage: '' };
   }
 
@@ -523,8 +524,7 @@ export async function verifyPaymentSession(
       }
       if (user) return { ...baseResponse, access_granted: false, scenario: 'subscription' };
 
-      // Guest subscription: webhook still creates the access record (matched by
-      // email), but the buyer has no session cookie yet — show magic-link UI.
+      // The guest needs the confirmation link while the invoice is being fulfilled.
       return {
         ...baseResponse,
         access_granted: false,

@@ -945,5 +945,35 @@
   "15cc36947210bc4d281cefedb8450aef34b6c34e": [
     "custom-checkout.md",
     "bank-transfers.md"
+  ],
+  "f56d719e7e1a82b063620e889805e891163d83b0": [
+    "webhooks.md"
+  ],
+  "47a3b7048578cabd819b36e4dffe34c01788a7d9": [
+    "custom-checkout.md"
+  ],
+  "e49f5ac401dff88a8c98f66232888b23e6821cde": [
+    "custom-checkout.md"
+  ],
+  "482a9d726d8f1cbced8ff337c8eb8556dc3e6abd": [
+    "buyer-emails.md"
+  ],
+  "d582cd62ffe0ece843aefcc7184404beb56e9952": [
+    "configuration.md"
+  ],
+  "779126ce23717ba7a3b352d234f794da80833319": [
+    "bank-transfers.md"
+  ],
+  "b78f821bbed649c2e01c8db7e7287d4d6f857f36": [
+    "bank-transfers.md"
+  ],
+  "270096ce38e5402c2d4af673acc22cb37c16c472": [
+    "buyer-emails.md"
+  ],
+  "b8e236153713f7953c179676374ad3278120fa57": [
+    "buyer-emails.md"
+  ],
+  "2ce74e25b2ee4162852e4fa8014c0a513720ccf7": [
+    "none \u2014 upgrade.sh firewall warning no longer ends a finished update with exit 1; progress, messages and documented updater behaviour are unchanged."
   ]
 }

@@ -29,6 +29,8 @@ The first transfer-instructions email follows the access policy saved on the ord
 
 **Transfer after cancellation.** The system never revives a cancelled order on its own; the administrator decides. In the cancelled order's details Sellf shows a preview: the order price and today's price, the seats left in the session and in the order's price tier (or that acceptance goes over the limit) and the coupon state. The administrator then chooses **Accept late transfer at order price** (full amount, receipt date, reason) or **Do not accept**, which changes nothing: the order stays cancelled and the money is returned outside Sellf. Acceptance grants access again, re-uses the coupon even over its limit, records `order.reopened` in the audit log with the reason, and sends the `order.reopened` and `purchase.completed` webhooks. An order whose invoice was corrected cannot be reopened.
 
+After a late transfer is accepted, a guest receives a fresh sign-in link to claim the purchase. With buyer emails enabled, the same email confirms payment. If the send is refused, `fulfillment-resume` retries after 2, 4, 8… minutes, at most hourly. After 30 refused attempts (about a day) Sellf stops retrying and shows **delivery outcome unknown**, so the administrator decides whether to retry. Sellf reserves the email per order, independently of the daily sign-in link limit.
+
 **Accepting over the limit.** When the session or the order's price tier has no seat left, acceptance is a second, explicit decision: the panel enables the button only after **Accept over the limit** is ticked, and the server refuses it otherwise (`oversold_confirmation_required`). The order is then marked oversold and the audit entry records `oversold_confirmed`.
 
 **Via the API.** `GET /api/v1/payments/:id/late-transfer-preview` (`payments:read`) returns the same preview for a cancelled transfer order: `unitPrice` and `unitPriceToday` (major units), `amount` (minor units), `seats` (`remaining` in the session, `tierRemaining` in the order's price tier, `null` = unlimited, `quantity`, `oversold`, `started`), `coupon` and `invoiceCorrected`; 404 for any other order. Accept with `POST /api/v1/payments/:id/mark-paid` (`payments:write`) and `{"amount", "paidAt", "acceptCancelled": true, "reason"}`; when `seats.oversold` is true also send `"acceptOversold": true`, otherwise the answer is **409** `CONFLICT` with `error.details.code: ["oversold_confirmation_required"]` (other refusals, e.g. a wrong amount, stay 400 `VALIDATION_ERROR`).
@@ -49,7 +51,7 @@ Cancellation removes the access period granted by that transfer, including when 
 
 The signed public transfer receipt wraps long transfer references on narrow screens and in print, preserving the complete title and account details.
 
-Each transfer notice is reserved before delivery, so concurrent payment handlers and recovery attempts send one notice for that order event. A refused send can be retried. If the delivery outcome is unknown, automatic retry is held to avoid replacing an already delivered sign-in link; the buyer can request a fresh sign-in link.
+Sellf reserves each transfer notice before contacting the mail provider. Only one concurrent attempt can reserve the same notice. A refused send can be retried. If the delivery outcome is unknown, automatic retry is held to avoid replacing an already delivered sign-in link; the buyer can request a fresh sign-in link.
 
 After a successful transfer declaration the receipt refreshes its reservation heading and payment instructions from the saved order. Printing uses that updated deadline too. A declaration after the deadline does not extend it.
 
@@ -59,4 +61,4 @@ If the mail provider does not confirm the outcome, payment details show **delive
 
 The API v1 payment list and details include notice reservation times: `transfer_mail_sent_at`, `reminder_mail_sent_at`, `cancelled_mail_sent_at` and `transfer_paid_mail_sent_at`. Together with the `*_delivery_unknown` flags and current status, these determine whether a retry is available.
 
-Declining a late transfer shows one confirmation that the order remains cancelled.
+Declining a late transfer shows one confirmation that the order remains cancelled. **Accept after all** reopens the acceptance form. Payment operation errors appear in the transfer section.

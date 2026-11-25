@@ -47,6 +47,16 @@ dzięki czemu kilka instalacji może korzystać z jednego konta Stripe. Zwykle n
 Wartość w złym formacie zatrzymuje płatności z błędem. Szczegóły i oba przypadki
 przenosin: [Jedno konto Stripe dla kilku instalacji](/pl/webhooks/#jedno-konto-stripe-dla-kilku-instalacji).
 
+Gdy zalogowany kupujący rozpoczyna nową płatność wymagającą identyfikatora klienta
+Stripe, Sellf sprawdza zapisany identyfikator na skonfigurowanym koncie Stripe lub
+w sandboxie. Jeśli Stripe zgłosi, że klient nie istnieje lub został usunięty,
+albo klient ma znacznik innej instalacji lub identyfikator innego kupującego,
+Sellf tworzy klienta dla tej instalacji i zapisuje go na potrzeby kolejnych
+płatności. Istniejące subskrypcje i płatności zachowują dotychczasowe identyfikatory
+Stripe. Jeśli zmieniasz `SELLF_INSTANCE_ID`, wpisz poprzedni znacznik do
+`SELLF_INSTANCE_ALIASES`; inaczej klienci założeni pod starym znacznikiem zostaną
+zastąpieni nowymi przy ich najbliższej płatności.
+
 ## Adres wewnętrzny endpointu MCP
 
 `/api/mcp` przekazuje każde wywołanie narzędzia do tego samego serwera pod `/api/v1`,

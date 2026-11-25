@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { Product } from '@/types';
 import { formatPrice } from '@/lib/constants';
 import { formatRecurringProductPrice } from '@/lib/product-pricing-display';
@@ -163,10 +163,28 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
   // Dropdown state — position:fixed panel anchored to the ⋯ button
   // ---------------------------------------------------------------------------
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
-  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
-  const [dropdownTriggerId, setDropdownTriggerId] = useState<string | null>(null);
-  const dropdownAnchor = useRef<DOMRect | null>(null);
+  const dropdownTrigger = useRef<HTMLButtonElement>(null);
   const dropdownPanel = useRef<HTMLDivElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedMenu = useRef<HTMLDivElement | null>(null);
+  const trackFocusedMenu = useCallback((menu: HTMLDivElement | null) => {
+    if (!menu) return;
+    return () => {
+      if (menu.contains(document.activeElement)) previouslyFocusedMenu.current = menu;
+    };
+  }, []);
+
+  if (openDropdownId && (error || !products.some(product => product.id === openDropdownId))) {
+    setOpenDropdownId(null);
+  }
+
+  useLayoutEffect(() => {
+    const menu = previouslyFocusedMenu.current;
+    previouslyFocusedMenu.current = null;
+    if (menu && !menu.isConnected && document.activeElement === document.body) {
+      resultsRef.current?.focus();
+    }
+  });
 
   const handleToggleDropdown = (productId: string, e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -174,16 +192,13 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
       setOpenDropdownId(null);
       return;
     }
-    setDropdownTriggerId(e.currentTarget.id);
-    dropdownAnchor.current = e.currentTarget.getBoundingClientRect();
-    setDropdownStyle({ position: 'fixed', visibility: 'hidden', zIndex: 9999 });
     setOpenDropdownId(productId);
   };
 
   // Place the panel once its height is known: below the button when it fits,
   // otherwise above it, always clamped to the viewport (scrolls inside when taller).
   useLayoutEffect(() => {
-    const anchor = dropdownAnchor.current;
+    const anchor = dropdownTrigger.current?.getBoundingClientRect();
     const panel = dropdownPanel.current;
     if (!openDropdownId || !anchor || !panel) return;
     const margin = 8;
@@ -196,32 +211,31 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
       : Math.max(margin, Math.min(anchor.top - gap - height, window.innerHeight - margin - height));
     // align right edge of dropdown with right edge of button, never past the left edge
     const right = Math.max(margin, window.innerWidth - anchor.right);
-    setDropdownStyle({ position: 'fixed', top, right, maxHeight, zIndex: 9999 });
-  }, [openDropdownId]);
+    Object.assign(panel.style, {
+      top: `${top}px`, right: `${right}px`, maxHeight: `${maxHeight}px`, visibility: 'visible',
+    });
+  }, [openDropdownId, products]);
   const endIndex = Math.min(startIndex + products.length - 1, totalItems);
 
   const sortProps = { sortBy, sortOrder, onSort };
 
-  if (loading) {
-    return (
+  let content;
+  if (loading && products.length === 0) {
+    content = (
       <div className="text-center py-10">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sf-accent mx-auto"></div>
         <p className="mt-4 text-sf-body">{t('loadingProducts')}</p>
       </div>
     );
-  }
-
-  if (error) {
-    return (
+  } else if (error) {
+    content = (
       <div className="bg-sf-danger-soft border border-sf-danger text-sf-danger px-4 py-3" role="alert">
         <strong className="font-bold">{t('error')}:</strong>
         <span className="block sm:inline"> {error}</span>
       </div>
     );
-  }
-
-  if (products.length === 0) {
-    return (
+  } else if (products.length === 0) {
+    content = (
       <div className="text-center py-10 bg-sf-base border-2 border-sf-border-medium">
         <h3 className="text-lg font-semibold text-sf-heading">{t('noProducts')}</h3>
         <p className="mt-2 text-sm text-sf-muted">
@@ -229,10 +243,8 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
         </p>
       </div>
     );
-  }
-
-  return (
-    <div className="flex flex-col">
+  } else {
+    content = (
       <div>
         <div className="overflow-x-auto border-2 border-sf-border-medium sm:bg-sf-base">
             <table className="min-w-full divide-y divide-sf-border-subtle">
@@ -455,9 +467,10 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                         </button>
 
                         {/* ── More actions ⋯ ──────────────────────────────── */}
-                        <div className="relative">
+                        <div className="relative" ref={openDropdownId === product.id ? trackFocusedMenu : undefined}>
                           <button
                             id={`product-more-${product.id}`}
+                            ref={openDropdownId === product.id ? dropdownTrigger : undefined}
                             onClick={(e) => handleToggleDropdown(product.id, e)}
                             className={`p-1.5 rounded transition-colors ${
                               openDropdownId === product.id
@@ -478,11 +491,10 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                           {openDropdownId === product.id && (
                             <div
                               ref={dropdownPanel}
-                              style={dropdownStyle}
-                              className="bg-sf-raised border border-sf-border rounded-lg shadow-[var(--sf-shadow-accent)] overflow-y-auto"
+                              className="invisible fixed z-[9999] bg-sf-raised border border-sf-border rounded-lg shadow-[var(--sf-shadow-accent)] overflow-y-auto"
                             >
                               <ActionsDropdown
-                                openerId={dropdownTriggerId}
+                                openerId={`product-more-${product.id}`}
                                 onClose={() => setOpenDropdownId(null)}
                                 items={product.archived_at ? [
                                   {
@@ -626,6 +638,19 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
             </div>
         </div>
       </div>
+    );
+  }
+
+  return (
+    <div
+      ref={resultsRef}
+      role="region"
+      aria-label={t('title')}
+      tabIndex={-1}
+      aria-busy={loading}
+      className={`flex flex-col ${loading && products.length > 0 ? 'opacity-50' : ''}`}
+    >
+      {content}
     </div>
   );
 };

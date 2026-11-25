@@ -1,0 +1,19 @@
+{
+  "object": "checkout.session",
+  "livemode": false,
+  "mode": "subscription",
+  "status": "complete",
+  "payment_status": "paid",
+  "amount_total": 1700,
+  "currency": "pln",
+  "created": 1795587822,
+  "expires_at": 1795674222,
+  "id": "cs_test_recordedBookedGuest",
+  "invoice": "in_recordedBookedGuest",
+  "customer_details": {
+    "email": "booked-guest@example.com"
+  },
+  "metadata": {
+    "locale": "pl"
+  }
+}

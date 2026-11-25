@@ -12,6 +12,7 @@
  */
 
 import { describe, it, expect, afterAll, beforeAll } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import { getOrCreateStripeCustomer } from '@/lib/stripe/customer';
@@ -139,6 +140,30 @@ describe.skipIf(!canRun)('getOrCreateStripeCustomer', () => {
     // Sanity: only one Stripe customer for this email
     const search = await stripe!.customers.list({ email, limit: 10 });
     expect(search.data.map((c) => c.id)).toContain(first);
+  });
+
+  it('replaces a missing customer once across simultaneous checkouts', async () => {
+    const email = uniqueEmail('missing');
+    const userId = await createAuthUser(email);
+    const missing = `cus_${randomUUID().replaceAll('-', '')}`;
+    await expect(stripe!.customers.retrieve(missing)).rejects.toMatchObject({ statusCode: 404, code: 'resource_missing' });
+    const inserted = await supabaseSeller!.from('stripe_customers').insert({ user_id: userId, stripe_customer_id: missing });
+    expect(inserted.error).toBeNull();
+
+    const results = await Promise.allSettled([1, 2, 3].map(() => getOrCreateStripeCustomer({ email, userId })));
+    const customers = await stripe!.customers.list({ email });
+    for (const customer of customers.data) createdStripeCustomerIds.add(customer.id);
+    const ids = results.map(result => {
+      if (result.status === 'rejected') throw result.reason;
+      return result.value;
+    });
+    expect(ids[0]).not.toBe(missing);
+    expect(new Set(ids).size).toBe(1);
+    expect(customers.data).toHaveLength(1);
+    const mapping = await supabaseSeller!.from('stripe_customers').select('stripe_customer_id').eq('user_id', userId).single();
+    expect(mapping.error).toBeNull();
+    expect(mapping.data?.stripe_customer_id).toBe(ids[0]);
+    expect(customers.data[0]).toMatchObject({ id: ids[0], email, metadata: { sellf_user_id: userId } });
   });
 
   it('rejects invalid input', async () => {

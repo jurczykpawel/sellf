@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const policyRetry = vi.hoisted(() => vi.fn(async () => ({ ok: false as const, code: 'send_failed' as const, queued: true as const })));
-vi.mock('@/lib/auth/magic-link/retry', () => ({ queueAuthMailRetry: policyRetry }));
+const markPostCheckoutMailSent = vi.hoisted(() => vi.fn(async () => undefined));
+vi.mock('@/lib/auth/magic-link/retry', () => ({ queueAuthMailRetry: policyRetry, markPostCheckoutMailSent }));
 const buyerPolicy = vi.hoisted(() => vi.fn(async (): Promise<boolean | null> => false));
 vi.mock('@/lib/auth/magic-link/buyer-email-policy', () => ({ readBuyerEmailPolicy: buyerPolicy }));
 const eventMailForSlug = vi.hoisted(() => vi.fn(async () => ({ purchase_product: 'Course' } as Record<string,string>)));
@@ -37,6 +38,7 @@ describe('requestMagicLink', () => {
   beforeEach(() => {
     vi.stubEnv('DEMO_MODE', 'false');
     deliverMagicLink.mockReset();
+    markPostCheckoutMailSent.mockClear();
     verifyCaptchaToken.mockReset();
     validateEmailAction.mockReset();
     checkRateLimit.mockReset();
@@ -174,6 +176,9 @@ describe('requestMagicLink', () => {
           encodeURIComponent('/auth/product-access?product=widget'),
       }),
     );
+    // The access link a paid order scheduled for this buyer is not sent a second time (W336).
+    expect(markPostCheckoutMailSent).toHaveBeenCalledWith('buyer@example.com',
+      'https://shop.example.com/auth/callback?redirect_to=' + encodeURIComponent('/auth/product-access?product=widget'));
   });
 
   it.each(['en', 'pl'])('preserves %s guest checkout locale through delivery', async locale => {

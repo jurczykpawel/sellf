@@ -9,6 +9,7 @@ import { handleChargeDispute } from '@/app/api/webhooks/stripe/dispute-handlers'
 import { issuedInvoice, issueInvoiceForTransaction } from '@/lib/invoicing/service';
 import { snapshotFromRows } from '@/lib/orders/local-tax';
 import { mailOrderLicenses } from '@/lib/license-keys/license-mail';
+import { scheduleGuestAccessMail } from '@/lib/auth/magic-link/retry';
 import { issueLicensesForOrder, resolveComponentProductIds } from '@/lib/services/bundle-order';
 import { buildPurchaseWebhookPayload } from '@/lib/services/webhook-payload';
 import { captureAndPersistOrderTax } from '@/lib/services/tax-snapshot';
@@ -74,6 +75,17 @@ export async function fulfillPaidOrder(args: ProviderFulfillmentInput | StripeFu
     productIds: [...productIds], email: tx.customer_email || args.customerEmail,
     userId: tx.user_id, orderId: orderKey, customFieldValues,
   });
+  if (provider.kind === 'stripe' && !licenses.length) {
+    // A guest who closes the payment tab never reaches the confirmation page that sends the first
+    // access link, so the paid order schedules it (W336); a license mail carries its own link. Before
+    // the outbound webhooks: a failure here leaves the order pending, so purchase.completed and the
+    // invoice wait until Stripe redelivers the payment (or verify-payment retries it); the order key
+    // keeps that retry from scheduling a second link.
+    const { data: product, error: productError } = await args.supabase.from('products').select('slug').eq('id', args.productId).single();
+    if (productError || !product) throw new Error('Order product unavailable');
+    await scheduleGuestAccessMail(args.supabase, { email: tx.customer_email || args.customerEmail, productSlug: product.slug,
+      locale: metadata.locale === 'pl' ? 'pl' : 'en', order: orderKey });
+  }
   const taxSnapshot = provider.kind === 'offline' ? snapshotFromRows(items ?? []) : await captureAndPersistOrderTax({
     stripe: provider.stripe, supabase: args.supabase, transactionId: tx.id,
     sessionId: tx.session_id, paymentIntentId: provider.paymentIntentId ?? null,
