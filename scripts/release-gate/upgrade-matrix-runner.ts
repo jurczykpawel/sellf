@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { randomUUID, createHash } from 'node:crypto';
+import { closeSync, openSync } from 'node:fs';
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -32,26 +33,25 @@ function check(value: unknown, message: string): void {
   assert(value, message); assertions++; console.log(`PASS ${message}`);
 }
 async function run(command: string, args: string[], cwd = root, extraEnv: Record<string, string> = {}): Promise<string> {
-  const log = resolve(scratch, `command-${randomUUID()}.log`);
+  const base = resolve(scratch, `command-${randomUUID()}`);
   console.log(`STEP ${command} ${args[0] ?? ''}`);
+  // Output goes to files, not pipes: under Bun on the Linux runner `tar -tzf` (700 KB listing) never returned
+  // through a pipe (GHA 45601171032, 45608564708, 45615750196); on macOS the same call takes 0.5 s.
+  const outFd = openSync(`${base}.out`, 'w', 0o600);
+  const errFd = openSync(`${base}.err`, 'w', 0o600);
   return new Promise((accept, reject) => {
-    // stdin is an empty pipe, not 'ignore': under Bun on the Linux runner `tar -tzf` (which forks gzip) never
-    // finished with an ignored stdin (GHA 45601171032, 45608564708); on macOS the same call takes 0.5 s.
-    const child = spawn(command, args, { cwd, env: { ...process.env, ...extraEnv }, stdio: ['pipe', 'pipe', 'pipe'] });
-    child.stdin.end();
-    let output = '';
-    let stdout = '';
-    let stderr = '';
-    // A hung step must surface as an error naming it (GHA 45601171032 stalled 25 min inside `tar -tzf`).
-    const timer = setTimeout(() => { console.log(`STEP-TIMEOUT ${command} ${args[0] ?? ''} stderr: ${stderr.slice(-160).replace(/\s+/g, ' ')}`); child.kill('SIGKILL'); reject(new Error(`${command} timed out`)); }, 10 * 60_000);
-    child.stdout.on('data', chunk => { stdout += chunk; output += chunk; });
-    child.stderr.on('data', chunk => { output += chunk; stderr += chunk; });
-    child.on('error', reject);
-    child.on('close', async code => {
+    const child = spawn(command, args, { cwd, env: { ...process.env, ...extraEnv }, stdio: ['ignore', outFd, errFd] });
+    closeSync(outFd); closeSync(errFd);
+    const timer = setTimeout(() => { console.log(`STEP-TIMEOUT ${command} ${args[0] ?? ''}`); child.kill('SIGKILL'); reject(new Error(`${command} timed out`)); }, 10 * 60_000);
+    child.on('error', error => { clearTimeout(timer); reject(error); });
+    child.on('exit', async code => {
       clearTimeout(timer);
+      const stdout = await readFile(`${base}.out`, 'utf8');
+      const output = stdout + await readFile(`${base}.err`, 'utf8');
       const safeOutput = output.replace(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g, '[redacted]').replace(/sb_(?:secret|publishable)_[\w-]+/g, '[redacted]');
-      await writeFile(log, safeOutput, { mode: 0o600 });
-      if (code !== 0) reject(new Error(`${command} failed (${code}); private log: ${log}`));
+      await writeFile(`${base}.log`, safeOutput, { mode: 0o600 });
+      await rm(`${base}.out`, { force: true }); await rm(`${base}.err`, { force: true });
+      if (code !== 0) reject(new Error(`${command} failed (${code}); private log: ${base}.log`));
       else accept(stdout);
     });
   });

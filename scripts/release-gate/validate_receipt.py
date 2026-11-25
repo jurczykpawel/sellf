@@ -9,7 +9,7 @@ import sys
 
 MAX_TEST_IDS = 40
 MAX_TEXT = 200
-MAX_MESSAGE = 300
+MAX_MESSAGE = 1200
 CREDENTIAL = re.compile(r'(sk|pk|rk|whsec|sb_secret|sb_publishable|sf_live|sf_test)_[A-Za-z0-9_-]+|eyJ[A-Za-z0-9_.-]+')
 PRIVATE_REFERENCE = re.compile(
     r'(?<!\S)\S*[/\\]\S*|(?:data:|mailto:|www\.)\S+|(?<![\w.+-])[\w.+-]+@[\w.-]+\.[a-z]{2,}',

@@ -122,9 +122,14 @@ def candidate_stack():
     record('prepare-source-stack', 0)
     if run('start', [CLI, 'start', '--workdir', str(STACK)], retried=True):
         # Runner-side start failures happen (GHA 45608564708, chromium-2of6): publish the CLI's last line, retry once.
-        tail = (OUT / 'start.log').read_text(errors='replace').strip().splitlines()[-1:]
-        record('start-error', 0, steps=[public_message(line) for line in tail])
+        lines = [line for line in (OUT / 'start.log').read_text(errors='replace').splitlines() if line.strip()]
+        record('start-error', 0, steps=[public_message(line) for line in lines[-4:]])
         run('start-reset', [CLI, 'stop', '--no-backup', '--workdir', str(STACK)])
+        # `stop` cannot clean a stack that never registered; remove this project's leftovers before retrying.
+        names = subprocess.run(['docker', 'ps', '-aq', '--filter', 'name=_sellf-rcgate'], capture_output=True, text=True).stdout.split()
+        if names:
+            run('start-leftovers', ['docker', 'rm', '-f', '-v', *names])
+        time.sleep(30)
         require('start-retry', [CLI, 'start', '--workdir', str(STACK)])
     configure()
 

@@ -69,7 +69,7 @@ class ReceiptTests(unittest.TestCase):
     def test_failure_messages_reject_paths_addresses_and_credentials(self):
         valid = {'name': 'chromium-failures', 'exit': 0, 'testIds': [], 'testErrors': ['line 3: Timeout 5000ms http://localhost:3777/en']}
         self.assertEqual(self.validate(json.dumps(valid)).returncode, 0)
-        for message in ('see /home/runner/work/a.log', 'mail a@example.com', 'sk_' + 'test_diagnostic_marker', 'x' * 301):
+        for message in ('see /home/runner/work/a.log', 'mail a@example.com', 'sk_' + 'test_diagnostic_marker', 'x' * 1201):
             with self.subTest(message=message):
                 result = self.validate(json.dumps({**valid, 'testErrors': [message]}))
                 self.assertEqual(result.returncode, 1)
