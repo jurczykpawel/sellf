@@ -124,6 +124,23 @@ bun run tttt           # supabase db reset + API integration + all Playwright E2
 - `*.test.ts` — Vitest unit/integration tests (in `tests/unit/`, `tests/api/`, `tests/config/`)
 - `*.spec.ts` — Playwright E2E tests (in `tests/` root and `tests/smoke/`)
 
+### Test isolation (MANDATORY for every new or touched test)
+
+The full release gate runs ~2,100 tests against ONE shared database, after earlier stages have filled it.
+In 2026.11.1 six gate runs in a row (r17–r22) went red on a single test each, mostly tests that read
+other tests' data; each red cost a fix package plus a 2–4 h re-run. A reviewer rejects a test that:
+
+- picks "the first active product/user/order" (or any row without `ORDER BY` on its own key) instead of
+  creating its own fixture with a unique slug/email and looking it up by that key;
+- assumes its row is on page 1 of a list (limit 100, newest first) — query by id or filter by its own key;
+- calls the public internet (example.com, public DNS, trycloudflare without the local resolver helper) —
+  use the local webhook receiver/tunnel helpers;
+- clicks before hydration or relies on fixed sleeps — wait for the app's ready marker / network response;
+- leaves global state (settings, flags, rate-limit buckets) changed without restoring it in `afterEach`.
+
+When a gate test goes red because of another test's data, fix the whole class (grep for the same
+pattern in other specs), not just the one test.
+
 ### Database reset + run all tests (one-liner from admin-panel/)
 
 ```bash
