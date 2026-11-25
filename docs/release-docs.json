@@ -972,5 +972,8 @@
   ],
   "b8e236153713f7953c179676374ad3278120fa57": [
     "buyer-emails.md"
+  ],
+  "2ce74e25b2ee4162852e4fa8014c0a513720ccf7": [
+    "none \u2014 upgrade.sh firewall warning no longer ends a finished update with exit 1; progress, messages and documented updater behaviour are unchanged."
   ]
 }
