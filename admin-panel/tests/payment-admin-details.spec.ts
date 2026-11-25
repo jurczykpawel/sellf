@@ -2,12 +2,23 @@
 import { randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { test, expect } from '@playwright/test';
+import type { Locator } from '@playwright/test';
 import { loginAsAdmin, supabaseAdmin as db } from './helpers/admin-auth';
 import { getTestDatabaseContainer } from './helpers/database-container';
 import { deleteAuthUsers } from './helpers/db-cleanup';
 import pl from '@/messages/pl.json';
 
 async function checked<T>({ data, error }: { data: T; error: unknown }): Promise<NonNullable<T>> { if (error) throw error; return data!; }
+/**
+ * Each section of the details dialog (event, partner, attribution, invoices, license) loads through its own
+ * server action, and Next.js runs a page's server actions one at a time, after the dashboard's own ones. On a
+ * loaded runner the answer that renders a section comes well over 5 s after the dialog opens (trace: 14 actions
+ * in a row). Wait for the section's content to be rendered, bounded by the test timeout.
+ */
+async function rendered(locator: Locator): Promise<Locator> {
+  await locator.waitFor({ state: 'visible' });
+  return locator;
+}
 const now = new Date().toISOString();
 let partnerUser: string, productId: string, txId: string, order: number, member: string, coupon: string, rule: string, binding: string, commission: string;
 test.describe.configure({ mode: 'serial' });
@@ -67,11 +78,11 @@ test('seller sees partner, reserved session, purchase time and manual correction
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText('Data i godzina zakupu')).toBeVisible();
   const partner = dialog.getByRole('region',{ name: 'Partner',exact:true });
-  await expect(partner.getByText('Workshop partner')).toBeVisible();
+  await expect(await rendered(partner.getByText('Workshop partner'))).toBeVisible();
   await expect(partner.getByText('15%')).toBeVisible();
   await expect(partner.getByText('Naliczona',{exact:true})).toBeVisible();
   const event = dialog.getByRole('region',{ name: 'Wydarzenie',exact:true });
-  await expect(event.getByText('Workshop room')).toBeVisible();
+  await expect(await rendered(event.getByText('Workshop room'))).toBeVisible();
   await expect(event.getByText(/Early seats/)).toBeVisible();
   await expect(event.getByText(/Europe\/Warsaw/)).toBeVisible();
   await expect(event.getByText('Zwolniona',{exact:true})).toBeVisible();
@@ -91,13 +102,13 @@ test('license action follows product configuration and opens the specific issued
   await checked(await db.from('products').update({ issue_license_on_purchase: true, license_tier: 'business' }).eq('id',productId).select());
   await loginAsAdmin(page,'demo@sellf.app','demo123');
   await page.goto(`/pl/dashboard/payments?order=${order}`);
-  await expect(page.getByRole('link',{name:pl.admin.payments.transactions.issueLicense,exact:true})).toBeVisible();
+  await expect(await rendered(page.getByRole('link',{name:pl.admin.payments.transactions.issueLicense,exact:true}))).toBeVisible();
   const admin = await checked(await db.from('admin_users').select('user_id').limit(1).single());
   const license = await checked(await db.from('issued_licenses').insert({ product_id: productId, seller_id: admin.user_id, original_seller_id: admin.user_id, email: 'details@example.com', order_id: txId, kid: 'details-fixture', license_key: 'fixture', issuance_source: 'purchase' }).select('id').single());
   try {
     await page.reload();
     const link = page.getByRole('link',{name:pl.admin.payments.transactions.licenseIssued,exact:true});
-    await expect(link).toHaveAttribute('href',`/dashboard/licenses?license=${license.id}`);
+    await expect(await rendered(link)).toHaveAttribute('href',`/dashboard/licenses?license=${license.id}`);
     await expect(page.getByRole('link',{name:pl.admin.payments.transactions.issueLicense,exact:true})).toHaveCount(0);
     const response = await page.request.get(`/api/admin/licenses?licenseId=${license.id}`);
     expect(response.status()).toBe(200);
