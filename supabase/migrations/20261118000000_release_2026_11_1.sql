@@ -4337,3 +4337,47 @@ CREATE TRIGGER clear_outdated_order_notice_state
 UPDATE public.payment_transactions SET status = status
 WHERE transfer_mail_delivery_unknown OR reminder_mail_delivery_unknown
   OR cancelled_mail_delivery_unknown OR transfer_paid_mail_delivery_unknown;
+
+-- ===== First access link for a guest who does not come back from the payment page (W336) =====
+-- The confirmation page sends a paying guest's first sign-in link. A paid order also schedules
+-- that link here, due after a return window, so a guest who closes the payment tab still gets
+-- it. A link the page sends leaves a sent marker (given_up_at + last_error 'sent'), so the buyer
+-- gets one mail whichever comes first; the marker is purged with other closed rows after 7 days.
+CREATE FUNCTION public.schedule_post_checkout_mail(p_email text, p_redirects text[], p_data jsonb, p_delay_minutes integer)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+  v_email text := lower(btrim(p_email));
+  v_rows integer;
+BEGIN
+  IF coalesce(array_length(p_redirects, 1), 0) = 0 THEN RETURN false; END IF;
+  PERFORM pg_advisory_xact_lock(hashtext('post_checkout_mail:' || v_email));
+  -- A link pending, retried or sent in the last hour (any page language) already covers the order.
+  IF EXISTS (SELECT 1 FROM public.auth_mail_retries r WHERE r.email = v_email AND r.redirect_to = ANY(p_redirects)
+      AND (r.given_up_at IS NULL OR r.given_up_at > now() - interval '1 hour')) THEN
+    RETURN false;
+  END IF;
+  INSERT INTO public.auth_mail_retries(email, redirect_to, data, kind, next_attempt_at, last_error)
+  VALUES (v_email, p_redirects[1], coalesce(p_data, '{}'::jsonb), 'post_checkout',
+    now() + make_interval(mins => least(greatest(coalesce(p_delay_minutes, 0), 0), 1440)), 'awaiting_return')
+  ON CONFLICT (email, redirect_to) DO UPDATE SET data = EXCLUDED.data, next_attempt_at = EXCLUDED.next_attempt_at,
+    last_error = EXCLUDED.last_error, given_up_at = NULL, attempts = 0
+    WHERE public.auth_mail_retries.kind = 'post_checkout';
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  RETURN v_rows > 0;
+END $$;
+REVOKE EXECUTE ON FUNCTION public.schedule_post_checkout_mail(text, text[], jsonb, integer) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.schedule_post_checkout_mail(text, text[], jsonb, integer) TO service_role;
+
+CREATE FUNCTION public.mark_post_checkout_mail_sent(p_email text, p_redirect_to text)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+  v_email text := lower(btrim(p_email));
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtext('post_checkout_mail:' || v_email));
+  INSERT INTO public.auth_mail_retries(email, redirect_to, data, kind, next_attempt_at, last_error, given_up_at)
+  VALUES (v_email, p_redirect_to, '{}'::jsonb, 'post_checkout', now(), 'sent', now())
+  ON CONFLICT (email, redirect_to) DO UPDATE SET data = '{}'::jsonb, last_error = 'sent', given_up_at = now()
+    WHERE public.auth_mail_retries.kind = 'post_checkout';
+END $$;
+REVOKE EXECUTE ON FUNCTION public.mark_post_checkout_mail_sent(text, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.mark_post_checkout_mail_sent(text, text) TO service_role;

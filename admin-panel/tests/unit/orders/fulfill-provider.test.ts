@@ -3,9 +3,10 @@ import { fulfillPaidOrder } from '@/lib/services/fulfill-paid-order';
 import { deriveOrderId } from '@/lib/services/webhook-service';
 import type Stripe from 'stripe';
 
-const mocks = vi.hoisted(() => ({ licenses: vi.fn(), trigger: vi.fn(), capture: vi.fn(), dispute: vi.fn(), licenseMail: vi.fn(), order: [] as string[] }));
+const mocks = vi.hoisted(() => ({ licenses: vi.fn(), trigger: vi.fn(), capture: vi.fn(), dispute: vi.fn(), licenseMail: vi.fn(), schedule: vi.fn(), order: [] as string[] }));
 vi.mock('@/lib/events/mail', () => ({ purchaseEventMail: async () => ({}) }));
 vi.mock('@/lib/license-keys/license-mail', () => ({ mailOrderLicenses: mocks.licenseMail }));
+vi.mock('@/lib/auth/magic-link/retry', () => ({ scheduleGuestAccessMail: mocks.schedule }));
 vi.mock('@/app/api/webhooks/stripe/dispute-handlers', () => ({ handleChargeDispute: mocks.dispute }));
 vi.mock('@/lib/services/bundle-order', () => ({
   resolveComponentProductIds: vi.fn(async () => []), issueLicensesForOrder: mocks.licenses,
@@ -42,6 +43,26 @@ it.each(['pi_order', null])('identifies the saved order and explicit minor-unit 
   const payload = mocks.trigger.mock.calls[0][1];
   expect(payload).toMatchObject({ amountUnit: 'minor', customer: { email: tx.customer_email }, product: { price: 12300, net: null, tax: null }, order: { orderId: tx.id, orderNumber: 1001, amount: 12300, grossTotal: 12300, taxSnapshotStatus: 'unavailable', sessionId: 'cs_order', paymentIntentId } });
   expect(mocks.licenses.mock.calls[0][1].orderId).toBe(paymentIntentId ?? 'cs_order');
+});
+
+it('a paid Stripe order schedules the first access link before the outbound webhooks (W336)', async () => {
+  mocks.schedule.mockImplementation(async () => { expect(mocks.trigger).not.toHaveBeenCalled(); return true; });
+  await fulfillPaidOrder({ ...common(), stripe: {} as Stripe, sessionId: 'cs_order', metadata: { locale: 'pl' } });
+  expect(mocks.schedule).toHaveBeenCalledWith(expect.anything(), { email: tx.customer_email, productSlug: 'course', locale: 'pl' });
+  expect(mocks.trigger).toHaveBeenCalled();
+});
+
+it('a license mail or a transfer order needs no scheduled access link (W336)', async () => {
+  mocks.licenses.mockResolvedValueOnce([{ productId: 'product', token: 'payload.signature' }]);
+  await fulfillPaidOrder({ ...common(), stripe: {} as Stripe, sessionId: 'cs_order' });
+  await fulfillPaidOrder({ ...common(), provider: { kind: 'offline' } });
+  expect(mocks.schedule).not.toHaveBeenCalled();
+});
+
+it('a failed schedule keeps the order pending before any outbound webhook (W336)', async () => {
+  mocks.schedule.mockRejectedValueOnce(new Error('Access mail schedule unavailable'));
+  await expect(fulfillPaidOrder({ ...common(), stripe: {} as Stripe, sessionId: 'cs_order' })).rejects.toThrow('Access mail schedule unavailable');
+  expect(mocks.trigger).not.toHaveBeenCalled();
 });
 
 it('fulfills offline from saved rows using the transaction delivery and license key', async () => {

@@ -27,6 +27,9 @@ const run = crypto.randomUUID().slice(0, 8);
 const emails: string[] = [];
 const rows = (email: string) => db.from('auth_mail_retries').select('*').eq('email', email);
 const due = (email: string) => db.from('auth_mail_retries').update({ next_attempt_at: new Date(Date.now() - 1000).toISOString() }).eq('email', email);
+// The worker claims every due row in the shared database: count only this test's own address.
+const callsFor = (email: string) => deliverMagicLink.mock.calls.filter(([input]) => input.email === email);
+const lastCallFor = (email: string) => callsFor(email).at(-1)?.[0];
 const paidLink = (email: string) => requestMagicLink({ email, captchaToken: 'ok', flow: 'post_checkout', productSlug: 'course', locale: 'pl' });
 
 beforeEach(() => {
@@ -51,7 +54,7 @@ describe('auth mail retry @J292', () => {
     await due(email);
     deliverMagicLink.mockResolvedValue({ ok: true });
     await runAuthMailRetries(db);
-    expect(deliverMagicLink).toHaveBeenLastCalledWith(expect.objectContaining({ email, redirectTo: parked[0].redirect_to, data: parked[0].data }));
+    expect(lastCallFor(email)).toEqual(expect.objectContaining({ email, redirectTo: parked[0].redirect_to, data: parked[0].data }));
     expect((await rows(email)).data).toEqual([]);
   });
 
@@ -68,7 +71,7 @@ describe('auth mail retry @J292', () => {
     await due(email);
     deliverMagicLink.mockResolvedValue({ ok: true });
     await runAuthMailRetries(db);
-    expect(deliverMagicLink).toHaveBeenLastCalledWith(expect.objectContaining({ email, data: { locale: 'pl' } }));
+    expect(lastCallFor(email)).toEqual(expect.objectContaining({ email, data: { locale: 'pl' } }));
   });
 
   it('a parked link whose purchase never appears leaves the queue after the waiting window, without polling @J292', async () => {
@@ -79,7 +82,7 @@ describe('auth mail retry @J292', () => {
     await db.from('auth_mail_retries').update({ created_at: new Date(Date.now() - 2 * 3_600_000).toISOString(), next_attempt_at: new Date(Date.now() - 1000).toISOString() }).eq('email', email);
 
     await runAuthMailRetries(db);
-    expect(deliverMagicLink).not.toHaveBeenCalled();
+    expect(callsFor(email)).toHaveLength(0);
     expect(eventMailForSlug).toHaveBeenLastCalledWith(email, 'course', 'pl', { wait: false });
     expect((await rows(email)).data).toEqual([]);
   });
@@ -134,7 +137,7 @@ describe('auth mail retry @J292', () => {
       deliverMagicLink.mockResolvedValue({ ok: true });
       deliverMagicLink.mockClear();
       await runAuthMailRetries(db);
-      expect(deliverMagicLink).not.toHaveBeenCalled();
+      expect(callsFor(email)).toHaveLength(0);
       expect((await rows(email)).data).toEqual([]);
       const meta = (await db.auth.admin.getUserById(user.data.user!.id)).data.user!.user_metadata;
       expect(meta.license_key).toBeUndefined();

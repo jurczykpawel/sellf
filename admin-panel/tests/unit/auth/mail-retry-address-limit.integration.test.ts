@@ -26,6 +26,8 @@ const run = crypto.randomUUID().slice(0, 8);
 const emails: string[] = [];
 const redirectTo = buildPostCheckoutMagicLinkRedirect({ origin: 'https://shop.example.com', productSlug: 'course', locale: 'pl', sessionId: undefined, paymentIntentId: undefined });
 const purchase = { purchase_product: 'Course', purchase_amount: '10 PLN' };
+// The worker claims every due row in the shared database: count only this test's own address.
+const callsFor = (email: string) => deliverMagicLink.mock.calls.filter(([input]) => input.email === email);
 const paidLink = (email: string) => sendTrustedMagicLink({ retry: 'post_checkout', email, redirectTo, data: { ...purchase, locale: 'pl' } });
 
 beforeEach(() => {
@@ -45,12 +47,12 @@ describe('daily per-address limit on queued purchase mails @J292', () => {
     const email = `retry-limit-${run}@example.com`; emails.push(email);
     for (let i = 0; i < 5; i++) expect(await paidLink(email)).toEqual({ ok: true });
     expect(await paidLink(email)).toEqual({ ok: false, code: 'rate_limited', queued: true });
-    expect(deliverMagicLink).toHaveBeenCalledTimes(5);
+    expect(callsFor(email)).toHaveLength(5);
 
     await db.from('auth_mail_retries').update({ next_attempt_at: new Date(Date.now() - 1000).toISOString() }).eq('email', email);
     await runAuthMailRetries(db);
 
-    expect(deliverMagicLink).toHaveBeenCalledTimes(5);
+    expect(callsFor(email)).toHaveLength(5);
     const [row] = (await db.from('auth_mail_retries').select('*').eq('email', email)).data!;
     expect(row).toMatchObject({ given_up_at: null, attempts: 0, last_error: 'rate_limited' });
     expect(new Date(row.next_attempt_at).getTime()).toBeGreaterThan(Date.now() + 20 * 3_600_000);

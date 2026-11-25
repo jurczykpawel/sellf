@@ -10012,6 +10012,27 @@ COMMENT ON FUNCTION public.mark_expired_pending_payments() IS '@graphql({"includ
 
 
 --
+-- Name: mark_post_checkout_mail_sent(text, text); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.mark_post_checkout_mail_sent(p_email text, p_redirect_to text) RETURNS void
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+DECLARE
+  v_email text := lower(btrim(p_email));
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtext('post_checkout_mail:' || v_email));
+  INSERT INTO public.auth_mail_retries(email, redirect_to, data, kind, next_attempt_at, last_error, given_up_at)
+  VALUES (v_email, p_redirect_to, '{}'::jsonb, 'post_checkout', now(), 'sent', now())
+  ON CONFLICT (email, redirect_to) DO UPDATE SET data = '{}'::jsonb, last_error = 'sent', given_up_at = now()
+    WHERE public.auth_mail_retries.kind = 'post_checkout';
+END $$;
+
+
+ALTER FUNCTION public.mark_post_checkout_mail_sent(p_email text, p_redirect_to text) OWNER TO postgres;
+
+--
 -- Name: migrate_guest_payment_data_to_profile(uuid); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -12705,6 +12726,38 @@ $$;
 
 
 ALTER FUNCTION public.save_template_credential(template_id text, encrypted_key text, encryption_iv text, encryption_tag text, actor_user_id uuid, actor_method text, actor_api_key_id uuid) OWNER TO postgres;
+
+--
+-- Name: schedule_post_checkout_mail(text, text[], jsonb, integer); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.schedule_post_checkout_mail(p_email text, p_redirects text[], p_data jsonb, p_delay_minutes integer) RETURNS boolean
+    LANGUAGE plpgsql SECURITY DEFINER
+    SET search_path TO ''
+    AS $$
+DECLARE
+  v_email text := lower(btrim(p_email));
+  v_rows integer;
+BEGIN
+  IF coalesce(array_length(p_redirects, 1), 0) = 0 THEN RETURN false; END IF;
+  PERFORM pg_advisory_xact_lock(hashtext('post_checkout_mail:' || v_email));
+  -- A link pending, retried or sent in the last hour (any page language) already covers the order.
+  IF EXISTS (SELECT 1 FROM public.auth_mail_retries r WHERE r.email = v_email AND r.redirect_to = ANY(p_redirects)
+      AND (r.given_up_at IS NULL OR r.given_up_at > now() - interval '1 hour')) THEN
+    RETURN false;
+  END IF;
+  INSERT INTO public.auth_mail_retries(email, redirect_to, data, kind, next_attempt_at, last_error)
+  VALUES (v_email, p_redirects[1], coalesce(p_data, '{}'::jsonb), 'post_checkout',
+    now() + make_interval(mins => least(greatest(coalesce(p_delay_minutes, 0), 0), 1440)), 'awaiting_return')
+  ON CONFLICT (email, redirect_to) DO UPDATE SET data = EXCLUDED.data, next_attempt_at = EXCLUDED.next_attempt_at,
+    last_error = EXCLUDED.last_error, given_up_at = NULL, attempts = 0
+    WHERE public.auth_mail_retries.kind = 'post_checkout';
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  RETURN v_rows > 0;
+END $$;
+
+
+ALTER FUNCTION public.schedule_post_checkout_mail(p_email text, p_redirects text[], p_data jsonb, p_delay_minutes integer) OWNER TO postgres;
 
 --
 -- Name: search_order_accesses(text); Type: FUNCTION; Schema: public; Owner: postgres
@@ -24012,6 +24065,8 @@ function | public.mark_checkout_details_missing() | postgres | EXECUTE | postgre
 function | public.mark_checkout_details_missing() | service_role | EXECUTE | postgres | -
 function | public.mark_expired_pending_payments() | postgres | EXECUTE | postgres | -
 function | public.mark_expired_pending_payments() | service_role | EXECUTE | postgres | -
+function | public.mark_post_checkout_mail_sent(p_email text, p_redirect_to text) | postgres | EXECUTE | postgres | -
+function | public.mark_post_checkout_mail_sent(p_email text, p_redirect_to text) | service_role | EXECUTE | postgres | -
 function | public.migrate_guest_payment_data_to_profile(p_user_id uuid) | postgres | EXECUTE | postgres | -
 function | public.migrate_guest_payment_data_to_profile(p_user_id uuid) | service_role | EXECUTE | postgres | -
 function | public.migrate_guest_purchases(p_user_id uuid, p_email text) | postgres | EXECUTE | postgres | -
@@ -24154,6 +24209,8 @@ function | public.save_invoicing_config(p_settings jsonb, p_token jsonb, p_perfo
 function | public.save_invoicing_config(p_settings jsonb, p_token jsonb, p_performed_by uuid) | service_role | EXECUTE | postgres | -
 function | public.save_template_credential(template_id text, encrypted_key text, encryption_iv text, encryption_tag text, actor_user_id uuid, actor_method text, actor_api_key_id uuid) | postgres | EXECUTE | postgres | -
 function | public.save_template_credential(template_id text, encrypted_key text, encryption_iv text, encryption_tag text, actor_user_id uuid, actor_method text, actor_api_key_id uuid) | service_role | EXECUTE | postgres | -
+function | public.schedule_post_checkout_mail(p_email text, p_redirects text[], p_data jsonb, p_delay_minutes integer) | postgres | EXECUTE | postgres | -
+function | public.schedule_post_checkout_mail(p_email text, p_redirects text[], p_data jsonb, p_delay_minutes integer) | service_role | EXECUTE | postgres | -
 function | public.search_order_accesses(p_search text) | postgres | EXECUTE | postgres | -
 function | public.search_order_accesses(p_search text) | service_role | EXECUTE | postgres | -
 function | public.search_order_leads(p_search text) | postgres | EXECUTE | postgres | -
