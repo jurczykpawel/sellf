@@ -108,7 +108,7 @@ Wyłączenie produktu zachowuje zakup w **Moich produktach**, ale wstrzymuje dos
 
 Zamknięcie okna sprzedaży (`available_until`) zatrzymuje nowe zakupy; kupujący z ważnym dostępem zachowują stronę produktu, chronioną treść, bramkę logowania i bramki elementów. Goście, osoby bez dostępu i z wygasłym dostępem nie otworzą zamkniętej oferty. Wstrzymanie i archiwizacja zachowują opisane wyżej działanie.
 
-Na liście produktów **Escape** zamyka menu **Więcej akcji** i przywraca fokus na jego przycisku, również wtedy, gdy fokus był na akcji wewnątrz menu.
+Na liście produktów **Escape** zamyka menu **Więcej akcji** i przywraca fokus na jego przycisku, również wtedy, gdy fokus był na akcji wewnątrz menu. Jeśli po odświeżeniu listy produkt nadal jest w wynikach, fokus pozostaje na jego przycisku.
 
 ## Dostęp z kilku zakupów
 

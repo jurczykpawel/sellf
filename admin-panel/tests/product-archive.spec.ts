@@ -75,7 +75,7 @@ test.afterAll(async () => {
 });
 
 test('deleting a sold product moves it to the archive and restore brings it back inactive @J600', async ({ page }) => {
-  const name = `Archive Archiwum ${Date.now()}`;
+  const name = `Archive Archiwum ${crypto.randomUUID()}`;
   const product = await soldProduct(name);
   await openProducts(page, name);
   await expect(page.locator('tr').filter({ hasText: name })).toBeVisible();
@@ -117,7 +117,7 @@ test('deleting a sold product moves it to the archive and restore brings it back
 });
 
 test('permanent delete from the archive lists the kept records and keeps the order and license @J601', async ({ page }) => {
-  const name = `Archive Trwale ${Date.now()}`;
+  const name = `Archive Trwale ${crypto.randomUUID()}`;
   const product = await soldProduct(name);
   const buyer = await createTestUser('archive-perm-buyer');
   expect((await supabaseAdmin.from('user_product_access').insert({ user_id: buyer.userId, product_id: product.id, grant_source: 'purchase' })).error).toBeNull();
@@ -156,7 +156,7 @@ test('permanent delete from the archive lists the kept records and keeps the ord
 });
 
 test('a buyer keeps the content of an archived product while the public no longer sees it @J603', async ({ page, browser }) => {
-  const name = `Archive Kupujacy ${Date.now()}`;
+  const name = `Archive Kupujacy ${crypto.randomUUID()}`;
   const product = await soldProduct(name);
   const { data: row } = await supabaseAdmin.from('products').select('slug').eq('id', product.id).single();
   const buyer = await createTestUser('archive-buyer');
@@ -184,7 +184,7 @@ test('a buyer keeps the content of an archived product while the public no longe
 
 for (const state of ['unsold', 'sold', 'archived']) {
   test(`bundle component ${state} cannot be removed in the panel or API @J602`, async ({ page }) => {
-    const name = `Component ${state} ${Date.now()}`;
+    const name = `Component ${state} ${crypto.randomUUID()}`;
     const component = await soldProduct(name);
     if (state === 'unsold') {
       expect((await supabaseAdmin.from('issued_licenses').delete().eq('id', component.licenseId)).error).toBeNull();
@@ -251,7 +251,7 @@ for (const locale of ['en', 'pl']) {
 }
 
 test('Escape closes product actions and returns focus to the trigger @J600', async ({ page }) => {
-  const name = `Keyboard actions ${Date.now()}`;
+  const name = `Keyboard actions ${crypto.randomUUID()}`;
   await soldProduct(name); await openProducts(page, name);
   const trigger = page.locator('tr').filter({ hasText: name }).locator('button[aria-expanded]');
   for (const focusItem of [false, true]) {

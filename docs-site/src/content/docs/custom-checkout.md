@@ -107,7 +107,7 @@ Pausing a product keeps the buyer's purchase in **My products**, but stops acces
 
 Closing a sale window (`available_until`) prevents new purchases; buyers with valid access keep the product page, protected content, login wall and element gates. Anonymous visitors, buyers without access and expired grants cannot open the closed offer. Pausing and archiving retain the behavior described above.
 
-In the product list, **Escape** closes the **More actions** menu and returns focus to its button, including when an action inside the menu has focus.
+In the product list, **Escape** closes the **More actions** menu and returns focus to its button, including when an action inside the menu has focus. If the product stays in the results when the list refreshes, focus stays on its button.
 
 ## Access from several purchases
 
