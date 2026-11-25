@@ -66,3 +66,15 @@ for (const kind of ['products', 'users'] as const) {
     expect(result.current.loading).toBe(false);
   });
 }
+
+it('shows products as loading on the first render and clears loading for an empty result', async () => {
+  list.mockResolvedValueOnce({ data: [] });
+  const { result } = renderHook(() => useProducts());
+
+  expect(result.current.products).toEqual([]);
+  expect(result.current.loading).toBe(true);
+
+  await act(async () => { await result.current.fetchProducts(); });
+  expect(result.current.products).toEqual([]);
+  expect(result.current.loading).toBe(false);
+});

@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { Product } from '@/types';
 import { formatPrice } from '@/lib/constants';
 import { formatRecurringProductPrice } from '@/lib/product-pricing-display';
@@ -165,6 +165,26 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const dropdownTrigger = useRef<HTMLButtonElement>(null);
   const dropdownPanel = useRef<HTMLDivElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedMenu = useRef<HTMLDivElement | null>(null);
+  const trackFocusedMenu = useCallback((menu: HTMLDivElement | null) => {
+    if (!menu) return;
+    return () => {
+      if (menu.contains(document.activeElement)) previouslyFocusedMenu.current = menu;
+    };
+  }, []);
+
+  if (openDropdownId && (error || !products.some(product => product.id === openDropdownId))) {
+    setOpenDropdownId(null);
+  }
+
+  useLayoutEffect(() => {
+    const menu = previouslyFocusedMenu.current;
+    previouslyFocusedMenu.current = null;
+    if (menu && !menu.isConnected && document.activeElement === document.body) {
+      resultsRef.current?.focus();
+    }
+  });
 
   const handleToggleDropdown = (productId: string, e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -199,26 +219,23 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
 
   const sortProps = { sortBy, sortOrder, onSort };
 
+  let content;
   if (loading && products.length === 0) {
-    return (
+    content = (
       <div className="text-center py-10">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sf-accent mx-auto"></div>
         <p className="mt-4 text-sf-body">{t('loadingProducts')}</p>
       </div>
     );
-  }
-
-  if (error) {
-    return (
+  } else if (error) {
+    content = (
       <div className="bg-sf-danger-soft border border-sf-danger text-sf-danger px-4 py-3" role="alert">
         <strong className="font-bold">{t('error')}:</strong>
         <span className="block sm:inline"> {error}</span>
       </div>
     );
-  }
-
-  if (products.length === 0) {
-    return (
+  } else if (products.length === 0) {
+    content = (
       <div className="text-center py-10 bg-sf-base border-2 border-sf-border-medium">
         <h3 className="text-lg font-semibold text-sf-heading">{t('noProducts')}</h3>
         <p className="mt-2 text-sm text-sf-muted">
@@ -226,10 +243,8 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
         </p>
       </div>
     );
-  }
-
-  return (
-    <div className="flex flex-col" aria-busy={loading}>
+  } else {
+    content = (
       <div>
         <div className="overflow-x-auto border-2 border-sf-border-medium sm:bg-sf-base">
             <table className="min-w-full divide-y divide-sf-border-subtle">
@@ -452,7 +467,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                         </button>
 
                         {/* ── More actions ⋯ ──────────────────────────────── */}
-                        <div className="relative">
+                        <div className="relative" ref={openDropdownId === product.id ? trackFocusedMenu : undefined}>
                           <button
                             id={`product-more-${product.id}`}
                             ref={openDropdownId === product.id ? dropdownTrigger : undefined}
@@ -623,6 +638,19 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
             </div>
         </div>
       </div>
+    );
+  }
+
+  return (
+    <div
+      ref={resultsRef}
+      role="region"
+      aria-label={t('title')}
+      tabIndex={-1}
+      aria-busy={loading}
+      className={`flex flex-col ${loading && products.length > 0 ? 'opacity-50' : ''}`}
+    >
+      {content}
     </div>
   );
 };
