@@ -127,6 +127,28 @@ function buildArchive(build: (fixtureDir: string) => void = (dir) => writeFileSy
   return archive;
 }
 
+/**
+ * Builds a tar.gz holding one regular file stored under `entryName` exactly as
+ * given. Python's tarfile writes the name verbatim on every platform; BSD tar
+ * needs `-s` and GNU tar `--transform` plus `-P` (it strips `../` prefixes
+ * otherwise), so a tar-based rename would differ between macOS and Linux.
+ */
+function buildArchiveWithEntryName(entryName: string): string {
+  const archive = path.join(uniqueDir('fixture'), 'sellf-build.tar.gz');
+  const script = [
+    'import io, sys, tarfile',
+    'data = b"hi"',
+    'info = tarfile.TarInfo(sys.argv[2])',
+    'info.size = len(data)',
+    'with tarfile.open(sys.argv[1], "w:gz") as tar:',
+    '    tar.addfile(info, io.BytesIO(data))',
+  ].join('\n');
+  execFileSync('python3', ['-I', '-c', script, archive, entryName]);
+  const stored = execFileSync('tar', ['-tzf', archive], { encoding: 'utf8' }).trim();
+  if (stored !== entryName) throw new Error(`Fixture stored "${stored}" instead of "${entryName}"`);
+  return archive;
+}
+
 function writeManifest(dir: string, content: string): string {
   const manifest = path.join(dir, 'sellf-build.manifest');
   writeFileSync(manifest, content);
@@ -474,25 +496,16 @@ describe('upgrade.sh release verification (extracted verbatim from scripts/upgra
     });
 
     it('rejects an archive entry whose path would extract outside the target directory, even with a correct checksum', async () => {
-      const parent = uniqueDir('fixture');
-      execFileSync('mkdir', ['-p', path.join(parent, 'content')]);
-      writeFileSync(path.join(parent, 'content', 'evil.txt'), 'hi');
-      const archive = path.join(parent, 'sellf-build.tar.gz');
-      // Rewrite the stored entry name to escape the extraction root without
-      // needing a real file outside the fixture directory.
-      execFileSync('tar', ['-s', ',evil.txt,../evil.txt,', '-czf', archive, '-C', parent, path.join('content', 'evil.txt')]);
+      // A stored entry name that escapes the extraction root, without needing
+      // a real file outside the fixture directory.
+      const archive = buildArchiveWithEntryName('content/../evil.txt');
       await expectRejection(runHarness(buildRelease({ archive })), 'Security: archive contains an unsafe path');
     });
 
     it('rejects an archive entry whose path ends in a bare parent-dir segment (no trailing slash after it), even with a correct checksum', async () => {
-      const parent = uniqueDir('fixture');
-      execFileSync('mkdir', ['-p', path.join(parent, 'content')]);
-      writeFileSync(path.join(parent, 'content', 'evil.txt'), 'hi');
-      const archive = path.join(parent, 'sellf-build.tar.gz');
-      // Rewrite the stored entry name to end in "/.." — e.g. "public/.." —
-      // which the earlier `*/../*` pattern misses because nothing follows
-      // the "..".
-      execFileSync('tar', ['-s', ',evil.txt,public/..,', '-czf', archive, '-C', parent, path.join('content', 'evil.txt')]);
+      // A stored entry name ending in "/.." — e.g. "public/.." — which the
+      // earlier `*/../*` pattern misses because nothing follows the "..".
+      const archive = buildArchiveWithEntryName('content/public/..');
       await expectRejection(runHarness(buildRelease({ archive })), 'Security: archive contains an unsafe path');
     });
 
