@@ -41,7 +41,10 @@ test('paid subscription delivers its license, full refund ends management and a 
     expect(mail.Subject).toBe('Twój klucz licencyjny: Final subscription workshop');
     expect(mail.HTML).toContain(license.data!.license_key);
     await acceptAllCookies(page); await setAuthSession(page,email,password);
+    // The panel renders its rows only after GET /api/subscriptions answers; under load that alone outlasts a 5 s window.
+    const subscriptionsLoaded = page.waitForResponse(r => new URL(r.url()).pathname === '/api/subscriptions' && r.request().method() === 'GET');
     await page.goto('/pl/my-purchases');
+    expect((await subscriptionsLoaded).status()).toBe(200);
     await expect(page.getByRole('button',{name:'Anuluj subskrypcję'})).toBeVisible();
     const tx = await db.from('payment_transactions').select('stripe_payment_intent_id,subscription_id').eq('product_id',productId).single(); expect(tx.error).toBeNull();
     expect(tx.data!.stripe_payment_intent_id).toBeTruthy();
