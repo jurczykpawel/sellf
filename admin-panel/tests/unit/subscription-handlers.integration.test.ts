@@ -541,6 +541,8 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
     const inv2 = makeFakeInvoice(subStripe.id, customer.id, email, { billing_reason: 'subscription_cycle' });
     const r2 = await handleInvoicePaid(inv2, supabaseSeller as never, platformClient as never, stripeShim);
     expect(r2.processed).toBe(true);
+    // A buyer with a confirmed account signs in as usual: no scheduled access link (W336).
+    expect((await platformClient!.from('auth_mail_retries').select('id').eq('email', email.toLowerCase())).data).toEqual([]);
 
     const { data: rows } = await supabaseSeller!
       .from('payment_transactions')
@@ -552,6 +554,33 @@ describe.skipIf(!canRun)('Subscription webhook handlers (integration)', () => {
       p_email: email.toLowerCase(),
     });
     if (typeof userId === 'string') createdAuthUserIds.push(userId);
+  });
+
+  it('handleInvoicePaid schedules one access link for a guest on the first invoice only (W336)', async () => {
+    const email = `guest-first-${crypto.randomUUID()}@sellf-test.local`;
+    const product = await createSubscriptionProduct();
+    const customer = await stripe!.customers.create({ email });
+    createdStripeCustomerIds.push(customer.id);
+    const subStripe = makeFakeSubscription(customer.id, product.id);
+    const stripeShim = { ...stripe!, subscriptions: { ...stripe!.subscriptions, retrieve: async () => subStripe }, customers: stripe!.customers } as unknown as Stripe;
+    const scheduled = () => platformClient!.from('auth_mail_retries').select('kind,given_up_at,next_attempt_at,data').eq('email', email);
+    try {
+      await handleSubscriptionCreated(subStripe, supabaseSeller as never, platformClient as never, stripeShim);
+      expect((await scheduled()).data).toEqual([]);
+      const inv1 = makeFakeInvoice(subStripe.id, customer.id, email);
+      expect((await handleInvoicePaid(inv1, supabaseSeller as never, platformClient as never, stripeShim)).processed).toBe(true);
+      const first = await scheduled();
+      expect(first.data).toHaveLength(1);
+      expect(first.data![0]).toMatchObject({ kind: 'post_checkout', given_up_at: null, data: { order: inv1.id } });
+      expect(Date.parse(first.data![0].next_attempt_at)).toBeGreaterThan(Date.now());
+      const inv2 = makeFakeInvoice(subStripe.id, customer.id, email, { billing_reason: 'subscription_cycle' });
+      expect((await handleInvoicePaid(inv2, supabaseSeller as never, platformClient as never, stripeShim)).processed).toBe(true);
+      expect((await scheduled()).data).toEqual(first.data);
+    } finally {
+      expect((await platformClient!.from('auth_mail_retries').delete().eq('email', email)).error).toBeNull();
+      const { data: userId } = await platformClient!.rpc('find_user_id_by_email', { p_email: email });
+      if (typeof userId === 'string') createdAuthUserIds.push(userId);
+    }
   });
 
   it('handleSubscriptionUpdated mirrors status + cancel_at_period_end into DB', async () => {

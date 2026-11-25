@@ -17,6 +17,7 @@ import { isDemoMode, DEMO_MODE_ERROR } from '@/lib/demo-guard';
 import { WebhookService } from '@/lib/services/webhook-service';
 import { normalizePurchaseEmail } from '@/lib/checkout/normalize-email';
 import { purchaseEventMail } from '@/lib/events/mail';
+import { scheduleGuestAccessMail } from '@/lib/auth/magic-link/retry';
 import { mailOrderLicenses } from '@/lib/license-keys/license-mail';
 import { issueLicense } from '@/lib/license-keys/issue';
 import { revokeLicensesForOrder } from '@/lib/license-keys/revoke';
@@ -1089,6 +1090,7 @@ export async function handleInvoicePaid(
     });
     if (license) await mailOrderLicenses(supabase, { email: ctx.email, userId: ctx.userId,
       locale: sub.metadata.locale === 'pl' ? 'pl' : 'en', mailData: await purchaseEventMail(ctx.email, ctx.productId, invoice.id, undefined, sub.metadata.locale === 'pl' ? 'pl' : 'en', { allowPending: true }), licenses: [{ productId: ctx.productId, token: license.token }] });
+    return Boolean(license);
   };
 
   // Insert payment_transactions row (idempotent via UNIQUE on stripe_invoice_id).
@@ -1177,7 +1179,16 @@ export async function handleInvoicePaid(
     // orderId = invoice.id — unique per period, so each renewal gets its own
     // token while the UNIQUE(order_id, product_id) constraint keeps it idempotent
     // on webhook retries. A thrown failure propagates so Stripe redelivers the event.
-    await issueRenewalLicense();
+    const licenseMailed = await issueRenewalLicense();
+    // A guest who closes the payment tab never reaches the confirmation page that sends the first
+    // access link, so the first paid invoice schedules it (W336); a license mail carries its own link.
+    if (!licenseMailed && invoice.billing_reason === 'subscription_create') {
+      try {
+        await scheduleGuestAccessMail(supabase, { email: ctx.email, productSlug: ctx.product.slug, locale: sub.metadata.locale === 'pl' ? 'pl' : 'en', order: invoice.id! });
+      } catch (error) {
+        return { processed: false, message: error instanceof Error ? error.message : 'Access mail schedule unavailable' };
+      }
+    }
   }
 
   // VAT order-level snapshot for this renewal invoice: net/tax/status on the tx row +

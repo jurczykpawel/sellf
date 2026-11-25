@@ -276,6 +276,7 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
     await remove('products', 'id', ids);
     if (couponId) await remove('coupons', 'id', [couponId]);
     if (bankConfig) expect((await db.from('bank_transfer_config').update(bankConfig).eq('id', true)).error).toBeNull();
+    await remove('auth_mail_retries', 'email', [email]);
     await deleteAuthUserByEmail(db, email);
     for (const id of customerIds) await stripe.customers.del(id);
   }

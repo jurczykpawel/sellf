@@ -161,6 +161,7 @@ async function cleanup(s: Scenario): Promise<void> {
     await remove('coupons', 'id', [s.coupon.id]);
   }
   await remove('products', 'id', s.productIds);
+  await remove('auth_mail_retries', 'email', [s.email]);
   await deleteAuthUserByEmail(supabaseAdmin, s.email);
 }
 
@@ -509,7 +510,7 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
           const cron = await page.request.get('/api/cron?job=auth-mail-retry',{headers:{Authorization:`Bearer ${process.env.CRON_SECRET}`}});
           expect(cron.ok()).toBe(true);
           expect(await searchMessages(s.email)).toHaveLength(1);
-          await expect.poll(async ()=>(await rows('auth_mail_retries','email',s.email)).length,{timeout:30000}).toBe(0);
+          await expect.poll(async ()=>(await rows('auth_mail_retries','email',s.email)).filter(row=>row.last_error!=='sent').length,{timeout:30000}).toBe(0);
           await expect(page.getByText(/mail server is busy/i)).toHaveCount(0);
         }
         const magicLink = extractMagicLink(message.HTML || message.Text || '');

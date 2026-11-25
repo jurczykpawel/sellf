@@ -2,12 +2,15 @@
  * Durable retry for purchase mails sent through Supabase Auth (post-payment login link, free-license
  * key). A refused send (send limit, cooldown, transient failure) is parked in auth_mail_retries and
  * the minute cron (`job=auth-mail-retry`) delivers it with backoff, so the buyer still gets the mail
- * after closing the page (W147-8, W147-9).
+ * after closing the page (W147-8, W147-9). A paid guest order also schedules the first access link
+ * here, for a buyer who never reaches the confirmation page (W336).
  * @see supabase/migrations/20261110235907_release_2026_11_0_attribution_mail_analytics.sql
  * @see src/app/api/cron/route.ts
  */
 import 'server-only';
 
+import { buildPostCheckoutMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
+import { getSellfBaseUrl } from '@/lib/embed/checkout-embed';
 import { eventMailForSlug } from '@/lib/events/mail';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { ADDRESS_MAIL_WINDOW_MINUTES, allowMailToAddress } from './address-limit';
@@ -23,6 +26,10 @@ export const AUTH_MAIL_MAX_ATTEMPTS = 6;
 const BACKOFF_MINUTES = [5, 15, 30, 60, 120];
 /** A post-payment link whose purchase is still not stored after this long is dropped (the purchase mail covers a real one). */
 const PURCHASE_PENDING_WINDOW_MS = 30 * 60_000;
+/** Minutes a paying guest has to come back from the payment page before the first access link is sent without them (W336). */
+export const GUEST_ACCESS_MAIL_DELAY_MINUTES = 10;
+/** Marks a link scheduled by a paid order, as opposed to one the confirmation page parked. */
+const ACCESS_FALLBACK_FLAG = 'access_fallback';
 
 interface QueueInput {
   email: string;
@@ -44,6 +51,61 @@ export async function queueAuthMailRetry(input: QueueInput): Promise<MagicLinkRe
   return { ok: false, code: input.code, queued: true };
 }
 
+function postCheckoutRedirect(productSlug: string, locale: 'pl' | 'en'): string {
+  return buildPostCheckoutMagicLinkRedirect({ origin: getSellfBaseUrl(), productSlug, locale, sessionId: undefined, paymentIntentId: undefined });
+}
+
+/** Product slug a post-payment link leads to, or undefined for a link without a product. */
+function postCheckoutSlug(redirectTo: string): string | undefined {
+  try {
+    const destination = new URL(redirectTo).searchParams.get('redirect_to') ?? '';
+    const target = new URL(destination, 'http://local.invalid');
+    return target.searchParams.get('product') ?? target.pathname.match(/^\/(?:pl\/|en\/)?p\/([^/?]+)/)?.[1];
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * A paid order by a buyer without a confirmed account schedules the first access link, due after
+ * the return window, so a guest who never reaches the confirmation page still gets it (W336). The
+ * address is the one stored with the paid order. Returns true when a link was scheduled; false when
+ * the buyer has a confirmed account or a link is already pending or was sent. Throws when the state
+ * cannot be read or written, so the caller's fulfillment retry schedules it later.
+ */
+export async function scheduleGuestAccessMail(db: SupabaseClient, input: { email: string; productSlug: string; locale: 'pl' | 'en'; order: string }): Promise<boolean> {
+  const email = input.email.trim().toLowerCase();
+  const account = await db.rpc('find_user_id_by_email', { p_email: email });
+  if (account.error) throw new Error('Buyer account unavailable');
+  if (account.data) {
+    const { data, error } = await db.auth.admin.getUserById(account.data as string);
+    if (error) throw new Error('Buyer account unavailable');
+    if (data.user?.email_confirmed_at) return false;
+  }
+  const other = input.locale === 'pl' ? 'en' : 'pl';
+  const { data, error } = await db.rpc('schedule_post_checkout_mail', {
+    p_email: email,
+    p_redirects: [postCheckoutRedirect(input.productSlug, input.locale), postCheckoutRedirect(input.productSlug, other)],
+    // The order key lets a payment redelivered after a failed fulfillment find the link it already scheduled.
+    p_data: { locale: input.locale, [ACCESS_FALLBACK_FLAG]: 'true', order: input.order },
+    p_delay_minutes: GUEST_ACCESS_MAIL_DELAY_MINUTES,
+  });
+  if (error) throw new Error('Access mail schedule unavailable');
+  return data === true;
+}
+
+/**
+ * A post-payment link was delivered: a scheduled one for the same purchase must not follow, whatever
+ * page language either was built in. Returns false when the marker could not be stored; never throws.
+ */
+export async function markPostCheckoutMailSent(email: string, redirectTo: string, db: SupabaseClient = createAdminClient()): Promise<boolean> {
+  const slug = postCheckoutSlug(redirectTo);
+  const redirects = [...new Set([redirectTo, ...(slug ? [postCheckoutRedirect(slug, 'pl'), postCheckoutRedirect(slug, 'en')] : [])])];
+  const { error } = await db.rpc('mark_post_checkout_mail_sent', { p_email: email, p_redirects: redirects });
+  if (error) console.error('[auth-mail-retry] Sent marker unavailable:', error.message);
+  return !error;
+}
+
 /** Cron worker: delivers due parked mails; never throws. */
 export async function runAuthMailRetries(db: SupabaseClient = createAdminClient()): Promise<{ processed: number; errors: number }> {
   const { data: claimed, error } = await db.rpc('claim_auth_mail_retries', { p_limit: 20 });
@@ -55,14 +117,15 @@ export async function runAuthMailRetries(db: SupabaseClient = createAdminClient(
   for (const row of (claimed ?? []) as Array<{ id: string; email: string; redirect_to: string; data: Record<string, string | Record<string, string>>; attempts: number; kind: string; created_at: string }>) {
     let purchaseReady = true;
     if (row.kind === 'post_checkout') {
-      const destination = new URL(row.redirect_to).searchParams.get('redirect_to') ?? '';
-      const target = new URL(destination, 'http://local.invalid');
-      const slug = target.searchParams.get('product') ?? target.pathname.match(/^\/(?:pl\/|en\/)?p\/([^/?]+)/)?.[1];
+      const slug = postCheckoutSlug(row.redirect_to);
       if (slug) {
         // One read per attempt: the backoff already spaces the checks.
         const context: Record<string, string> = await eventMailForSlug(row.email, slug, row.data.locale === 'pl' ? 'pl' : 'en', { wait: false })
           .catch(() => ({ purchase_mail_pending: 'true' }));
-        if (context.license_mail_managed === 'true' && await readBuyerEmailPolicy(db) === true) {
+        // A scheduled access link needs a purchase that still stands (not fully refunded or disputed);
+        // an unreadable purchase reads as pending and waits for the next attempt.
+        const purchaseGone = row.data[ACCESS_FALLBACK_FLAG] === 'true' && !context.purchase_product && context.purchase_mail_pending !== 'true';
+        if (purchaseGone || (context.license_mail_managed === 'true' && await readBuyerEmailPolicy(db) === true)) {
           await db.from('auth_mail_retries').delete().eq('id', row.id);
           processed++;
           continue;
@@ -101,7 +164,11 @@ export async function runAuthMailRetries(db: SupabaseClient = createAdminClient(
     const cleared = await db.rpc('prepare_event_mail', { p_email: row.email, p_data: { locale: row.data.locale === 'pl' ? 'pl' : 'en' } });
     if (cleared.error) console.error('[auth-mail-retry] Account data cleanup failed');
     if (result.ok) {
-      await db.from('auth_mail_retries').delete().eq('id', row.id);
+      // A delivered post-payment link stays as a sent marker (with its order key) so neither a link in
+      // the other page language nor a redelivered payment sends the buyer a second one (W336).
+      if (row.kind !== 'post_checkout' || !await markPostCheckoutMailSent(row.email, row.redirect_to, db)) {
+        await db.from('auth_mail_retries').delete().eq('id', row.id);
+      }
       processed++;
       continue;
     }

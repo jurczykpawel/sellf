@@ -18,7 +18,7 @@ import { prepareFreeGrantRequest } from '@/lib/services/free-grant-context';
 import { allowMailToAddress, addressMailRetryAfterSeconds } from './address-limit';
 import { readBuyerEmailPolicy } from './buyer-email-policy';
 import { deliverMagicLink } from './deliver';
-import { queueAuthMailRetry } from './retry';
+import { markPostCheckoutMailSent, queueAuthMailRetry } from './retry';
 import type { AuthMailRetryKind } from './retry';
 import type { MagicLinkFlow, MagicLinkResult } from './types';
 
@@ -109,6 +109,8 @@ export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Pr
     transactionalOnly: input.transactionalOnly,
     data,
   });
+  // The link reached the buyer: the access link a paid order scheduled for them must not follow (W336).
+  if (result.ok && input.retry === 'post_checkout') await markPostCheckoutMailSent(normalizedEmail, redirectTo);
   if (result.ok || !input.retry || (result.code !== 'rate_limited' && result.code !== 'send_failed')) return result;
   return queueAuthMailRetry({ email: normalizedEmail, redirectTo, data, kind: input.retry, code: result.code });
 }

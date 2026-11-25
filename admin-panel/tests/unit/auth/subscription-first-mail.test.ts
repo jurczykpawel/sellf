@@ -48,7 +48,8 @@ it.each(['pl', 'en'].flatMap(locale => [false, true].flatMap(confirmed => [false
   expect(await requestMagicLink({ flow: 'post_checkout', email, productSlug: product.data!.slug, locale, captchaToken: 'local-boundary' })).toEqual({ ok: true });
   if (finishing) {
     await finishing;
-    expect((await db.from('auth_mail_retries').select('id').eq('email', email)).data).toHaveLength(0);
+    // Only the sent marker remains: nothing is pending for a second delivery (W336).
+    expect((await db.from('auth_mail_retries').select('id').eq('email', email).is('given_up_at', null)).data).toHaveLength(0);
   } else {
     expect(await searchMessages(email)).toHaveLength(0);
     const queued = await db.from('auth_mail_retries').select('id,data').eq('email', email).single();
@@ -60,7 +61,8 @@ it.each(['pl', 'en'].flatMap(locale => [false, true].flatMap(confirmed => [false
     expect((await db.from('payment_transactions').update({ fulfillment_pending: false }).eq('id', tx.data!.id)).error).toBeNull();
     expect((await db.from('auth_mail_retries').update({ next_attempt_at: new Date(0).toISOString() }).eq('id', queued.data!.id)).error).toBeNull();
     await runAuthMailRetries(db);
-    expect((await db.from('auth_mail_retries').select('id').eq('email', email)).data).toHaveLength(0);
+    // Delivered: only sent markers stay, nothing left to send (W336).
+    expect((await db.from('auth_mail_retries').select('id').eq('email', email).neq('last_error', 'sent')).data).toHaveLength(0);
   }
   const mail = await waitForEmail(email);
   expect(mail.HTML).toContain('Subscription workshop'); expect(mail.HTML).toContain(locale === 'pl' ? '17,00\u00a0zł' : 'PLN\u00a017.00');

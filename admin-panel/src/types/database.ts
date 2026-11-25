@@ -6700,6 +6700,10 @@ export type Database = {
         Returns: undefined
       }
       mark_expired_pending_payments: { Args: never; Returns: number }
+      mark_post_checkout_mail_sent: {
+        Args: { p_email: string; p_redirects: string[] }
+        Returns: undefined
+      }
       migrate_guest_payment_data_to_profile: {
         Args: { p_user_id: string }
         Returns: Json
@@ -7270,6 +7274,15 @@ export type Database = {
           template_id: string
         }
         Returns: Json
+      }
+      schedule_post_checkout_mail: {
+        Args: {
+          p_data: Json
+          p_delay_minutes: number
+          p_email: string
+          p_redirects: string[]
+        }
+        Returns: boolean
       }
       search_order_accesses: {
         Args: { p_search: string }

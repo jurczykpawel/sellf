@@ -20,6 +20,8 @@ vi.mock('@/lib/services/bundle-order', () => ({
 vi.mock('@/lib/services/tax-snapshot', () => ({ captureAndPersistOrderTax: vi.fn(async () => null) }));
 vi.mock('@/lib/services/webhook-payload', () => ({ buildPurchaseWebhookPayload: vi.fn(async () => ({ product: {}, order: {} })) }));
 vi.mock('@/lib/services/webhook-service', () => ({ WebhookService: { trigger: mocks.trigger } }));
+// The scheduled first access link has its own tests (guest-access-mail, fulfill-provider).
+vi.mock('@/lib/auth/magic-link/retry', () => ({ scheduleGuestAccessMail: vi.fn(async () => false) }));
 vi.mock('@/lib/services/product-validation', () => ({ ProductValidationService: { validateEmail: vi.fn(async () => true) } }));
 
 const buyer = { id: 'buyer', email: 'buyer@example.com' } as User;

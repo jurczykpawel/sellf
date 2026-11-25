@@ -61,7 +61,8 @@ for (const locale of ['pl', 'en']) test(`first queued subscription email confirm
     await expect(page.getByRole('heading', { level: 1, name: 'Queued subscription', exact: true })).toBeVisible();
     expect((await db.auth.admin.getUserById(uid)).data.user!.email_confirmed_at).toBeTruthy();
     expect((await db.from('user_product_access').select('subscription_id').eq('user_id', uid).eq('product_id', pid)).data).toEqual([{ subscription_id: sub.data!.id }]);
-    expect((await db.from('auth_mail_retries').select('id').eq('email', email)).data).toHaveLength(0);
+    // Delivered: only sent markers stay, nothing left to send (W336).
+    expect((await db.from('auth_mail_retries').select('id').eq('email', email).neq('last_error', 'sent')).data).toHaveLength(0);
   } finally {
     await db.from('auth_mail_retries').delete().eq('email', email); await db.from('user_product_access').delete().eq('product_id', pid);
     await db.from('payment_transactions').delete().eq('product_id', pid); await db.from('subscriptions').delete().eq('product_id', pid);
@@ -92,6 +93,7 @@ test('first new-buyer email from payment status contains the paid product and am
   } finally {
     const user = (await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })).data.users.find(u => u.email === email);
     if (user) await supabaseAdmin.auth.admin.deleteUser(user.id);
+    await supabaseAdmin.from('auth_mail_retries').delete().eq('email', email);
     await supabaseAdmin.from('guest_purchases').delete().eq('product_id', product!.id);
     await supabaseAdmin.from('payment_transactions').delete().eq('product_id', product!.id);
     await supabaseAdmin.from('products').delete().eq('id', product!.id);

@@ -110,6 +110,7 @@ describe.runIf(process.env.STRIPE_LIVE_API === '1')('real subscription first ema
       }
       if (couponId) await db.from('coupons').delete().eq('id', couponId);
       if (bankConfig) expect((await db.from('bank_transfer_config').update(bankConfig).eq('id', true)).error).toBeNull();
+      await db.from('auth_mail_retries').delete().eq('email', email);
       await deleteAuthUserByEmail(db, email);
     }
   }
@@ -118,6 +119,75 @@ describe.runIf(process.env.STRIPE_LIVE_API === '1')('real subscription first ema
   it('bundle first mail opens included course @J145', () => productMail('bundle'), 120000);
   it('event first mail includes session and opens access @J146', () => productMail('event'), 120000);
   it('transfer first mail includes due amount and opens early access @J147', () => productMail('transfer'), 120000);
+  // W336: the guest pays and closes the tab; no confirmation page, no verify-payment, no link request.
+  it.each(['subscription', 'one-time'] as const)('guest who never returns from payment gets one access mail: %s', async kind => {
+    expect(process.env.STRIPE_SECRET_KEY).toMatch(/^sk_test_/);
+    expect(new URL(process.env.SUPABASE_URL!).hostname).toBe('127.0.0.1');
+    const slug = `no-return-${kind}-${randomUUID()}`, email = `${slug}@example.com`;
+    let productId: string | undefined, sessionId: string | undefined;
+    const runCron = async () => {
+      const response = await fetch(`${API_URL}/api/cron?job=auth-mail-retry`, { headers: { authorization: `Bearer ${process.env.CRON_SECRET}` } });
+      expect(response.status, await response.text()).toBe(200);
+    };
+    try {
+      const product = await db.from('products').insert({ name: `No return ${kind}`, slug, price: 17, currency: 'PLN', is_active: true, vat_exempt: true,
+        ...(kind === 'subscription' ? { product_type: 'subscription', recurring_price: 17, billing_interval: 'month', billing_interval_count: 1 } : {}) }).select('id').single();
+      expect(product.error).toBeNull(); productId = product.data!.id;
+      const checkout = await fetch(`${API_URL}/api/create-payment-intent`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ productId, email, locale: 'pl', termsAccepted: true }) });
+      const checkoutBody = await checkout.text(); expect(checkout.status, checkoutBody).toBe(200);
+      sessionId = JSON.parse(checkoutBody).checkoutSessionId;
+      const session = await completeCheckout(sessionId!, email, 1700);
+      if (kind === 'subscription') {
+        const subscriptionId = typeof session.subscription === 'string' ? session.subscription : session.subscription!.id;
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        await deliverEvent('customer.subscription.created', subscriptionId);
+        await deliverEvent('invoice.paid', typeof subscription.latest_invoice === 'string' ? subscription.latest_invoice : subscription.latest_invoice!.id);
+      } else await deliverEvent('checkout.session.completed', session.id);
+      const tx = await db.from('payment_transactions').select('status,fulfillment_pending').eq('product_id', productId).single();
+      expect(tx.data).toMatchObject({ status: 'completed', fulfillment_pending: false });
+      // The buyer has the return window first: nothing is sent yet, the link waits in the queue.
+      const parked = await db.from('auth_mail_retries').select('kind,next_attempt_at,given_up_at').eq('email', email);
+      expect(parked.data).toHaveLength(1);
+      expect(parked.data![0]).toMatchObject({ kind: 'post_checkout', given_up_at: null });
+      expect(Date.parse(parked.data![0].next_attempt_at)).toBeGreaterThan(Date.now());
+      await runCron();
+      expect(await searchMessages(email)).toHaveLength(0);
+      // The return window has passed.
+      expect((await db.from('auth_mail_retries').update({ next_attempt_at: new Date(Date.now() - 1000).toISOString() }).eq('email', email)).error).toBeNull();
+      await runCron();
+      const mail = await waitForEmail(email, { timeout: 20000 });
+      expect(mail.HTML).toContain(`No return ${kind}`); expect(mail.HTML).toContain('17,00\u00a0zł');
+      await runCron();
+      expect(await searchMessages(email)).toHaveLength(1);
+      const link = extractMagicLink(mail.HTML!); expect(link).toBeTruthy();
+      const callback = await fetch(link!, { redirect: 'manual' }); expect(callback.status).toBe(307);
+      const cookie = callback.headers.getSetCookie().map(value => value.split(';')[0]).join('; '); expect(cookie).toContain('auth-token');
+      const destination = await fetch(callback.headers.get('location')!, { redirect: 'manual', headers: { cookie } });
+      expect(destination.status).toBe(307); expect(destination.headers.get('location')).toContain(`/p/${slug}`);
+      const uid = (await db.rpc('find_user_id_by_email', { p_email: email })).data as string; expect(uid).toBeTruthy();
+      expect((await db.from('user_product_access').select('user_id').eq('product_id', productId)).data).toEqual([{ user_id: uid }]);
+    } finally {
+      if (sessionId) {
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        if (session.subscription) await stripe.subscriptions.cancel(typeof session.subscription === 'string' ? session.subscription : session.subscription.id);
+        if (session.status === 'open') await stripe.checkout.sessions.expire(session.id);
+        if (session.customer) await stripe.customers.del(typeof session.customer === 'string' ? session.customer : session.customer.id);
+      }
+      if (productId) {
+        const product = await db.from('products').select('stripe_price_id,stripe_product_id').eq('id', productId).single();
+        const price = product.data?.stripe_price_id ? await stripe.prices.retrieve(product.data.stripe_price_id) : null;
+        const stripeProductId = product.data?.stripe_product_id || (typeof price?.product === 'string' ? price.product : price?.product.id);
+        if (stripeProductId) await stripe.products.update(stripeProductId, { default_price: '', active: false });
+        if (price) await stripe.prices.update(price.id, { active: false });
+        for (const table of ['guest_purchases', 'user_product_access', 'payment_transactions', 'subscriptions', 'products']) {
+          const removed = await db.from(table).delete().eq(table === 'products' ? 'id' : 'product_id', productId);
+          expect(removed.error).toBeNull();
+        }
+      }
+      await db.from('auth_mail_retries').delete().eq('email', email);
+      await deleteAuthUserByEmail(db, email);
+    }
+  }, 120000);
   it.each(['guest', 'signed-in', 'trial'])('delivers the first receipt and confirms access: %s', async kind => {
     expect(process.env.STRIPE_SECRET_KEY).toMatch(/^sk_test_/);
     expect(new URL(process.env.SUPABASE_URL!).hostname).toBe('127.0.0.1');
@@ -192,6 +262,7 @@ describe.runIf(process.env.STRIPE_LIVE_API === '1')('real subscription first ema
           expect(removed.error).toBeNull();
         }
       }
+      await db.from('auth_mail_retries').delete().eq('email', email);
       await deleteAuthUserByEmail(db, email);
     }
   }, 120000);
