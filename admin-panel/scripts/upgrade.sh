@@ -1447,19 +1447,23 @@ else
   exit 1
 fi
 
+# firewall-check:start — extracted verbatim by tests/unit/scripts/upgrade-firewall-check.test.ts
 # ===== FIREWALL CHECK =====
 # Sellf binds to HOSTNAME=:: — a dual-stack socket that accepts both IPv6
 # and (via the kernel's IPv4-mapped addresses, on by default) IPv4 traffic.
 # Warn if EITHER iptables (v4) or ip6tables (v6) INPUT policy is not DROP —
 # checking only one stack leaves the other one silently open.
+# The check only warns: `|| true` keeps a missing policy line or a failing
+# iptables (no permission, nftables-only, container) from ending the script
+# under pipefail before the cleanup below.
 if command -v ip6tables >/dev/null 2>&1; then
-  FW_POLICY_V6=$(ip6tables -S INPUT 2>/dev/null | grep '^-P INPUT' | awk '{print $3}')
+  FW_POLICY_V6=$(ip6tables -S INPUT 2>/dev/null | grep '^-P INPUT' | awk '{print $3}' || true)
   if [ "$FW_POLICY_V6" != "DROP" ]; then
     log "WARN: ip6tables INPUT policy = ${FW_POLICY_V6:-UNKNOWN}. Port ${PORT} may be exposed directly over IPv6. Run: ./local/setup-firewall.sh <ssh_alias>"
   fi
 fi
 if command -v iptables >/dev/null 2>&1; then
-  FW_POLICY_V4=$(iptables -S INPUT 2>/dev/null | grep '^-P INPUT' | awk '{print $3}')
+  FW_POLICY_V4=$(iptables -S INPUT 2>/dev/null | grep '^-P INPUT' | awk '{print $3}' || true)
   if [ "$FW_POLICY_V4" != "DROP" ]; then
     log "WARN: iptables INPUT policy = ${FW_POLICY_V4:-UNKNOWN}. Port ${PORT} may be exposed directly over IPv4. Run: ./local/setup-firewall.sh <ssh_alias>"
   fi
@@ -1473,6 +1477,7 @@ log "Temp files cleaned up. Backup preserved at $BACKUP_DIR"
 if [ "$MIGRATION_ERRORS" -gt 0 ]; then
   exit 1
 fi
+# firewall-check:end
 
 }
 main "$@"
