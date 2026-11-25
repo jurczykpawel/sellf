@@ -107,7 +107,7 @@ def record(name, code, **data):
     return code
 
 
-def run(name, cmd, cwd=ROOT, extra=None, stdin=None, stdout=None, timeout=None):
+def run(name, cmd, cwd=ROOT, extra=None, stdin=None, stdout=None, timeout=None, retried=False):
     print(f'START {name}', flush=True)
     start = time.monotonic()
     code = 1
@@ -142,7 +142,12 @@ def run(name, cmd, cwd=ROOT, extra=None, stdin=None, stdout=None, timeout=None):
                             pass
     except OSError:
         pass
-    return record(name, code, seconds=round(time.monotonic() - start, 1))
+    seconds = round(time.monotonic() - start, 1)
+    if retried and code:
+        # The caller retries this step; its own failure is published but does not fail the lane.
+        record(name, 0, seconds=seconds, error=f'exit {code}, retried')
+        return code
+    return record(name, code, seconds=seconds)
 
 
 def require(name, *args, **kwargs):

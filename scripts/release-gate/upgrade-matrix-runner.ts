@@ -35,12 +35,15 @@ async function run(command: string, args: string[], cwd = root, extraEnv: Record
   const log = resolve(scratch, `command-${randomUUID()}.log`);
   console.log(`STEP ${command} ${args[0] ?? ''}`);
   return new Promise((accept, reject) => {
-    const child = spawn(command, args, { cwd, env: { ...process.env, ...extraEnv }, stdio: ['ignore', 'pipe', 'pipe'] });
+    // stdin is an empty pipe, not 'ignore': under Bun on the Linux runner `tar -tzf` (which forks gzip) never
+    // finished with an ignored stdin (GHA 45601171032, 45608564708); on macOS the same call takes 0.5 s.
+    const child = spawn(command, args, { cwd, env: { ...process.env, ...extraEnv }, stdio: ['pipe', 'pipe', 'pipe'] });
+    child.stdin.end();
     let output = '';
     let stdout = '';
     let stderr = '';
     // A hung step must surface as an error naming it (GHA 45601171032 stalled 25 min inside `tar -tzf`).
-    const timer = setTimeout(() => { console.log(`STEP-TIMEOUT ${command} ${args[0] ?? ''} stderr: ${stderr.slice(-160).replace(/\s+/g, ' ')}`); child.kill('SIGKILL'); }, 10 * 60_000);
+    const timer = setTimeout(() => { console.log(`STEP-TIMEOUT ${command} ${args[0] ?? ''} stderr: ${stderr.slice(-160).replace(/\s+/g, ' ')}`); child.kill('SIGKILL'); reject(new Error(`${command} timed out`)); }, 10 * 60_000);
     child.stdout.on('data', chunk => { stdout += chunk; output += chunk; });
     child.stderr.on('data', chunk => { output += chunk; stderr += chunk; });
     child.on('error', reject);

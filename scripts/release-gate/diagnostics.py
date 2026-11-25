@@ -38,7 +38,8 @@ def test_identifier(file, title, project=None, line=None):
 
 def public_message(text):
     """First part of a failure message without masked values, credentials, runner paths or addresses."""
-    text = redact(ANSI.sub('', text or ''))
+    # Drop JS stack frames so the tail shows the cause (e.g. a child's traceback), not runner internals.
+    text = re.sub(r'\n\s+at [^\n]*', '', redact(ANSI.sub('', text or '')))
     text = LOCAL_PATH.sub('[path]', EMAIL.sub('[email]', text))
     text = ' '.join(''.join(char if char.isprintable() else ' ' for char in text).split())
     if len(text) <= MAX_MESSAGE:

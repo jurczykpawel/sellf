@@ -33,8 +33,10 @@ from support import (
     redact,
     require,
     resolve_gate_head,
+    run,
     validate_release_version,
 )
+from diagnostics import public_message
 from verify_coverage import inventory
 
 AUXILIARY = ('unit', 'database', 'api', 'historical-upgrade', 'second')
@@ -118,7 +120,12 @@ def candidate_stack():
     assert_no_stacks()
     prepare_stack(STACK)
     record('prepare-source-stack', 0)
-    require('start', [CLI, 'start', '--workdir', str(STACK)])
+    if run('start', [CLI, 'start', '--workdir', str(STACK)], retried=True):
+        # Runner-side start failures happen (GHA 45608564708, chromium-2of6): publish the CLI's last line, retry once.
+        tail = (OUT / 'start.log').read_text(errors='replace').strip().splitlines()[-1:]
+        record('start-error', 0, steps=[public_message(line) for line in tail])
+        run('start-reset', [CLI, 'stop', '--no-backup', '--workdir', str(STACK)])
+        require('start-retry', [CLI, 'start', '--workdir', str(STACK)])
     configure()
 
 
