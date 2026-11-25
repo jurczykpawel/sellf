@@ -208,14 +208,20 @@ async function timing(s: Scenario, sessionId: string, pageAt: number): Promise<s
   return order;
 }
 
-async function run(page: Page, label: string, card: string, options: { loggedIn?: boolean; subscription?: boolean; challenge?: boolean; declined?: boolean; coupon?: boolean; setPrice?: boolean; fixedPrice?: boolean; netVat?: boolean; profile?: boolean; event?: boolean; netCouponQuantity?: number; noBump?: boolean; expireCouponAfterReservation?: boolean; multipleLicenses?: boolean; licensedSubscription?: boolean; subscriptionFields?: boolean } = {}): Promise<void> {
+async function run(page: Page, label: string, card: string, options: { loggedIn?: boolean; subscription?: boolean; challenge?: boolean; declined?: boolean; coupon?: boolean; setPrice?: boolean; fixedPrice?: boolean; netVat?: boolean; profile?: boolean; event?: boolean; netCouponQuantity?: number; noBump?: boolean; expireCouponAfterReservation?: boolean; multipleLicenses?: boolean; licensedSubscription?: boolean; subscriptionFields?: boolean; missingCustomer?: boolean } = {}): Promise<void> {
   const slug = `stripe-live-${label}-${randomUUID().slice(0, 8)}`;
   const s: Scenario = { slug, productIds: [], email: `${slug}@example.com`, domain: `${slug}.example.com`, sessionIds: [], subscription: !!options.subscription, netVat: options.netVat, profile: options.profile, netCouponQuantity: options.netCouponQuantity, noBump: options.noBump };
   let passed = false;
   let clock: Stripe.TestHelpers.TestClock | undefined;
+  let missingCustomer: string | undefined;
   let order = 'not observed';
   try {
     await setup(s, !!options.loggedIn);
+    if (options.missingCustomer) {
+      missingCustomer = `cus_${randomUUID().replaceAll('-', '')}`;
+      await expect(stripe.customers.retrieve(missingCustomer)).rejects.toMatchObject({ statusCode: 404, code: 'resource_missing' });
+      await insert('stripe_customers', { user_id: s.buyerId, stripe_customer_id: missingCustomer });
+    }
     if (options.subscriptionFields && s.buyerId) {
       clock=await stripe.testHelpers.testClocks.create({frozen_time:Math.floor(Date.now()/1000)});
       const customer=await stripe.customers.create({test_clock:clock.id,email:s.email});
@@ -262,7 +268,17 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
     if (s.coupon) await expect(page.getByRole('button', { name: 'Remove discount code', exact: true })).toBeVisible();
     const initiallyFree = !!options.fixedPrice && (s.netCouponQuantity ?? 0) > 1;
     if (initiallyFree) await expect(page.getByRole('button', { name: /Send magic link/i })).toBeVisible();
-    else await startNativeCheckout(page);
+    else {
+      const response = await startNativeCheckout(page);
+      if (missingCustomer) {
+        const session = await stripe.checkout.sessions.retrieve((await response.json()).checkoutSessionId);
+        const mapping = await rows('stripe_customers', 'user_id', s.buyerId!);
+        expect(session.status).toBe('open');
+        expect(session.customer).toMatch(/^cus_/);
+        expect(session.customer).not.toBe(missingCustomer);
+        expect(mapping).toMatchObject([{ stripe_customer_id: session.customer }]);
+      }
+    }
     const desiredQuantity = s.netCouponQuantity ?? (s.profile ? 3 : options.event ? 2 : null);
     if (desiredQuantity !== null) {
       const quantity = page.getByLabel('Quantity', { exact: true });
@@ -520,7 +536,7 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
         return logs.length === 1 && logs[0].status === 'success';
       }, { timeout: 60000 }).toBe(true);
       expect(deliveries(s)).toHaveLength(1);
-      if (options.loggedIn) {
+      if (options.loggedIn && !options.missingCustomer) {
         mkdirSync('/tmp/rcfix-core-shots', { recursive: true });
         for (const locale of ['en', 'pl']) for (const width of [1440, 390]) {
           await page.setViewportSize({ width, height: 900 });
@@ -587,7 +603,14 @@ async function run(page: Page, label: string, card: string, options: { loggedIn?
       }, null, 2), { mode: 0o600 });
     }
     appendFileSync(`${artifacts}/summary.jsonl`, JSON.stringify({ scenario: label, pass: passed, order }) + '\n');
-    try { await cleanup(s); } finally { if (clock) await stripe.testHelpers.testClocks.del(clock.id); }
+    try {
+      await cleanup(s);
+    } finally {
+      if (clock) await stripe.testHelpers.testClocks.del(clock.id);
+      if (missingCustomer) {
+        for (const customer of (await stripe.customers.list({ email: s.email })).data) await stripe.customers.del(customer.id);
+      }
+    }
   }
 }
 
@@ -596,6 +619,9 @@ test('signed-in license and bump @J02', async ({ page }) => { await run(page, 's
 test('3D Secure license and bump @J03', async ({ page }) => { await run(page, '3ds', '4000002500003155', { challenge: true }); });
 test('declined card @J04', async ({ page }) => { await run(page, 'declined', '4000000000000002', { declined: true }); });
 test('subscription initial purchase @J05', async ({ page }) => { await run(page, 'subscription', '4242424242424242', { subscription: true }); });
+test('signed-in subscription replaces a missing Stripe customer @J05', async ({ page }) => {
+  await run(page, 'subscription-missing-customer', '4242424242424242', { subscription: true, loggedIn: true, missingCustomer: true });
+});
 for (let i = 1; i <= 5; i++) test(`guest repeated purchase ${i}/5 @J01`, async ({ page }) => { await run(page, 'repeat', '4242424242424242'); });
 
 test('percentage coupon with bump @J06', async ({ page }) => { await run(page, 'coupon-bump', '4242424242424242', { coupon: true }); });

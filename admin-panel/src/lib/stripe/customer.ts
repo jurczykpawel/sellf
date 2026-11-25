@@ -3,8 +3,8 @@
  *
  * Single source of truth for "give me the Stripe customer id for this email/user".
  * Resolution order, fastest-first:
- *   1. DB cache: public.stripe_customers (when userId is known)
- *   2. Stripe customer search by email (handles guests + customers migrated from one-time payments).
+ *   1. Verify or replace the mapping in public.stripe_customers (when userId is known).
+ *   2. With no mapping, search by email (handles guests + customers migrated from one-time payments).
  *      A match is reused only while no other account holds it — neither via
  *      metadata.sellf_user_id nor via a public.stripe_customers row.
  *   3. Create a fresh Stripe customer
@@ -20,6 +20,8 @@
  * @see supabase/migrations/20260430142135_subscriptions_mvp.sql (stripe_customers table)
  */
 
+import { createHash } from 'node:crypto';
+import { getStripeInstanceId, isForeignStripeMarker, readStripeInstanceMarker, STRIPE_INSTANCE_METADATA_KEY } from '@/lib/stripe/instance-marker';
 import { getStripeServer } from '@/lib/stripe/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type Stripe from 'stripe';
@@ -72,72 +74,92 @@ async function isHeldByAnotherAccount(
   return !!data && data.user_id !== userId;
 }
 
+async function readCustomerMapping(db: ReturnType<typeof createAdminClient>, userId: string): Promise<string | null> {
+  const { data, error } = await db.from('stripe_customers').select('stripe_customer_id').eq('user_id', userId).maybeSingle();
+  if (error) throw new Error('Failed to read Stripe customer mapping', { cause: error });
+  return data?.stripe_customer_id ?? null;
+}
+
+async function verifyMappedCustomer(stripe: Stripe, id: string, userId: string): Promise<boolean> {
+  const customer = await stripe.customers.retrieve(id).catch((error: unknown) => {
+    if (error && typeof error === 'object' && 'statusCode' in error && error.statusCode === 404
+      && 'code' in error && error.code === 'resource_missing') return null;
+    throw error;
+  });
+  if (!customer || customer.deleted || await isForeignStripeMarker(readStripeInstanceMarker(customer))) return false;
+  const owner = customer.metadata?.sellf_user_id;
+  return !owner || owner === userId;
+}
+
 export async function getOrCreateStripeCustomer(
-  input: GetOrCreateStripeCustomerInput
+  { email: rawEmail, userId }: GetOrCreateStripeCustomerInput,
+  stripeClient?: Stripe,
 ): Promise<string> {
-  const email = input.email?.trim().toLowerCase();
+  const email = rawEmail?.trim().toLowerCase();
   if (!email || email.length > MAX_EMAIL_LENGTH || !EMAIL_REGEX.test(email)) {
     throw new Error('getOrCreateStripeCustomer: valid email is required');
   }
 
-  const stripe = await getStripeServer();
+  const stripe = stripeClient ?? await getStripeServer();
   const db = createAdminClient();
+  const mappedId = userId ? await readCustomerMapping(db, userId) : null;
+  if (userId && mappedId && await verifyMappedCustomer(stripe, mappedId, userId)) return mappedId;
 
-  // 1. DB cache (only meaningful for logged-in users)
-  if (input.userId) {
-    const { data, error } = await db
-      .from('stripe_customers')
-      .select('stripe_customer_id')
-      .eq('user_id', input.userId)
-      .maybeSingle();
-
-    if (error && error.code !== 'PGRST116') {
-      console.error('[getOrCreateStripeCustomer] DB lookup error:', error);
-    }
-
-    if (data?.stripe_customer_id) {
-      return data.stripe_customer_id;
-    }
-  }
-
-  // 2. Stripe customer search by email
   let stripeCustomerId: string | undefined;
-  try {
-    const search = await stripe.customers.search({
-      query: `email:"${escapeStripeSearchValue(email)}"`,
-      limit: 1,
-    });
-    const match = search.data[0];
-    if (match && !(await isHeldByAnotherAccount(db, match, input.userId))) {
-      stripeCustomerId = match.id;
+  if (!mappedId) {
+    try {
+      const search = await stripe.customers.search({
+        query: `email:"${escapeStripeSearchValue(email)}"`,
+        limit: 1,
+      });
+      const match = search.data[0];
+      if (match && !await isForeignStripeMarker(readStripeInstanceMarker(match))
+        && !await isHeldByAnotherAccount(db, match, userId)) {
+        stripeCustomerId = match.id;
+      }
+    } catch (err) {
+      console.warn('[getOrCreateStripeCustomer] Stripe customer search failed:', err);
     }
-  } catch (err) {
-    console.warn('[getOrCreateStripeCustomer] Stripe customer search failed:', err);
   }
 
-  // 3. Create if still not found, otherwise patch metadata when we have a userId.
+  const instanceId = await getStripeInstanceId();
+  const metadata = { [STRIPE_INSTANCE_METADATA_KEY]: instanceId, ...(userId && { sellf_user_id: userId }) };
   if (!stripeCustomerId) {
-    const created = await stripe.customers.create({
-      email,
-      ...(input.userId && { metadata: { sellf_user_id: input.userId } }),
-    });
+    const replacementKey = mappedId
+      ? createHash('sha256').update(JSON.stringify([instanceId, userId, mappedId])).digest('hex')
+      : null;
+    const created = replacementKey
+      ? await stripe.customers.create({ email, metadata }, { idempotencyKey: `sellf-customer-replacement:${replacementKey}` })
+      : await stripe.customers.create({ email, metadata });
     stripeCustomerId = created.id;
-  } else if (input.userId) {
+  } else if (userId) {
     try {
-      await stripe.customers.update(stripeCustomerId, {
-        metadata: { sellf_user_id: input.userId },
-      });
+      await stripe.customers.update(stripeCustomerId, { metadata });
     } catch (err) {
       console.warn('[getOrCreateStripeCustomer] Failed to patch metadata:', err);
     }
   }
 
-  // 4. Persist DB mapping (logged-in users only — FK requires auth.users row)
-  if (input.userId) {
+  if (userId && mappedId) {
+    const { data, error } = await db.from('stripe_customers')
+      .update({ stripe_customer_id: stripeCustomerId, updated_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .eq('stripe_customer_id', mappedId)
+      .select('stripe_customer_id')
+      .maybeSingle();
+    if (error) throw new Error('Failed to replace Stripe customer mapping', { cause: error });
+    if (data) return data.stripe_customer_id;
+
+    const winner = await readCustomerMapping(db, userId);
+    if (winner && await verifyMappedCustomer(stripe, winner, userId)) return winner;
+    throw new Error('Stripe customer mapping changed during replacement');
+  }
+
+  if (userId) {
     const { error } = await db
       .from('stripe_customers')
       .upsert(
-        { user_id: input.userId, stripe_customer_id: stripeCustomerId, updated_at: new Date().toISOString() },
+        { user_id: userId, stripe_customer_id: stripeCustomerId, updated_at: new Date().toISOString() },
         { onConflict: 'user_id' }
       );
     if (error) {

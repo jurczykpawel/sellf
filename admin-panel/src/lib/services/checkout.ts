@@ -375,7 +375,7 @@ export class CheckoutService {
 
     const checkoutConfig = await getCheckoutConfig();
 
-    const customerId = await getOrCreateStripeCustomer({ email: customerEmail, userId });
+    const customerId = await getOrCreateStripeCustomer({ email: customerEmail, userId }, this.stripe);
 
     // Manual VAT rate for local mode only; skipped for stripe_tax and VAT-exempt products.
     const taxRateId = await resolveLocalSubscriptionTaxRateId({
