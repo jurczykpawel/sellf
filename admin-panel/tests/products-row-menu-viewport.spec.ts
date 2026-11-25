@@ -21,8 +21,12 @@ for (const vp of viewports) {
     await last.scrollIntoViewIfNeeded();
     await last.click();
 
-    const menu = page.locator('div[style*="position: fixed"]').filter({ has: page.getByRole('button', { name: /^Duplikuj$/ }) });
+    // the panel is rendered right after its toggle; it positions itself with the `fixed` class, not an inline style
+    await expect(last).toHaveAttribute('aria-expanded', 'true');
+    const menu = last.locator('xpath=following-sibling::div[1]');
     await expect(menu).toBeVisible();
+    await expect(menu).toHaveCSS('position', 'fixed');
+    await expect(menu.getByRole('button', { name: /^Duplikuj$/ })).toBeVisible();
     const items = menu.getByRole('button');
     const count = await items.count();
     expect(count).toBeGreaterThan(3);
