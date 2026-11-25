@@ -57,4 +57,6 @@ A paused offer keeps its recorded purchase and access in the buyer library, with
 
 Buyers check a refund request’s status in **My purchases**. Sellf does not send a native Supabase email for approval or rejection. Optional decision emails depend on the seller’s webhook receiver: `refund.request_approved` and `refund.request_rejected` describe the decision; `refund.issued` describes the processor refund. Enabling Supabase buyer emails alone does not enable decision notifications. The request modal therefore does not promise an email response.
 
+## Sign-in link limits and language
+
 When the daily inbox allowance is exhausted, sign-in forms show that cause and a retry time in the current language. The gateway returns HTTP 429 with `code: address_rate_limited` and `Retry-After` in seconds. The database daily window resets at 00:00 UTC; for Upstash, the suggested retry is conservatively 24 hours later. Existing IP and Auth-provider limits remain unchanged. Ordinary sign-in links preserve the requested Polish or English language and the role-based destination. Email-confirmed forms open the destination in the language saved with the submission, including on another device or with different language cookies. Explicit product-access destinations retain their own language.

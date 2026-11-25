@@ -105,7 +105,6 @@ If the cart changes during payment preparation, Sellf stops before confirmation 
 
 Pausing a product keeps the buyer's purchase in **My products**, but stops access to its content, login wall and element gates. An authenticated owner, including one whose saved access has expired, receives HTTP 200 with `hasAccess: false` and `reason: "inactive"` from `/api/public/products/{slug}/access`; this response describes the saved purchase and does not grant access. The content endpoint returns HTTP 403. An inactive product without ownership remains unavailable. Archiving a product keeps existing buyers' content available while their access is valid. Buyers whose archived access has expired still see the expired-access page; `/access` returns HTTP 200 with `hasAccess: false` and `reason: "expired"`, and the content endpoint returns HTTP 403. For either paused or archived products, the login wall sends buyers with expired access to `/p/{slug}` without granting content access. Gate verification with a valid token also works without Sellf cookies after archiving; it still checks the buyer’s current entitlement.
 
-
 Closing a sale window (`available_until`) prevents new purchases; buyers with valid access keep the product page, protected content, login wall and element gates. Anonymous visitors, buyers without access and expired grants cannot open the closed offer. Pausing and archiving retain the behavior described above.
 
 In the product list, **Escape** closes the **More actions** menu and returns focus to its button, including when an action inside the menu has focus.
@@ -124,11 +123,11 @@ Cancelling an unpaid bank transfer with access granted on placement removes that
 
 Subscription receipt verification uses the saved invoice payment and current entitlement. A full refund shows **Payment refunded** with `access_granted: false`; cancellation without a refund keeps the paid period. When returning from checkout in another signed-in account, the page explains that the purchase belongs to a different account and offers **Sign out and continue**, without revealing the buyer email. Verification still returns HTTP 403 for the other account.
 
-This terminal state also applies to legacy `payment_intent` return links.
+Legacy `payment_intent` return links also use the recorded status for full refunds and disputes. A completed guest purchase can still be claimed when the buyer returns signed in with the email used at checkout.
 
-Mixed-product element gates resolve each requested slug separately when at least one product is visible to the caller. Unavailable slugs receive no access without blocking valid ownership of another product. A request with no visible products remains unavailable. All returned states require the seller’s allowed origin.
+Mixed-product element gates resolve each requested slug separately when at least one product is visible to the caller and the visible products belong to one seller. Unavailable slugs receive no access without blocking valid ownership of another product. A request with no visible products remains unavailable. All returned states require the seller’s allowed origin.
 
-Catalogue searches accept at most 100 Unicode characters after trimming and NFC normalization; longer input shows an error beside the search field. Legacy checkout names accept at most 200 UTF-16 code units, matching the stored field; longer names show a field error and cannot be submitted. Participant paste/CSV imports immediately revalidate the filled rows when participant errors are already displayed. Partial imports before the first submission do not introduce errors or move focus.
+Catalogue searches accept at most 100 Unicode characters after trimming and NFC normalization; longer input shows an error beside the search field. In standard checkout without a profile, the name field accepts at most 200 UTF-16 code units after trimming. Longer names show a field error and block payment. Pasting or importing a participant list immediately revalidates the participant fields when participant errors are already displayed. Partial imports before the first submission do not introduce errors or move focus.
 
 The refund request dialog supports keyboard focus containment, Escape to close, and focus return to its opening button.
 
