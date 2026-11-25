@@ -63,3 +63,85 @@ it.each(['sent', 'skipped', 'refused', 'unknown', 'error'] as const)('persists a
     await db.from('products').delete().eq('id', product);
   }
 });
+
+const minutes = (n: number) => n * 60000;
+
+it.each([
+  { buyer: 'guest', code: 'send_failed' },
+  { buyer: 'signed-in buyer', code: 'address_rate_limited' },
+] as const)('backs off refused payment confirmations for a $buyer and hands them to the administrator after 30 attempts', async ({ buyer, code }) => {
+  const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+  const id = crypto.randomUUID(), product = crypto.randomUUID(), email = `${id}@example.com`;
+  let userId: string | undefined;
+  const saved = async () => {
+    const result = await db.from('payment_transactions')
+      .select('transfer_paid_mail_sent_at,transfer_paid_mail_delivery_unknown,transfer_paid_mail_retry_at,transfer_paid_mail_attempts').eq('id', id).single();
+    expect(result.error).toBeNull(); return result.data!;
+  };
+  const clock = vi.spyOn(Date, 'now');
+  try {
+    if (buyer === 'signed-in buyer') {
+      const created = await db.auth.admin.createUser({ email, email_confirm: true });
+      expect(created.error).toBeNull(); userId = created.data.user!.id;
+    }
+    expect((await db.from('products').insert({ id: product, slug: product, name: 'Paid backoff', price: 10, currency: 'PLN' })).error).toBeNull();
+    expect((await db.from('payment_transactions').insert({ id, product_id: product, customer_email: email, user_id: userId ?? null, amount: 1000, currency: 'PLN',
+      payment_provider: 'bank_transfer', pricing_snapshot_version: 1, status: 'completed', metadata: { locale: 'en' } })).error).toBeNull();
+    send.mockResolvedValue({ ok: false, code });
+    let now = Date.parse('2026-11-25T10:00:00Z');
+    for (let attempt = 1; attempt < 30; attempt++) {
+      clock.mockReturnValue(now);
+      expect(await sendOrderNotice(db, id, 'paid')).toEqual({ sent: false, outcome: 'refused' });
+      const delay = minutes(Math.min(2 ** attempt, 60));
+      expect(await saved()).toEqual({ transfer_paid_mail_sent_at: null, transfer_paid_mail_delivery_unknown: false,
+        transfer_paid_mail_retry_at: expect.any(String), transfer_paid_mail_attempts: attempt });
+      expect(Date.parse((await saved()).transfer_paid_mail_retry_at!)).toBe(now + delay);
+      clock.mockReturnValue(now + delay - 1000);
+      expect(await sendOrderNotice(db, id, 'paid')).toEqual({ sent: false, outcome: 'skipped' });
+      expect(send).toHaveBeenCalledTimes(attempt);
+      now += delay;
+    }
+    expect(send.mock.calls.every(([input]) => input.paidTransferAccess === (buyer === 'guest' ? true : undefined))).toBe(true);
+    clock.mockReturnValue(now);
+    expect(await sendOrderNotice(db, id, 'paid')).toEqual({ sent: false, outcome: 'refused' });
+    const handedOver = await saved();
+    expect(handedOver).toMatchObject({ transfer_paid_mail_delivery_unknown: true, transfer_paid_mail_retry_at: null, transfer_paid_mail_attempts: 30 });
+    expect(handedOver.transfer_paid_mail_sent_at).not.toBeNull();
+    clock.mockReturnValue(now + minutes(120));
+    expect(await sendOrderNotice(db, id, 'paid')).toEqual({ sent: false, outcome: 'skipped' });
+    expect(send).toHaveBeenCalledTimes(30);
+    clock.mockReturnValue(now + minutes(121));
+    expect(await sendOrderNotice(db, id, 'paid', true)).toEqual({ sent: false, outcome: 'refused' });
+    expect(send).toHaveBeenCalledTimes(31);
+    expect(await saved()).toMatchObject({ transfer_paid_mail_delivery_unknown: true, transfer_paid_mail_retry_at: null, transfer_paid_mail_attempts: 31 });
+  } finally {
+    clock.mockRestore();
+    await db.from('payment_transactions').delete().eq('id', id);
+    await db.from('products').delete().eq('id', product);
+    if (userId) await db.auth.admin.deleteUser(userId);
+  }
+});
+
+it('resets the payment confirmation attempts after delivery and when the order leaves completed', async () => {
+  const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+  const id = crypto.randomUUID(), product = crypto.randomUUID();
+  const saved = async () => {
+    const result = await db.from('payment_transactions').select('transfer_paid_mail_retry_at,transfer_paid_mail_attempts').eq('id', id).single();
+    expect(result.error).toBeNull(); return result.data!;
+  };
+  try {
+    expect((await db.from('products').insert({ id: product, slug: product, name: 'Paid reset', price: 10, currency: 'PLN' })).error).toBeNull();
+    expect((await db.from('payment_transactions').insert({ id, product_id: product, customer_email: `${id}@example.com`, amount: 1000, currency: 'PLN',
+      payment_provider: 'bank_transfer', pricing_snapshot_version: 1, status: 'completed', metadata: { locale: 'en' },
+      transfer_paid_mail_attempts: 7, transfer_paid_mail_retry_at: new Date(Date.now() - 1000).toISOString() })).error).toBeNull();
+    send.mockResolvedValue({ ok: true });
+    expect(await sendOrderNotice(db, id, 'paid')).toEqual({ sent: true, outcome: 'sent' });
+    expect(await saved()).toEqual({ transfer_paid_mail_retry_at: null, transfer_paid_mail_attempts: 0 });
+    expect((await db.from('payment_transactions').update({ transfer_paid_mail_attempts: 4, transfer_paid_mail_retry_at: new Date(Date.now() + 60000).toISOString() }).eq('id', id)).error).toBeNull();
+    expect((await db.from('payment_transactions').update({ status: 'refunded' }).eq('id', id)).error).toBeNull();
+    expect(await saved()).toEqual({ transfer_paid_mail_retry_at: null, transfer_paid_mail_attempts: 0 });
+  } finally {
+    await db.from('payment_transactions').delete().eq('id', id);
+    await db.from('products').delete().eq('id', product);
+  }
+});
