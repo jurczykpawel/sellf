@@ -57,4 +57,6 @@ Przy wstrzymanej ofercie biblioteka zachowuje zakup i zapisany dostęp, ale zami
 
 Kupujący sprawdza status prośby o zwrot w **Moich zakupach**. Sellf nie wysyła natywnego maila Supabase o zatwierdzeniu ani odrzuceniu. Opcjonalne maile o decyzji zależą od odbiorcy webhooków sprzedawcy: `refund.request_approved` i `refund.request_rejected` opisują decyzję, a `refund.issued` opisuje zwrot u operatora płatności. Samo włączenie maili do kupujących przez Supabase nie uruchamia powiadomień o decyzji. Modal prośby nie obiecuje więc odpowiedzi e-mailem.
 
+## Limity i język linków do logowania
+
 Po wykorzystaniu dobowego limitu skrzynki formularz logowania podaje przyczynę i termin ponownej próby w bieżącym języku. Bramka zwraca HTTP 429 z `code: address_rate_limited` oraz `Retry-After` w sekundach. Dobowe okno bazy odnawia się o 00:00 UTC; dla Upstash proponowany termin to ostrożnie 24 godziny później. Limity IP i dostawcy Auth pozostają bez zmian. Zwykły link logowania zachowuje wybrany język polski lub angielski oraz stronę docelową wynikającą z roli. Potwierdzenie formularza otwiera stronę w języku zapisanym ze zgłoszeniem, także na innym urządzeniu lub przy innych ciasteczkach językowych. Jawne cele product-access zachowują własny język.

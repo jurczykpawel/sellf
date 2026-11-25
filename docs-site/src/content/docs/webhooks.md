@@ -436,9 +436,7 @@ When a delivery fails (network error, non-2xx response, SSRF block) the worker r
 
 After the 5th failed attempt the delivery enters the **dead-letter queue** (status `permanently_failed`). It stays there until an admin clicks **Replay** in `/dashboard/webhooks/deliveries`, at which point the attempt counter resets to 0 and the row goes back to `pending_retry` with `next_retry_at = NOW()` for the worker to pick up.
 
-In **Webhook deliveries**, choose a status and use **Next page** to browse older
-deliveries. The list shows 50 records per page, newest first by creation time.
-Changing the status filter returns to the first page.
+**Webhook deliveries** opens on permanently failed deliveries. Choose a status and use **Next page** or **Previous page** to browse. The list shows up to 50 records per page, newest first by creation time. Changing the status filter returns to the first page.
 
 ### Concurrency safety
 
@@ -907,10 +905,12 @@ Creating or updating an endpoint with a missing or deleted product in `product_i
 
 In delivery logs, Tab to the event-name button and press Enter or Space to expand or collapse the payload and response. The button exposes its expanded state and keeps keyboard focus.
 
-### Custom header validation and delivery log data
+### Webhook form validation and delivery log data
+
+The form requires at least one event and allows up to 500 characters in the description. Invalid values show a message beside the affected fields.
 
 Custom header names must be [HTTP tokens](https://www.rfc-editor.org/rfc/rfc9110.html#section-5.6.2) (no spaces, colons or non-ASCII characters); values must fit one HTTP header line. Transport headers (`Host`, `Content-Type`, `Content-Length`, `Content-Encoding`, `Connection`, `Transfer-Encoding`, `TE`, `Trailer`, `Upgrade`, `Expect`) and `X-Sellf-*` are reserved, regardless of case. Both the dashboard and API v1 reject invalid entries before saving. `Authorization` and headers such as `X-Tenant` are supported; values remain write-only.
 
-The endpoint log drawer and delivery dashboard show readable event data through `GET /api/v1/webhooks/logs`. License keys, buyer tokens and payment/participant links are replaced with `[REDACTED]`, including in older logs. An unreadable stored payload appears as `null`. Session access requires an administrator; API keys require `webhooks:read`. Actual signed deliveries retain their complete payload.
+The endpoint log drawer and delivery dashboard show readable event data through `GET /api/v1/webhooks/logs`. License keys, buyer tokens and payment/participant links are replaced with `[REDACTED]`, including in older logs. A stored payload that cannot be decoded appears as `null`. Session access requires an administrator. API keys require `webhooks:read`. Redaction applies to the log view. Signed deliveries use the endpoint’s configured payload.
 
 When saving custom headers, provide at most 20 headers: names up to 64 characters and values up to 2048 characters. Names must be unique regardless of case (`Authorization` and `authorization` are duplicates). The dashboard shows an error beside the header fields; API v1 POST/PATCH returns `INVALID_INPUT` with a `custom_headers` detail. These limits apply only when writing new header values. Previously saved configurations continue to be used for deliveries; editing other fields without sending `custom_headers` preserves them without revalidation.

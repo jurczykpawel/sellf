@@ -219,6 +219,6 @@ W formularzach kategorii i tagów błędny slug oraz za długa nazwa lub opis wy
 
 `GET /api/v1/analytics/dashboard` i `/api/v1/analytics/revenue` przyjmują opcjonalny UUID `product_id`; brak lub pusty filtr oznacza wszystkie produkty. Błędny UUID zwraca HTTP 400 z `error.code: INVALID_INPUT` przed odczytem raportu. Raport przychodów odrzuca też nieprawidłowy `period` lub `group_by`, nierozpoznawalne daty oraz początek po końcu zakresu. Poprawne filtry, uwierzytelnianie i zakresy uprawnień działają jak dotąd.
 
-Nazwy kluczy mogą mieć najwyżej 100 znaków. Etykiety formularza są powiązane z polami, a błąd nazwy pojawia się przy polu w języku panelu. Edycja zmienia nazwę. Aby zmienić uprawnienia lub limit zapytań, utwórz nowy klucz.
+Nazwa klucza jest wymagana i może mieć najwyżej 100 znaków. Etykiety formularza są powiązane z polami, a błąd nazwy pojawia się przy polu w języku panelu. Edycja zmienia nazwę. Aby zmienić uprawnienia lub limit zapytań, utwórz nowy klucz.
 
 Otwarty formularz klucza zachowuje wpisaną nazwę podczas odświeżania panelu. Otwarcie innego klucza usuwa błąd poprzedniego pola.
