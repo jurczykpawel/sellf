@@ -8,7 +8,7 @@ import { purchaseEventMail } from '@/lib/events/mail';
 import { allowMailToAddress } from '@/lib/auth/magic-link/address-limit';
 import { deliverMagicLink } from '@/lib/auth/magic-link/deliver';
 import { operateTransfer } from '@/lib/orders/bank-transfer-admin';
-import { runTransferJob } from '@/lib/orders/bank-transfer-service';
+import { paidNoticeCandidates } from '@/lib/orders/bank-transfer-service';
 import { sendOrderNotice } from '@/lib/orders/transfer-mail';
 import recordedPurchase from '../../fixtures/stripe/initial-subscription-purchase.json';
 import { waitForEmail, searchMessages, extractMagicLink } from '../../helpers/mailpit';
@@ -185,10 +185,13 @@ it('delivers one usable payment link to a guest after a cancelled transfer is ac
   const product = { id: crypto.randomUUID(), slug: `late-transfer-${crypto.randomUUID()}`, name: 'Late transfer workshop' };
   const id = crypto.randomUUID();
   const now = Date.now();
-  const setConfirmationTime = (time: string) => execFileSync('docker', ['exec', '-i', getTestDatabaseContainer(), 'psql',
-    '-U', 'postgres', '-v', 'ON_ERROR_STOP=1', '-v', `email=${email}`, '-v', `sent_at=${time}`], {
-    input: "UPDATE auth.users SET confirmation_sent_at = :'sent_at' WHERE email = :'email';",
-  });
+  let userId: string | undefined;
+  const setConfirmationTime = (time: string) => {
+    userId = execFileSync('docker', ['exec', '-i', getTestDatabaseContainer(), 'psql', '-U', 'postgres', '-qtA',
+      '-v', 'ON_ERROR_STOP=1', '-v', `email=${email}`, '-v', `sent_at=${time}`], {
+      input: "UPDATE auth.users SET confirmation_sent_at = :'sent_at' WHERE email = :'email' RETURNING id;", encoding: 'utf8',
+    }).trim() || userId;
+  };
   vi.stubEnv('RATE_LIMIT_TEST_MODE', 'true');
   try {
     expect((await db.from('products').insert({ ...product, price: 47, currency: 'PLN' })).error).toBeNull();
@@ -199,7 +202,7 @@ it('delivers one usable payment link to a guest after a cancelled transfer is ac
     expect(placed.error).toBeNull();
     expect(await sendOrderNotice(db, id, 'placed')).toMatchObject({ sent: true });
     const initial = new URL(extractMagicLink((await waitForEmail(email)).HTML!)!);
-    const { data: actor, error } = await db.from('admin_users').select('user_id').limit(1).single();
+    const { data: actor, error } = await db.from('admin_users').select('user_id').order('user_id').limit(1).single();
     expect(error).toBeNull();
     setConfirmationTime(new Date(now - 120000).toISOString());
     expect(await operateTransfer(db, actor!.user_id, id, { action: 'cancel', reason: 'Not received' })).toMatchObject({ success: true });
@@ -219,12 +222,19 @@ it('delivers one usable payment link to a guest after a cancelled transfer is ac
 
     setConfirmationTime(new Date(Date.now() - 120000).toISOString());
     const bookedAt = Date.now();
+    const candidates = async (at: number) => {
+      const due = await paidNoticeCandidates(db, new Date(at)).eq('id', id);
+      expect(due.error).toBeNull(); return due.data;
+    };
+    expect(await candidates(bookedAt + 60000)).toEqual([]);
+    expect(await candidates(bookedAt + 121000)).toEqual([{ id }]);
     const clock = vi.spyOn(Date, 'now').mockReturnValue(bookedAt + 60000);
     try {
-      await runTransferJob(db, 'fulfillment-resume');
+      expect(await sendOrderNotice(db, id, 'paid')).toEqual({ sent: false, outcome: 'skipped' });
       expect(await searchMessages(email)).toHaveLength(2);
       clock.mockReturnValue(bookedAt + 121000);
-      await Promise.all([runTransferJob(db, 'fulfillment-resume'), runTransferJob(db, 'fulfillment-resume')]);
+      const raced = await Promise.all([sendOrderNotice(db, id, 'paid'), sendOrderNotice(db, id, 'paid')]);
+      expect(raced.filter(result => result.sent)).toHaveLength(1);
     } finally {
       clock.mockRestore();
     }
@@ -242,14 +252,14 @@ it('delivers one usable payment link to a guest after a cancelled transfer is ac
     expect(grant.data?.product_id).toBe(product.id);
     expect((await db.from('guest_purchases').select('claimed_by_user_id').eq('transaction_id', id).single()).data)
       .toEqual({ claimed_by_user_id: verified.data.user?.id });
-    await runTransferJob(db, 'fulfillment-resume');
+    expect(await candidates(Date.now())).toEqual([]);
+    expect(await sendOrderNotice(db, id, 'paid')).toEqual({ sent: false, outcome: 'skipped' });
     expect((await searchMessages(email))).toHaveLength(3);
   } finally {
     vi.unstubAllEnvs();
     await db.from('guest_purchases').delete().eq('transaction_id', id);
     await db.from('payment_transactions').delete().eq('id', id);
-    const user = (await db.auth.admin.listUsers({ perPage: 1000 })).data.users.find(u => u.email === email);
-    if (user) await db.auth.admin.deleteUser(user.id);
+    if (userId) await db.auth.admin.deleteUser(userId);
     await db.from('products').delete().eq('id', product.id);
   }
 });

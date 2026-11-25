@@ -10,7 +10,7 @@ import { buildOrderPayLink } from '@/lib/orders/transfer-token';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 
-import { ORDER_NOTICES, NOTICE_RETRY_DELAY, PAID_NOTICE_RATE_LIMIT_DELAY, noticeMatchesStatus, paidNoticeDue, type OrderNotice } from '@/lib/orders/notice-state';
+import { ORDER_NOTICES, NOTICE_RETRY_DELAY, PAID_NOTICE_MAX_ATTEMPTS, noticeMatchesStatus, paidNoticeDue, paidNoticeRetryDelay, type OrderNotice } from '@/lib/orders/notice-state';
 export type { OrderNotice } from '@/lib/orders/notice-state';
 export type OrderNoticeResult = { sent: boolean; outcome: 'sent' | 'skipped' | 'refused' | 'unknown' | 'error' };
 
@@ -62,19 +62,24 @@ export async function sendOrderNotice(db: SupabaseClient<Database>, id: string, 
     } as Database['public']['Tables']['payment_transactions']['Update']).eq('id', id).in('status', [...spec.statuses]);
     if (notice === 'paid') query = query.eq('fulfillment_pending', false).or(paidNoticeDue(claimedAt));
     query = previous ? query.eq(spec.column, previous).eq(spec.state, true) : query.is(spec.column, null);
-    const claim = await query.select('id').maybeSingle();
+    const claim = await query.select('id,transfer_paid_mail_attempts').maybeSingle();
     if (claim.error || !claim.data) return { sent: false, outcome: 'skipped' };
     const result = await sendTrustedMagicLink({ transactionalOnly: !!tx.user_id || (notice !== 'paid' && !(notice === 'placed' && meta?.access_on_placement === true)), email: tx.customer_email,
       ...(notice === 'paid' && !tx.user_id ? { paidTransferAccess: true } : {}),
       redirectTo: buildPostCheckoutMagicLinkRedirect({ origin: base, productSlug: product.slug, locale, sessionId: undefined, paymentIntentId: undefined }), data });
-    if (!result.ok && !result.deliveryUnknown) {
-      const retryAt = notice === 'paid' && result.code === 'rate_limited'
-        ? new Date(Date.now() + PAID_NOTICE_RATE_LIMIT_DELAY).toISOString() : null;
-      await db.from('payment_transactions').update({
-        [spec.column]: null, [spec.state]: false, ...(retryAt ? { transfer_paid_mail_retry_at: retryAt } : {}),
-      } as Database['public']['Tables']['payment_transactions']['Update']).eq('id', id).eq(spec.column, claimedAt);
+    if (!result.ok && !result.deliveryUnknown && notice === 'paid') {
+      // Every confirmed refusal waits longer; the last one keeps the reservation flagged for the administrator.
+      const attempts = claim.data.transfer_paid_mail_attempts + 1;
+      const handOver = attempts >= PAID_NOTICE_MAX_ATTEMPTS;
+      if (handOver) console.error('[transfer-mail] Payment confirmation refused repeatedly; held for the administrator:', id);
+      await db.from('payment_transactions').update(handOver ? { transfer_paid_mail_attempts: attempts } : {
+        transfer_paid_mail_sent_at: null, transfer_paid_mail_delivery_unknown: false, transfer_paid_mail_attempts: attempts,
+        transfer_paid_mail_retry_at: new Date(Date.now() + paidNoticeRetryDelay(attempts)).toISOString(),
+      }).eq('id', id).eq(spec.column, claimedAt);
+    } else if (!result.ok && !result.deliveryUnknown) {
+      await db.from('payment_transactions').update({ [spec.column]: null, [spec.state]: false } as Database['public']['Tables']['payment_transactions']['Update']).eq('id', id).eq(spec.column, claimedAt);
     } else if (result.ok) {
-      await db.from('payment_transactions').update({ [spec.state]: false } as Database['public']['Tables']['payment_transactions']['Update']).eq('id', id).eq(spec.column, claimedAt);
+      await db.from('payment_transactions').update({ [spec.state]: false, ...(notice === 'paid' ? { transfer_paid_mail_attempts: 0 } : {}) } as Database['public']['Tables']['payment_transactions']['Update']).eq('id', id).eq(spec.column, claimedAt);
     } else if (!result.ok) {
       console.error('[transfer-mail] Delivery outcome unknown; automatic retry held:', id);
     }
