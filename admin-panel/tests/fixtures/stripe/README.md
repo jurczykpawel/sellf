@@ -5,6 +5,12 @@ recorded 17 PLN subscription purchase (2026-11-01), with its source hash. It is
 internal persisted state, rather than a reconstructed Stripe event. Invoice identity,
 completed amount, active subscription and absent pre-confirmation access are retained.
 
+`guest-subscription-booked-checkout.json` projects the Stripe sandbox
+`checkout.session.completed` event for a 17 PLN guest subscription, fetched on
+2026-11-25. The Checkout Session and invoice IDs were replaced, the email is an
+example address, and the projection omits unrelated fields. Original event
+SHA-256: `d70f58d0d8db062183a777cbab7f396bfa401fe287b81c3c6e2872a5e0882660`.
+
 `trial-first-mail-checkout.json` was recorded from a completed seven-day trial
 Checkout session on 2026-11-01. It retains the actual zero total and `paid` status.
 The recording follows the provider's [CLI checkout fixture](https://github.com/stripe/stripe-cli/blob/master/pkg/fixtures/triggers/checkout.session.completed.json),

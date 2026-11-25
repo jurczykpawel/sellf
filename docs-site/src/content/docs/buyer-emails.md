@@ -7,6 +7,8 @@ Sellf sends signed business webhooks by default. Your integration builds and sen
 
 Supabase Auth still sends sign-in and email-confirmation links. A guest who has paid gets a plain authentication link even when transactional emails are disabled. The link claims the purchase and opens the buyer's product; order content is delivered separately through webhooks. Free-product login and ordinary sign-in work the same way.
 
+After a guest pays for a subscription, the checkout confirmation requests the first access email even if the invoice is already recorded. A new buyer opens the link to confirm their address and activate access.
+
 In **Settings → Shop → Buyer emails**, enable **Send buyer emails through Supabase** to use Sellf's existing templates. This consumes the free Supabase email allowance faster and may require a paid plan. Sellf does not configure a separate SMTP service. On upgrade, existing installations keep this option enabled so buyer messages do not stop unexpectedly. New installations default to off. You can turn it off after connecting and testing your receiver. Pending retries follow the current setting: purchase-access retries become plain sign-in links; notification-only retries are skipped.
 
 When a recorded payment is still being fulfilled after the initial short wait, its first access email waits in the authentication-mail queue. Once fulfillment finishes, delivery reads the current purchase details and includes the product and paid amount when buyer emails are enabled. This applies to subscriptions and one-time purchases, including a buyer's first email confirmation. The first retry is due after two minutes. Keep the retry worker running as described below.
