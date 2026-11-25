@@ -37,10 +37,13 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertRegex(jobs["checks"], r"\n      - \*validate-receipt\n      - &lane-failure\n")
         self.assertRegex(jobs["stripe"], r"\n      - \*validate-receipt\n      - \*lane-failure\n")
         self.assertRegex(jobs["gate-result"], r"\n      - \*validate-receipt\n      - name: Upload")
+        # Receipts upload only on failure; the one other upload is opt-in PNG baselines from the sections lane.
         self.assertEqual(
-            workflow.count("upload-artifact@"),
+            workflow.count("upload-artifact@") - 1,
             workflow.count("if: failure() && steps.receipt.outcome == 'success'"),
         )
+        self.assertIn("if: always() && inputs.snapshots && matrix.lane == 'sections'", jobs["checks"])
+        self.assertIn("path: ${{ runner.temp }}/release-gate/linux-snapshots/**/*.png", jobs["checks"])
         self.assertEqual(workflow.count("upload-artifact@"), workflow.count("retention-days: 3"))
 
 

@@ -7,7 +7,7 @@ import json
 from pathlib import Path, PurePosixPath
 
 from diagnostics import public_test_file, read_test_report, record_failures, test_identifier
-from support import ADMIN, OUT, RUNTIME, record, require, run
+from support import ADMIN, OUT, RUNTIME, env, record, require, run
 
 MAIN_PROJECTS = ('chromium', 'chromium-heavy', 'maintenance', 'accessibility', 'rate-limiting', 'rate-limiting-v1')
 ALLOWED_SKIPS = {
@@ -15,7 +15,8 @@ ALLOWED_SKIPS = {
     ('payment-method-config-checkout.spec.ts', 'E2E-CHECKOUT-003: Stripe preset - Custom PMC'),
     ('variants-admin-ui.spec.ts', 'should toggle featured status'),
 }
-# These candidate specs exercise the sandbox directly or through the Sellf checkout.
+# These candidate specs exercise the sandbox directly or through the Sellf checkout. The second line: paid checkout
+# pages that only render their payment step with a working key (GHA 45596098511 failed them with the fake key).
 STRIPE_SPECS = '''
 accessibility admin-refund buyer-regression cart-regressions checkout-buyer-details checkout-invoice-section
 checkout-profile checkout-recovery checkout-session-recovery checkout-session-update coupon-multi-bump
@@ -27,6 +28,7 @@ product-bundles-e2e product-preview purchase-attribution purchase-intent pwyw-ch
 pwyw-security pwyw-subscription refund-system sale-price-checkout-charge set-price shop-gus
 stripe-checkout-console-warnings stripe-deleted-product-reconciliation stripe-webhook-registration
 stripe-webhook subscription-checkout-ui tip-jar-template tracking-events v1-refund webhook-amount-validation webhook-dispatch
+checkout-theme-settings coupons funnel-mechanics funnel-test-preview funnel-test-redirect mobile-pwyw-cookies
 '''.split()
 STRIPE_FILTER = r'(?:^|/)(?:' + '|'.join(STRIPE_SPECS) + r')\.spec\.ts$'
 FAKE_STRIPE = {
@@ -82,7 +84,10 @@ LANES = {
         CANONICAL['template-author'],
         CANONICAL['live-template-acceptance'],
     ),
-    'rate-limiting': (main_suite('rate-limiting', 'rate-limiting', 'rate-limiting-v1', RATE_LIMIT_TEST_MODE='true'),),
+    # verify-payment answers 400 with the sandbox key but 500 with the fake one (GHA 45596098511: 0 successes).
+    'stripe-rate-limiting': (
+        main_suite('rate-limiting', 'rate-limiting', 'rate-limiting-v1', RATE_LIMIT_TEST_MODE='true'),
+    ),
     'stripe-live': (CANONICAL['stripe'],),
     'stripe-runtime': (CANONICAL['runtime'], CANONICAL['transfer']),
     'stripe-maintenance': (
@@ -199,6 +204,8 @@ def run_browser(suite, inventory):
         **dict(suite.variables),
     }
     options = ['--workers=1', '--retries=0', '--trace=off', '--reporter=list']
+    if suite.name == 'sections' and env.get('RC_GATE_SNAPSHOT_UPDATE'):
+        options.append('--update-snapshots=' + env['RC_GATE_SNAPSHOT_UPDATE'])
     if suite.driver == 'stripe':
         command = ['bash', 'scripts/run-stripe-live-e2e.sh', *options, '--max-failures=0']
         # The driver enables Stripe transport and starts its own servers.

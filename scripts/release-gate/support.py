@@ -64,8 +64,13 @@ env = {
     'SELLF_TELEMETRY_DISABLED': 'true',
     'NODE_OPTIONS': '--max-old-space-size=4096',
     'PYTHONDONTWRITEBYTECODE': '1',
+    # Browser specs that need an exclusive machine assert a slot ticket; each GHA job owns its runner.
+    'SLOT_TICKET': 'gha-' + os.environ.get('GITHUB_RUN_ID', 'local'),
 }
+# Read-only workflow token, only for the upgrade matrix's GitHub release lookup (anonymous runner IPs hit the API limit).
+RELEASE_LOOKUP_TOKEN = os.environ.get('RC_GATE_GITHUB_TOKEN', '')
 for name in (
+    'RC_GATE_GITHUB_TOKEN',
     'STRIPE_SANDBOX_SECRET_KEY',
     'STRIPE_SANDBOX_PUBLISHABLE_KEY',
     'STRIPE_SANDBOX_ACCOUNT_ID',
@@ -214,6 +219,12 @@ def configure():
         SUPABASE_TEST_WORKDIR=str(STACK),
         TRUSTED_PROXY='true',
         DEMO_MODE='false',
+        # Values the Mac gate inherited from the candidate's .env.example.
+        NEXT_PUBLIC_DEMO_MODE='false',
+        NEXT_PUBLIC_CURRENCY_PROVIDER='manual',
+        DISPOSABLE_EMAIL_FILTER_ENABLED='true',
+        DISPOSABLE_EMAIL_CACHE_TTL='3600000',
+        MAIN_DOMAIN='',
         STRIPE_COLLECT_TERMS_OF_SERVICE='false',
         SUPABASE_KEEP_ALIVE='false',
     )

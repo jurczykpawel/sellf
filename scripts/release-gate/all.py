@@ -19,6 +19,7 @@ from support import (
     CLI,
     OUT,
     RECEIPT,
+    RELEASE_LOOKUP_TOKEN,
     ROOT,
     RUNTIME,
     STACK,
@@ -73,6 +74,19 @@ def stage_browser_tools():
             shutil.copyfile(item, RUNTIME / item.name)
     (RUNTIME / 'node_modules').symlink_to(ADMIN / 'node_modules', target_is_directory=True)
     (RUNTIME / 'admin').symlink_to(ADMIN, target_is_directory=True)
+
+
+UPDATE_SNAPSHOTS = os.environ.get('RC_GATE_UPDATE_SNAPSHOTS') == 'true'
+
+
+def prepare_sections():
+    # storefront-theme reads fonts from the production CSS chunks; on the Mac an earlier lane had built them.
+    require('build-admin', ['bun', 'run', 'build'], ADMIN)
+    # Screenshot baselines in the candidate are macOS renders; Linux ones live with the harness (see linux-snapshots/).
+    snapshots = OUT / 'linux-snapshots' if UPDATE_SNAPSHOTS else TOOLS / 'linux-snapshots'
+    env['RC_GATE_SNAPSHOT_DIR'] = str(snapshots)
+    if UPDATE_SNAPSHOTS:
+        env['RC_GATE_SNAPSHOT_UPDATE'] = 'all'
 
 
 def stripe_environment():
@@ -141,7 +155,7 @@ def execute(lane):
         result = inventory()
         output('inventory', json.dumps(result, separators=(',', ':')))
         return
-    if lane in LANES or lane == 'second':
+    if lane in LANES or lane in ('second', 'unit'):  # unit: affiliate browser tests launch Chromium
         stage_browser_tools()
         require('install-chromium', ['bun', 'x', 'playwright', 'install', '--with-deps', 'chromium'], ADMIN)
 
@@ -168,8 +182,12 @@ def execute(lane):
                 reset('stripe-reset', 'stripe-kong')
         elif lane.startswith('chromium'):
             install('cloudflared')  # signed-delivery specs (J71, J560) reach their receivers through a public tunnel
+        elif lane == 'sections':
+            prepare_sections()
         for suite in LANES[lane]:
             run_browser(suite, json.loads(os.environ['RC_GATE_INVENTORY'])['counts'])
+        if lane == 'sections' and UPDATE_SNAPSHOTS:
+            record('snapshot-update-mode', 1)  # a baseline-generation run is never a gate result
         if lane == 'stripe-runtime':
             stripe_unit()
 
@@ -187,6 +205,8 @@ def run_lane(lane):
     head = resolve_gate_head(expected=os.environ['RC_GATE_SHA'])
     version = validate_release_version(json.loads((ROOT / 'package.json').read_text())['version'])
     record('final-begin', 0, lane=lane, head=head, version=version)
+    if RELEASE_LOOKUP_TOKEN:
+        mask(RELEASE_LOOKUP_TOKEN)
     env['RC_GATE_ROOT'] = str(ROOT)
     env.update(FAKE_STRIPE)
     env['STRIPE_WEBHOOK_SECRET'] = 'wh' + 'sec_' + secrets.token_hex(32)

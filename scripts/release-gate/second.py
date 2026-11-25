@@ -13,6 +13,7 @@ import urllib.request
 
 from support import (
     CLI,
+    RELEASE_LOOKUP_TOKEN,
     OUT,
     ROOT,
     RUNTIME,
@@ -266,13 +267,13 @@ def deployment_matrix():
         'matrix',
         ['bun', str(RUNTIME / 'upgrade-matrix-runner.ts'), '--stack=' + str(STACK)],
         ROOT / 'admin-panel',
-        {'RC_GATE_VITEST_REPORT': str(vitest_report_path('matrix-vitest'))},
+        {'RC_GATE_VITEST_REPORT': str(vitest_report_path('matrix-vitest')), 'RC_GATE_GITHUB_TOKEN': RELEASE_LOOKUP_TOKEN},
         timeout=MATRIX_TIMEOUT,
     )
     if code:
         # The runner's progress lines are its own fixed strings plus a command verb.
         lines = (OUT / 'matrix.log').read_text(errors='replace').splitlines()
-        steps = [public_message(line) for line in lines if line.startswith(('STEP ', 'PASS '))][-6:]
+        steps = [public_message(line) for line in lines if re.match(r'(?:STEP|PASS) |\w*Error\b', line)][-8:]
         record('matrix-progress', 0, steps=steps)
     verify_vitest('matrix-vitest')
 

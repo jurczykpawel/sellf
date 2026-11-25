@@ -273,8 +273,9 @@ try {
   console.log('Running complete installed upgrade script with real PM2');
   const assetsDir = resolve(scratch, 'assets');
   await mkdir(assetsDir);
-  const releaseResponse = await fetch('https://api.github.com/repos/jurczykpawel/sellf/releases/tags/v2026.11.0', { signal: AbortSignal.timeout(15_000) });
-  assert(releaseResponse.ok, 'Published release metadata');
+  const lookupToken = process.env.RC_GATE_GITHUB_TOKEN;
+  const releaseResponse = await fetch('https://api.github.com/repos/jurczykpawel/sellf/releases/tags/v2026.11.0', { headers: lookupToken ? { Authorization: `Bearer ${lookupToken}` } : {}, signal: AbortSignal.timeout(15_000) });
+  assert(releaseResponse.ok, `Published release metadata (HTTP ${releaseResponse.status})`);
   const release = await releaseResponse.json() as { tag_name: string; assets: { name: string; browser_download_url: string }[] };
   await writeFile(resolve(assetsDir, 'release.json'), JSON.stringify(release));
   for (const name of ['sellf-build.tar.gz', 'sellf-build.v2.manifest', 'sellf-build.v2.manifest.sig']) {
