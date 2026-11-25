@@ -118,7 +118,7 @@ def describe_error(error):
 
 
 def execute(lane):
-    from first import api, database, reset, unit
+    from first import api, database, reset, stripe_unit, unit
     from tools_linux import install
 
     assert subprocess.check_output(['bun', '--version'], text=True).strip() == '1.3.14', 'Unexpected Bun version'
@@ -166,8 +166,12 @@ def execute(lane):
             stripe_environment()
             if lane == 'stripe-live':
                 reset('stripe-reset', 'stripe-kong')
+        elif lane.startswith('chromium'):
+            install('cloudflared')  # signed-delivery specs (J71, J560) reach their receivers through a public tunnel
         for suite in LANES[lane]:
             run_browser(suite, json.loads(os.environ['RC_GATE_INVENTORY'])['counts'])
+        if lane == 'stripe-runtime':
+            stripe_unit()
 
 
 def run_lane(lane):

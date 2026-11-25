@@ -5,6 +5,21 @@ from diagnostics import run_vitest, verify_vitest, vitest_report_path
 from support import ADMIN, CLI, OUT, ROOT, STACK, clean, require, run
 
 
+# Vitest files that call the Stripe sandbox (they gate on an sk_test_ key, which the fake listing key passes);
+# they run in the stripe-runtime lane with the real sandbox key instead.
+STRIPE_UNIT = (
+    'tests/unit/paid-withdrawn-sandbox.integration.test.ts',
+    'tests/unit/stripe-customer.integration.test.ts',
+    'tests/unit/stripe-payment-intent.integration.test.ts',
+    'tests/unit/stripe-product-price.integration.test.ts',
+    'tests/unit/subscription-handlers.integration.test.ts',
+)
+
+
+def stripe_unit():
+    run_vitest('unit-stripe', ['bun', 'x', 'vitest', 'run', *STRIPE_UNIT])
+
+
 def unit():
     reset('reset', 'kong')
     run(
@@ -29,7 +44,7 @@ def unit():
             'tests/unit/security/magic-link-redirect-url.test.ts',
         ],
     )
-    run_vitest('unit', ['bun', 'run', 'tt'])
+    run_vitest('unit', ['bun', 'run', 'tt', *('--exclude=' + file for file in STRIPE_UNIT)])
     shutil.rmtree(ROOT / 'admin-panel/.next/types', ignore_errors=True)
     for name, cmd, cwd in [
         ('typecheck-admin', ['bun', 'run', 'typecheck'], 'admin-panel'),

@@ -9,11 +9,14 @@ import sys
 
 MAX_TEST_IDS = 40
 MAX_TEXT = 200
+MAX_MESSAGE = 300
 CREDENTIAL = re.compile(r'(sk|pk|rk|whsec|sb_secret|sb_publishable|sf_live|sf_test)_[A-Za-z0-9_-]+|eyJ[A-Za-z0-9_.-]+')
 PRIVATE_REFERENCE = re.compile(
     r'(?<!\S)\S*[/\\]\S*|(?:data:|mailto:|www\.)\S+|(?<![\w.+-])[\w.+-]+@[\w.-]+\.[a-z]{2,}',
     re.IGNORECASE,
 )
+LOCAL_PATH = re.compile(r'(?<![\w:/.])/(?:home|tmp|opt|usr|var|private|Users|runner|__w|mnt)/\S*')
+EMAIL = re.compile(r'(?<![\w.+-])[\w.+-]+@[\w.-]+\.[a-z]{2,}', re.IGNORECASE)
 TEST_FILE = r'(?:tests/(?:[\w-][\w.-]*/)*[\w-][\w.-]*\.(?:tsx?|jsx?)|acceptance\.spec\.ts)'
 TEST_ID = re.compile(rf'(?:[\w.-]+\|{TEST_FILE}:[1-9][0-9]*|{TEST_FILE})\|([^|]+)')
 
@@ -53,6 +56,18 @@ def test_ids(value):
     return len(value) <= MAX_TEST_IDS and all(test_id(item) for item in value)
 
 
+def safe_message(value):
+    """Failure text published next to a test ID: no credentials, runner paths or addresses."""
+    return (
+        isinstance(value, str)
+        and len(value) <= MAX_MESSAGE
+        and value.isprintable()
+        and not CREDENTIAL.search(value)
+        and not LOCAL_PATH.search(value)
+        and not EMAIL.search(value)
+    )
+
+
 TABLE_COUNTS = items(lambda value: fields(value, {'table': short_text, 'count': count_text}))
 RECEIPT_FIELDS = {
     **dict.fromkeys(('name', 'lane', 'head', 'version', 'error', 'baseline', 'migration', 'manifest'), short_text),
@@ -81,6 +96,8 @@ RECEIPT_FIELDS = {
     **dict.fromkeys(('reportMissing', 'repeatSkipped', 'rcChecked'), lambda value: type(value) is bool),
     **dict.fromkeys(('failures', 'mismatched', 'addedMigrations', 'changedReleasedMigrations'), items(short_text)),
     'testIds': test_ids,
+    'testErrors': lambda value: isinstance(value, list) and len(value) <= MAX_TEST_IDS and all(map(safe_message, value)),
+    'steps': lambda value: isinstance(value, list) and len(value) <= 10 and all(map(safe_message, value)),
     'seconds': lambda value: type(value) in (int, float) and math.isfinite(value),
     'checks': lambda value: fields(
         value, dict.fromkeys(('/', '/api/health', '/login'), lambda item: integer(item) or short_text(item))

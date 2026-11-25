@@ -102,7 +102,7 @@ def record(name, code, **data):
     return code
 
 
-def run(name, cmd, cwd=ROOT, extra=None, stdin=None, stdout=None):
+def run(name, cmd, cwd=ROOT, extra=None, stdin=None, stdout=None, timeout=None):
     print(f'START {name}', flush=True)
     start = time.monotonic()
     code = 1
@@ -119,8 +119,10 @@ def run(name, cmd, cwd=ROOT, extra=None, stdin=None, stdout=None):
                 start_new_session=True,
             ) as child:
                 try:
-                    child.communicate(stdin)
+                    child.communicate(stdin, timeout=timeout)
                     code = child.returncode
+                except subprocess.TimeoutExpired:
+                    code = 124
                 finally:
                     try:
                         os.killpg(child.pid, signal.SIGTERM)

@@ -232,7 +232,14 @@ class GateContractTests(unittest.TestCase):
                 'tests': [{
                     'projectName': 'chromium',
                     'status': status,
-                    'results': [{'error': {'message': 'private error'}, 'stdout': ['private stdout']}],
+                    'results': [{
+                        'error': {
+                            'message': '\x1b[31mexpect failed\x1b[39m /home/runner/work/x.ts buyer@example.com '
+                            + 'sk_' + 'test_marker',
+                            'location': {'line': 9},
+                        },
+                        'stdout': ['private stdout'],
+                    }],
                 }],
             })
         report = {
@@ -255,8 +262,9 @@ class GateContractTests(unittest.TestCase):
             'chromium|tests/offer-public.spec.ts:2|flaky test',
             'chromium|tests/offer-public.spec.ts:3|other skip',
         ])
+        self.assertEqual(rows['ordinary-failures']['testErrors'], ['line 9: expect failed [path] [email] [redacted]'] * 3)
         self.assertIn(json.dumps(ids[1]), log.getvalue())
-        for marker in ('example.com', '/tmp/data', 'private error', 'private stdout'):
+        for marker in ('example.com', '/tmp/data', '/home/runner', 'test_marker', 'private stdout'):
             self.assertNotIn(marker, receipt + log.getvalue())
 
     def test_vitest_counts_and_limits_ids_from_private_report(self):
@@ -281,7 +289,7 @@ class GateContractTests(unittest.TestCase):
                         {
                             'fullName': f'tests/unit/{path.name} currency accepts {secret} ({index})',
                             'status': 'failed',
-                            'failureMessages': ['private assertion failure'],
+                            'failureMessages': [f'AssertionError: expected {secret} at /tmp/private.ts'],
                         }
                         for index in range(41)
                     ] + [{'fullName': 'passing test', 'status': 'passed'}],
@@ -312,6 +320,9 @@ class GateContractTests(unittest.TestCase):
         self.assertTrue(rows['missing-count']['reportMissing'])
         self.assertEqual(rows['missing-failures']['testIds'], [])
         self.assertIn(json.dumps(ids[1]), log.getvalue())
+        errors = rows['unit-failures']['testErrors']
+        self.assertEqual(errors[0], '')
+        self.assertEqual(errors[1], 'AssertionError: expected [redacted] at [path]')
         for marker in (str(support.ADMIN), secret, 'private', 'passing test'):
             self.assertNotIn(marker, receipt + log.getvalue())
 

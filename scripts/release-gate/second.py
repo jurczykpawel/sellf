@@ -28,7 +28,10 @@ from support import (
     validate_release_version,
     write_env,
 )
-from diagnostics import verify_vitest, vitest_report_path
+from diagnostics import public_message, verify_vitest, vitest_report_path
+
+# Mac r29 ran the matrix in 149 s, GHA reached its last build in 7 min; a hung step must not eat the 90-minute job.
+MATRIX_TIMEOUT = 30 * 60
 from first import reset
 
 
@@ -259,12 +262,18 @@ def deployment_matrix():
     require('upgrade-owned-restart', [CLI, 'start', '--workdir', str(STACK)])
     configure()
     reset('matrix-reset', 'matrix-kong')
-    run(
+    code = run(
         'matrix',
         ['bun', str(RUNTIME / 'upgrade-matrix-runner.ts'), '--stack=' + str(STACK)],
         ROOT / 'admin-panel',
         {'RC_GATE_VITEST_REPORT': str(vitest_report_path('matrix-vitest'))},
+        timeout=MATRIX_TIMEOUT,
     )
+    if code:
+        # The runner's progress lines are its own fixed strings plus a command verb.
+        lines = (OUT / 'matrix.log').read_text(errors='replace').splitlines()
+        steps = [public_message(line) for line in lines if line.startswith(('STEP ', 'PASS '))][-6:]
+        record('matrix-progress', 0, steps=steps)
     verify_vitest('matrix-vitest')
 
 

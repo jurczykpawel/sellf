@@ -133,6 +133,16 @@ def list_suite(suite):
     return data
 
 
+def failure_text(test):
+    """Message and spec line of the first error in the last attempt; empty for skips."""
+    for result in reversed(test.get('results') or []):
+        errors = result.get('errors') or ([result['error']] if result.get('error') else [])
+        if errors:
+            line = (errors[0].get('location') or {}).get('line')
+            return (f'line {line}: ' if line else '') + (errors[0].get('message') or '')
+    return ''
+
+
 def verify_result(suite, expected, report):
     tests = tests_in(report)
     stats = report['stats']
@@ -147,7 +157,7 @@ def verify_result(suite, expected, report):
         if status == 'skipped' and suite != 'stripe' and (PurePosixPath(file).name, title) in ALLOWED_SKIPS:
             allowed += 1
         elif status in ('unexpected', 'flaky', 'skipped'):
-            failures.append((project, file, title, line))
+            failures.append((project, file, title, line, failure_text(test)))
     ok = (
         not report.get('errors')
         and expected > 0
@@ -170,8 +180,8 @@ def verify_result(suite, expected, report):
     record_failures(
         suite,
         (
-            test_identifier(public_test_file(root / file), title, project, line)
-            for project, file, title, line in failures
+            (test_identifier(public_test_file(root / file), title, project, line), message)
+            for project, file, title, line, message in failures
         ),
     )
     return code

@@ -2,9 +2,12 @@
 
 import json
 from pathlib import Path
+import re
 
 from support import ADMIN, OUT, RUNTIME, record, redact, run
-from validate_receipt import MAX_TEST_IDS, MAX_TEXT, PRIVATE_REFERENCE, test_id
+from validate_receipt import EMAIL, LOCAL_PATH, MAX_MESSAGE, MAX_TEST_IDS, MAX_TEXT, PRIVATE_REFERENCE, test_id
+
+ANSI = re.compile(r'\x1b\[[0-9;?]*[A-Za-z]')
 
 
 def public_test_file(file):
@@ -33,17 +36,28 @@ def test_identifier(file, title, project=None, line=None):
     return identifier if space > 0 and test_id(identifier) else None
 
 
-def record_failures(name, identifiers):
+def public_message(text):
+    """First part of a failure message without masked values, credentials, runner paths or addresses."""
+    text = redact(ANSI.sub('', text or ''))
+    text = LOCAL_PATH.sub('[path]', EMAIL.sub('[email]', text))
+    text = ' '.join(''.join(char if char.isprintable() else ' ' for char in text).split())
+    return text[:MAX_MESSAGE]
+
+
+def record_failures(name, failures):
+    """Publish failed test IDs with the matching sanitized failure text (same index)."""
     ids = []
+    errors = []
     omitted = 0
-    for identifier in identifiers:
+    for identifier, message in failures:
         if identifier is None or len(ids) == MAX_TEST_IDS:
             omitted += 1
         else:
             ids.append(identifier)
+            errors.append(public_message(message))
     if omitted:
         ids.append(f'+{omitted} omitted')
-    record(name + '-failures', 0, testIds=ids)
+    record(name + '-failures', 0, testIds=ids, testErrors=errors)
 
 
 def vitest_report_path(name):
@@ -76,14 +90,14 @@ def verify_vitest(name):
             path = public_test_file(ADMIN / file['name'])
             failed = [case for case in file['assertionResults'] if case['status'] == 'failed']
             if file['status'] == 'failed' and not failed:
-                yield test_identifier(path, '[file failed]')
+                yield test_identifier(path, '[file failed]'), file.get('message')
             for case in failed:
                 title = case['fullName'].strip()
                 for prefix in (file['name'], path):
                     if prefix and title.startswith(prefix + ' '):
                         title = title[len(prefix) + 1:]
                         break
-                yield test_identifier(path, title)
+                yield test_identifier(path, title), (case.get('failureMessages') or [''])[0]
 
     record(
         name + '-count',

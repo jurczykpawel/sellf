@@ -33,6 +33,7 @@ function check(value: unknown, message: string): void {
 }
 async function run(command: string, args: string[], cwd = root, extraEnv: Record<string, string> = {}): Promise<string> {
   const log = resolve(scratch, `command-${randomUUID()}.log`);
+  console.log(`STEP ${command} ${args[0] ?? ''}`);
   return new Promise((accept, reject) => {
     const child = spawn(command, args, { cwd, env: { ...process.env, ...extraEnv }, stdio: ['ignore', 'pipe', 'pipe'] });
     let output = '';
