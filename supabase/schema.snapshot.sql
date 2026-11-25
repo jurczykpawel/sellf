@@ -4962,7 +4962,10 @@ BEGIN
   IF NEW.status NOT IN ('awaiting_payment', 'completed') THEN NEW.transfer_mail_delivery_unknown := false; END IF;
   IF NEW.status <> 'awaiting_payment' THEN NEW.reminder_mail_delivery_unknown := false; END IF;
   IF NEW.status <> 'cancelled' THEN NEW.cancelled_mail_delivery_unknown := false; END IF;
-  IF NEW.status <> 'completed' THEN NEW.transfer_paid_mail_delivery_unknown := false; END IF;
+  IF NEW.status <> 'completed' THEN
+    NEW.transfer_paid_mail_delivery_unknown := false;
+    NEW.transfer_paid_mail_retry_at := NULL;
+  END IF;
   RETURN NEW;
 END;
 $$;
@@ -9334,6 +9337,7 @@ CREATE TABLE public.payment_transactions (
     reminder_mail_delivery_unknown boolean DEFAULT false NOT NULL,
     cancelled_mail_delivery_unknown boolean DEFAULT false NOT NULL,
     transfer_paid_mail_delivery_unknown boolean DEFAULT false NOT NULL,
+    transfer_paid_mail_retry_at timestamp with time zone,
     CONSTRAINT payment_transactions_access_terms_check CHECK ((jsonb_typeof(access_terms) = 'object'::text)),
     CONSTRAINT payment_transactions_amount_check CHECK (((amount <= (99999999)::numeric) AND ((amount > (0)::numeric) OR ((amount = (0)::numeric) AND (subscription_id IS NOT NULL) AND (stripe_invoice_id IS NOT NULL))))),
     CONSTRAINT payment_transactions_cancel_note_check CHECK (((cancel_note IS NULL) OR (length(cancel_note) <= 1000))),

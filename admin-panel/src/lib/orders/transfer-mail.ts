@@ -10,7 +10,7 @@ import { buildOrderPayLink } from '@/lib/orders/transfer-token';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 
-import { ORDER_NOTICES, NOTICE_RETRY_DELAY, noticeMatchesStatus, type OrderNotice } from '@/lib/orders/notice-state';
+import { ORDER_NOTICES, NOTICE_RETRY_DELAY, PAID_NOTICE_RATE_LIMIT_DELAY, noticeMatchesStatus, paidNoticeDue, type OrderNotice } from '@/lib/orders/notice-state';
 export type { OrderNotice } from '@/lib/orders/notice-state';
 export type OrderNoticeResult = { sent: boolean; outcome: 'sent' | 'skipped' | 'refused' | 'unknown' | 'error' };
 
@@ -19,12 +19,14 @@ export async function sendOrderNotice(db: SupabaseClient<Database>, id: string, 
   const spec = ORDER_NOTICES[notice];
   try {
     const { data: tx } = await db.from('payment_transactions').select('*').eq('id', id).single();
-    if (!tx || !noticeMatchesStatus(notice, tx.status) || !tx.customer_email || !tx.product_id) return { sent: false, outcome: 'skipped' };
+    if (!tx || tx.payment_provider !== 'bank_transfer' || !noticeMatchesStatus(notice, tx.status) || !tx.customer_email || !tx.product_id) return { sent: false, outcome: 'skipped' };
     const previous = tx[spec.column];
     if (previous && (!retryUnknown || !tx[spec.state] || Date.parse(previous) > Date.now() - NOTICE_RETRY_DELAY)) return { sent: false, outcome: 'skipped' };
     if (retryUnknown && !previous) return { sent: false, outcome: 'skipped' };
     if (notice === 'reminder' && !tx.release_at) return { sent: false, outcome: 'skipped' };
-    if (notice === 'paid' && tx.fulfillment_pending) return { sent: false, outcome: 'skipped' };
+    if (notice === 'paid' && (tx.fulfillment_pending || (tx.transfer_paid_mail_retry_at && Date.parse(tx.transfer_paid_mail_retry_at) > Date.now()))) {
+      return { sent: false, outcome: 'skipped' };
+    }
     const meta = tx.metadata as Record<string, unknown> | null;
     const { data: product } = await db.from('products').select('slug,name').eq('id', tx.product_id).single();
     if (!product) return { sent: false, outcome: 'skipped' };
@@ -55,15 +57,22 @@ export async function sendOrderNotice(db: SupabaseClient<Database>, id: string, 
       if (licenses.data?.length) data.license_mail_managed = 'true';
     }
     const claimedAt = new Date(Math.max(Date.now(), previous ? Date.parse(previous) + 1 : 0)).toISOString();
-    let query = db.from('payment_transactions').update({ [spec.column]: claimedAt, [spec.state]: true } as Database['public']['Tables']['payment_transactions']['Update'])
-      .eq('id', id).in('status', [...spec.statuses]);
+    let query = db.from('payment_transactions').update({
+      [spec.column]: claimedAt, [spec.state]: true, ...(notice === 'paid' ? { transfer_paid_mail_retry_at: null } : {}),
+    } as Database['public']['Tables']['payment_transactions']['Update']).eq('id', id).in('status', [...spec.statuses]);
+    if (notice === 'paid') query = query.eq('fulfillment_pending', false).or(paidNoticeDue(claimedAt));
     query = previous ? query.eq(spec.column, previous).eq(spec.state, true) : query.is(spec.column, null);
     const claim = await query.select('id').maybeSingle();
     if (claim.error || !claim.data) return { sent: false, outcome: 'skipped' };
     const result = await sendTrustedMagicLink({ transactionalOnly: !!tx.user_id || (notice !== 'paid' && !(notice === 'placed' && meta?.access_on_placement === true)), email: tx.customer_email,
+      ...(notice === 'paid' && !tx.user_id ? { paidTransferAccess: true } : {}),
       redirectTo: buildPostCheckoutMagicLinkRedirect({ origin: base, productSlug: product.slug, locale, sessionId: undefined, paymentIntentId: undefined }), data });
     if (!result.ok && !result.deliveryUnknown) {
-      await db.from('payment_transactions').update({ [spec.column]: null, [spec.state]: false } as Database['public']['Tables']['payment_transactions']['Update']).eq('id', id).eq(spec.column, claimedAt);
+      const retryAt = notice === 'paid' && result.code === 'rate_limited'
+        ? new Date(Date.now() + PAID_NOTICE_RATE_LIMIT_DELAY).toISOString() : null;
+      await db.from('payment_transactions').update({
+        [spec.column]: null, [spec.state]: false, ...(retryAt ? { transfer_paid_mail_retry_at: retryAt } : {}),
+      } as Database['public']['Tables']['payment_transactions']['Update']).eq('id', id).eq(spec.column, claimedAt);
     } else if (result.ok) {
       await db.from('payment_transactions').update({ [spec.state]: false } as Database['public']['Tables']['payment_transactions']['Update']).eq('id', id).eq(spec.column, claimedAt);
     } else if (!result.ok) {

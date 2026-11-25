@@ -19,7 +19,7 @@ function client(results: Array<{ data?: unknown; error?: unknown }> = []) {
     if (table === 'shop_config') return { select: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) };
     const q = Promise.resolve({ data: null, error: null, ...results.shift() });
     const methods: Record<string, ReturnType<typeof vi.fn>> = {};
-    for (const name of ['select', 'update', 'eq', 'single', 'is', 'lt', 'gte', 'limit', 'not', 'in', 'contains']) {
+    for (const name of ['select', 'update', 'eq', 'single', 'is', 'lt', 'gte', 'limit', 'not', 'in', 'contains', 'or']) {
       methods[name] = vi.fn(() => q); Object.assign(q, { [name]: methods[name] });
     }
     queries.push(methods); return q;

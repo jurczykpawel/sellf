@@ -4316,7 +4316,8 @@ ALTER TABLE public.payment_transactions
   ADD COLUMN transfer_mail_delivery_unknown boolean NOT NULL DEFAULT false,
   ADD COLUMN reminder_mail_delivery_unknown boolean NOT NULL DEFAULT false,
   ADD COLUMN cancelled_mail_delivery_unknown boolean NOT NULL DEFAULT false,
-  ADD COLUMN transfer_paid_mail_delivery_unknown boolean NOT NULL DEFAULT false;
+  ADD COLUMN transfer_paid_mail_delivery_unknown boolean NOT NULL DEFAULT false,
+  ADD COLUMN transfer_paid_mail_retry_at timestamptz;
 
 
 CREATE OR REPLACE FUNCTION public.clear_outdated_order_notice_state()
@@ -4325,7 +4326,10 @@ BEGIN
   IF NEW.status NOT IN ('awaiting_payment', 'completed') THEN NEW.transfer_mail_delivery_unknown := false; END IF;
   IF NEW.status <> 'awaiting_payment' THEN NEW.reminder_mail_delivery_unknown := false; END IF;
   IF NEW.status <> 'cancelled' THEN NEW.cancelled_mail_delivery_unknown := false; END IF;
-  IF NEW.status <> 'completed' THEN NEW.transfer_paid_mail_delivery_unknown := false; END IF;
+  IF NEW.status <> 'completed' THEN
+    NEW.transfer_paid_mail_delivery_unknown := false;
+    NEW.transfer_paid_mail_retry_at := NULL;
+  END IF;
   RETURN NEW;
 END;
 $$;
