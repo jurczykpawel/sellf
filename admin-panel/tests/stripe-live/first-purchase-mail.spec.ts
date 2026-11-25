@@ -1,5 +1,5 @@
-import { useSupabaseBuyerEmails } from '../helpers/buyer-email-setting-playwright';
-useSupabaseBuyerEmails();
+import { useSupabaseBuyerEmails as registerSupabaseBuyerEmails } from '../helpers/buyer-email-setting-playwright';
+registerSupabaseBuyerEmails();
 /** Buyer reads the first delivered message after a real checkout. @see tests/journeys.yaml */
 import { randomUUID } from 'node:crypto';
 import { appendFileSync } from 'node:fs';
@@ -48,6 +48,7 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
   let previewEnd: number | undefined;
   let trialEnd: number | undefined;
   const subscription = ['guest', 'signed-in', 'trial'].includes(kind);
+  const reopenGuestReceipt = kind === 'guest' && !cancelBeforeClaim;
   let groupId: string | undefined, couponId: string | undefined;
   let buyerId: string | undefined;
   let receiptSessionId: string | undefined;
@@ -62,6 +63,7 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
       slug, name: `First mail ${kind}`, price: kind === 'trial' ? 11 : 17, currency: 'PLN', is_active: true, vat_exempt: true,
       is_bundle: kind === 'bundle', event_mode: kind === 'event',
       ...(subscription ? { product_type: 'subscription', recurring_price: kind === 'trial' ? 11 : 17, billing_interval: 'month', billing_interval_count: 1, trial_days: kind === 'trial' ? 7 : null } : {}),
+      ...(reopenGuestReceipt ? { is_listed: false, vat_exempt: false, price_includes_vat: true } : {}),
     });
     ids.push(product.id);
     if (kind === 'bundle' || kind === 'variant') {
@@ -133,9 +135,13 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
         const zone = await page.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
         expect(await time.innerText()).toBe(new Intl.DateTimeFormat(locale, { dateStyle: 'long', timeZone: zone }).format(new Date(previewEnd * 1000)));
       }
+      // Simulate leaving the return page before it can send the first email.
+      const magicLinkRoute = '**/api/auth/magic-link';
+      if (reopenGuestReceipt) await page.route(magicLinkRoute, route => route.abort());
       await page.locator('button[type="submit"]').click();
       await page.waitForURL(/payment-status.*session_id=/, { timeout: 120000 });
-      const sessionId = new URL(page.url()).searchParams.get('session_id')!;
+      const receiptUrl = page.url();
+      const sessionId = new URL(receiptUrl).searchParams.get('session_id')!;
       receiptSessionId = sessionId;
       if (!sessions.includes(sessionId)) sessions.push(sessionId);
       const session = await stripe.checkout.sessions.retrieve(sessionId);
@@ -144,6 +150,15 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
       expect(session.metadata?.locale).toBe(locale);
       expect(session.amount_total).toBe(kind === 'trial' ? 0 : 1700);
       expect(session.payment_status).toBe('paid');
+      if (reopenGuestReceipt) {
+        expect(session.total_details?.amount_tax).toBe(318);
+        await page.goto('about:blank');
+        await expect.poll(async () => (await rows('payment_transactions', 'product_id', product.id))
+          .filter(tx => tx.stripe_invoice_id && tx.status === 'completed' && !tx.fulfillment_pending), { timeout: 60000 }).toHaveLength(1);
+        expect(await searchMessages(email)).toHaveLength(0);
+        await page.unroute(magicLinkRoute);
+        await page.goto(receiptUrl);
+      }
       if (kind === 'trial') {
         const subId = typeof session.subscription === 'string' ? session.subscription : session.subscription!.id;
         const sub = await stripe.subscriptions.retrieve(subId);
@@ -154,7 +169,7 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
         trialEnd = sub.trial_end!;
       }
       // Record provider facts without customer identifiers, metadata, or secrets.
-      appendFileSync(`${process.env.STRIPE_LIVE_ARTIFACTS}/first-mail-provider.jsonl`, JSON.stringify({ kind, object: session.object, mode: session.mode, status: session.status, payment_status: session.payment_status, amount_total: session.amount_total, currency: session.currency }) + '\n');
+      appendFileSync(`${process.env.STRIPE_LIVE_ARTIFACTS}/first-mail-provider.jsonl`, JSON.stringify({ kind, object: session.object, mode: session.mode, status: session.status, payment_status: session.payment_status, amount_total: session.amount_total, currency: session.currency, reopenedAfterBooking: reopenGuestReceipt }) + '\n');
       await expect.poll(async () => (await rows('payment_transactions', 'product_id', product.id)).filter(tx => tx.status === 'completed').length, { timeout: 60000 }).toBe(1);
       if (kind === 'signed-in') {
         await expect.poll(async () => (await rows('user_product_access', 'product_id', product.id)).some(access => access.user_id === buyerId), { timeout: 60000 }).toBe(true);
@@ -265,7 +280,10 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
     for (const id of customerIds) await stripe.customers.del(id);
   }
 }
-test('new guest subscription first mail confirms access @J140', async ({ page }) => run(page, 'guest'));
+test('new guest subscription first mail confirms access after the invoice is booked @J140', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await run(page, 'guest', 'pl');
+});
 test('signed-in subscription first requested mail retains receipt @J141', async ({ page }) => run(page, 'signed-in'));
 test('trial subscription first mail confirms trial access @J142', async ({ page }) => run(page, 'trial'));
 test('full coupon first invitation redeems access @J143', async ({ page }) => run(page, 'coupon'));

@@ -51,6 +51,7 @@ import { WebhookService } from '@/lib/services/webhook-service';
 import { ProductValidationService } from '@/lib/services/product-validation';
 import { generateSellerKeypair, storeSellerKey } from '@/lib/license-keys/keys';
 import { getStripeInstanceId } from '@/lib/stripe/instance-marker';
+import bookedGuestCheckout from '../../fixtures/stripe/guest-subscription-booked-checkout.json';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -202,8 +203,8 @@ async function seedPendingTx(args: {
   return data.id;
 }
 
-async function createAuthUser(email: string): Promise<string> {
-  const { data, error } = await db!.auth.admin.createUser({ email, email_confirm: true });
+async function createAuthUser(email: string, confirmed = true): Promise<string> {
+  const { data, error } = await db!.auth.admin.createUser({ email, email_confirm: confirmed });
   if (error || !data?.user) throw new Error(`createAuthUser failed: ${error?.message}`);
   createdAuthUserIds.push(data.user.id);
   return data.user.id;
@@ -670,6 +671,44 @@ describe.skipIf(!hasSupabase)('verify-payment — additional branch coverage', (
     expect(r.is_guest_purchase).toBe(true);
     expect(r.send_magic_link).toBe(true);
     expect(r.scenario).toBe('subscription_guest');
+  });
+
+  it.each([
+    ['completed', 'magic_link_sent'],
+    ['refunded', 'refunded'],
+    ['disputed', 'disputed'],
+  ] as const)('guest subscription with a booked %s invoice shows %s', async (status, paymentStatus) => {
+    const product = await createProduct({
+      price: 17, currency: 'PLN', product_type: 'subscription',
+      recurring_price: 17, billing_interval: 'month', billing_interval_count: 1,
+    });
+    const email = `${uniq('guest')}@example.com`;
+    const userId = await createAuthUser(email, false);
+    const invoice = `in_${crypto.randomUUID().replaceAll('-', '')}`;
+    const session = {
+      ...bookedGuestCheckout,
+      invoice,
+      customer_details: { email },
+      metadata: { ...bookedGuestCheckout.metadata, product_id: product.id },
+    };
+    const { error } = await db!.from('payment_transactions').insert({
+      session_id: invoice,
+      stripe_invoice_id: invoice,
+      product_id: product.id,
+      user_id: userId,
+      customer_email: email,
+      amount: session.amount_total,
+      currency: session.currency.toUpperCase(),
+      status,
+      fulfillment_pending: false,
+    });
+    expect(error).toBeNull();
+    h.stripe = makeStripeShim({ session });
+
+    const result = await verifyPaymentSession(session.id);
+    expect(result.session_id).toBe(session.id);
+    expect(mapVerifiedPaymentToStatus(result)).toMatchObject({ paymentStatus, accessGranted: false });
+    expect(await hasAccess(userId, product.id)).toBe(false);
   });
 
   it('thrown RPC error (non-uuid product) → Failed to process payment', async () => {
