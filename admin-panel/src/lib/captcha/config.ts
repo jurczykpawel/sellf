@@ -13,8 +13,8 @@ const TURNSTILE_SCRIPT_URL = 'https://challenges.cloudflare.com/turnstile/v0/api
 // Bump both together when the `altcha` npm dependency is upgraded; verify
 // with: `curl -fsSL <url> | openssl dgst -sha384 -binary | openssl base64 -A`
 // and diff the local node_modules/altcha/dist/main/altcha.js by checksum.
-const ALTCHA_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/altcha@3.6.0/dist/main/altcha.js';
-const ALTCHA_SCRIPT_INTEGRITY = 'sha384-cSEvlPksr9IODGMPrHuMa85k5t9J5qWpZEXPiGbJcnXc1j1vDA/FFOqrN/F/LC4Y';
+const ALTCHA_SCRIPT_URL = 'https://cdn.jsdelivr.net/npm/altcha@3.7.0/dist/main/altcha.js';
+const ALTCHA_SCRIPT_INTEGRITY = 'sha384-u/1OXoxC8/huaQDJ2uBzRaYhsjIEfZPQF5tnK+/FM1XKs6y48H0RtPYEU9NbcWY6';
 const ALTCHA_CHALLENGE_URL = '/api/captcha/challenge';
 
 const NONE_CONFIG: CaptchaConfig = {
