@@ -38,10 +38,14 @@ async function run(command: string, args: string[], cwd = root, extraEnv: Record
     const child = spawn(command, args, { cwd, env: { ...process.env, ...extraEnv }, stdio: ['ignore', 'pipe', 'pipe'] });
     let output = '';
     let stdout = '';
+    let stderr = '';
+    // A hung step must surface as an error naming it (GHA 45601171032 stalled 25 min inside `tar -tzf`).
+    const timer = setTimeout(() => { console.log(`STEP-TIMEOUT ${command} ${args[0] ?? ''} stderr: ${stderr.slice(-160).replace(/\s+/g, ' ')}`); child.kill('SIGKILL'); }, 10 * 60_000);
     child.stdout.on('data', chunk => { stdout += chunk; output += chunk; });
-    child.stderr.on('data', chunk => { output += chunk; });
+    child.stderr.on('data', chunk => { output += chunk; stderr += chunk; });
     child.on('error', reject);
     child.on('close', async code => {
+      clearTimeout(timer);
       const safeOutput = output.replace(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g, '[redacted]').replace(/sb_(?:secret|publishable)_[\w-]+/g, '[redacted]');
       await writeFile(log, safeOutput, { mode: 0o600 });
       if (code !== 0) reject(new Error(`${command} failed (${code}); private log: ${log}`));

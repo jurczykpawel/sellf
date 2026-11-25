@@ -1,10 +1,11 @@
 """Shared browser plans for inventory and execution."""
 
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import json
 from pathlib import Path, PurePosixPath
+import re
 
 from diagnostics import public_test_file, read_test_report, record_failures, test_identifier
 from support import ADMIN, OUT, RUNTIME, env, record, require, run
@@ -214,10 +215,33 @@ def run_browser(suite, inventory):
         command = ['node', str(RUNTIME / 'runtime-urls.mjs')]
     else:
         command = [*suite.args(), *options]
+    expected = shard_expectation(suite, inventory, extra)
     run(suite.name, command, ADMIN, extra)
     report = read_test_report(path)
     if report is None:
-        record(suite.name + '-count', 1, expected=inventory[suite.name], reportMissing=True)
+        record(suite.name + '-count', 1, expected=expected, reportMissing=True)
         record_failures(suite.name, ())
     else:
-        verify_result(suite.name, inventory[suite.name], report)
+        verify_result(suite.name, expected, report)
+
+
+def shard_expectation(suite, inventory, extra):
+    """Shard boundaries can move between the inventory job and a lane (GHA 45601171032: chromium shards 2-4
+    shifted by 8-19 tests while their sum stayed equal). The lane lists its family and its shard in its own
+    environment; the family must match the inventory total, and the shard listing becomes the exact expectation."""
+    if not any(option.startswith('--shard=') for option in suite.options):
+        return inventory[suite.name]
+    family = suite.name.rsplit('-', 1)[0]
+    family_total = sum(count for name, count in inventory.items() if re.fullmatch(re.escape(family) + r'-\d+of\d+', name))
+    listing = {key: value for key, value in extra.items() if key not in ('PW_TEST_REPORTER', 'PLAYWRIGHT_JSON_OUTPUT_FILE')}
+    whole = replace(suite, name=family + '-family', options=tuple(o for o in suite.options if not o.startswith('--shard=')))
+    counts = {}
+    for item in (whole, suite):
+        path = OUT / ('lane-list-' + item.name + '.json')
+        require('lane-list-' + item.name, item.args() + ['--list', '--reporter=json'], ADMIN,
+                listing | {'PLAYWRIGHT_JSON_OUTPUT_FILE': str(path)})
+        counts[item.name] = sum(1 for _ in tests_in(json.loads(path.read_text())))
+    listed = counts[suite.name]
+    record(suite.name + '-listing', int(counts[whole.name] != family_total), listed=listed,
+           familyTotal=counts[whole.name], expected=family_total)
+    return listed

@@ -41,7 +41,10 @@ def public_message(text):
     text = redact(ANSI.sub('', text or ''))
     text = LOCAL_PATH.sub('[path]', EMAIL.sub('[email]', text))
     text = ' '.join(''.join(char if char.isprintable() else ' ' for char in text).split())
-    return text[:MAX_MESSAGE]
+    if len(text) <= MAX_MESSAGE:
+        return text
+    head = MAX_MESSAGE * 3 // 5
+    return text[:head] + ' … ' + text[-(MAX_MESSAGE - head - 3):]  # tracebacks put the cause at the end
 
 
 def record_failures(name, failures):

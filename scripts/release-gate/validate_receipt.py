@@ -90,6 +90,8 @@ RECEIPT_FIELDS = {
             'files',
             'sqlBytes',
             'minUpdaterVersion',
+            'listed',
+            'familyTotal',
         ),
         integer,
     ),

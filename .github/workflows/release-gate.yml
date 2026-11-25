@@ -128,6 +128,8 @@ jobs:
         run: |
           df -h / | tail -1
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          # Drop links left dangling by that removal (e.g. /usr/bin/dotnet); upgrade-streaming mirrors /usr/bin.
+          sudo find /usr/bin /usr/sbin /usr/local/bin -maxdepth 1 -xtype l -delete
           docker image prune --all --force > /dev/null
           df -h / | tail -1; free -m | awk '/Mem/{print "mem available MB:", $7}'
           df -h /tmp /dev/shm /var/lib/docker "$RUNNER_TEMP" 2>/dev/null; mount | grep -E 'tmpfs|overlay' | head -8

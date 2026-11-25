@@ -273,7 +273,7 @@ def deployment_matrix():
     if code:
         # The runner's progress lines are its own fixed strings plus a command verb.
         lines = (OUT / 'matrix.log').read_text(errors='replace').splitlines()
-        steps = [public_message(line) for line in lines if re.match(r'(?:STEP|PASS) |\w*Error\b', line)][-8:]
+        steps = [public_message(line) for line in lines if re.match(r'(?:STEP|PASS|STEP-TIMEOUT) |\w*Error\b', line)][-8:]
         record('matrix-progress', 0, steps=steps)
     verify_vitest('matrix-vitest')
 
