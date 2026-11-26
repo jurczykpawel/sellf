@@ -6,7 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 import { acceptAllCookies } from './helpers/consent';
 import { test, startNativeCheckout, waitForNativeCheckoutReady } from './helpers/checkout-intent';
 import { getTestDatabaseContainer } from './helpers/database-container';
-import type { Page } from '@playwright/test';
+import type { Page, Response } from '@playwright/test';
 const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 let product: { id: string; slug: string }; let session: string; let cheap: string;
 async function checked<T>(r: { data: T; error: unknown }): Promise<NonNullable<T>> { if (r.error) throw r.error; return r.data!; }
@@ -88,13 +88,22 @@ test('(f) recording bump gives three registered participants recording access', 
   try {
     await checked(await db.from('products').update({ checkout_profile: { v: 1, modules: [{ id: 'quantity', min: 3, max: 3, mode: 'hidden' }, { id: 'participants', required: true, prefill_from_buyer: false }] } }).eq('id', product.id));
     await checked(await db.from('order_bumps').insert({ main_product_id: product.id, bump_product_id: recording.id, bump_title: 'Nagranie', bump_price: 10, is_active: true }));
+    // The page may recreate its Stripe session after the first one (cart changes expire the old session), and a
+    // direct call with the first session's secret then answers 409 "expired" (GHA 45846594459): use the session the page holds.
+    const intents: Response[] = [];
+    page.on('response', r => { if (new URL(r.url()).pathname === '/api/create-payment-intent' && r.request().method() === 'POST' && !r.request().postDataJSON()?.expireOnly) intents.push(r); });
     await open(page); await page.getByRole('button', { name: 'Dodaj', exact: true }).click();
     for (let i=0;i<3;i++) for (const [key,value] of Object.entries(people[i])) await page.locator(`[id="participants.${i}.${key}"]`).fill(value);
-    const response = await startNativeCheckout(page); const body = await response.json();
+    await startNativeCheckout(page);
     await expect(page.locator('[data-test-email]')).toHaveAttribute('data-test-email', 'event-buyer@example.com');
     await expect(page.locator('#checkoutEmail')).toHaveCount(0);
     await waitForNativeCheckoutReady(page);
-    const tx = await checked(await db.from('payment_transactions').select('id').eq('session_id',(await response.json()).checkoutSessionId).single());
+    let body!: { clientSecret: string; bindingToken: string; checkoutSessionId: string };
+    await expect.poll(async () => {
+      body = await intents.at(-1)!.json();
+      return await page.locator('[data-checkout-session-id]').getAttribute('data-checkout-session-id') === body.checkoutSessionId;
+    }, { timeout: 30000 }).toBe(true);
+    const tx = await checked(await db.from('payment_transactions').select('id').eq('session_id', body.checkoutSessionId).single());
     const metadata = await page.request.post('/api/update-payment-metadata', { headers: { origin: new URL(page.url()).origin }, data: { clientSecret: body.clientSecret, bindingToken: body.bindingToken, productId: product.id, moduleValues: { quantity: 3, participants: people }, termsAccepted: true, locale: 'pl' } });
     expect(metadata.status(), await metadata.text()).toBe(200);
     expect((await checked(await db.from('payment_transactions').select('order_details').eq('id',tx.id).single())).order_details.participants.people).toHaveLength(3);
