@@ -17,8 +17,8 @@ ALLOWED_SKIPS = {
     ('variants-admin-ui.spec.ts', 'should toggle featured status'),
 }
 # These candidate specs exercise the sandbox directly or through the Sellf checkout. The second and third lines: paid
-# checkout pages that only render their payment step with a working key (GHA 45596098511, and variants-e2e in
-# 45737339050: "Błąd płatności" instead of the order bump with the fake key).
+# checkout pages that only render their payment step with a working key (GHA 45596098511; variants-e2e in 45737339050
+# and checkout-template-dispatch in 45752263064 showed "Payment Error" instead of the bump / OTO decline button).
 STRIPE_SPECS = '''
 accessibility admin-refund buyer-regression cart-regressions checkout-buyer-details checkout-invoice-section
 checkout-profile checkout-recovery checkout-session-recovery checkout-session-update coupon-multi-bump
@@ -31,7 +31,7 @@ pwyw-security pwyw-subscription refund-system sale-price-checkout-charge set-pri
 stripe-checkout-console-warnings stripe-deleted-product-reconciliation stripe-webhook-registration
 stripe-webhook subscription-checkout-ui tip-jar-template tracking-events v1-refund webhook-amount-validation webhook-dispatch
 checkout-theme-settings coupons funnel-mechanics funnel-test-preview funnel-test-redirect mobile-pwyw-cookies
-variants-e2e
+variants-e2e checkout-template-dispatch
 '''.split()
 STRIPE_FILTER = r'(?:^|/)(?:' + '|'.join(STRIPE_SPECS) + r')\.spec\.ts$'
 FAKE_STRIPE = {
