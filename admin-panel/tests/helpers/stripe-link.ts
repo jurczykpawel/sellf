@@ -9,20 +9,24 @@ import type { FrameLocator, Locator, Page } from '@playwright/test';
  * when neither shows.
  */
 export async function declineLinkSignup(scope: Page | FrameLocator | Locator): Promise<void> {
+  // Every call is bounded: the config sets no action timeout, so an unbounded wait here would hold a test until its
+  // whole timeout (GHA 45865268794: an `inputValue()` on a missing country field stalled six tests for 300 s each).
+  const bound = { timeout: 3000 };
   const optIn = scope.locator('input[name="linkOptIn"]').first();
-  const checked = async () => (await optIn.isVisible().catch(() => false)) && (await optIn.isChecked().catch(() => false));
+  const checked = async () => (await optIn.isVisible().catch(() => false)) && (await optIn.isChecked(bound).catch(() => false));
   if (await checked()) {
     await optIn.uncheck({ timeout: 5000 }).catch(() => undefined);
     if (await checked()) await scope.locator('label[for$="linkOptInInput"]').first().click({ timeout: 5000 }).catch(() => undefined);
   }
   const phone = scope.getByRole('textbox', { name: /mobile number|phone number|numer telefonu/i }).first();
-  if (await phone.isVisible().catch(() => false)) await phone.fill('2015550123');
+  if (await phone.isVisible().catch(() => false)) await phone.fill('2015550123', bound).catch(() => undefined);
   const postal = scope.locator('input[name="postalCode"], input[name="billingPostalCode"]').or(scope.getByRole('textbox', { name: /^ZIP/i })).first();
   if (await postal.isVisible().catch(() => false)) {
-    const empty = !(await postal.inputValue().catch(() => 'x'));
-    if (empty || (await postal.getAttribute('aria-invalid').catch(() => null)) === 'true') {
-      const country = await scope.locator('select[name="country"], input[name="country"]').first().inputValue().catch(() => '');
-      await postal.fill(POSTAL_CODES[country] ?? POSTAL_CODES.US);
+    const empty = !(await postal.inputValue(bound).catch(() => 'x'));
+    if (empty || (await postal.getAttribute('aria-invalid', bound).catch(() => null)) === 'true') {
+      const field = scope.locator('select[name="country"], input[name="country"]').first();
+      const country = (await field.count()) ? await field.inputValue(bound).catch(() => '') : '';
+      await postal.fill(POSTAL_CODES[country] ?? POSTAL_CODES.US, bound).catch(() => undefined);
     }
   }
 }
