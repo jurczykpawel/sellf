@@ -17,7 +17,7 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { getTestDatabaseContainer } from '../../helpers/database-container';
 
 const execute = promisify(execFile);
@@ -48,19 +48,24 @@ async function registry(): Promise<string[]> {
   return ((await response.json()) as { version: string }[]).map(entry => entry.version);
 }
 
-/** Three release migrations with fresh timestamps; `brokenSecond` makes the middle one fail. */
+/**
+ * Three release migrations with fresh timestamps; `brokenSecond` makes the middle one fail.
+ * Fixture tables live in their own schema, never in `public`: the Security Advisor lint
+ * (SA-0013, tables without RLS) scans `public` in a parallel worker and must not see them.
+ */
 function releaseMigrations(brokenSecond: boolean) {
   const base = 20990000000000 + randomInt(1, 9_000_000) * 100;
   const suffix = `upgrade_${base}`;
-  const tables = [`public.${suffix}_first`, `public.${suffix}_third`];
+  const schema = `upgrade_test_${base}`;
+  const tables = [`${schema}.${suffix}_first`, `${schema}.${suffix}_third`];
   const migrations = {
-    [`${base + 1}_${suffix}_first`]: `CREATE TABLE ${tables[0]} (id integer);\nINSERT INTO ${tables[0]} VALUES (1);\n`,
+    [`${base + 1}_${suffix}_first`]: `CREATE SCHEMA ${schema};\nCREATE TABLE ${tables[0]} (id integer);\nINSERT INTO ${tables[0]} VALUES (1);\n`,
     [`${base + 2}_${suffix}_second`]: brokenSecond
-      ? `SELECT id FROM public.${suffix}_does_not_exist;\n`
+      ? `SELECT id FROM ${schema}.${suffix}_does_not_exist;\n`
       : `ALTER TABLE ${tables[0]} ADD COLUMN note text;`,
     [`${base + 3}_${suffix}_third`]: `-- trailing comment without a final newline\nCREATE TABLE ${tables[1]} (id integer) -- no semicolon`,
   };
-  cleanupSql.push(`DROP TABLE IF EXISTS ${tables.join(', ')};`,
+  cleanupSql.push(`DROP SCHEMA IF EXISTS ${schema} CASCADE;`,
     `DELETE FROM supabase_migrations.schema_migrations WHERE version IN (${Object.keys(migrations).map(name => `'${name.slice(0, 14)}'`).join(', ')});`);
   return { migrations, tables };
 }
@@ -161,9 +166,15 @@ ${between(source, '# ===== STEP 4b: MIGRATION PREFLIGHT =====', '# ===== FIREWAL
 }
 
 const tableExists = (table: string) => psql(`SELECT to_regclass('${table}') IS NOT NULL;`) === 't';
+/** Fixture tables in `public` are visible (without RLS) to the parallel Security Advisor lint (SA-0013). */
+const publicFixtureTables = () => psql(`SELECT count(*) FROM pg_tables WHERE schemaname = 'public' AND tablename LIKE 'upgrade\\_2099%';`);
+
+// Drop each test's schema and registry rows right after it, not once at the end of the file.
+afterEach(() => {
+  if (cleanupSql.length && SUPABASE_URL && SERVICE_KEY) psql(cleanupSql.splice(0).join('\n'));
+});
 
 afterAll(() => {
-  if (cleanupSql.length && SUPABASE_URL && SERVICE_KEY) psql(cleanupSql.join('\n'));
   for (const dir of directories.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
@@ -196,6 +207,7 @@ describe.skipIf(!SUPABASE_URL || !SERVICE_KEY)('updater migrations in one transa
     expect(run.progress.step).toBe('done');
     expect(await registry()).toEqual(expect.arrayContaining(names));
     for (const table of tables) expect(tableExists(table)).toBe(true);
+    expect(publicFixtureTables()).toBe('0');
     expect(psql(`SELECT count(*) FROM ${tables[0]} WHERE note IS NULL;`)).toBe('1');
     expect(run.started).toBe('new-code');
   });
