@@ -254,7 +254,8 @@ class GateContractTests(unittest.TestCase):
         ):
             context = Path(tmp) / 'error-context.md'
             context.write_text('# Error details\nError: expect failed\n# Page snapshot\n```yaml\n- heading "Checkout"\n'
-                               '- button "Pay"\n- alert: Rate limit for buyer@example.com sk_' + 'test_marker\n```\n')
+                               '- button "Pay"\n- alert: Rate limit for buyer@example.com sk_' + 'test_marker\n```\n'
+                               '# Test source\n```ts\n12 | const error = await failing();\n```\n')
             specs[0]['tests'][0]['results'][0]['attachments'] = [{'name': 'error-context', 'path': str(context)}]
             self.assertEqual(browser.verify_result('ordinary', 5, report), 1)
             receipt = support.RECEIPT.read_text()

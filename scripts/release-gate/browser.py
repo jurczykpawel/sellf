@@ -16,8 +16,9 @@ ALLOWED_SKIPS = {
     ('payment-method-config-checkout.spec.ts', 'E2E-CHECKOUT-003: Stripe preset - Custom PMC'),
     ('variants-admin-ui.spec.ts', 'should toggle featured status'),
 }
-# These candidate specs exercise the sandbox directly or through the Sellf checkout. The second line: paid checkout
-# pages that only render their payment step with a working key (GHA 45596098511 failed them with the fake key).
+# These candidate specs exercise the sandbox directly or through the Sellf checkout. The second and third lines: paid
+# checkout pages that only render their payment step with a working key (GHA 45596098511, and variants-e2e in
+# 45737339050: "Błąd płatności" instead of the order bump with the fake key).
 STRIPE_SPECS = '''
 accessibility admin-refund buyer-regression cart-regressions checkout-buyer-details checkout-invoice-section
 checkout-profile checkout-recovery checkout-session-recovery checkout-session-update coupon-multi-bump
@@ -30,6 +31,7 @@ pwyw-security pwyw-subscription refund-system sale-price-checkout-charge set-pri
 stripe-checkout-console-warnings stripe-deleted-product-reconciliation stripe-webhook-registration
 stripe-webhook subscription-checkout-ui tip-jar-template tracking-events v1-refund webhook-amount-validation webhook-dispatch
 checkout-theme-settings coupons funnel-mechanics funnel-test-preview funnel-test-redirect mobile-pwyw-cookies
+variants-e2e
 '''.split()
 STRIPE_FILTER = r'(?:^|/)(?:' + '|'.join(STRIPE_SPECS) + r')\.spec\.ts$'
 FAKE_STRIPE = {
@@ -162,9 +164,14 @@ def failure_context(test):
                     lines = Path(attachment['path']).read_text(errors='replace').splitlines()
                 except OSError:
                     return ''
-                marks = [index for index, line in enumerate(lines) if line.startswith('# Page snapshot')]
-                lines = lines[marks[0] + 1:] if marks else lines  # skip the error details already in testErrors
-                cues = dict.fromkeys(line.strip() for line in lines if PAGE_CUE.search(line.strip()))
+                # Only the page snapshot (```yaml block): error details and test source are already in testErrors.
+                snapshot, inside = [], False
+                for line in lines:
+                    if line.startswith('```'):
+                        inside = line.strip() == '```yaml'
+                    elif inside:
+                        snapshot.append(line.strip())
+                cues = dict.fromkeys(line for line in snapshot if PAGE_CUE.search(line))
                 return ' | '.join(cues)
         if result.get('errors') or result.get('error'):
             return ''
