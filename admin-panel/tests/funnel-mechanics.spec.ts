@@ -34,6 +34,19 @@ test.describe('Funnel Mechanics (Redirects & OTO)', () => {
 
   test.afterAll(async () => {
     if (otoCouponCodes.length > 0) {
+      // A paid checkout opened with an OTO coupon (e.g. the downsell page, with a working Stripe key) places a
+      // pending order that references the coupon (payment_transactions.coupon_id ON DELETE RESTRICT).
+      const { data: coupons } = await supabaseAdmin.from('coupons').select('id').in('code', otoCouponCodes);
+      const couponIds = (coupons ?? []).map((c) => c.id as string);
+      if (couponIds.length > 0) {
+        const { data: txs } = await supabaseAdmin.from('payment_transactions').select('id').in('coupon_id', couponIds);
+        const txIds = (txs ?? []).map((t) => t.id as string);
+        if (txIds.length > 0) {
+          await deleteChecked('guest_purchases', supabaseAdmin.from('guest_purchases').delete().in('transaction_id', txIds));
+          await deleteChecked('payment_transactions', supabaseAdmin.from('payment_transactions').delete().in('id', txIds));
+        }
+        await deleteChecked('coupon_redemptions', supabaseAdmin.from('coupon_redemptions').delete().in('coupon_id', couponIds));
+      }
       await deleteChecked('coupons', supabaseAdmin.from('coupons').delete().in('code', otoCouponCodes));
     }
     if (createdProductSlugs.length > 0) {

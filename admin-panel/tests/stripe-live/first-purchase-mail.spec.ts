@@ -13,6 +13,7 @@ import { supabaseAdmin as db, setAuthSession } from '../helpers/admin-auth';
 import { acceptAllCookies } from '../helpers/consent';
 import { extractMagicLink, searchMessages, waitForEmail } from '../helpers/mailpit';
 import { deleteAuthUserByEmail } from '../helpers/db-cleanup';
+import { declineLinkSignup } from '../helpers/stripe-link';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 type Kind = 'guest' | 'signed-in' | 'trial' | 'coupon' | 'variant' | 'bundle' | 'event' | 'transfer';
@@ -129,6 +130,7 @@ async function run(page: Page, kind: Kind, locale: 'pl' | 'en' = 'en', trialCoup
       await frame.locator('input[name="number"]').fill('4242424242424242');
       await frame.locator('input[name="expiry"]').fill('1234');
       await frame.locator('input[name="cvc"]').fill('123');
+      await declineLinkSignup(frame);
       if (kind === 'trial') {
         const time = page.getByTestId('trial-first-payment').first();
         previewEnd = Date.parse((await time.getAttribute('datetime'))!) / 1000;

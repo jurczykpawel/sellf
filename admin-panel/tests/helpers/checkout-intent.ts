@@ -61,7 +61,9 @@ export async function clickNativeCheckoutPay(page: Page): Promise<void> {
   await waitForNativeCheckoutReady(page);
   const pay = page.locator('[data-checkout-session-id] button[type="submit"]');
   await expect(pay).toBeEnabled({ timeout: 30000 });
-  await pay.scrollIntoViewIfNeeded();
+  // Centre it: aligning the bottom edge to the viewport ("if needed") snaps the scroll offset to whole pixels,
+  // so a button at a fractional position stays clipped by a fraction of a pixel (GHA Linux fonts: ratio 0.9927).
+  await pay.evaluate(element => element.scrollIntoView({ block: 'center' }));
   await expect(pay).toBeInViewport({ ratio: 1 });
   await pay.click();
 }

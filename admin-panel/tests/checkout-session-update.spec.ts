@@ -13,6 +13,7 @@ import { test, startNativeCheckout } from './helpers/checkout-intent';
 import { supabaseAdmin } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
 import { clearPaidCheckout, refundEvent, recordedEvent, sendStripeEvent, testStripe } from './helpers/stripe-test-events';
+import { declineLinkSignup } from './helpers/stripe-link';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -83,6 +84,7 @@ test('entered coupon, quantity, add-on and coupon removal keep one Stripe sessio
   await cardBefore.locator('input[name="number"]').fill('4242424242424242');
   await cardBefore.locator('input[name="expiry"]').fill('1234');
   await cardBefore.locator('input[name="cvc"]').fill('123');
+  await declineLinkSignup(cardBefore);
   await page.getByLabel('Discount code', { exact: true }).fill(couponCode);
   await page.getByRole('button', { name: 'Apply', exact: true }).click();
   expect(await sessionOf(await startNativeCheckout(page))).toBe(first);
@@ -141,6 +143,7 @@ test('entered coupon, quantity, add-on and coupon removal keep one Stripe sessio
   await card.locator('input[name="number"]').fill('4242424242424242');
   await card.locator('input[name="expiry"]').fill('1234');
   await card.locator('input[name="cvc"]').fill('123');
+  await declineLinkSignup(card);
   let resumeValidation!: () => void;
   const validationPaused = new Promise<void>(resolve => { resumeValidation = resolve; });
   await page.route('**/api/validate-email', async route => { await validationPaused; await route.continue(); });
@@ -233,6 +236,7 @@ test('cart selected during Stripe initialization pays the updated total @J660', 
     await card.locator('input[name=number]').fill('4242424242424242');
     await card.locator('input[name=expiry]').fill('1234');
     await card.locator('input[name=cvc]').fill('123');
+    await declineLinkSignup(card);
     const confirmation = page.waitForRequest('https://api.stripe.com/v1/payment_pages/**/confirm');
     await page.locator('button[type=submit]').click();
     expect(new URLSearchParams((await confirmation).postData() ?? '').get('expected_amount')).toBe('1200');
