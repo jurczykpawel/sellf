@@ -59,7 +59,7 @@ interface VariantGroupFormModalProps {
   loadingProducts: boolean;
   editingGroup: VariantGroup | null;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: () => Promise<void>;
 }
 
 const VariantGroupFormModal: React.FC<VariantGroupFormModalProps> = ({
@@ -246,7 +246,7 @@ const VariantGroupFormModal: React.FC<VariantGroupFormModalProps> = ({
         toast.success(t('createSuccess'));
       }
 
-      onSuccess();
+      await onSuccess();
     } catch (err) {
       if (isExpectedApiError(err)) return;
       const errorMessage = err instanceof Error ? err.message : 'Failed to save variant group';

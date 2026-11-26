@@ -50,7 +50,7 @@ export function useWebhooks() {
     try {
       await api.create<WebhookEndpoint>('webhooks', data as Record<string, unknown>);
       toast.success(t('createSuccess'));
-      fetchEndpoints();
+      await fetchEndpoints();
       return true;
     } catch (err) {
       if (isExpectedApiError(err)) return false;
@@ -70,7 +70,8 @@ export function useWebhooks() {
     try {
       await api.update<WebhookEndpoint>('webhooks', id, data as Record<string, unknown>);
       toast.success(t('updateSuccess'));
-      fetchEndpoints();
+      // Refresh before reporting success: the edit form is seeded from list rows.
+      await fetchEndpoints();
       return true;
     } catch (err) {
       if (isExpectedApiError(err)) return false;

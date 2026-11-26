@@ -483,10 +483,11 @@ const VariantsPageContent: React.FC = () => {
             setShowFormModal(false);
             setEditingGroup(null);
           }}
-          onSuccess={() => {
+          onSuccess={async () => {
+            // Refresh before closing: the form is seeded from list rows, so an immediate reopen must find the saved group.
+            await fetchGroups();
             setShowFormModal(false);
             setEditingGroup(null);
-            fetchGroups();
           }}
         />
       )}

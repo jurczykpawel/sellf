@@ -110,9 +110,9 @@ const OrderBumpsPageContent: React.FC = () => {
     setSubmitting(true);
     try {
       await api.create('order-bumps', formData);
+      await fetchOrderBumps();
 
       setShowBumpForm(false);
-      await fetchOrderBumps();
       toast.success(t('createSuccess'));
     } catch (err) {
       if (!isExpectedApiError(err)) toast.error(err instanceof Error ? err.message : t('createError'));
@@ -128,10 +128,11 @@ const OrderBumpsPageContent: React.FC = () => {
 
     try {
       await api.update('order-bumps', editingBump.id, formData);
+      // Refresh before closing: the form is seeded from list rows, so an immediate reopen must find the saved row.
+      await fetchOrderBumps();
 
       setShowBumpForm(false);
       setEditingBump(null);
-      await fetchOrderBumps();
       toast.success(t('updateSuccess'));
     } catch (err) {
       if (!isExpectedApiError(err)) toast.error(err instanceof Error ? err.message : t('updateError'));

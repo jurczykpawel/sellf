@@ -54,6 +54,7 @@ export default function WebhooksPageContent({ scopingLocked = false, customizati
     fetchEndpoints();
   }, [fetchEndpoints]);
 
+  // Create/update/delete reload the list inside useWebhooks; after them only the failures panel needs a refresh.
   const triggerGlobalRefresh = () => {
     setRefreshCounter(prev => prev + 1);
     fetchEndpoints();
@@ -153,7 +154,7 @@ export default function WebhooksPageContent({ scopingLocked = false, customizati
 
     if (success) {
       setShowFormModal(false);
-      triggerGlobalRefresh();
+      setRefreshCounter(prev => prev + 1);
     }
   };
 
@@ -164,7 +165,7 @@ export default function WebhooksPageContent({ scopingLocked = false, customizati
     if (success) {
       setEditWaitlistWarning(null);
       setShowFormModal(false);
-      triggerGlobalRefresh();
+      setRefreshCounter(prev => prev + 1);
     }
   };
 
@@ -177,7 +178,7 @@ export default function WebhooksPageContent({ scopingLocked = false, customizati
     const success = await deleteEndpoint(activeEndpoint.id);
     if (success) {
       setShowDeleteModal(false);
-      triggerGlobalRefresh();
+      setRefreshCounter(prev => prev + 1);
     }
   };
 

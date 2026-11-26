@@ -131,13 +131,14 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
     try {
       // Use the v1 API hook to create the product (OTO is handled inside the hook)
       await createProduct(formData);
+      // Refresh before closing: the wizard is seeded from list rows, so an immediate reopen must find the saved row.
+      await fetchProducts();
 
       setShowProductForm(false);
       // Remove query param if present
       if (searchParams.get('open')) {
         router.replace('/dashboard/products');
       }
-      await fetchProducts();
       toast.success(t('createSuccess', { name: formData.name }));
       setTimeout(() => {
         addButtonRef.current?.focus();
@@ -156,10 +157,11 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
     try {
       // Use the v1 API hook to update the product (OTO is handled inside the hook)
       await updateProduct(editingProduct.id, formData);
+      // Refresh before closing: the wizard is seeded from list rows, so an immediate reopen must find the saved row.
+      await fetchProducts();
 
       setShowProductForm(false);
       setEditingProduct(null);
-      await fetchProducts();
       toast.success(t('updateSuccess', { name: formData.name }));
     } catch (err) {
       toast.error(isValidationError(err) ? t('validationFailed') : err instanceof Error && !isServerError(err) ? err.message : t('updateError'));
