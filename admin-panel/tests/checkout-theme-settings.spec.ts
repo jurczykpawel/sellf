@@ -56,6 +56,16 @@ test.describe('Checkout Theme Settings', () => {
     await page.waitForTimeout(1000);
   };
 
+  // A click before hydration does nothing (no onClick yet), so repeat it until the button shows the
+  // selection, then wait for the server action's toast: the DB row is written by then.
+  const selectTheme = async (page: Page, button: ReturnType<Page['locator']>) => {
+    await expect(async () => {
+      await button.click();
+      await expect(button).toHaveClass(/border-sf-border-accent/, { timeout: 1000 });
+    }).toPass({ timeout: 15000 });
+    await expect(page.locator('[data-sonner-toast]').first()).toBeVisible({ timeout: 10000 });
+  };
+
   test.beforeAll(async () => {
     const randomStr = Math.random().toString(36).substring(7);
     adminEmail = `test-checkout-theme-${Date.now()}-${randomStr}@example.com`;
@@ -154,17 +164,14 @@ test.describe('Checkout Theme Settings', () => {
     const themeSection = themeHeading.locator('..');
 
     // Click "Dark" button
-    await themeSection.locator('button', { hasText: '🌙' }).click();
-    await page.waitForTimeout(2000);
+    await selectTheme(page, themeSection.locator('button', { hasText: '🌙' }));
 
     // Verify in DB — should be saved immediately (no "Save" button)
-    const { data: config } = await supabaseAdmin
+    await expect.poll(async () => (await supabaseAdmin
       .from('shop_config')
       .select('checkout_theme')
       .eq('id', shopConfigId)
-      .single();
-
-    expect(config!.checkout_theme).toBe('dark');
+      .single()).data?.checkout_theme, { timeout: 10000 }).toBe('dark');
   });
 
   test('should persist theme after page refresh', async ({ page }) => {
@@ -189,14 +196,9 @@ test.describe('Checkout Theme Settings', () => {
     expect(buttonClass).toContain('border-sf-border-accent');
 
     // Now switch to dark
-    const darkBtn = themeSection.locator('button', { hasText: '🌙' });
-    await darkBtn.click();
-    // Wait for the dark button to get the selected class (server action saves + revalidates)
-    await expect(darkBtn).toHaveClass(/border-sf-border-accent/, { timeout: 10000 });
-
-    // Wait for save-success toast — confirms the server action completed
+    // Selected class, then the save-success toast: the server action completed
     // (DB UPDATE + revalidate) before we reload and read SSR'd theme.
-    await expect(page.locator('[data-sonner-toast]').first()).toBeVisible({ timeout: 5000 });
+    await selectTheme(page, themeSection.locator('button', { hasText: '🌙' }));
 
     // Reload and verify persistence — SettingsPage SSRs `initialTheme` from DB.
     await page.reload();
