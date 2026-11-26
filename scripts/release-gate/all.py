@@ -120,8 +120,8 @@ def stripe_environment():
 
 
 def build_production():
-    """Browser specs run against `next start` of a production build (what is released). Built once per lane, after
-    the Stripe keys are in `env` (NEXT_PUBLIC_* values are inlined at build time). RC_GATE_SERVER=dev keeps `next dev`."""
+    """RC_GATE_SERVER=production: browser specs run against `next start` of a production build, built once per lane
+    after the Stripe keys are in `env` (NEXT_PUBLIC_* values are inlined at build time). Default is `next dev`."""
     if PRODUCTION:
         require('build-admin', ['bun', 'run', 'build'], ADMIN)
 

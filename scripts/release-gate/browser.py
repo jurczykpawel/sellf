@@ -11,9 +11,10 @@ import re
 from diagnostics import public_test_file, read_test_report, record_failures, test_identifier
 from support import ADMIN, OUT, RUNTIME, env, record, require, run
 
-# `next start` of a production build (what is released) unless the workflow asks for `next dev` (input `server`).
+# `next dev` unless the workflow asks for a production build (`next start`, input `server`): the E2E suite assumes
+# NODE_ENV!=production (E2E_MODE only unlocks the business tier outside production, test captcha, FX stub).
 # E2E_MODE is refused in production without ALLOW_PRODUCTION_E2E_MODE; the harness stack is disposable.
-PRODUCTION = os.environ.get('RC_GATE_SERVER', 'production') != 'dev'
+PRODUCTION = os.environ.get('RC_GATE_SERVER', 'dev') == 'production'
 SERVER_ENV = {'PW_PRODUCTION': '1', 'ALLOW_PRODUCTION_E2E_MODE': 'true'} if PRODUCTION else {}
 MAIN_PROJECTS = ('chromium', 'chromium-heavy', 'maintenance', 'accessibility', 'rate-limiting', 'rate-limiting-v1')
 ALLOWED_SKIPS = {

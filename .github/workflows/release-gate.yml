@@ -18,11 +18,11 @@ on:
         type: boolean
         default: false
       server:
-        description: Browser specs run against a production build (`next start`, what is released) or the dev server (diagnostics only)
+        description: Browser specs run on the dev server (the suite assumes NODE_ENV!=production: E2E_MODE business tier, test captcha, FX stub) or a production build (diagnostics)
         required: false
         type: choice
-        options: [production, dev]
-        default: production
+        options: [dev, production]
+        default: dev
       only_spec:
         description: "Diagnostic repeat instead of the gate: up to 5 comma separated tests/<file>.spec.ts[:line] (needs stripe=false; never a gate result)"
         required: false
