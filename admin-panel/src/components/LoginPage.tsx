@@ -135,13 +135,13 @@ export default function LoginPage({ shopName = 'Sellf' }: { shopName?: string })
 
           {/* Success message for payment completed */}
           {successMessage && (
-            <div className="mt-4 p-4 rounded-xl text-sm bg-green-500/10 text-green-400 border border-green-500/20 animate-fade-in-shake">
+            <div className="mt-4 p-4 rounded-xl text-sm bg-sf-success-soft text-sf-success border border-sf-success/20 animate-fade-in-shake">
               <div className="flex items-center gap-2">
                 <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <div>
-                  <div className="font-medium text-green-300">{t('auth.paymentCompletedLoginTitle')}</div>
+                  <div className="font-medium text-sf-success">{t('auth.paymentCompletedLoginTitle')}</div>
                   <div className="mt-1">{successMessage}</div>
                 </div>
               </div>
@@ -150,13 +150,13 @@ export default function LoginPage({ shopName = 'Sellf' }: { shopName?: string })
 
           {/* Error message */}
           {errorMessage && (
-            <div className="mt-4 p-4 rounded-xl text-sm bg-red-500/10 text-red-400 border border-red-500/20 animate-fade-in-shake text-left">
+            <div role="alert" className="mt-4 p-4 rounded-xl text-sm bg-sf-danger-soft text-sf-danger border border-sf-danger/20 animate-fade-in-shake text-left">
               <div className="flex items-start gap-2">
                 <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>
                 <div>
-                  {errorTitle && <div className="font-medium text-red-300 mb-1">{errorTitle}</div>}
+                  {errorTitle && <div className="font-medium text-sf-danger mb-1">{errorTitle}</div>}
                   <div>{errorMessage}</div>
                 </div>
               </div>
