@@ -10,7 +10,7 @@ import { readBuyerPayload } from '@/lib/webhooks/buyer-payload-storage';
 import { extractMagicLink, searchMessages, getMessage } from '../helpers/mailpit';
 import { useSupabaseBuyerEmails } from '../helpers/buyer-email-setting-playwright';
 import type { Page } from '@playwright/test';
-import { declineLinkSignup } from '../helpers/stripe-link';
+import { declineLinkSignup, describeStripeForm } from '../helpers/stripe-link';
 useSupabaseBuyerEmails();
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
@@ -61,11 +61,8 @@ async function payOnHostedCheckout(page: Page) {
   } catch (error) {
     // The run log is public and keeps no trace: say which layout stalled and which fields (names only, no values) are
     // visible and flagged invalid, so a stuck hosted form is diagnosable.
-    const fields = await (checkoutLayout === 'classic' ? page : form).locator('input, select').evaluateAll(
-      elements => elements.filter(element => element.getClientRects().length)
-        .map(element => `${element.getAttribute('name') ?? element.getAttribute('type')}${element.getAttribute('aria-invalid') === 'true' ? '!' : ''}`),
-    ).catch(() => []);
-    throw new Error(`Hosted checkout (${checkoutLayout}, ${new URL(page.url()).host}) never returned; visible fields (! = invalid): ${fields.join(', ')}`, { cause: error });
+    const fields = await describeStripeForm(checkoutLayout === 'classic' ? page : form);
+    throw new Error(`Hosted checkout (${checkoutLayout}, ${new URL(page.url()).host}) never returned; visible fields (! = invalid): ${fields}`, { cause: error });
   }
 }
 async function events(type: string, id: string) {

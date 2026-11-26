@@ -13,7 +13,7 @@ import type { AddressInfo } from 'node:net';
 import type { Page, APIRequestContext } from '@playwright/test';
 import { createTestUser, setAuthSession, supabaseAdmin as db } from '../helpers/admin-auth';
 import { acceptAllCookies } from '../helpers/consent';
-import { declineLinkSignup } from '../helpers/stripe-link';
+import { declineLinkSignup, describeStripeForm } from '../helpers/stripe-link';
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const actor = 'dddddddd-0000-4000-a000-000000000000';
 const base = process.env.PLAYWRIGHT_BASE_URL || `http://localhost:${process.env.PW_PORT || 3777}`;
@@ -224,7 +224,9 @@ for (const withCoupon of [true, false]) test(`external embed paid ${withCoupon ?
     await declineLinkSignup(frame);
     const name = frame.locator('input[name="billingName"]'); if (await name.isVisible()) await name.fill('Embed Buyer');
     await frame.getByTestId('hosted-payment-submit-button').click();
-    await expect.poll(async () => (await rows('payment_transactions', 'product_id', product.id)).filter(p => p.status === 'completed' && !p.fulfillment_pending).length, { timeout: 90000 }).toBe(1);
+    try {
+      await expect.poll(async () => (await rows('payment_transactions', 'product_id', product.id)).filter(p => p.status === 'completed' && !p.fulfillment_pending).length, { timeout: 90000 }).toBe(1);
+    } catch (error) { throw new Error(`Embedded checkout never completed; visible fields (! = invalid): ${await describeStripeForm(frame)}`, { cause: error }); }
     expect((await stripe.checkout.sessions.retrieve(session.id)).payment_status).toBe('paid');
     const payment = (await rows('payment_transactions', 'product_id', product.id)).find(p => p.status === 'completed')!;
     await sync(request); await sync(request);
