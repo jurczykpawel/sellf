@@ -57,7 +57,7 @@
     "hast-util-sanitize": "^5.0.2",
     "hast-util-to-jsx-runtime": "^2.3.7",
     "lucide-react": "^1.70.0",
-    "motion": "^12.43.0",
+    "motion": "^14.10.1",
     "next": "^16.4.5",
     "next-intl": "^4.14.9",
     "react": "^19.3.1",
