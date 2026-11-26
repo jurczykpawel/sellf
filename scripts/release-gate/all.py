@@ -11,7 +11,7 @@ import sys
 import time
 import urllib.request
 
-from browser import FAKE_STRIPE, LANES, run_browser
+from browser import FAKE_STRIPE, LANES, repeat_arguments, run_browser, run_repeat
 from freeze import frozen_source
 from prepare import prepare_stack
 from support import (
@@ -43,6 +43,9 @@ AUXILIARY = ('unit', 'database', 'api', 'historical-upgrade', 'second')
 
 
 def matrix(protected):
+    # only_spec: one diagnostic lane that repeats the named specs (never a gate result, no Stripe lanes).
+    if os.environ.get('RC_GATE_ONLY_SPEC'):
+        return {'lane': [] if protected else ['repeat']}
     return {'lane': [n for n in (*AUXILIARY, *LANES) if n.startswith('stripe-') == protected]}
 
 
@@ -167,7 +170,7 @@ def execute(lane):
         result = inventory()
         output('inventory', json.dumps(result, separators=(',', ':')))
         return
-    if lane in LANES or lane in ('second', 'unit'):  # unit: affiliate browser tests launch Chromium
+    if lane in LANES or lane in ('second', 'unit', 'repeat'):  # unit: affiliate browser tests launch Chromium
         stage_browser_tools()
         require('install-chromium', ['bun', 'x', 'playwright', 'install', '--with-deps', 'chromium'], ADMIN)
 
@@ -196,6 +199,10 @@ def execute(lane):
             install('cloudflared')  # signed-delivery specs (J71, J560) reach their receivers through a public tunnel
         elif lane == 'sections':
             prepare_sections()
+        elif lane == 'repeat':
+            install('cloudflared')
+            run_repeat(os.environ['RC_GATE_ONLY_SPEC'], os.environ['RC_GATE_REPEAT_EACH'])
+            return
         for suite in LANES[lane]:
             run_browser(suite, json.loads(os.environ['RC_GATE_INVENTORY'])['counts'])
         if lane == 'sections' and UPDATE_SNAPSHOTS:
@@ -205,7 +212,7 @@ def execute(lane):
 
 
 def run_lane(lane):
-    assert lane in (*AUXILIARY, *LANES, 'inventory'), 'Unknown gate lane'
+    assert lane in (*AUXILIARY, *LANES, 'inventory', 'repeat'), 'Unknown gate lane'
     assert os.environ.get('RUNNER_OS') == 'Linux' and os.environ.get('GITHUB_ACTIONS') == 'true', (
         'GitHub Linux runner required'
     )
@@ -274,6 +281,8 @@ def aggregate(results, expected_inventory, statuses):
 if __name__ == '__main__':
     command = sys.argv[1]
     if command == 'preflight':
+        if os.environ.get('RC_GATE_ONLY_SPEC'):
+            repeat_arguments(os.environ['RC_GATE_ONLY_SPEC'], os.environ['RC_GATE_REPEAT_EACH'])
         workflow_sha = resolve_gate_head(TOOLS.parents[1], os.environ['GITHUB_SHA'])
         output('sha', resolve_candidate(os.environ['RC_GATE_REF'], workflow_sha))
         output('checks', json.dumps(matrix(False), separators=(',', ':')))

@@ -380,6 +380,23 @@ class GateContractTests(unittest.TestCase):
         self.assertTrue(all(name.startswith('stripe-') for name in stripe))
         self.assertEqual(checks | stripe, set(gate.AUXILIARY) | set(browser.LANES))
 
+    def test_only_spec_selects_one_diagnostic_lane_without_stripe(self):
+        with patch.dict('os.environ', {'RC_GATE_ONLY_SPEC': 'tests/a.spec.ts:43'}):
+            self.assertEqual(gate.matrix(False), {'lane': ['repeat']})
+            self.assertEqual(gate.matrix(True), {'lane': []})
+
+    def test_repeat_arguments_accept_only_spec_files_and_bounded_counts(self):
+        self.assertEqual(
+            browser.repeat_arguments('tests/ui-polish.spec.ts:43, w153-sources-and-free.spec.ts', '20'),
+            (['tests/ui-polish.spec.ts:43', 'w153-sources-and-free.spec.ts'], '20'),
+        )
+        for bad in ('', '--grep x', 'tests/../x.spec.ts', 'a.spec.ts;rm', 'tests/a.ts', ','.join(['a.spec.ts'] * 6)):
+            with self.assertRaises(AssertionError):
+                browser.repeat_arguments(bad, '10')
+        for bad in ('0', '51', 'x', '', '010'):
+            with self.assertRaises(AssertionError):
+                browser.repeat_arguments('a.spec.ts', bad)
+
 
 if __name__ == '__main__':
     unittest.main()

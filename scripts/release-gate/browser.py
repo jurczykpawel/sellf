@@ -276,3 +276,65 @@ def shard_expectation(suite, inventory, extra):
     record(suite.name + '-listing', int(counts[whole.name] != family_total), listed=listed,
            familyTotal=counts[whole.name], expected=family_total)
     return listed
+
+
+REPEAT_SPEC = re.compile(r'(?:tests/)?[\w./-]+\.spec\.ts(?::\d+)?')
+
+
+def repeat_arguments(specs, repeat):
+    """Validated `only_spec` / `repeat_each` workflow inputs: spec files (optionally file:line), comma separated."""
+    files = [item.strip() for item in specs.split(',') if item.strip()]
+    assert files and len(files) <= 5 and all(REPEAT_SPEC.fullmatch(f) and '..' not in f for f in files), (
+        'only_spec: up to 5 comma separated tests/<file>.spec.ts[:line]'
+    )
+    assert re.fullmatch(r'[1-9]\d?', repeat) and int(repeat) <= 50, 'repeat_each: a number from 1 to 50'
+    return files, repeat
+
+
+def run_repeat(specs, repeat):
+    """Isolated repeat of chosen specs (the owner's rule for a single red test: 10-20 runs alone). Never a gate
+    result: it is a diagnostic lane, and a failing test fails the lane."""
+    from support import clean
+
+    files, repeat = repeat_arguments(specs, repeat)
+    clean()
+    path = OUT / 'repeat-report.json'
+    extra = {
+        'PW_TEST_REPORTER': 'json',
+        'PLAYWRIGHT_JSON_OUTPUT_FILE': str(path),
+        'RC_GATE_EVIDENCE': str(OUT),
+        'RATE_LIMIT_TEST_MODE': 'true',
+    }
+    suite = main_suite('repeat', 'chromium', 'chromium-heavy', options=(*files,))
+    command = [
+        *suite.args(), '--workers=1', '--retries=0', '--trace=off', '--reporter=list', '--repeat-each=' + repeat,
+    ]
+    run('repeat', command, ADMIN, extra)
+    report = read_test_report(path)
+    if report is None:
+        record('repeat-count', 1, reportMissing=True)
+        return
+    stats = report['stats']
+    tests = tests_in(report)
+    failures = [
+        (project, file, title, line, failure_text(test), failure_context(test))
+        for project, file, title, line, test in tests
+        if test['status'] in ('unexpected', 'flaky')
+    ]
+    record(
+        'repeat-count',
+        int(not tests or bool(stats['unexpected'] or stats['flaky'] or stats['skipped'])),
+        repeatEach=int(repeat),
+        tests=len(tests),
+        passed=stats['expected'],
+        skipped=stats['skipped'],
+        failedOrFlaky=stats['unexpected'] + stats['flaky'],
+    )
+    root = Path(report.get('config', {}).get('rootDir', ADMIN))
+    record_failures(
+        'repeat',
+        (
+            (test_identifier(public_test_file(root / file), title, project, line), message, context)
+            for project, file, title, line, message, context in failures
+        ),
+    )
