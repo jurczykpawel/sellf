@@ -49,13 +49,19 @@ async function registry(): Promise<string[]> {
 }
 
 /**
- * Removes exactly one fixture's records, in one transaction: its own schema (the name carries
- * the fixture's UUID) and only registry rows whose name carries that UUID, so a version that
- * another run happened to draw is never deleted.
+ * Removes exactly one fixture's records, in one transaction. The schema is dropped only when
+ * our own CREATE SCHEMA succeeded: that migration stamps it with the fixture's secret `owner`
+ * comment right after creating it, so a failed CREATE (someone else's schema) leaves no stamp
+ * and nothing is dropped. Registry rows go only when their name carries the fixture's UUID, so a
+ * version that another run happened to draw is never deleted.
  */
-function fixtureCleanupSql(token: string, versions: string[]): string {
+function fixtureCleanupSql(token: string, owner: string, versions: string[]): string {
   return `BEGIN;
-DROP SCHEMA IF EXISTS upgrade_test_${token} CASCADE;
+DO $cleanup$ BEGIN
+  IF obj_description(to_regnamespace('upgrade_test_${token}')::oid, 'pg_namespace') = '${owner}' THEN
+    DROP SCHEMA upgrade_test_${token} CASCADE;
+  END IF;
+END $cleanup$;
 DELETE FROM supabase_migrations.schema_migrations
  WHERE version IN (${versions.map(version => `'${version}'`).join(', ')}) AND name LIKE 'upgrade\\_${token}\\_%';
 COMMIT;`;
@@ -70,12 +76,13 @@ COMMIT;`;
  */
 async function releaseMigrations(brokenSecond: boolean) {
   const token = randomUUID().replaceAll('-', '');
+  const owner = randomUUID();
   const base = 20990000000000 + randomInt(1, 999_999_999) * 10;
   const suffix = `upgrade_${token}`;
   const schema = `upgrade_test_${token}`;
   const tables = [`${schema}.${suffix}_first`, `${schema}.${suffix}_third`];
   const migrations = {
-    [`${base + 1}_${suffix}_first`]: `CREATE SCHEMA ${schema};\nCREATE TABLE ${tables[0]} (id integer);\nINSERT INTO ${tables[0]} VALUES (1);\n`,
+    [`${base + 1}_${suffix}_first`]: `CREATE SCHEMA ${schema};\nCOMMENT ON SCHEMA ${schema} IS '${owner}';\nCREATE TABLE ${tables[0]} (id integer);\nINSERT INTO ${tables[0]} VALUES (1);\n`,
     [`${base + 2}_${suffix}_second`]: brokenSecond
       ? `SELECT id FROM ${schema}.${suffix}_does_not_exist;\n`
       : `ALTER TABLE ${tables[0]} ADD COLUMN note text;`,
@@ -85,7 +92,7 @@ async function releaseMigrations(brokenSecond: boolean) {
   // A drawn version that is already registered would be skipped by apply_migration: fail loudly.
   const taken = (await registry()).filter(version => names.some(name => version.slice(0, 14) === name.slice(0, 14)));
   if (taken.length) throw new Error(`Fixture versions already registered: ${taken.join(', ')}`);
-  cleanupSql.push(fixtureCleanupSql(token, names.map(name => name.slice(0, 14))));
+  cleanupSql.push(fixtureCleanupSql(token, owner, names.map(name => name.slice(0, 14))));
   return { migrations, names, tables, schema };
 }
 
@@ -217,15 +224,21 @@ describe.skipIf(!SUPABASE_URL || !SERVICE_KEY)('updater migrations in one transa
     expect(run.progress.message).toContain('the shop is running the previous version (2026.11.1) again');
   });
 
-  it('cleanup removes only its own registry rows, never a row another run registered under the same version', () => {
+  it('cleanup removes only its own registry rows and schema, never what another run created', () => {
     const version = String(20990000000000 + randomInt(1, 999_999_999) * 10);
     const token = randomUUID().replaceAll('-', '');
-    psql(`INSERT INTO supabase_migrations.schema_migrations (version, name) VALUES ('${version}', 'upgrade_${randomUUID().replaceAll('-', '')}_first');`);
+    const foreignName = `upgrade_${randomUUID().replaceAll('-', '')}_first`;
+    const foreignSchema = `upgrade_test_${token}`;
+    psql(`INSERT INTO supabase_migrations.schema_migrations (version, name) VALUES ('${version}', '${foreignName}');
+CREATE SCHEMA ${foreignSchema};
+COMMENT ON SCHEMA ${foreignSchema} IS '${randomUUID()}';`);
     try {
-      psql(fixtureCleanupSql(token, [version]));
-      expect(psql(`SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version = '${version}';`)).toBe('1');
+      psql(fixtureCleanupSql(token, randomUUID(), [version]));
+      expect(psql(`SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version = '${version}' AND name = '${foreignName}';`)).toBe('1');
+      expect(schemaExists(foreignSchema)).toBe(true);
     } finally {
-      psql(`DELETE FROM supabase_migrations.schema_migrations WHERE version = '${version}';`);
+      psql(`DELETE FROM supabase_migrations.schema_migrations WHERE version = '${version}' AND name = '${foreignName}';
+DROP SCHEMA IF EXISTS ${foreignSchema};`);
     }
   });
 
