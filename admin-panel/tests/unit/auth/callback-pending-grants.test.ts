@@ -224,7 +224,7 @@ describe('auth error return destination', () => {
     verifyOtp.mockResolvedValue({ data: { session: null }, error: { code: 'otp_expired' } });
     const target = '/pl/auth/product-access?product=course';
     const url = new URL((await callback(`${prefix}redirect_to=${encodeURIComponent(target)}`)).headers.get('location')!);
-    expect(url.pathname).toBe('/login');
+    expect(url.pathname).toBe('/pl/login');
     expect(url.searchParams.get('redirect_to')).toBe(target);
   });
   it.each(['https://elsewhere.example/path', '//elsewhere.example/path'])('omits unsupported recovery destination %s', async target => {

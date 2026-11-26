@@ -6,6 +6,7 @@ import { isDemoMode } from '@/lib/demo-guard';
 import { DisposableEmailService } from '@/lib/services/disposable-email'
 import { resolveSafeRedirectPath } from '@/lib/validations/redirect'
 import { getLoginReturnPath } from '@/lib/auth/magic-link-redirect'
+import { localizedPath } from '@/lib/navigation/locale-path'
 import { buildSupabaseCookieOptions } from '@/lib/supabase/cookie-options'
 import { claimPendingFreeGrants, productSlugHandledByRedirect } from '@/lib/services/pending-free-grants'
 
@@ -45,8 +46,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/login?error=demo_mode', origin));
   }
 
-  const recoveryUrl = new URL('/login', origin)
   const recoveryPath = getLoginReturnPath(requestUrl.searchParams.get('redirect_to'))
+  // A failed link returns to the login page in the language it was sent in: the validated return
+  // path's prefix, else the plain-login `locale` marker; only supported locales are used.
+  const linkLocale = recoveryPath?.match(/^\/(en|pl)\//)?.[1] ?? requestUrl.searchParams.get('locale')
+  const recoveryUrl = new URL(linkLocale === 'pl' || linkLocale === 'en' ? localizedPath(linkLocale, '/login') : '/login', origin)
   if (recoveryPath) recoveryUrl.searchParams.set('redirect_to', recoveryPath)
 
   // Upstream error from Supabase verify or OAuth provider.
