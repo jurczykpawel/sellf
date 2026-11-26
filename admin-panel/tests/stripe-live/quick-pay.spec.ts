@@ -10,6 +10,7 @@ import { readBuyerPayload } from '@/lib/webhooks/buyer-payload-storage';
 import { extractMagicLink, searchMessages, getMessage } from '../helpers/mailpit';
 import { useSupabaseBuyerEmails } from '../helpers/buyer-email-setting-playwright';
 import type { Page } from '@playwright/test';
+import { declineLinkSignup, describeStripeForm } from '../helpers/stripe-link';
 useSupabaseBuyerEmails();
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
@@ -41,6 +42,7 @@ async function payOnHostedCheckout(page: Page) {
     await page.locator('input[name="cardExpiry"]').fill('1234');
     await page.locator('input[name="cardCvc"]').fill('123');
     const name = page.locator('input[name="billingName"]'); if (await name.isVisible()) await name.fill('Quick Pay Buyer');
+    await declineLinkSignup(page);
     await page.getByTestId('hosted-payment-submit-button').click();
   } else {
     const number = form.locator('input[name="number"]');
@@ -49,13 +51,19 @@ async function payOnHostedCheckout(page: Page) {
     await form.locator('input[name="expiry"]').fill('1234');
     await form.locator('input[name="cvc"]').fill('123');
     const name = form.locator('input[name="name"]'); if (await name.isVisible()) await name.fill('Quick Pay Buyer');
-    // Saving to Link would ask for a phone number; the buyer pays as a guest.
-    const link = form.locator('input[name="linkOptIn"]'); if (await link.isVisible() && await link.isChecked()) await link.uncheck();
+    await declineLinkSignup(form); // saving to Link would ask for a phone number; the buyer pays as a guest
     const submit = form.getByTestId('payment-form-submit-button');
     await expect(submit).toBeEnabled();
     await submit.press('Enter');
   }
-  await page.waitForURL(/\/order\/.*\/transfer\?token=/, { timeout: 120000 });
+  try {
+    await page.waitForURL(/\/order\/.*\/transfer\?token=/, { timeout: 120000 });
+  } catch (error) {
+    // The run log is public and keeps no trace: say which layout stalled and which fields (names only, no values) are
+    // visible and flagged invalid, so a stuck hosted form is diagnosable.
+    const fields = await describeStripeForm(checkoutLayout === 'classic' ? page : form);
+    throw new Error(`Hosted checkout (${checkoutLayout}, ${new URL(page.url()).host}) never returned; visible fields (! = invalid): ${fields}`, { cause: error });
+  }
 }
 async function events(type: string, id: string) {
   const rows = await checked(await db.from('webhook_logs').select('payload').eq('endpoint_id', endpointId).eq('event_type', type));

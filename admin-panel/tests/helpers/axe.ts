@@ -34,8 +34,12 @@ export async function checkAccessibility(page: Page, options: A11yCheckOptions =
     builder = builder.exclude(selector);
   }
 
+  // Finite entrance animations (e.g. the dashboard stat cards fade in from opacity 0) must end too, or axe
+  // measures a half-transparent colour; infinite ones (spinners, pulses) never settle and are left running.
   await expect.poll(() => page.evaluate(() => document.getAnimations()
-    .filter(animation => animation instanceof CSSTransition && animation.playState === 'running').length), { timeout: 10000 }).toBe(0);
+    .filter(animation => (animation instanceof CSSTransition || animation instanceof CSSAnimation)
+      && animation.playState === 'running'
+      && Number.isFinite(Number(animation.effect?.getComputedTiming().endTime))).length), { timeout: 10000 }).toBe(0);
   const results = await builder.analyze();
 
   const violationSummary = results.violations.map(v => ({

@@ -13,6 +13,7 @@ import { supabaseAdmin as db, createTestUser } from '../helpers/admin-auth';
 import { deleteAuthUserByEmail } from '../helpers/db-cleanup';
 import { extractMagicLink, getMessage, searchMessages } from '../helpers/mailpit';
 import { generateSellerKeypair, storeSellerKey } from '@/lib/license-keys/keys';
+import { declineLinkSignup } from '../helpers/stripe-link';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -76,6 +77,7 @@ for (const scenario of ['coupon-stripe-email', 'plain-stripe-email', 'plain-stri
       await checkout.locator('input[name="cardNumber"]').fill('4242424242424242');
       await checkout.locator('input[name="cardExpiry"]').fill('1234');
       await checkout.locator('input[name="cardCvc"]').fill('123');
+      await declineLinkSignup(checkout);
       const name = checkout.locator('input[name="billingName"]');
       if (await name.isVisible()) await name.fill('Embed Buyer');
       const postal = checkout.locator('input[name="billingPostalCode"]');

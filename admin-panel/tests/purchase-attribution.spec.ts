@@ -10,6 +10,7 @@ import Stripe from 'stripe';
 import { insertTestApiKey } from './helpers/api-key';
 import { setConsentPreferences } from './helpers/consent';
 import { test, startNativeCheckout } from './helpers/checkout-intent';
+import { declineLinkSignup } from './helpers/stripe-link';
 
 const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
@@ -41,6 +42,7 @@ test('buyer from an e-mail campaign pays by card; the API reports email / listmo
     await frame.locator('input[name=number]').fill('4242424242424242');
     await frame.locator('input[name=expiry]').fill('12 / 34');
     await frame.locator('input[name=cvc]').fill('123');
+    await declineLinkSignup(frame);
     const country = frame.locator('select[name=country]');
     if (await country.count()) await country.selectOption('PL');
     const terms = page.getByRole('checkbox', { name: /I agree/ });
