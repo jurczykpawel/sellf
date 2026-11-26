@@ -17,6 +17,7 @@ import { formatPrice } from '@/lib/constants';
 import VariantGroupFormModal from './VariantGroupFormModal';
 import { api, isExpectedApiError } from '@/lib/api/client';
 import { fetchAllProductsForDropdown } from '@/hooks/useProducts';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 
 interface ProductInGroup {
   id: string;
@@ -77,18 +78,21 @@ const VariantsPageContent: React.FC = () => {
   }, []);
 
   // Fetch variant groups using v1 API
+  const beginLoad = useLatestRequest();
   const loadGroups = useCallback(async () => {
+    const isCurrent = beginLoad();
     try {
       const groups = await api.getCustom<VariantGroup[]>('variant-groups');
+      if (!isCurrent()) return;
       setGroups(groups || []);
     } catch (err) {
-      if (isExpectedApiError(err)) return;
+      if (!isCurrent() || isExpectedApiError(err)) return;
       setError(t('loadError'));
       console.error('Error:', err);
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
-  }, [t]);
+  }, [t, beginLoad]);
 
   const fetchGroups = useCallback(() => {
     setLoading(true);
@@ -483,11 +487,10 @@ const VariantsPageContent: React.FC = () => {
             setShowFormModal(false);
             setEditingGroup(null);
           }}
-          onSuccess={async () => {
-            // Refresh before closing: the form is seeded from list rows, so an immediate reopen must find the saved group.
-            await fetchGroups();
+          onSuccess={() => {
             setShowFormModal(false);
             setEditingGroup(null);
+            fetchGroups();
           }}
         />
       )}

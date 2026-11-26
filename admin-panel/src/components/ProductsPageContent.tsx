@@ -131,14 +131,14 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
     try {
       // Use the v1 API hook to create the product (OTO is handled inside the hook)
       await createProduct(formData);
-      // Refresh before closing: the wizard is seeded from list rows, so an immediate reopen must find the saved row.
-      await fetchProducts();
 
       setShowProductForm(false);
       // Remove query param if present
       if (searchParams.get('open')) {
         router.replace('/dashboard/products');
       }
+      // Not awaited: a slow list read must not keep the next wizard locked as submitting.
+      void fetchProducts();
       toast.success(t('createSuccess', { name: formData.name }));
       setTimeout(() => {
         addButtonRef.current?.focus();
@@ -157,11 +157,10 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
     try {
       // Use the v1 API hook to update the product (OTO is handled inside the hook)
       await updateProduct(editingProduct.id, formData);
-      // Refresh before closing: the wizard is seeded from list rows, so an immediate reopen must find the saved row.
-      await fetchProducts();
 
       setShowProductForm(false);
       setEditingProduct(null);
+      void fetchProducts();
       toast.success(t('updateSuccess', { name: formData.name }));
     } catch (err) {
       toast.error(isValidationError(err) ? t('validationFailed') : err instanceof Error && !isServerError(err) ? err.message : t('updateError'));
@@ -369,6 +368,8 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
           tutorial={searchParams.get('tutorial') ?? undefined}
           initialFormSection={searchParams.get('section') === 'sales' ? 'sales' : searchParams.get('section') === 'cart' ? 'cart' : undefined}
           onClose={() => {
+            // A save in flight closes the wizard itself once it is confirmed.
+            if (submitting) return;
             setShowProductForm(false);
             setEditingProduct(null);
             setNewAsBundle(false);

@@ -159,7 +159,7 @@ export default function WebhooksPageContent({ scopingLocked = false, customizati
   };
 
   const onEditWarningConfirm = async () => {
-    if (!editWaitlistWarning?.pendingData || !activeEndpoint) return;
+    if (submitting || !editWaitlistWarning?.pendingData || !activeEndpoint) return;
 
     const success = await updateEndpoint(activeEndpoint.id, editWaitlistWarning.pendingData);
     if (success) {
@@ -170,6 +170,7 @@ export default function WebhooksPageContent({ scopingLocked = false, customizati
   };
 
   const onEditWarningCancel = () => {
+    if (submitting) return;
     setEditWaitlistWarning(null);
   };
 
@@ -245,7 +246,7 @@ export default function WebhooksPageContent({ scopingLocked = false, customizati
       {/* Modals */}
       <WebhookFormModal
         isOpen={showFormModal}
-        onClose={() => setShowFormModal(false)}
+        onClose={() => { if (!submitting) setShowFormModal(false); }}
         onSubmit={onFormSubmit}
         editingEndpoint={activeEndpoint}
         isSubmitting={submitting}
@@ -290,10 +291,10 @@ export default function WebhooksPageContent({ scopingLocked = false, customizati
             </div>
           </ModalBody>
           <ModalFooter>
-            <Button onClick={onEditWarningCancel} variant="secondary">
+            <Button onClick={onEditWarningCancel} variant="secondary" disabled={submitting}>
               {tCommon('cancel')}
             </Button>
-            <Button onClick={onEditWarningConfirm} variant="danger">
+            <Button onClick={onEditWarningConfirm} variant="danger" loading={submitting}>
               {t('waitlistWarning.confirmEdit')}
             </Button>
           </ModalFooter>

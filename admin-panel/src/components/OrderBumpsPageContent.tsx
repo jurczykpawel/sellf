@@ -19,6 +19,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
 import Link from 'next/link';
 import { api, isExpectedApiError } from '@/lib/api/client';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { fetchAllProductsForDropdown } from '@/hooks/useProducts';
 
 interface OrderBumpWithDetails {
@@ -79,18 +80,21 @@ const OrderBumpsPageContent: React.FC = () => {
   }, []);
 
   // Fetch order bumps from the v1 API
+  const beginLoad = useLatestRequest();
   const loadOrderBumps = useCallback(async () => {
+    const isCurrent = beginLoad();
     try {
       const orderBumps = await api.getCustom<OrderBumpWithDetails[]>('order-bumps');
+      if (!isCurrent()) return;
       setOrderBumps(orderBumps || []);
     } catch (err) {
-      if (isExpectedApiError(err)) return;
+      if (!isCurrent() || isExpectedApiError(err)) return;
       setError(t('loadError'));
       console.error('Error:', err);
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
-  }, [t]);
+  }, [t, beginLoad]);
 
   const fetchOrderBumps = useCallback(() => {
     setLoading(true);
@@ -110,9 +114,9 @@ const OrderBumpsPageContent: React.FC = () => {
     setSubmitting(true);
     try {
       await api.create('order-bumps', formData);
-      await fetchOrderBumps();
 
       setShowBumpForm(false);
+      await fetchOrderBumps();
       toast.success(t('createSuccess'));
     } catch (err) {
       if (!isExpectedApiError(err)) toast.error(err instanceof Error ? err.message : t('createError'));
@@ -128,11 +132,10 @@ const OrderBumpsPageContent: React.FC = () => {
 
     try {
       await api.update('order-bumps', editingBump.id, formData);
-      // Refresh before closing: the form is seeded from list rows, so an immediate reopen must find the saved row.
-      await fetchOrderBumps();
 
       setShowBumpForm(false);
       setEditingBump(null);
+      await fetchOrderBumps();
       toast.success(t('updateSuccess'));
     } catch (err) {
       if (!isExpectedApiError(err)) toast.error(err instanceof Error ? err.message : t('updateError'));

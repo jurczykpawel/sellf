@@ -223,8 +223,10 @@ export function useProducts(params: UseProductsParams = {}): UseProductsResult {
     } = data as ProductUpdateData & { ux_product_type?: unknown };
     void _uxTypeUpdate;
 
-    // Update the product
+    // Update the product. The edit wizard is seeded from list rows: show the saved row even if
+    // the caller's list refresh is slow or fails.
     const product = await api.update<Product>('products', id, productData);
+    setProducts(prev => prev.map(row => row.id === id ? { ...row, ...product } : row));
 
     // Save OTO configuration using v1 API (create/update/delete)
     try {

@@ -59,7 +59,7 @@ interface VariantGroupFormModalProps {
   loadingProducts: boolean;
   editingGroup: VariantGroup | null;
   onClose: () => void;
-  onSuccess: () => Promise<void>;
+  onSuccess: () => void;
 }
 
 const VariantGroupFormModal: React.FC<VariantGroupFormModalProps> = ({
@@ -210,6 +210,7 @@ const VariantGroupFormModal: React.FC<VariantGroupFormModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
 
     if (selectedProducts.length < 2) {
       toast.error(t('minProductsRequired'));
@@ -246,7 +247,7 @@ const VariantGroupFormModal: React.FC<VariantGroupFormModalProps> = ({
         toast.success(t('createSuccess'));
       }
 
-      await onSuccess();
+      onSuccess();
     } catch (err) {
       if (isExpectedApiError(err)) return;
       const errorMessage = err instanceof Error ? err.message : 'Failed to save variant group';
@@ -266,7 +267,7 @@ const VariantGroupFormModal: React.FC<VariantGroupFormModalProps> = ({
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={submitting ? undefined : onClose}
         aria-hidden="true"
       />
       <div className="flex min-h-full items-center justify-center p-4">
