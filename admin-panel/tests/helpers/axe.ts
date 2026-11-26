@@ -34,8 +34,12 @@ export async function checkAccessibility(page: Page, options: A11yCheckOptions =
     builder = builder.exclude(selector);
   }
 
-  // Finite entrance animations (e.g. the dashboard stat cards fade in from opacity 0) must end too, or axe
-  // measures a half-transparent colour; infinite ones (spinners, pulses) never settle and are left running.
+  // Entrance animations (e.g. the dashboard stat cards slide and fade in from opacity 0) are `motion-safe:` classes:
+  // under reduced motion they never run, so axe cannot measure a half-transparent colour, whenever the element
+  // renders (GHA 45875117781: a card that rendered after the wait below still animated).
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  // Finite animations that are not `motion-safe:` must still end; infinite ones (spinners, pulses) never settle
+  // and are left running.
   await expect.poll(() => page.evaluate(() => document.getAnimations()
     .filter(animation => (animation instanceof CSSTransition || animation instanceof CSSAnimation)
       && animation.playState === 'running'
