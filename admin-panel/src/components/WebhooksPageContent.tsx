@@ -275,6 +275,7 @@ export default function WebhooksPageContent({ scopingLocked = false, customizati
         onSecretRotated={fetchEndpoints}
         scopingLocked={scopingLocked}
         customizationLocked={customizationLocked}
+        returnFocusTo={activeEndpoint ? storedEndpoint.opener : undefined}
       />
 
       <WebhookTestModal

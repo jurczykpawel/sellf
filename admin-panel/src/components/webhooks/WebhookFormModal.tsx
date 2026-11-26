@@ -20,6 +20,8 @@ interface WebhookFormModalProps {
   onSecretRotated: () => void;
   scopingLocked?: boolean;
   customizationLocked?: boolean;
+  /** Control to refocus on close when focus moved elsewhere before the form opened (stored-record load). */
+  returnFocusTo?: HTMLElement | null;
 }
 
 export default function WebhookFormModal({
@@ -30,7 +32,8 @@ export default function WebhookFormModal({
   isSubmitting,
   onSecretRotated,
   scopingLocked = false,
-  customizationLocked = false
+  customizationLocked = false,
+  returnFocusTo,
 }: WebhookFormModalProps) {
   const t = useTranslations('admin.webhooks');
   const tCommon = useTranslations('common');
@@ -131,7 +134,7 @@ export default function WebhookFormModal({
   };
 
   return (
-    <BaseModal isOpen={isOpen} onClose={onClose} size="lg">
+    <BaseModal isOpen={isOpen} onClose={onClose} size="lg" returnFocusTo={returnFocusTo}>
       <ModalHeader title={editingEndpoint ? t('editWebhook') : t('addEndpoint')} />
       <ModalBody>
         <form
