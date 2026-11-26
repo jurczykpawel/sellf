@@ -69,9 +69,12 @@ export function buildPostCheckoutMagicLinkRedirect(input: PostCheckoutInput): st
  * `&token_hash=...` after it; the callback ignores unrecognized params.
  */
 export function buildLoginMagicLinkRedirect(origin: string, redirectTo?: string, locale?: string): string {
+  // The locale marker keeps a failed link's login page in the sender's language even when the
+  // return path carries no locale prefix (LoginWall).
+  const localeParam = locale === 'pl' || locale === 'en' ? `&locale=${locale}` : '';
   const path = getLoginReturnPath(redirectTo);
-  if (path) return buildAuthCallbackUrl(origin, path);
-  return `${origin}/auth/callback?flow=login${locale === 'pl' || locale === 'en' ? `&locale=${locale}` : ''}`;
+  if (path) return `${buildAuthCallbackUrl(origin, path)}${localeParam}`;
+  return `${origin}/auth/callback?flow=login${localeParam}`;
 }
 
 /**
