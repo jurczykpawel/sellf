@@ -141,7 +141,7 @@ describe('Authentication Security', () => {
     });
 
     it('redirects to login on auth failure and blocks disposable emails', () => {
-      expect(authCallbackSource).toContain("'/login', origin)");
+      expect(authCallbackSource).toContain("new URL(locale === 'pl' || locale === 'en' ? `/${locale}/login` : '/login', origin)");
       expect(authCallbackSource).toContain("NextResponse.redirect(recoveryUrl)");
       expect(authCallbackSource).toContain('DisposableEmailService');
       expect(authCallbackSource).toContain('supabase.auth.signOut()');

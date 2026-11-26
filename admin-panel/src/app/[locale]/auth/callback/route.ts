@@ -6,7 +6,6 @@ import { isDemoMode } from '@/lib/demo-guard';
 import { DisposableEmailService } from '@/lib/services/disposable-email'
 import { resolveSafeRedirectPath } from '@/lib/validations/redirect'
 import { getLoginReturnPath } from '@/lib/auth/magic-link-redirect'
-import { localizedPath } from '@/lib/navigation/locale-path'
 import { buildSupabaseCookieOptions } from '@/lib/supabase/cookie-options'
 import { claimPendingFreeGrants, productSlugHandledByRedirect } from '@/lib/services/pending-free-grants'
 
@@ -19,6 +18,14 @@ import { claimPendingFreeGrants, productSlugHandledByRedirect } from '@/lib/serv
  */
 const SUPPORTED_OTP_TYPES = ['magiclink', 'recovery', 'invite', 'email_change', 'signup'] as const
 type SupportedOtpType = (typeof SUPPORTED_OTP_TYPES)[number]
+
+/**
+ * Login page in the link's language. An explicit /en prefix pins English too: next-intl turns
+ * /en/login into /login and stores NEXT_LOCALE=en, so a Polish browser setting cannot switch it.
+ */
+function loginPageUrl(locale: string | null, origin: string): URL {
+  return new URL(locale === 'pl' || locale === 'en' ? `/${locale}/login` : '/login', origin)
+}
 
 function parseOtpType(raw: string | null): SupportedOtpType {
   return (SUPPORTED_OTP_TYPES as readonly string[]).includes(raw ?? '')
@@ -42,15 +49,18 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  // A failed link returns to the login page in the language it was sent in: the validated return
+  // path's prefix, else the `locale` marker the link generator adds; only supported locales are used.
+  const recoveryPath = getLoginReturnPath(requestUrl.searchParams.get('redirect_to'))
+  const linkLocale = recoveryPath?.match(/^\/(en|pl)\//)?.[1] ?? requestUrl.searchParams.get('locale')
+
   if (isDemoMode()) {
-    return NextResponse.redirect(new URL('/login?error=demo_mode', origin));
+    const demoUrl = loginPageUrl(linkLocale, origin)
+    demoUrl.searchParams.set('error', 'demo_mode')
+    return NextResponse.redirect(demoUrl);
   }
 
-  const recoveryPath = getLoginReturnPath(requestUrl.searchParams.get('redirect_to'))
-  // A failed link returns to the login page in the language it was sent in: the validated return
-  // path's prefix, else the plain-login `locale` marker; only supported locales are used.
-  const linkLocale = recoveryPath?.match(/^\/(en|pl)\//)?.[1] ?? requestUrl.searchParams.get('locale')
-  const recoveryUrl = new URL(linkLocale === 'pl' || linkLocale === 'en' ? localizedPath(linkLocale, '/login') : '/login', origin)
+  const recoveryUrl = loginPageUrl(linkLocale, origin)
   if (recoveryPath) recoveryUrl.searchParams.set('redirect_to', recoveryPath)
 
   // Upstream error from Supabase verify or OAuth provider.

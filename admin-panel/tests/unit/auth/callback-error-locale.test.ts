@@ -1,9 +1,13 @@
 /**
- * /auth/callback sends a failed sign-in (used or expired link, upstream error) back to the login
- * page in the language the link was sent in (REG-2026-11-26-rc4-A-B1). The language comes only
- * from the validated return path or the `locale` marker, limited to the supported locales.
+ * A failed sign-in link (used, expired, upstream error, demo) returns to the login page in the
+ * language the link was sent in (REG-2026-11-26-rc4-A-B1, W342b). The language comes only from the
+ * validated return path prefix or the `locale` marker the link generator adds, limited to en/pl.
+ * The end-to-end cases follow the redirects through the real proxy (next-intl), so a browser's
+ * Accept-Language or an older NEXT_LOCALE cookie cannot switch the final screen.
  *
  * @see src/app/[locale]/auth/callback/route.ts
+ * @see src/lib/auth/magic-link-redirect.ts
+ * @see src/proxy.ts
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -13,13 +17,19 @@ const verifyOtp = vi.hoisted(() => vi.fn());
 const exchangeCodeForSession = vi.hoisted(() => vi.fn());
 
 vi.mock('@supabase/ssr', () => ({
-  createServerClient: () => ({ auth: { verifyOtp, exchangeCodeForSession, signOut: vi.fn() }, rpc: vi.fn() }),
+  createServerClient: () => ({
+    auth: { verifyOtp, exchangeCodeForSession, signOut: vi.fn(), getUser: async () => ({ data: { user: null }, error: null }) },
+    rpc: vi.fn(),
+  }),
 }));
 
 import { GET } from '@/app/[locale]/auth/callback/route';
+import { proxy } from '@/proxy';
+import { buildLoginMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
 
 const ORIGIN = 'https://shop.example.com';
 const PL_RETURN = '/pl/auth/product-access?product=widget';
+const LOGINWALL_RETURN = '/loginwall/protect?id=00000000-0000-4000-8000-000000000001&redirect=https%3A%2F%2Fseller.example%2Fpage';
 
 function callback(query: string): Promise<Response> {
   return GET(new NextRequest(`${ORIGIN}/auth/callback?${query}`));
@@ -27,6 +37,35 @@ function callback(query: string): Promise<Response> {
 
 function location(response: Response): URL {
   return new URL(response.headers.get('location') ?? '');
+}
+
+/** Follows proxy redirects like a browser (keeping cookies) and returns the locale the login screen renders in. */
+async function finalLoginLocale(start: URL, browser: { acceptLanguage?: string; cookie?: string }): Promise<string> {
+  const jar = new Map<string, string>();
+  for (const pair of browser.cookie?.split(';') ?? []) {
+    const [name, value] = pair.trim().split('=');
+    if (name) jar.set(name, value);
+  }
+  let url = start.toString();
+  for (let hop = 0; hop < 5; hop++) {
+    const headers: Record<string, string> = {};
+    if (browser.acceptLanguage) headers['accept-language'] = browser.acceptLanguage;
+    if (jar.size) headers.cookie = [...jar].map(([name, value]) => `${name}=${value}`).join('; ');
+    const response = await proxy(new NextRequest(url, { headers }));
+    for (const line of response.headers.getSetCookie()) {
+      const [name, value] = line.split(';')[0].split('=');
+      jar.set(name, value);
+    }
+    if (response.status >= 300 && response.status < 400) {
+      url = new URL(response.headers.get('location') ?? '', url).toString();
+      continue;
+    }
+    const rendered = new URL(response.headers.get('x-middleware-rewrite') ?? url);
+    const match = rendered.pathname.match(/^\/(en|pl)\/login$/);
+    if (!match) throw new Error(`Not a localized login screen: ${rendered.pathname}`);
+    return match[1];
+  }
+  throw new Error('Too many redirects');
 }
 
 describe('auth callback error keeps the link language', () => {
@@ -63,13 +102,21 @@ describe('auth callback error keeps the link language', () => {
     expect(url.searchParams.get('error')).toBe('magic_link_expired');
   });
 
-  it('keeps English links on the unprefixed default-locale login', async () => {
+  it('pins English links to /en/login', async () => {
     const product = location(await callback(`redirect_to=${encodeURIComponent('/en/auth/product-access?product=widget')}&type=magiclink&token_hash=used`));
     const plain = location(await callback('flow=login&locale=en&error=server_error'));
 
-    expect(product.pathname).toBe('/login');
-    expect(plain.pathname).toBe('/login');
+    expect(product.pathname).toBe('/en/login');
+    expect(plain.pathname).toBe('/en/login');
     expect(plain.searchParams.get('error')).toBe('oauth_failed');
+  });
+
+  it('keeps the demo-mode notice in the link language', async () => {
+    vi.stubEnv('DEMO_MODE', 'true');
+    const url = location(await callback('flow=login&locale=pl&type=magiclink&token_hash=used'));
+
+    expect(url.pathname).toBe('/pl/login');
+    expect(url.searchParams.get('error')).toBe('demo_mode');
   });
 
   it.each([
@@ -82,5 +129,35 @@ describe('auth callback error keeps the link language', () => {
 
     expect(url.origin).toBe(ORIGIN);
     expect(url.pathname).toBe('/login');
+  });
+
+  describe('final login screen through the proxy', () => {
+    it.each([
+      { acceptLanguage: 'pl' },
+      { cookie: 'NEXT_LOCALE=pl' },
+    ])('an English link stays English for a Polish browser (%o)', async browser => {
+      const start = location(await callback('flow=login&locale=en&type=magiclink&token_hash=used'));
+
+      expect(await finalLoginLocale(start, browser)).toBe('en');
+    });
+
+    it.each([
+      { acceptLanguage: 'en' },
+      { cookie: 'NEXT_LOCALE=en' },
+    ])('a Polish link stays Polish for an English browser (%o)', async browser => {
+      const start = location(await callback(`redirect_to=${encodeURIComponent(PL_RETURN)}&type=magiclink&token_hash=used`));
+
+      expect(await finalLoginLocale(start, browser)).toBe('pl');
+    });
+
+    it('a Polish LoginWall link (unprefixed return path) expires onto the Polish screen', async () => {
+      const link = new URL(buildLoginMagicLinkRedirect(ORIGIN, LOGINWALL_RETURN, 'pl'));
+      expect(link.searchParams.get('redirect_to')).toBe(LOGINWALL_RETURN);
+
+      const start = location(await callback(`${link.search.slice(1)}&type=magiclink&token_hash=used`));
+
+      expect(start.searchParams.get('redirect_to')).toBe(LOGINWALL_RETURN);
+      expect(await finalLoginLocale(start, { acceptLanguage: 'en' })).toBe('pl');
+    });
   });
 });
