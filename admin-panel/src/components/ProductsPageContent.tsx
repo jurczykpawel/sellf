@@ -46,6 +46,8 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
   // True when the wizard was opened via the "New bundle" entry (new products only).
   const [newAsBundle, setNewAsBundle] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Set synchronously: two clicks before a re-render both see submitting === false.
+  const saveInFlight = useRef(false);
   const [showEmbedSnippet, setShowEmbedSnippet] = useState(false);
   const [showLoginwallSnippet, setShowLoginwallSnippet] = useState(false);
   const [showGatingSnippet, setShowGatingSnippet] = useState(false);
@@ -134,6 +136,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
   if (previousOpenParam !== openParam) {
     setPreviousOpenParam(openParam);
     if (openParam === 'new') {
+      cancelStoredProduct();
       setShowProductForm(true);
       setEditingProduct(null);
     }
@@ -185,10 +188,12 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
   };
 
   const handleProductSubmit = async (formData: ProductFormData) => {
-    if (editingProduct && editingProduct.id) {
-      return handleUpdateProduct(formData);
-    } else {
-      return handleCreateProduct(formData);
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
+      return await (editingProduct && editingProduct.id ? handleUpdateProduct(formData) : handleCreateProduct(formData));
+    } finally {
+      saveInFlight.current = false;
     }
   };
 
@@ -286,12 +291,14 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
   };
 
   const handleAddNewProduct = () => {
+    cancelStoredProduct();
     setEditingProduct(null);
     setNewAsBundle(false);
     setShowProductForm(true);
   };
 
   const handleAddNewBundle = () => {
+    cancelStoredProduct();
     setEditingProduct(null);
     setNewAsBundle(true);
     setShowProductForm(true);

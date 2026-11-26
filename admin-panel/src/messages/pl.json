@@ -2118,6 +2118,7 @@
           "createProduct": "Utwórz produkt",
           "continueSetup": "Dalej",
           "loadingConfig": "Ładowanie ustawień sklepu…",
+          "storedDataError": "Nie udało się wczytać oferty OTO lub zawartości pakietu tego produktu. Zapis jest zablokowany, żeby ich nie skasować. Zamknij okno i otwórz produkt ponownie.",
           "back": "Wstecz",
           "cancel": "Anuluj",
           "earlyCreateHint": "Możesz utworzyć produkt teraz z samymi podstawami lub kontynuować konfigurację dostawy treści, promocji cenowych i więcej.",

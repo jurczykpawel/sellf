@@ -14,19 +14,49 @@ export const PLACEHOLDER_HINTS = [
   'product_name', 'product_slug', 'order_id', 'custom_<id>',
 ] as const;
 
+/** An extra payload field row; `original` is the stored value, which may be any JSON type. */
+export interface ExtraFieldRow {
+  key: string;
+  value: string;
+  original?: unknown;
+}
+
 export interface CustomizationFormState {
   payloadFieldsSelected: string[];
-  extraFields: { key: string; value: string }[];
+  extraFields: ExtraFieldRow[];
   headerRows: { key: string; value: string }[];
   deleteHeaders: boolean;
   hadHeaders: boolean;
+  /** Stored state when editing: parts left unchanged are omitted from the payload (kept as stored). */
+  initial?: Pick<CustomizationFormState, 'payloadFieldsSelected' | 'extraFields'>;
 }
 
 export interface CustomizationPayload {
-  custom_payload_fields: Record<string, string> | null;
-  payload_field_selection: string[] | null;
+  custom_payload_fields?: Record<string, unknown> | null;
+  payload_field_selection?: string[] | null;
   custom_headers?: Record<string, string> | null;
 }
+
+/** Text shown for a stored extra-field value; non-text JSON values are shown as JSON. */
+export function extraFieldText(value: unknown): string {
+  return typeof value === 'string' ? value : JSON.stringify(value);
+}
+
+function extraFieldsToMap(rows: ExtraFieldRow[]): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const { key, value, original } of rows) {
+    if (key.trim() === '') continue;
+    // An untouched non-text value keeps its stored JSON type.
+    out[key.trim()] = original !== undefined && typeof original !== 'string' && value === extraFieldText(original) ? original : value;
+  }
+  return out;
+}
+
+const sameRows = (a: ExtraFieldRow[], b: ExtraFieldRow[]): boolean =>
+  a.length === b.length && a.every((row, i) => row.key === b[i].key && row.value === b[i].value);
+
+const sameSelection = (a: string[], b: string[]): boolean =>
+  a.length === b.length && a.every(key => b.includes(key));
 
 function rowsToMap(rows: { key: string; value: string }[]): Record<string, string> {
   const out: Record<string, string> = {};
@@ -37,13 +67,17 @@ function rowsToMap(rows: { key: string; value: string }[]): Record<string, strin
 }
 
 export function buildCustomizationPayload(s: CustomizationFormState): CustomizationPayload {
-  const allChecked = PAYLOAD_TOP_LEVEL_KEYS.every((k) => s.payloadFieldsSelected.includes(k));
-  const payload_field_selection = allChecked ? null : [...s.payloadFieldsSelected];
+  const out: CustomizationPayload = {};
 
-  const extra = rowsToMap(s.extraFields);
-  const custom_payload_fields = Object.keys(extra).length > 0 ? extra : null;
+  if (!s.initial || !sameSelection(s.payloadFieldsSelected, s.initial.payloadFieldsSelected)) {
+    const allChecked = PAYLOAD_TOP_LEVEL_KEYS.every((k) => s.payloadFieldsSelected.includes(k));
+    out.payload_field_selection = allChecked ? null : [...s.payloadFieldsSelected];
+  }
 
-  const out: CustomizationPayload = { custom_payload_fields, payload_field_selection };
+  if (!s.initial || !sameRows(s.extraFields, s.initial.extraFields)) {
+    const extra = extraFieldsToMap(s.extraFields);
+    out.custom_payload_fields = Object.keys(extra).length > 0 ? extra : null;
+  }
 
   const newHeaders = rowsToMap(s.headerRows);
   if (Object.keys(newHeaders).length > 0) {

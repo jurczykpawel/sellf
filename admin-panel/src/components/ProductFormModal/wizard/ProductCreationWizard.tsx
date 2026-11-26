@@ -94,6 +94,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
     shopDefaultVatRate,
     taxMode,
     shopConfigLoaded,
+    storedDataState,
     oto,
     setOto,
     urlValidation,
@@ -226,6 +227,9 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
             pristine={product ? null : initialFormData}
             isStored={isEditMode}
           />
+          {storedDataState === 'failed' && (
+            <Message type="error" title={t('error')} message={t('wizard.storedDataError')} className="mb-6" />
+          )}
           {error && (
             <Message
               type="error"
@@ -318,7 +322,8 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
           isEditMode={isEditMode}
           formData={formData}
           priceDisplayValue={priceDisplayValue}
-          shopConfigLoaded={shopConfigLoaded}
+          shopConfigLoaded={shopConfigLoaded && storedDataState !== 'loading'}
+          saveBlocked={storedDataState === 'failed'}
           onBack={handleBack}
           onContinue={handleContinue}
           onSubmit={handleWizardSubmit}

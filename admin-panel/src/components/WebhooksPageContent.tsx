@@ -70,6 +70,7 @@ export default function WebhooksPageContent({ scopingLocked = false, customizati
 
   // Handlers
   const handleOpenCreate = () => {
+    storedEndpoint.cancel();
     setActiveEndpoint(null);
     setShowFormModal(true);
   };

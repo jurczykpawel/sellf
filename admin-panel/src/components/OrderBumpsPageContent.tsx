@@ -11,7 +11,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Product } from '@/types';
 import { toast } from 'sonner';
 import OrderBumpFormModal from './OrderBumpFormModal';
@@ -66,6 +66,8 @@ const OrderBumpsPageContent: React.FC = () => {
   const [showBumpForm, setShowBumpForm] = useState(false);
   const [editingBump, setEditingBump] = useState<OrderBumpWithDetails | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Set synchronously: two clicks before a re-render both see submitting === false.
+  const saveInFlight = useRef(false);
   const [bumpToDelete, setBumpToDelete] = useState<OrderBumpWithDetails | null>(null);
 
   // Fetch products for dropdown using v1 API
@@ -143,6 +145,16 @@ const OrderBumpsPageContent: React.FC = () => {
       return Promise.reject(err);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleBumpSubmit = async (formData: any) => {
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
+      return await (editingBump ? handleUpdateBump(formData) : handleCreateBump(formData));
+    } finally {
+      saveInFlight.current = false;
     }
   };
 
@@ -373,7 +385,7 @@ const OrderBumpsPageContent: React.FC = () => {
           products={products}
           loadingProducts={loadingProducts}
           editingBump={editingBump}
-          onSubmit={editingBump ? handleUpdateBump : handleCreateBump}
+          onSubmit={handleBumpSubmit}
           onClose={() => {
             setShowBumpForm(false);
             setEditingBump(null);
