@@ -96,7 +96,7 @@ test('(f) recording bump gives three registered participants recording access', 
     await waitForNativeCheckoutReady(page);
     const tx = await checked(await db.from('payment_transactions').select('id').eq('session_id',(await response.json()).checkoutSessionId).single());
     const metadata = await page.request.post('/api/update-payment-metadata', { headers: { origin: new URL(page.url()).origin }, data: { clientSecret: body.clientSecret, bindingToken: body.bindingToken, productId: product.id, moduleValues: { quantity: 3, participants: people }, termsAccepted: true, locale: 'pl' } });
-    expect(metadata.status()).toBe(200);
+    expect(metadata.status(), await metadata.text()).toBe(200);
     expect((await checked(await db.from('payment_transactions').select('order_details').eq('id',tx.id).single())).order_details.participants.people).toHaveLength(3);
     sql(`SELECT public._order_grant_and_record('${tx.id}',NULL,NULL,NULL,NULL,'none')`);
     for (const person of people) {
