@@ -11,7 +11,7 @@ import sys
 import time
 import urllib.request
 
-from browser import FAKE_STRIPE, LANES, repeat_arguments, run_browser, run_repeat
+from browser import FAKE_STRIPE, LANES, PRODUCTION, repeat_arguments, run_browser, run_repeat
 from freeze import frozen_source
 from prepare import prepare_stack
 from support import (
@@ -119,6 +119,13 @@ def stripe_environment():
     env['STRIPE_WEBHOOK_SECRET'] = raw
 
 
+def build_production():
+    """Browser specs run against `next start` of a production build (what is released). Built once per lane, after
+    the Stripe keys are in `env` (NEXT_PUBLIC_* values are inlined at build time). RC_GATE_SERVER=dev keeps `next dev`."""
+    if PRODUCTION:
+        require('build-admin', ['bun', 'run', 'build'], ADMIN)
+
+
 def candidate_stack():
     assert_no_stacks()
     prepare_stack(STACK)
@@ -172,7 +179,11 @@ def execute(lane):
         return
     if lane in LANES or lane in ('second', 'unit', 'repeat'):  # unit: affiliate browser tests launch Chromium
         stage_browser_tools()
-        require('install-chromium', ['bun', 'x', 'playwright', 'install', '--with-deps', 'chromium'], ADMIN)
+        chromium = ['bun', 'x', 'playwright', 'install', '--with-deps', 'chromium']
+        # apt/CDN failures on the runner (GHA 45808900772: stripe-live died here after 12 s): retry once.
+        if run('install-chromium', chromium, ADMIN, retried=True):
+            time.sleep(20)
+            require('install-chromium-retry', chromium, ADMIN)
 
     candidate_stack()
     if lane == 'unit':
@@ -201,8 +212,11 @@ def execute(lane):
             prepare_sections()
         elif lane == 'repeat':
             install('cloudflared')
+            build_production()
             run_repeat(os.environ['RC_GATE_ONLY_SPEC'], os.environ['RC_GATE_REPEAT_EACH'])
             return
+        if lane != 'sections':  # sections builds in prepare_sections
+            build_production()
         for suite in LANES[lane]:
             run_browser(suite, json.loads(os.environ['RC_GATE_INVENTORY'])['counts'])
         if lane == 'sections' and UPDATE_SNAPSHOTS:

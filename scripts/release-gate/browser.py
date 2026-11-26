@@ -5,11 +5,16 @@ from dataclasses import dataclass, replace
 
 import json
 from pathlib import Path, PurePosixPath
+import os
 import re
 
 from diagnostics import public_test_file, read_test_report, record_failures, test_identifier
 from support import ADMIN, OUT, RUNTIME, env, record, require, run
 
+# `next start` of a production build (what is released) unless the workflow asks for `next dev` (input `server`).
+# E2E_MODE is refused in production without ALLOW_PRODUCTION_E2E_MODE; the harness stack is disposable.
+PRODUCTION = os.environ.get('RC_GATE_SERVER', 'production') != 'dev'
+SERVER_ENV = {'PW_PRODUCTION': '1', 'ALLOW_PRODUCTION_E2E_MODE': 'true'} if PRODUCTION else {}
 MAIN_PROJECTS = ('chromium', 'chromium-heavy', 'maintenance', 'accessibility', 'rate-limiting', 'rate-limiting-v1')
 ALLOWED_SKIPS = {
     ('offer-public.spec.ts', 'two production replicas bound lost invalidation and scheduled availability/sale'),
@@ -231,6 +236,7 @@ def run_browser(suite, inventory):
         'PW_TEST_REPORTER': 'json',
         'PLAYWRIGHT_JSON_OUTPUT_FILE': str(path),
         'RC_GATE_EVIDENCE': str(OUT),
+        **(SERVER_ENV if suite.driver != 'runtime' else {}),
         **dict(suite.variables),
     }
     options = ['--workers=1', '--retries=0', '--trace=off', '--reporter=list']
@@ -304,6 +310,7 @@ def run_repeat(specs, repeat):
         'PLAYWRIGHT_JSON_OUTPUT_FILE': str(path),
         'RC_GATE_EVIDENCE': str(OUT),
         'RATE_LIMIT_TEST_MODE': 'true',
+        **SERVER_ENV,
     }
     suite = main_suite('repeat', 'chromium', 'chromium-heavy', options=(*files,))
     command = [

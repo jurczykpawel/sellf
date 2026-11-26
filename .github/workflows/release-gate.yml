@@ -17,6 +17,12 @@ on:
         required: false
         type: boolean
         default: false
+      server:
+        description: Browser specs run against a production build (`next start`, what is released) or the dev server (diagnostics only)
+        required: false
+        type: choice
+        options: [production, dev]
+        default: production
       only_spec:
         description: "Diagnostic repeat instead of the gate: up to 5 comma separated tests/<file>.spec.ts[:line] (needs stripe=false; never a gate result)"
         required: false
@@ -157,6 +163,7 @@ jobs:
           RC_GATE_UPDATE_SNAPSHOTS: ${{ inputs.snapshots }}
           RC_GATE_ONLY_SPEC: ${{ inputs.only_spec }}
           RC_GATE_REPEAT_EACH: ${{ inputs.repeat_each }}
+          RC_GATE_SERVER: ${{ inputs.server }}
         run: |
           ( while sleep 15; do echo "HOST disk_free=$(df -h / | awk 'NR==2{print $4}') mem_avail_mb=$(free -m | awk '/Mem/{print $7}') load=$(cut -d' ' -f1 /proc/loadavg) shmem_mb=$(awk '/^Shmem:/{print int($2/1024)}' /proc/meminfo) cached_mb=$(awk '/^Cached:/{print int($2/1024)}' /proc/meminfo) slab_mb=$(awk '/^Slab:/{print int($2/1024)}' /proc/meminfo) dockerdir=$(sudo du -sm /var/lib/docker 2>/dev/null | cut -f1)MB top=$(ps -eo rss=,comm= --sort=-rss | head -4 | awk '{printf "%s:%dMB,", $2, $1/1024}') ctr=$(docker stats --no-stream --format '{{.Name}}:{{.MemUsage}}' 2>/dev/null | sort -t: -k2 -rh | head -3 | cut -d/ -f1 | tr '\n' ',')"; done ) &
           python3 -B gate/scripts/release-gate/all.py "$RC_GATE_LANE"
@@ -204,6 +211,7 @@ jobs:
           STRIPE_SANDBOX_SECRET_KEY: ${{ secrets.STRIPE_SANDBOX_SECRET_KEY }}
           STRIPE_SANDBOX_PUBLISHABLE_KEY: ${{ secrets.STRIPE_SANDBOX_PUBLISHABLE_KEY }}
           STRIPE_SANDBOX_ACCOUNT_ID: ${{ secrets.STRIPE_SANDBOX_ACCOUNT_ID }}
+          RC_GATE_SERVER: ${{ inputs.server }}
         run: python3 -B gate/scripts/release-gate/all.py "$RC_GATE_LANE"
       - *validate-receipt
       - *lane-failure
