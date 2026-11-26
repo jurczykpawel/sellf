@@ -37,16 +37,19 @@ interface QueueInput {
   data?: Record<string, string | Record<string, string>>;
   kind: AuthMailRetryKind;
   code: MagicLinkErrorCode;
+  /** The buyer's explicit resend: parks the link again even after an earlier delivery. */
+  reopenSent?: boolean;
 }
 
 /**
  * Parks a refused mail; returns the original refusal marked as queued (or not, if parking failed).
- * A post-payment link already delivered to this address and page (a sent marker) is not parked again:
- * the buyer has the link, so a refused page refresh reports it as sent instead of mailing it twice (C-B3).
+ * A post-payment link already delivered to this address and page (a sent marker) is not parked again
+ * for an automatic send: the buyer has the link, so a refused page refresh reports it as sent instead
+ * of mailing it twice (C-B3). The buyer's explicit resend (`reopenSent`) is parked as a real retry.
  */
 export async function queueAuthMailRetry(input: QueueInput): Promise<MagicLinkResult> {
   const { data: parked, error } = await createAdminClient().rpc('queue_auth_mail_retry', {
-    p_email: input.email, p_redirect_to: input.redirectTo, p_data: input.data ?? {}, p_kind: input.kind, p_error: input.code,
+    p_email: input.email, p_redirect_to: input.redirectTo, p_data: input.data ?? {}, p_kind: input.kind, p_error: input.code, p_reopen_sent: input.reopenSent === true,
   });
   if (error) {
     console.error('[auth-mail-retry] Queue failed:', error.message);

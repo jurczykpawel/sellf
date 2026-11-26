@@ -7215,6 +7215,7 @@ export type Database = {
           p_error: string
           p_kind: string
           p_redirect_to: string
+          p_reopen_sent?: boolean
         }
         Returns: boolean
       }

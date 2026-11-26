@@ -212,4 +212,17 @@ describe('first access mail for a guest who does not return (W336)', () => {
     expect(after).toMatchObject({ last_error: 'sent' });
     expect(after.given_up_at).not.toBeNull();
   });
+
+  it('an explicit resend refused by the mailer after a delivered link is queued and reported as queued (W343mr P1)', async () => {
+    const email = newEmail('explicit-resend');
+    expect(await pageLink(email)).toEqual({ ok: true });
+    deliverMagicLink.mockResolvedValueOnce({ ok: false, code: 'rate_limited' });
+    // The buyer clicks "Resend login link": a real retry, not a silent success.
+    expect(await requestMagicLink({ email, captchaToken: 'ok', flow: 'post_checkout', productSlug: 'course', locale: 'pl', resend: true }))
+      .toMatchObject({ ok: false, queued: true });
+    expect((await rows(email)).data!.filter(row => row.given_up_at === null)).toHaveLength(1);
+    await due(email);
+    await runAuthMailRetries(db);
+    expect(callsFor(email)).toHaveLength(3);
+  });
 });

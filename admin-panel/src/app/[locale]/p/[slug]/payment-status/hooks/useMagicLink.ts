@@ -45,7 +45,7 @@ export function useMagicLink({
   const tDemo = useTranslations('demo');
   const t = useTranslations('paymentStatus');
 
-  const sendMagicLinkInternal = useCallback(async () => {
+  const sendMagicLinkInternal = useCallback(async (resend = false) => {
     // Need either sessionId (embedded checkout) or paymentIntentId (payment intent)
     const paymentId = sessionId || paymentIntentId;
     if (!customerEmail || !paymentId) return;
@@ -63,6 +63,7 @@ export function useMagicLink({
         flow: 'post_checkout',
         locale,
         productSlug: product.slug,
+        ...(resend ? { resend: true } : {}),
       });
 
       if (result.ok) {
@@ -143,7 +144,8 @@ export function useMagicLink({
   const sendMagicLink = useCallback(() => {
     if (!customerEmail || !paymentId || !captchaToken || retryCountdown > 0 || requestInFlight.current) return Promise.resolve();
     setSendingMagicLink(true);
-    return sendMagicLinkInternal();
+    // The button is the buyer's explicit resend; the effect above is the automatic first send.
+    return sendMagicLinkInternal(true);
   }, [customerEmail, paymentId, captchaToken, retryCountdown, sendMagicLinkInternal]);
 
   return {

@@ -4163,9 +4163,10 @@ END $$;
 REVOKE EXECUTE ON FUNCTION public.claim_auth_mail_retries(integer) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.claim_auth_mail_retries(integer) TO service_role;
 
--- Returns whether the mail was parked: false when the row is a delivered post-payment link (C-B3).
+-- Returns whether the mail was parked: false when the row is a delivered post-payment link and the
+-- request is automatic (C-B3). The buyer's explicit resend (p_reopen_sent) parks it again, as before.
 DROP FUNCTION IF EXISTS public.queue_auth_mail_retry(text, text, jsonb, text, text);
-CREATE FUNCTION public.queue_auth_mail_retry(p_email text, p_redirect_to text, p_data jsonb, p_kind text, p_error text)
+CREATE FUNCTION public.queue_auth_mail_retry(p_email text, p_redirect_to text, p_data jsonb, p_kind text, p_error text, p_reopen_sent boolean DEFAULT false)
 RETURNS boolean LANGUAGE sql SECURITY DEFINER SET search_path = '' AS $$
   WITH parked AS (
   INSERT INTO public.auth_mail_retries(email, redirect_to, data, kind, next_attempt_at, last_error)
@@ -4188,12 +4189,13 @@ RETURNS boolean LANGUAGE sql SECURITY DEFINER SET search_path = '' AS $$
   -- A delivered post-payment link stays a sent marker (W336): a page refresh refused by the mailer's
   -- cooldown or the inbox limit must not put it back in the queue and mail the buyer again (C-B3).
   WHERE NOT (public.auth_mail_retries.kind = 'post_checkout' AND EXCLUDED.kind = 'post_checkout'
-    AND public.auth_mail_retries.last_error = 'sent' AND public.auth_mail_retries.given_up_at IS NOT NULL)
+    AND public.auth_mail_retries.last_error = 'sent' AND public.auth_mail_retries.given_up_at IS NOT NULL
+    AND NOT coalesce(p_reopen_sent, false))
   RETURNING 1)
   SELECT EXISTS (SELECT 1 FROM parked);
 $$;
-REVOKE EXECUTE ON FUNCTION public.queue_auth_mail_retry(text, text, jsonb, text, text) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.queue_auth_mail_retry(text, text, jsonb, text, text) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.queue_auth_mail_retry(text, text, jsonb, text, text, boolean) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.queue_auth_mail_retry(text, text, jsonb, text, text, boolean) TO service_role;
 
 -- ===== An ended subscription stays ended =====
 -- Stripe never reopens a canceled or expired subscription. A subscription event handled

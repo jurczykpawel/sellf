@@ -7,6 +7,7 @@ const URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const db = URL && KEY ? createClient(URL, KEY) : null;
 const ids: string[] = [];
+const adminUsers: string[] = [];
 
 async function mkProduct(over: Record<string, unknown> = {}) {
   const slug = `t-${crypto.randomUUID().slice(0, 8)}`;
@@ -32,6 +33,10 @@ afterAll(async () => {
   if (!db) return;
   await deleteBundleItemsFor(db, ids);
   await deleteChecked('products', db.from('products').delete().in('id', ids));
+  for (const id of adminUsers) {
+    await db.from('admin_users').delete().eq('user_id', id);
+    await db.auth.admin.deleteUser(id);
+  }
 });
 
 describe.skipIf(!db)('upsertBundleItems', () => {
@@ -122,8 +127,12 @@ describe.skipIf(!db)('upsertBundleItems', () => {
     const original = await mkProduct();
     const other = await mkProduct();
     await upsertBundleItems(db!, bundle, [original]);
-    const { data: admin } = await db!.from('admin_users').select('user_id').limit(1).single();
-    const actor = { event_actor: { type: 'user', id: admin!.user_id }, actor_id: admin!.user_id };
+    // Own admin fixture, not whichever admin the shared database holds.
+    const created = await db!.auth.admin.createUser({ email: `bundle-admin-${crypto.randomUUID()}@example.com`, email_confirm: true });
+    const adminId = created.data.user!.id;
+    adminUsers.push(adminId);
+    expect((await db!.from('admin_users').upsert({ user_id: adminId })).error).toBeNull();
+    const actor = { event_actor: { type: 'user', id: adminId }, actor_id: adminId };
     const ok = await db!.rpc('mutate_bundle_product_as', { ...actor, product_data: { name: 'Saved together' }, p_product_id: bundle, p_component_ids: [other] }).select('name').single();
     expect(ok.error).toBeNull();
     expect(ok.data?.name).toBe('Saved together');

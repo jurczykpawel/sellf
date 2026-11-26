@@ -32,6 +32,8 @@ export interface MagicLinkRequestInput {
   couponCode?: string;
   successUrl?: string;
   customFieldValues?: Record<string, string>;
+  /** post_checkout: the buyer clicked "Resend login link" (not the page's automatic send). */
+  resend?: boolean;
 }
 
 export interface SendTrustedMagicLinkInput {
@@ -43,6 +45,8 @@ export interface SendTrustedMagicLinkInput {
   data?: Record<string, string | Record<string, string>>;
   /** Purchase mails the buyer must get even if the auth mailer refuses now: parked and retried by cron. */
   retry?: AuthMailRetryKind;
+  /** An explicit resend: a refused link is parked even after an earlier delivery (limits unchanged). */
+  resend?: boolean;
 }
 
 /**
@@ -69,7 +73,7 @@ export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Pr
     return { ok: false, code: 'invalid_request' };
   }
   if (input.retry === 'post_checkout' && input.data?.purchase_mail_pending === 'true') {
-    const pending = await queueAuthMailRetry({ email: input.email.trim().toLowerCase(), redirectTo: input.redirectTo, data: input.data, kind: input.retry, code: 'send_failed' });
+    const pending = await queueAuthMailRetry({ email: input.email.trim().toLowerCase(), redirectTo: input.redirectTo, data: input.data, kind: input.retry, code: 'send_failed', reopenSent: input.resend });
     return !pending.ok && pending.queued ? { ok: true } : pending;
   }
   if (input.data?.license_mail_managed === 'true' && await readBuyerEmailPolicy() === true) return { ok: true, skipped: true };
@@ -92,7 +96,7 @@ export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Pr
   const knownPurchase = input.retry === 'license' || (input.retry === 'post_checkout' && Boolean(input.data?.purchase_product));
   if (!emailAllowed) {
     if (!input.retry || !knownPurchase) return { ok: false, code: 'address_rate_limited', retryAfterSeconds: addressMailRetryAfterSeconds() };
-    const parked = await queueAuthMailRetry({ email: normalizedEmail, redirectTo: input.redirectTo, data: input.data, kind: input.retry, code: 'rate_limited' });
+    const parked = await queueAuthMailRetry({ email: normalizedEmail, redirectTo: input.redirectTo, data: input.data, kind: input.retry, code: 'rate_limited', reopenSent: input.resend });
     // The queue can deliver it only when the inbox limit resets: the page must say when, not "within minutes".
     return !parked.ok && parked.queued ? { ...parked, retryAfterSeconds: addressMailRetryAfterSeconds() } : parked;
   }
@@ -115,7 +119,7 @@ export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Pr
   // The link reached the buyer: the access link a paid order scheduled for them must not follow (W336).
   if (result.ok && input.retry === 'post_checkout') await markPostCheckoutMailSent(normalizedEmail, redirectTo);
   if (result.ok || !input.retry || (result.code !== 'rate_limited' && result.code !== 'send_failed')) return result;
-  return queueAuthMailRetry({ email: normalizedEmail, redirectTo, data, kind: input.retry, code: result.code });
+  return queueAuthMailRetry({ email: normalizedEmail, redirectTo, data, kind: input.retry, code: result.code, reopenSent: input.resend });
 }
 
 export async function requestMagicLink(input: MagicLinkRequestInput): Promise<MagicLinkResult> {
@@ -161,6 +165,7 @@ export async function requestMagicLink(input: MagicLinkRequestInput): Promise<Ma
   // flow === 'post_checkout' — the only mail a paying guest gets, so a refusal is retried by cron.
   return sendTrustedMagicLink({
     retry: 'post_checkout',
+    ...(input.resend ? { resend: true } : {}),
     data: { ...await eventMailForSlug(input.email, input.productSlug, input.locale), locale: input.locale === 'pl' ? 'pl' : 'en' },
     email: input.email,
     redirectTo: buildPostCheckoutMagicLinkRedirect({
