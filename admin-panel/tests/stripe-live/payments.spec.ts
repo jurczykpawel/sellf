@@ -18,6 +18,7 @@ import { supabaseAdmin, createTestUser, createTestAdmin, setAuthSession } from '
 import { acceptAllCookies } from '../helpers/consent';
 import { deleteAuthUserByEmail } from '../helpers/db-cleanup';
 import { extractMagicLink, waitForEmail, searchMessages } from '../helpers/mailpit';
+import { declineLinkSignup } from '../helpers/stripe-link';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 const artifacts = process.env.STRIPE_LIVE_ARTIFACTS!;
@@ -174,6 +175,7 @@ async function fillCard(page: Page, card: string): Promise<void> {
   await frame.locator('input[name="number"]').fill(card);
   await frame.locator('input[name="expiry"]').fill('1234');
   await frame.locator('input[name="cvc"]').fill('123');
+  await declineLinkSignup(frame);
 }
 async function timing(s: Scenario, sessionId: string, pageAt: number): Promise<string> {
   const session = await stripe.checkout.sessions.retrieve(sessionId);

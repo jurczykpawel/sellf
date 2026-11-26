@@ -151,7 +151,7 @@ def failure_text(test):
     return ''
 
 
-PAGE_CUE = re.compile(r'^- (?:alert|status|dialog|heading|iframe)\b|error|declin|fail|captcha|expire|invalid|limit|wygas|błąd|odrzuc', re.I)
+PAGE_CUE = re.compile(r'^- (?:alert|status|dialog|heading|iframe|checkbox)\b|\[disabled\]|error|declin|fail|captcha|expire|invalid|limit|wygas|błąd|odrzuc', re.I)
 
 
 def failure_context(test):
