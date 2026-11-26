@@ -396,6 +396,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
           error={null}
           hasLicenseIssuance={hasLicenseIssuance}
           defaultIsBundle={newAsBundle}
+          returnFocusTo={editingProduct ? storedProduct.opener : undefined}
         />
       )}
 
