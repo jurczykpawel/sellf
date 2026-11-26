@@ -79,9 +79,15 @@ export function useMagicLink({
         } else if (result.reason === 'captcha_failed' || result.reason === 'captcha_missing') {
           setError(t('captchaFailedError'));
         } else if (result.queued) {
-          // The server parked the link and cron delivers it, even if the buyer closes this page.
-          setError(t('paidLinkQueued'));
-          setRetryCountdown(60);
+          // The server parked the link and cron delivers it, even if the buyer closes this page. Past the
+          // inbox limit it can only go out when the limit resets, so the page names that time.
+          if (result.retryAfterSeconds) {
+            setError(t('paidLinkQueuedAfterLimit', { time: magicLinkRetryAt(result.retryAfterSeconds, locale) }));
+            setRetryCountdown(result.retryAfterSeconds);
+          } else {
+            setError(t('paidLinkQueued'));
+            setRetryCountdown(60);
+          }
         } else if (result.reason === 'address_rate_limited') {
           setError(tAuth('magicLinkAddressRateLimit', { time: magicLinkRetryAt(result.retryAfterSeconds, locale) }));
           setRetryCountdown(result.retryAfterSeconds ?? 86400);

@@ -6812,6 +6812,90 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      mutate_bundle_product_as: {
+        Args: {
+          actor_id: string
+          event_actor: Json
+          p_component_ids: string[]
+          p_product_id: string
+          product_data: Json
+        }
+        Returns: {
+          allow_custom_price: boolean
+          allow_repeat_purchase: boolean
+          archived_at: string | null
+          auto_grant_duration_days: number | null
+          available_from: string | null
+          available_until: string | null
+          billing_interval: string | null
+          billing_interval_count: number | null
+          checkout_profile: Json | null
+          checkout_template: string
+          content_config: Json
+          content_delivery_type: string
+          created_at: string
+          currency: string
+          custom_checkout_fields: Json
+          custom_price_min: number | null
+          custom_price_presets: Json | null
+          description: string | null
+          embed_enabled: boolean
+          enable_waitlist: boolean
+          event_mode: boolean
+          features: Json | null
+          icon: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          is_bundle: boolean
+          is_featured: boolean
+          is_listed: boolean
+          is_refundable: boolean
+          issue_license_on_purchase: boolean
+          layout_template: string
+          lead_consent_required: boolean
+          lead_consent_text_en: string
+          lead_consent_text_pl: string
+          lead_consent_version: string
+          license_duration_days: number | null
+          license_tier: string | null
+          long_description: string | null
+          marketing_fields: Json
+          name: string
+          omnibus_exempt: boolean
+          pass_params_to_redirect: boolean
+          preview_video_config: Json
+          preview_video_url: string | null
+          price: number
+          price_includes_vat: boolean
+          product_type: string
+          recurring_price: number | null
+          refund_period_days: number | null
+          sale_price: number | null
+          sale_price_until: string | null
+          sale_quantity_limit: number | null
+          sale_quantity_sold: number
+          seller_id: string | null
+          show_price_presets: boolean
+          slug: string
+          stripe_price_id: string | null
+          stripe_product_id: string | null
+          success_redirect_url: string | null
+          thumbnail_url: string | null
+          trial_days: number | null
+          updated_at: string
+          vat_exempt: boolean
+          vat_exempt_note: string | null
+          vat_rate: number | null
+          webhook_revision: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "products"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       mutate_product_as: {
         Args: {
           actor_id: string
@@ -7132,7 +7216,7 @@ export type Database = {
           p_kind: string
           p_redirect_to: string
         }
-        Returns: undefined
+        Returns: boolean
       }
       queue_pending_free_grant: {
         Args: { p_email: string; p_product_slug: string }

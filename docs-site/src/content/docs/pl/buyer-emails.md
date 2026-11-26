@@ -41,7 +41,7 @@ Mapowania i szablony Mailstacka są rozwijane osobno w jego repozytorium. Sprawd
 
 ## Limity wysyłki i oczekujące maile
 
-Żądania wysłania linku logowania i worker ponowień mają wspólny limit **5 prób na skrzynkę w ciągu 24 godzin**. Warianty adresu trafiające do tej samej skrzynki, w tym dopiski po plusie i kropki w Gmailu, korzystają z jednego limitu. Obowiązuje on niezależnie od limitów Supabase Auth i dostawcy SMTP. Po jego osiągnięciu wiadomość w kolejce czeka kolejne 24 godziny bez zużycia próby ponowienia.
+Żądania wysłania linku logowania i worker ponowień mają wspólny limit **5 prób na skrzynkę w ciągu 24 godzin**. Warianty adresu trafiające do tej samej skrzynki, w tym dopiski po plusie i kropki w Gmailu, korzystają z jednego limitu. Obowiązuje on niezależnie od limitów Supabase Auth i dostawcy SMTP. Po jego osiągnięciu wiadomość w kolejce czeka do odnowienia okna limitu (00:00 UTC dla limitu w bazie, 24 godziny dla Upstash) bez zużycia próby ponowienia; strona po płatności podaje ten termin. Odświeżenie strony potwierdzenia po dostarczeniu linku logowania nie dodaje go ponownie do kolejki.
 
 Kolejka poczty uwierzytelniającej podejmuje do sześciu prób ponowienia. Nadany dostęp i wystawiona licencja pozostają ważne, gdy mail czeka. API nadania dostępu zwraca `license.email_pending`, a `POST /api/v1/licenses` zwraca `emailPending`. Ponowne **Przyznaj dostęp** może wznowić porzucony mail z licencją. Zobacz [SMTP i odstępy między próbami](/pl/email-setup/).
 

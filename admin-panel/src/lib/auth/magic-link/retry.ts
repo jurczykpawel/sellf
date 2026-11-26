@@ -13,7 +13,7 @@ import { buildPostCheckoutMagicLinkRedirect } from '@/lib/auth/magic-link-redire
 import { getSellfBaseUrl } from '@/lib/embed/checkout-embed';
 import { eventMailForSlug } from '@/lib/events/mail';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { ADDRESS_MAIL_WINDOW_MINUTES, allowMailToAddress } from './address-limit';
+import { addressMailRetryAfterSeconds, allowMailToAddress } from './address-limit';
 import { readBuyerEmailPolicy } from './buyer-email-policy';
 import { deliverMagicLink } from './deliver';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -39,15 +39,20 @@ interface QueueInput {
   code: MagicLinkErrorCode;
 }
 
-/** Parks a refused mail; returns the original refusal marked as queued (or not, if parking failed). */
+/**
+ * Parks a refused mail; returns the original refusal marked as queued (or not, if parking failed).
+ * A post-payment link already delivered to this address and page (a sent marker) is not parked again:
+ * the buyer has the link, so a refused page refresh reports it as sent instead of mailing it twice (C-B3).
+ */
 export async function queueAuthMailRetry(input: QueueInput): Promise<MagicLinkResult> {
-  const { error } = await createAdminClient().rpc('queue_auth_mail_retry', {
+  const { data: parked, error } = await createAdminClient().rpc('queue_auth_mail_retry', {
     p_email: input.email, p_redirect_to: input.redirectTo, p_data: input.data ?? {}, p_kind: input.kind, p_error: input.code,
   });
   if (error) {
     console.error('[auth-mail-retry] Queue failed:', error.message);
     return { ok: false, code: input.code };
   }
+  if (parked === false) return { ok: true, skipped: true };
   return { ok: false, code: input.code, queued: true };
 }
 
@@ -152,10 +157,11 @@ export async function runAuthMailRetries(db: SupabaseClient = createAdminClient(
       }
     }
     if (purchaseReady && !await allowMailToAddress(row.email)) {
-      // The inbox got its daily maximum: the mail waits for the next day without using up an attempt.
+      // The inbox got its daily maximum: the mail waits until the limit window resets (the time the
+      // page announced) without using up an attempt.
       await db.from('auth_mail_retries').update({
         attempts: Math.max(row.attempts - 1, 0), last_error: 'rate_limited',
-        next_attempt_at: new Date(Date.now() + ADDRESS_MAIL_WINDOW_MINUTES * 60_000).toISOString(),
+        next_attempt_at: new Date(Date.now() + addressMailRetryAfterSeconds() * 1000).toISOString(),
       }).eq('id', row.id);
       continue;
     }

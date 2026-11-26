@@ -90,9 +90,12 @@ export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Pr
   // Past the per-address limit only a mail for a known purchase waits in the queue (the queue
   // delivers it once the limit allows); anything else is refused.
   const knownPurchase = input.retry === 'license' || (input.retry === 'post_checkout' && Boolean(input.data?.purchase_product));
-  if (!emailAllowed) return input.retry && knownPurchase
-    ? queueAuthMailRetry({ email: normalizedEmail, redirectTo: input.redirectTo, data: input.data, kind: input.retry, code: 'rate_limited' })
-    : { ok: false, code: 'address_rate_limited', retryAfterSeconds: addressMailRetryAfterSeconds() };
+  if (!emailAllowed) {
+    if (!input.retry || !knownPurchase) return { ok: false, code: 'address_rate_limited', retryAfterSeconds: addressMailRetryAfterSeconds() };
+    const parked = await queueAuthMailRetry({ email: normalizedEmail, redirectTo: input.redirectTo, data: input.data, kind: input.retry, code: 'rate_limited' });
+    // The queue can deliver it only when the inbox limit resets: the page must say when, not "within minutes".
+    return !parked.ok && parked.queued ? { ...parked, retryAfterSeconds: addressMailRetryAfterSeconds() } : parked;
+  }
 
   let redirectTo = input.redirectTo;
   let data = input.data;

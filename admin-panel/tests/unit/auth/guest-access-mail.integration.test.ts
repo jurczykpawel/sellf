@@ -18,7 +18,8 @@ const eventMailForSlug = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/events/mail', () => ({ eventMailForSlug }));
 vi.mock('@/lib/embed/checkout-embed', () => ({ getSellfBaseUrl: () => 'https://shop.example.com' }));
 
-import { requestMagicLink } from '@/lib/auth/magic-link/request';
+import { buildPostCheckoutMagicLinkRedirect } from '@/lib/auth/magic-link-redirect';
+import { requestMagicLink, sendTrustedMagicLink } from '@/lib/auth/magic-link/request';
 import { GUEST_ACCESS_MAIL_DELAY_MINUTES, runAuthMailRetries, scheduleGuestAccessMail } from '@/lib/auth/magic-link/retry';
 
 const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
@@ -168,5 +169,47 @@ describe('first access mail for a guest who does not return (W336)', () => {
     } finally {
       await db.auth.admin.deleteUser(user.data.user!.id);
     }
+  });
+
+  it('a link the server page parked is not delivered after the buyer got the link from the page (U3)', async () => {
+    const email = newEmail('server-parked-then-page');
+    // The confirmation page's server-side send is refused by the auth mailer and parked.
+    const serverRedirect = buildPostCheckoutMagicLinkRedirect({ origin: 'https://shop.example.com', productSlug: 'course', locale: 'pl', sessionId: 'cs_test_u3', paymentIntentId: undefined });
+    deliverMagicLink.mockResolvedValueOnce({ ok: false, code: 'rate_limited' });
+    expect(await sendTrustedMagicLink({ retry: 'post_checkout', email, redirectTo: serverRedirect, data: { purchase_product: 'Course', locale: 'pl' } }))
+      .toMatchObject({ ok: false, queued: true });
+    // A moment later the page's own request delivers the link.
+    expect(await pageLink(email)).toEqual({ ok: true });
+    expect(callsFor(email)).toHaveLength(2);
+    await due(email);
+    await runAuthMailRetries(db);
+    expect(callsFor(email)).toHaveLength(2);
+    expect((await rows(email)).data!.filter(row => row.given_up_at === null)).toEqual([]);
+  });
+
+  it('a page refresh during the mailer cooldown after a delivered link neither reopens the sent marker nor sends a second mail (C-B3)', async () => {
+    const email = newEmail('refresh-cooldown');
+    expect(await schedule(email)).toBe(true);
+    expect(await pageLink(email)).toEqual({ ok: true });
+    // Refresh within 60 s (and the English URL): the auth mailer refuses the repeat with its cooldown.
+    deliverMagicLink.mockResolvedValueOnce({ ok: false, code: 'rate_limited' }).mockResolvedValueOnce({ ok: false, code: 'rate_limited' });
+    expect(await pageLink(email)).toEqual({ ok: true, skipped: true });
+    expect(await pageLink(email, 'en')).toEqual({ ok: true, skipped: true });
+    expect((await rows(email)).data!.filter(row => row.given_up_at === null)).toEqual([]);
+    await due(email);
+    await runAuthMailRetries(db);
+    // One delivered link and the two refused repeats; the queue sends nothing more.
+    expect(callsFor(email)).toHaveLength(3);
+  });
+
+  it('the queue function keeps a sent post-payment marker closed when the same link is parked again (C-B3)', async () => {
+    const email = newEmail('marker-requeue');
+    expect(await pageLink(email)).toEqual({ ok: true });
+    const marker = (await rows(email)).data!.find(row => row.last_error === 'sent')!;
+    const { error } = await db.rpc('queue_auth_mail_retry', { p_email: email, p_redirect_to: marker.redirect_to, p_data: { locale: 'pl' }, p_kind: 'post_checkout', p_error: 'rate_limited' });
+    expect(error).toBeNull();
+    const after = (await rows(email)).data!.find(row => row.id === marker.id)!;
+    expect(after).toMatchObject({ last_error: 'sent' });
+    expect(after.given_up_at).not.toBeNull();
   });
 });

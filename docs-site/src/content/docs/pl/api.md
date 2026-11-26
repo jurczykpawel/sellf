@@ -109,7 +109,7 @@ Zamówienia, faktury i licencje nigdy nie są usuwane razem z produktem.
 Produktu będącego **składnikiem pakietu** nie można przenieść do archiwum ani usunąć, również trwale z archiwum.
 Panel pokazuje nazwy powiązanych pakietów i blokuje potwierdzenie; API DELETE zwraca **409 CONFLICT** z ich nazwami.
 Najpierw jawnie usuń składnik z tych pakietów. Odmowa pozostawia produkt i skład pakietów bez zmian.
-Produktu z archiwum nie można dodać do pakietu (także przez `bundleItemIds`); najpierw przywróć składnik. Odrzucona zmiana pozostawia dotychczasowy skład bez zmian. Jeśli powiązany pakiet jest w archiwum, najpierw przywróć pakiet, aby zmienić jego skład.
+Produktu z archiwum nie można dodać do pakietu (także przez `bundleItemIds`); najpierw przywróć składnik. Odrzucona zmiana pozostawia dotychczasowy skład bez zmian. Jeśli powiązany pakiet jest w archiwum, najpierw przywróć pakiet, aby zmienić jego skład. Zmiana `bundleItemIds` pakietu z archiwum zwraca **409** i niczego nie zapisuje; wysłanie zapisanej listy bez zmian jest przyjmowane.
 
 Istniejący aktywny pakiet ze składnikiem już w archiwum nadal można kupić — kupujący otrzymuje dostęp także do tego składnika. Strona zakupu pokazuje wszystkie składniki, również archiwalne. Archiwizacja samodzielnej oferty nie odbiera uprawnień wynikających z pakietu.
 

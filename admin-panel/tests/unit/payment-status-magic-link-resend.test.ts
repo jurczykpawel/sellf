@@ -88,3 +88,18 @@ it('allows an explicit resend after success and cooldown without auto-sending ag
   expect(fetchMock).toHaveBeenCalledTimes(2);
   expect(result.current.retryCountdown).toBe(60);
 });
+
+it.each([
+  [{ code: 'rate_limited', queued: true }, 'paidLinkQueued', 60],
+  [{ code: 'rate_limited', queued: true, retryAfterSeconds: 3600 }, 'paidLinkQueuedAfterLimit', 3600],
+] as const)('promises only the delivery time the queue can keep (%j, U3)', async (body, message, countdown) => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 429, json: async () => body }));
+  const { result } = renderHook(() => useMagicLink({
+    paymentStatus: 'magic_link_sent', customerEmail: 'buyer@example.com', sessionId: 'cs_test',
+    product: { id: 'p', name: 'Product', slug: 'product', price: 10, currency: 'PLN' },
+    termsAccepted: true, captchaToken: 'fresh', captchaReset: vi.fn(), showInteractiveWarning: false,
+  }));
+  await act(async () => {});
+  expect(result.current.error).toBe(message);
+  expect(result.current.retryCountdown).toBe(countdown);
+});

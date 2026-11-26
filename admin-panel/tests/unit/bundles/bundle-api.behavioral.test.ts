@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createClient } from '@supabase/supabase-js';
-import { upsertBundleItems } from '@/lib/services/bundle-items';
+import { BundleArchivedError, upsertBundleItems } from '@/lib/services/bundle-items';
 import { deleteChecked, deleteBundleItemsFor } from '../../helpers/db-cleanup';
 
 const URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -101,6 +101,38 @@ describe.skipIf(!db)('upsertBundleItems', () => {
     const archive = await db!.from('products').update({ archived_at: new Date().toISOString(), is_active: false }).eq('id', original);
     expect(archive.error?.code).toBe('2BP01');
     expect((await db!.from('products').select('archived_at').eq('id', original).single()).data?.archived_at).toBeNull();
+  });
+
+  it('keeps the composition of an archived bundle unchanged (replacement and direct insert)', async () => {
+    const bundle = await mkProduct({ is_bundle: true });
+    const original = await mkProduct();
+    const other = await mkProduct();
+    await upsertBundleItems(db!, bundle, [original]);
+    const archived = await db!.from('products').update({ archived_at: new Date().toISOString(), is_active: false }).eq('id', bundle);
+    expect(archived.error).toBeNull();
+    await expect(upsertBundleItems(db!, bundle, [])).rejects.toBeInstanceOf(BundleArchivedError);
+    await expect(upsertBundleItems(db!, bundle, [other])).rejects.toBeInstanceOf(BundleArchivedError);
+    const direct = await db!.from('bundle_items').insert({ bundle_product_id: bundle, component_product_id: other });
+    expect(direct.error?.details).toBe('bundle_archived');
+    expect(await components(bundle)).toEqual([original]);
+  });
+
+  it('saves fields and composition together, and an archived bundle keeps both unchanged (W343r P2)', async () => {
+    const bundle = await mkProduct({ is_bundle: true });
+    const original = await mkProduct();
+    const other = await mkProduct();
+    await upsertBundleItems(db!, bundle, [original]);
+    const { data: admin } = await db!.from('admin_users').select('user_id').limit(1).single();
+    const actor = { event_actor: { type: 'user', id: admin!.user_id }, actor_id: admin!.user_id };
+    const ok = await db!.rpc('mutate_bundle_product_as', { ...actor, product_data: { name: 'Saved together' }, p_product_id: bundle, p_component_ids: [other] }).select('name').single();
+    expect(ok.error).toBeNull();
+    expect(ok.data?.name).toBe('Saved together');
+    expect(await components(bundle)).toEqual([other]);
+    await db!.from('products').update({ archived_at: new Date().toISOString(), is_active: false }).eq('id', bundle);
+    const refused = await db!.rpc('mutate_bundle_product_as', { ...actor, product_data: { name: 'Must not stick' }, p_product_id: bundle, p_component_ids: [original] }).select('name').single();
+    expect(refused.error?.details).toBe('bundle_archived');
+    expect((await db!.from('products').select('name').eq('id', bundle).single()).data?.name).toBe('Saved together');
+    expect(await components(bundle)).toEqual([other]);
   });
 
   it('requires a service client to replace the component set', async () => {
