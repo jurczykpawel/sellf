@@ -10,6 +10,7 @@ import { readBuyerPayload } from '@/lib/webhooks/buyer-payload-storage';
 import { extractMagicLink, searchMessages, getMessage } from '../helpers/mailpit';
 import { useSupabaseBuyerEmails } from '../helpers/buyer-email-setting-playwright';
 import type { Page } from '@playwright/test';
+import { declineLinkSignup } from '../helpers/stripe-link';
 useSupabaseBuyerEmails();
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
@@ -49,8 +50,7 @@ async function payOnHostedCheckout(page: Page) {
     await form.locator('input[name="expiry"]').fill('1234');
     await form.locator('input[name="cvc"]').fill('123');
     const name = form.locator('input[name="name"]'); if (await name.isVisible()) await name.fill('Quick Pay Buyer');
-    // Saving to Link would ask for a phone number; the buyer pays as a guest.
-    const link = form.locator('input[name="linkOptIn"]'); if (await link.isVisible() && await link.isChecked()) await link.uncheck();
+    await declineLinkSignup(form); // saving to Link would ask for a phone number; the buyer pays as a guest
     const submit = form.getByTestId('payment-form-submit-button');
     await expect(submit).toBeEnabled();
     await submit.press('Enter');
