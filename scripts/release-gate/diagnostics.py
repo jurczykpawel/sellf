@@ -49,19 +49,23 @@ def public_message(text):
 
 
 def record_failures(name, failures):
-    """Publish failed test IDs with the matching sanitized failure text (same index)."""
+    """Publish failed test IDs with the matching sanitized failure text and, from browser reports, the
+    sanitized page context (same index)."""
     ids = []
     errors = []
+    contexts = []
     omitted = 0
-    for identifier, message in failures:
+    for identifier, message, *context in failures:
         if identifier is None or len(ids) == MAX_TEST_IDS:
             omitted += 1
         else:
             ids.append(identifier)
             errors.append(public_message(message))
+            contexts.append(public_message(context[0] if context else ''))
     if omitted:
         ids.append(f'+{omitted} omitted')
-    record(name + '-failures', 0, testIds=ids, testErrors=errors)
+    extra = {'testContext': contexts} if any(contexts) else {}
+    record(name + '-failures', 0, testIds=ids, testErrors=errors, **extra)
 
 
 def vitest_report_path(name):

@@ -71,8 +71,9 @@ class ReceiptTests(unittest.TestCase):
         self.assertEqual(self.validate(json.dumps(valid)).returncode, 0)
         for message in ('see /home/runner/work/a.log', 'mail a@example.com', 'sk_' + 'test_diagnostic_marker', 'x' * 1201):
             with self.subTest(message=message):
-                result = self.validate(json.dumps({**valid, 'testErrors': [message]}))
-                self.assertEqual(result.returncode, 1)
+                for field in ('testErrors', 'testContext'):
+                    result = self.validate(json.dumps({**valid, field: [message]}))
+                    self.assertEqual(result.returncode, 1)
                 self.assertNotIn('diagnostic_marker', result.stdout + result.stderr)
 
     def test_rejects_unsafe_test_ids(self):

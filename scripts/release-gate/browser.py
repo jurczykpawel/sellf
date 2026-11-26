@@ -149,6 +149,28 @@ def failure_text(test):
     return ''
 
 
+PAGE_CUE = re.compile(r'^- (?:alert|status|dialog|heading|iframe)\b|error|declin|fail|captcha|expire|invalid|limit|wygas|błąd|odrzuc', re.I)
+
+
+def failure_context(test):
+    """What the page showed when the last attempt failed: alert/status/heading/iframe lines of Playwright's
+    error-context snapshot. GHA keeps no trace, so this is the only view of e.g. a checkout that never redirected."""
+    for result in reversed(test.get('results') or []):
+        for attachment in result.get('attachments') or []:
+            if attachment.get('name') == 'error-context' and attachment.get('path'):
+                try:
+                    lines = Path(attachment['path']).read_text(errors='replace').splitlines()
+                except OSError:
+                    return ''
+                marks = [index for index, line in enumerate(lines) if line.startswith('# Page snapshot')]
+                lines = lines[marks[0] + 1:] if marks else lines  # skip the error details already in testErrors
+                cues = dict.fromkeys(line.strip() for line in lines if PAGE_CUE.search(line.strip()))
+                return ' | '.join(cues)
+        if result.get('errors') or result.get('error'):
+            return ''
+    return ''
+
+
 def verify_result(suite, expected, report):
     tests = tests_in(report)
     stats = report['stats']
@@ -163,7 +185,7 @@ def verify_result(suite, expected, report):
         if status == 'skipped' and suite != 'stripe' and (PurePosixPath(file).name, title) in ALLOWED_SKIPS:
             allowed += 1
         elif status in ('unexpected', 'flaky', 'skipped'):
-            failures.append((project, file, title, line, failure_text(test)))
+            failures.append((project, file, title, line, failure_text(test), failure_context(test)))
     ok = (
         not report.get('errors')
         and expected > 0
@@ -186,8 +208,8 @@ def verify_result(suite, expected, report):
     record_failures(
         suite,
         (
-            (test_identifier(public_test_file(root / file), title, project, line), message)
-            for project, file, title, line, message in failures
+            (test_identifier(public_test_file(root / file), title, project, line), message, context)
+            for project, file, title, line, message, context in failures
         ),
     )
     return code
@@ -208,7 +230,9 @@ def run_browser(suite, inventory):
     if suite.name == 'sections' and env.get('RC_GATE_SNAPSHOT_UPDATE'):
         options.append('--update-snapshots=' + env['RC_GATE_SNAPSHOT_UPDATE'])
     if suite.driver == 'stripe':
-        command = ['bash', 'scripts/run-stripe-live-e2e.sh', *options, '--max-failures=0']
+        # --global-timeout: end with a JSON report well inside the 90 min job limit (Mac: 15-23 min); a job
+        # killed by its timeout leaves no receipt (run 45725081345).
+        command = ['bash', 'scripts/run-stripe-live-e2e.sh', *options, '--max-failures=0', '--global-timeout=3000000']
         # The driver enables Stripe transport and starts its own servers.
         extra.pop('STRIPE_LIVE_E2E')
     elif suite.driver == 'runtime':

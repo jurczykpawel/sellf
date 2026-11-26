@@ -252,6 +252,10 @@ class GateContractTests(unittest.TestCase):
             redirect_stdout(io.StringIO()) as log,
             patch.object(support, 'RECEIPT', Path(tmp) / 'results.jsonl'),
         ):
+            context = Path(tmp) / 'error-context.md'
+            context.write_text('# Error details\nError: expect failed\n# Page snapshot\n```yaml\n- heading "Checkout"\n'
+                               '- button "Pay"\n- alert: Rate limit for buyer@example.com sk_' + 'test_marker\n```\n')
+            specs[0]['tests'][0]['results'][0]['attachments'] = [{'name': 'error-context', 'path': str(context)}]
             self.assertEqual(browser.verify_result('ordinary', 5, report), 1)
             receipt = support.RECEIPT.read_text()
         rows = {row['name']: row for row in map(json.loads, receipt.splitlines())}
@@ -263,6 +267,8 @@ class GateContractTests(unittest.TestCase):
             'chromium|tests/offer-public.spec.ts:3|other skip',
         ])
         self.assertEqual(rows['ordinary-failures']['testErrors'], ['line 9: expect failed [path] [email] [redacted]'] * 3)
+        self.assertEqual(rows['ordinary-failures']['testContext'],
+                         ['- heading "Checkout" | - alert: Rate limit for [email] [redacted]', '', ''])
         self.assertIn(json.dumps(ids[1]), log.getvalue())
         for marker in ('example.com', '/tmp/data', '/home/runner', 'test_marker', 'private stdout'):
             self.assertNotIn(marker, receipt + log.getvalue())

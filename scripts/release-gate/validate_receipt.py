@@ -98,7 +98,10 @@ RECEIPT_FIELDS = {
     **dict.fromkeys(('reportMissing', 'repeatSkipped', 'rcChecked'), lambda value: type(value) is bool),
     **dict.fromkeys(('failures', 'mismatched', 'addedMigrations', 'changedReleasedMigrations'), items(short_text)),
     'testIds': test_ids,
-    'testErrors': lambda value: isinstance(value, list) and len(value) <= MAX_TEST_IDS and all(map(safe_message, value)),
+    **dict.fromkeys(
+        ('testErrors', 'testContext'),
+        lambda value: isinstance(value, list) and len(value) <= MAX_TEST_IDS and all(map(safe_message, value)),
+    ),
     'steps': lambda value: isinstance(value, list) and len(value) <= 10 and all(map(safe_message, value)),
     'seconds': lambda value: type(value) in (int, float) and math.isfinite(value),
     'checks': lambda value: fields(

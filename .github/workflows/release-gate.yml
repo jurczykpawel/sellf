@@ -173,7 +173,9 @@ jobs:
     environment: release-gate
     strategy:
       fail-fast: false
-      max-parallel: 2
+      # One lane at a time: every lane shares the one sandbox account, and stripe-live's `stripe listen` receives
+      # the events of all of them (run 45725081345: stripe-live ran 90 min beside the browser lanes, Mac 15-23 min).
+      max-parallel: 1
       matrix: ${{ fromJSON(needs.preflight.outputs.stripe) }}
     env: *lane-env
     steps:

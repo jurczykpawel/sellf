@@ -26,7 +26,7 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertNotIn("vars.STRIPE_SANDBOX_", workflow)
         self.assertEqual([name for name, job in jobs.items() if "environment:" in job], ["stripe"])
         self.assertIn("environment: release-gate", jobs["stripe"])
-        self.assertRegex(jobs["stripe"], r"\n    strategy:\n(?:      [^\n]+\n)*      max-parallel: 2\n")
+        self.assertRegex(jobs["stripe"], r"\n    strategy:\n(?:      [^\n]+\n)*      max-parallel: 1\n")
         self.assertEqual(workflow.count("oven-sh/setup-bun@"), workflow.count("no-cache: true"))
         for action in re.findall(r"(?m)^\s*(?:- )?uses: (.+)$", workflow):
             self.assertRegex(action, r"^[\w/-]+@[a-f0-9]{40} # v\d")
