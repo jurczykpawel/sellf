@@ -75,3 +75,12 @@ it('returns focus to the opener when the stored record cannot be read', async ()
   expect(screen.queryByRole('button', { name: 'cancel' })).toBeNull();
   expect(document.activeElement).toBe(edit);
 });
+
+it('keeps loading when the second click of a double click lands on the loading layer', async () => {
+  render(createElement(Editor));
+  await clickEdit();
+  const layer = screen.getByRole('status').closest('.fixed');
+  fireEvent.click(layer!);
+  await act(async () => { pending.resolve({ id: 'p1' }); });
+  expect(screen.getByRole('dialog')).toBeTruthy();
+});
