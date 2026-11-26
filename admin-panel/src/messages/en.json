@@ -2118,6 +2118,7 @@
           "createProduct": "Create Product",
           "continueSetup": "Continue Setup",
           "loadingConfig": "Loading shop settings…",
+          "storedDataError": "Could not load this product's OTO offer or bundle contents. Saving is blocked so they are not erased. Close the window and open the product again.",
           "back": "Back",
           "cancel": "Cancel",
           "earlyCreateHint": "You can create your product now with just the essentials, or continue to configure content delivery, pricing promotions, and more.",

@@ -40,7 +40,10 @@ vi.mock('@/components/providers/config-provider', () => ({ useConfig: () => ({ t
 vi.mock('@/lib/actions/categories', () => ({ getCategories: vi.fn().mockResolvedValue({ success: true, data: [] }), getProductCategories: vi.fn().mockResolvedValue({ success: true, data: [] }) }));
 vi.mock('@/lib/actions/tags', () => ({ getTags: vi.fn().mockResolvedValue({ success: true, data: [] }), getProductTags: vi.fn().mockResolvedValue({ success: true, data: [] }) }));
 vi.mock('@/lib/actions/shop-config', () => ({ getMyShopConfig: vi.fn().mockResolvedValue(null) }));
-vi.mock('@/lib/supabase/client', () => ({ createClient: vi.fn().mockResolvedValue({ rpc: vi.fn().mockResolvedValue({ data: null, error: null }) }) }));
+vi.mock('@/lib/supabase/client', () => ({ createClient: vi.fn().mockResolvedValue({
+  rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
+  from: () => ({ select: () => ({ eq: () => ({ order: vi.fn().mockResolvedValue({ data: [{ component_product_id: 'c1', display_order: 0 }], error: null }) }) }) }),
+}) }));
 vi.mock('@/hooks/useProducts', () => ({ fetchAllProductsForDropdown: vi.fn().mockResolvedValue([]) }));
 vi.mock('@/lib/api/client', async original => ({ ...(await original<typeof import('@/lib/api/client')>()), api: { getCustom: vi.fn().mockResolvedValue({ has_oto: false }), list: vi.fn().mockResolvedValue({ data: [] }) } }));
 vi.mock('@/lib/events/actions', () => ({ getEventAdmin: vi.fn(), exportEventParticipants: vi.fn() }));

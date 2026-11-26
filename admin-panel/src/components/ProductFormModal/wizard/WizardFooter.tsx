@@ -22,6 +22,8 @@ interface WizardFooterProps {
    * insert-time DB fallback runs on update).
    */
   shopConfigLoaded: boolean;
+  /** Saving would erase stored data the form could not read. */
+  saveBlocked: boolean;
   onBack: () => void;
   onContinue: () => void;
   onSubmit: () => void;
@@ -37,6 +39,7 @@ export const WizardFooter: React.FC<WizardFooterProps> = ({
   formData,
   priceDisplayValue,
   shopConfigLoaded,
+  saveBlocked,
   onBack,
   onContinue,
   onSubmit,
@@ -92,7 +95,7 @@ export const WizardFooter: React.FC<WizardFooterProps> = ({
           <Button
             onClick={onSubmit}
             variant="primary"
-            disabled={isSubmitting || !canPublish || !shopConfigLoaded}
+            disabled={isSubmitting || !canPublish || !shopConfigLoaded || saveBlocked}
             loading={isSubmitting || !shopConfigLoaded}
           >
             {submitLabel}

@@ -4,7 +4,8 @@
  * Provides a consistent interface for webhook endpoint operations.
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback } from 'react';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { WebhookEndpoint } from '@/types/webhooks';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
@@ -26,24 +27,25 @@ export function useWebhooks() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  const mounted = useRef(true);
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const beginFetch = useLatestRequest();
   const fetchEndpoints = useCallback(async () => {
+    const isCurrent = beginFetch();
     try {
       setLoading(true);
       const { data, truncated } = await api.listAll<WebhookEndpoint>('webhooks');
+      if (!isCurrent()) return;
       if (truncated) {
         console.warn('[useWebhooks] Endpoint list truncated at the safety ceiling; not every endpoint was loaded.');
       }
-      if (mounted.current) setEndpoints(data);
+      setEndpoints(data);
     } catch (err) {
-      if (!mounted.current || isExpectedApiError(err)) return;
+      if (!isCurrent() || isExpectedApiError(err)) return;
       console.error(err);
       toast.error(tCommon('error'));
     } finally {
-      if (mounted.current) setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
-  }, [tCommon]);
+  }, [tCommon, beginFetch]);
 
   const createEndpoint = async (data: Partial<WebhookEndpoint>) => {
     setSubmitting(true);
@@ -88,6 +90,7 @@ export function useWebhooks() {
   const deleteEndpoint = async (id: string) => {
     try {
       await api.delete('webhooks', id);
+      setEndpoints(prev => prev.filter(endpoint => endpoint.id !== id));
       toast.success(tCommon('success'));
       fetchEndpoints();
       return true;

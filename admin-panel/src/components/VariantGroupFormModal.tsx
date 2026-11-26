@@ -210,6 +210,7 @@ const VariantGroupFormModal: React.FC<VariantGroupFormModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
 
     if (selectedProducts.length < 2) {
       toast.error(t('minProductsRequired'));
@@ -266,7 +267,7 @@ const VariantGroupFormModal: React.FC<VariantGroupFormModalProps> = ({
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={submitting ? undefined : onClose}
         aria-hidden="true"
       />
       <div className="flex min-h-full items-center justify-center p-4">

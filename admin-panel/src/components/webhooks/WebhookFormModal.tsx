@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useProductsDropdown } from '@/hooks/useProducts';
-import { buildCustomizationPayload, validateCustomHeaderRows, PAYLOAD_TOP_LEVEL_KEYS, PLACEHOLDER_HINTS } from '@/lib/webhooks/customization-form';
+import { buildCustomizationPayload, extraFieldText, validateCustomHeaderRows, PAYLOAD_TOP_LEVEL_KEYS, PLACEHOLDER_HINTS } from '@/lib/webhooks/customization-form';
+import type { ExtraFieldRow } from '@/lib/webhooks/customization-form';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from '@/components/ui/Modal';
 import { Tooltip } from '@/components/ui/Tooltip';
 import WebhookSecretRotation from '@/components/webhooks/WebhookSecretRotation';
@@ -52,8 +53,8 @@ export default function WebhookFormModal({
   const buildCustomState = (endpoint: typeof editingEndpoint) => ({
     payloadFieldsSelected: endpoint?.payload_field_selection ?? [...PAYLOAD_TOP_LEVEL_KEYS],
     extraFields: endpoint?.custom_payload_fields
-      ? Object.entries(endpoint.custom_payload_fields).map(([key, value]) => ({ key, value: String(value) }))
-      : [] as { key: string; value: string }[],
+      ? Object.entries(endpoint.custom_payload_fields).map(([key, value]): ExtraFieldRow => ({ key, value: extraFieldText(value), original: value }))
+      : [] as ExtraFieldRow[],
     headerRows: [] as { key: string; value: string }[],
     deleteHeaders: false,
   });
@@ -153,6 +154,7 @@ export default function WebhookFormModal({
             const customization = customizationLocked ? {} : buildCustomizationPayload({
               ...customState,
               hadHeaders: editingEndpoint?.has_custom_headers ?? false,
+              initial: editingEndpoint ? buildCustomState(editingEndpoint) : undefined,
             });
             onSubmit({
               ...formData,
