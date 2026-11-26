@@ -4,6 +4,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { WebhookEndpoint } from '@/types/webhooks';
 import { useTranslations } from 'next-intl';
 import { useWebhooks } from '@/hooks/useWebhooks';
+import { useStoredRecord } from '@/hooks/useStoredRecord';
+import { isExpectedApiError } from '@/lib/api/client';
+import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { BaseModal, ModalHeader, ModalBody, ModalFooter, Button } from './ui/Modal';
 
@@ -15,6 +18,7 @@ import WebhookDeleteModal from './webhooks/WebhookDeleteModal';
 import WebhookLogsDrawer from './WebhookLogsDrawer';
 import WebhookFailuresPanel from './WebhookFailuresPanel';
 import AbandonedEventsPanel from './webhooks/AbandonedEventsPanel';
+import RecordLoadingOverlay from './ui/RecordLoadingOverlay';
 
 export default function WebhooksPageContent({ scopingLocked = false, customizationLocked = false }: { scopingLocked?: boolean; customizationLocked?: boolean }) {
   const t = useTranslations('admin.webhooks');
@@ -37,6 +41,10 @@ export default function WebhooksPageContent({ scopingLocked = false, customizati
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   
   const [activeEndpoint, setActiveEndpoint] = useState<WebhookEndpoint | null>(null);
+  // True from the first submit click until the save finishes, including the waitlist check before it.
+  const [checkingSubmit, setCheckingSubmit] = useState(false);
+  const formBusy = submitting || checkingSubmit;
+  const storedEndpoint = useStoredRecord<WebhookEndpoint>('webhooks');
   const [logsEndpoint, setLogsEndpoint] = useState<WebhookEndpoint | null>(null);
   const [refreshCounter, setRefreshCounter] = useState(0);
   const [isTesting, setIsTesting] = useState(false);
@@ -66,9 +74,16 @@ export default function WebhooksPageContent({ scopingLocked = false, customizati
     setShowFormModal(true);
   };
 
-  const handleOpenEdit = (endpoint: WebhookEndpoint) => {
-    setActiveEndpoint(endpoint);
-    setShowFormModal(true);
+  // The form always starts from the stored endpoint: list rows and PATCH responses lack fields it writes back.
+  const handleOpenEdit = async (endpoint: WebhookEndpoint) => {
+    try {
+      const stored = await storedEndpoint.load(endpoint.id);
+      if (!stored) return;
+      setActiveEndpoint(stored);
+      setShowFormModal(true);
+    } catch (err) {
+      if (!isExpectedApiError(err)) toast.error(tCommon('error'));
+    }
   };
 
   const handleOpenTest = (endpoint: WebhookEndpoint) => {
@@ -116,45 +131,51 @@ export default function WebhooksPageContent({ scopingLocked = false, customizati
   }, [endpoints]);
 
   const onFormSubmit = async (data: any) => {
-    // Check if editing and removing waitlist.signup event
-    if (activeEndpoint && activeEndpoint.events.includes('waitlist.signup')) {
-      const newHasWaitlist = data.events?.includes('waitlist.signup');
+    if (formBusy) return;
+    setCheckingSubmit(true);
+    try {
+      // Check if editing and removing waitlist.signup event
+      if (activeEndpoint && activeEndpoint.events.includes('waitlist.signup')) {
+        const newHasWaitlist = data.events?.includes('waitlist.signup');
 
-      if (!newHasWaitlist) {
-        // User is removing waitlist.signup - check if it's the last one
-        const otherWaitlistWebhooks = endpoints.filter(
-          e => e.id !== activeEndpoint.id && e.events.includes('waitlist.signup') && e.is_active
-        );
+        if (!newHasWaitlist) {
+          // User is removing waitlist.signup - check if it's the last one
+          const otherWaitlistWebhooks = endpoints.filter(
+            e => e.id !== activeEndpoint.id && e.events.includes('waitlist.signup') && e.is_active
+          );
 
-        if (otherWaitlistWebhooks.length === 0) {
-          // This is the last webhook with waitlist.signup - check for products
-          try {
-            const supabase = await createClient();
-            const { data: config } = await supabase.rpc('check_waitlist_config');
-            if (config && config.products_count > 0) {
-              // Show warning and save pending data
-              setEditWaitlistWarning({
-                show: true,
-                productsCount: config.products_count,
-                pendingData: data
-              });
-              return; // Don't submit yet
+          if (otherWaitlistWebhooks.length === 0) {
+            // This is the last webhook with waitlist.signup - check for products
+            try {
+              const supabase = await createClient();
+              const { data: config } = await supabase.rpc('check_waitlist_config');
+              if (config && config.products_count > 0) {
+                // Show warning and save pending data
+                setEditWaitlistWarning({
+                  show: true,
+                  productsCount: config.products_count,
+                  pendingData: data
+                });
+                return; // Don't submit yet
+              }
+            } catch (err) {
+              console.error('Failed to check waitlist config:', err);
             }
-          } catch (err) {
-            console.error('Failed to check waitlist config:', err);
           }
         }
       }
-    }
 
-    // Proceed with normal submit
-    const success = activeEndpoint
-      ? await updateEndpoint(activeEndpoint.id, data)
-      : await createEndpoint(data);
+      // Proceed with normal submit
+      const success = activeEndpoint
+        ? await updateEndpoint(activeEndpoint.id, data)
+        : await createEndpoint(data);
 
-    if (success) {
-      setShowFormModal(false);
-      setRefreshCounter(prev => prev + 1);
+      if (success) {
+        setShowFormModal(false);
+        setRefreshCounter(prev => prev + 1);
+      }
+    } finally {
+      setCheckingSubmit(false);
     }
   };
 
@@ -246,10 +267,10 @@ export default function WebhooksPageContent({ scopingLocked = false, customizati
       {/* Modals */}
       <WebhookFormModal
         isOpen={showFormModal}
-        onClose={() => { if (!submitting) setShowFormModal(false); }}
+        onClose={() => { if (!formBusy) setShowFormModal(false); }}
         onSubmit={onFormSubmit}
         editingEndpoint={activeEndpoint}
-        isSubmitting={submitting}
+        isSubmitting={formBusy}
         onSecretRotated={fetchEndpoints}
         scopingLocked={scopingLocked}
         customizationLocked={customizationLocked}
@@ -300,6 +321,8 @@ export default function WebhooksPageContent({ scopingLocked = false, customizati
           </ModalFooter>
         </BaseModal>
       )}
+
+      {storedEndpoint.loadingId && <RecordLoadingOverlay onCancel={storedEndpoint.cancel} />}
 
       {logsEndpoint && (
         <WebhookLogsDrawer

@@ -116,7 +116,8 @@ const OrderBumpsPageContent: React.FC = () => {
       await api.create('order-bumps', formData);
 
       setShowBumpForm(false);
-      await fetchOrderBumps();
+      // Not awaited: the save is done, so the next form must not stay locked while the list reloads.
+      void fetchOrderBumps();
       toast.success(t('createSuccess'));
     } catch (err) {
       if (!isExpectedApiError(err)) toast.error(err instanceof Error ? err.message : t('createError'));
@@ -135,7 +136,7 @@ const OrderBumpsPageContent: React.FC = () => {
 
       setShowBumpForm(false);
       setEditingBump(null);
-      await fetchOrderBumps();
+      void fetchOrderBumps();
       toast.success(t('updateSuccess'));
     } catch (err) {
       if (!isExpectedApiError(err)) toast.error(err instanceof Error ? err.message : t('updateError'));

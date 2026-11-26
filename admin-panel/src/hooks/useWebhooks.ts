@@ -70,9 +70,7 @@ export function useWebhooks() {
   const updateEndpoint = async (id: string, data: Partial<WebhookEndpoint>) => {
     setSubmitting(true);
     try {
-      const saved = await api.update<WebhookEndpoint>('webhooks', id, data as Record<string, unknown>);
-      // The edit form is seeded from list rows: show the saved row even if the refresh below is slow or fails.
-      setEndpoints(prev => prev.map(endpoint => endpoint.id === id ? { ...endpoint, ...saved } : endpoint));
+      await api.update<WebhookEndpoint>('webhooks', id, data as Record<string, unknown>);
       toast.success(t('updateSuccess'));
       fetchEndpoints();
       return true;
@@ -92,6 +90,7 @@ export function useWebhooks() {
   const deleteEndpoint = async (id: string) => {
     try {
       await api.delete('webhooks', id);
+      setEndpoints(prev => prev.filter(endpoint => endpoint.id !== id));
       toast.success(tCommon('success'));
       fetchEndpoints();
       return true;

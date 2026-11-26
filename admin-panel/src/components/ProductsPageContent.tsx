@@ -17,7 +17,9 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useProducts, type ProductStatusFilter } from '@/hooks/useProducts';
 import { isRelativeOrHttpUrl } from '@/lib/validations/redirect';
 import { duplicateProductDraft } from '@/lib/product-duplicate';
-import { api, ApiError } from '@/lib/api/client';
+import { ApiError, isExpectedApiError } from '@/lib/api/client';
+import { useStoredRecord } from '@/hooks/useStoredRecord';
+import RecordLoadingOverlay from './ui/RecordLoadingOverlay';
 
 // Server-side failures carry English text; show the localized fallback instead.
 const isServerError = (err: unknown): boolean => err instanceof ApiError && err.status >= 500;
@@ -107,15 +109,27 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
     fetchProducts();
   }, [fetchProducts]);
 
+  // The wizard always starts from the stored product, never from a list-row copy.
+  const storedProduct = useStoredRecord<Product>('products');
+  const { load: loadStoredProduct, cancel: cancelStoredProduct } = storedProduct;
+  const openStoredProduct = useCallback(async (id: string, asDuplicate = false) => {
+    try {
+      const product = await loadStoredProduct(id);
+      if (!product) return;
+      setEditingProduct(asDuplicate ? duplicateProductDraft(product, '[COPY] ') : product);
+      setNewAsBundle(false);
+      setShowProductForm(true);
+    } catch (err) {
+      if (!isExpectedApiError(err)) toast.error(t('loadError'));
+    }
+  }, [loadStoredProduct, t]);
+
   const openParam = searchParams.get('open');
   useEffect(() => {
     if (!openParam || openParam === 'new') return;
-    let active = true;
-    void api.get<Product>('products', openParam).then(product => {
-      if (active) { setEditingProduct(product); setShowProductForm(true); }
-    }).catch(() => { if (active) toast.error(t('loadError')); });
-    return () => { active = false; };
-  }, [openParam, t]);
+    void openStoredProduct(openParam);
+    return cancelStoredProduct;
+  }, [openParam, openStoredProduct, cancelStoredProduct]);
   const [previousOpenParam, setPreviousOpenParam] = useState<string | null>(null);
   if (previousOpenParam !== openParam) {
     setPreviousOpenParam(openParam);
@@ -197,17 +211,9 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
   };
 
   // UI Handlers
-  const handleEditProduct = (product: Product) => {
-    setEditingProduct(product);
-    setNewAsBundle(false);
-    setShowProductForm(true);
-  };
+  const handleEditProduct = (product: Product) => { void openStoredProduct(product.id); };
 
-  const handleDuplicateProduct = (product: Product) => {
-    setEditingProduct(duplicateProductDraft(product, '[COPY] '));
-    setNewAsBundle(false);
-    setShowProductForm(true);
-  };
+  const handleDuplicateProduct = (product: Product) => { void openStoredProduct(product.id, true); };
 
   const handlePreviewProduct = (product: Product) => {
     window.open(`${productPath(product.slug)}?preview=1`, '_blank');
@@ -385,6 +391,8 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
           defaultIsBundle={newAsBundle}
         />
       )}
+
+      {storedProduct.loadingId && <RecordLoadingOverlay onCancel={cancelStoredProduct} />}
 
       {productToRemove && (
         <ProductRemoveDialog

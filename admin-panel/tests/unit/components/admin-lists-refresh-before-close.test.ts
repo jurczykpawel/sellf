@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 /**
- * Regression: admin edit forms are seeded from list rows. A reopen after a confirmed save must never
- * show the pre-save row (even when the list refresh is slow or fails), a form must not close or save
- * twice mid-save, and an older list response must not replace a newer one.
+ * Regression: the webhook form starts from the stored endpoint loaded by id (never the list-row copy),
+ * admin forms must not close or save twice mid-save, a finished save releases the form before the
+ * list refresh, and an older list response must not replace a newer one.
  */
 import React, { StrictMode, createElement } from 'react';
 import { act, cleanup, fireEvent, render } from '@testing-library/react';
@@ -11,16 +11,16 @@ import OrderBumpsPageContent from '@/components/OrderBumpsPageContent';
 import VariantsPageContent from '@/components/VariantsPageContent';
 import WebhooksPageContent from '@/components/WebhooksPageContent';
 
-const mocks = vi.hoisted(() => ({ getCustom: vi.fn(), listAll: vi.fn(), update: vi.fn(), rpc: vi.fn() }));
+const mocks = vi.hoisted(() => ({ getCustom: vi.fn(), listAll: vi.fn(), get: vi.fn(), update: vi.fn(), create: vi.fn(), remove: vi.fn(), rpc: vi.fn(), toastError: vi.fn() }));
 
 vi.mock('next-intl', async (importOriginal) => {
   const { createNextIntlMock } = await import('@/../tests/mocks/next-intl');
   return createNextIntlMock(await importOriginal<typeof import('next-intl')>());
 });
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } }));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: mocks.toastError, warning: vi.fn() } }));
 vi.mock('@/hooks/useProducts', () => ({ fetchAllProductsForDropdown: async () => [] }));
 vi.mock('@/lib/api/client', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/api/client')>()),
-  api: { getCustom: mocks.getCustom, listAll: mocks.listAll, update: mocks.update },
+  api: { getCustom: mocks.getCustom, listAll: mocks.listAll, get: mocks.get, update: mocks.update, create: mocks.create, delete: mocks.remove },
 }));
 
 type Stub = { title: string; save: () => void; close: () => void };
@@ -30,16 +30,30 @@ const dialogStub = ({ title, save, close }: Stub) =>
     createElement('button', { onClick: close }, 'close'),
     createElement('button', { onClick: save }, 'save'));
 
+vi.mock('@/components/OrderBumpFormModal', () => ({
+  default: ({ isSubmitting, onSubmit, onClose }: { isSubmitting: boolean; onSubmit: (d: unknown) => Promise<void>; onClose: () => void }) =>
+    createElement('div', { role: 'dialog' },
+      createElement('button', { onClick: onClose }, 'close'),
+      createElement('button', { disabled: isSubmitting, onClick: () => { void onSubmit({ bump_title: 'New' }).catch(() => {}); } }, 'save')),
+}));
+// The form submits the endpoint it was seeded with plus the edit, as the real form does.
+const webhookEdit = vi.hoisted(() => ({ value: {} as Record<string, unknown> }));
 vi.mock('@/components/webhooks/WebhookFormModal', () => ({
-  default: ({ isOpen, editingEndpoint, onSubmit, onClose }: { isOpen: boolean; editingEndpoint: { description: string } | null; onSubmit: (d: unknown) => Promise<void>; onClose: () => void }) =>
-    isOpen ? dialogStub({ title: editingEndpoint?.description ?? '', close: onClose, save: () => { void onSubmit({ description: 'Saved', events: ['purchase.completed'] }); } }) : null,
+  default: ({ isOpen, editingEndpoint, onSubmit, onClose }: { isOpen: boolean; editingEndpoint: Record<string, unknown> | null; onSubmit: (d: unknown) => Promise<void>; onClose: () => void }) =>
+    isOpen ? dialogStub({ title: JSON.stringify(editingEndpoint?.custom_payload_fields ?? null), close: onClose, save: () => { void onSubmit({ ...editingEndpoint, ...webhookEdit.value }); } }) : null,
 }));
 vi.mock('@/components/webhooks/WebhookListTable', () => ({
-  default: ({ endpoints, onEdit }: { endpoints: { id: string; description: string }[]; onEdit: (e: unknown) => void }) =>
-    createElement('div', null, endpoints.map(e => createElement('button', { key: e.id, onClick: () => onEdit(e) }, `edit ${e.description}`))),
+  default: ({ endpoints, onEdit, onDelete }: { endpoints: { id: string; description: string }[]; onEdit: (e: unknown) => void; onDelete: (e: unknown) => void }) =>
+    createElement('div', null, endpoints.flatMap(e => [
+      createElement('button', { key: `e${e.id}`, onClick: () => onEdit(e) }, `edit ${e.description}`),
+      createElement('button', { key: `d${e.id}`, onClick: () => onDelete(e) }, `delete ${e.description}`),
+    ])),
 }));
 vi.mock('@/components/webhooks/WebhookTestModal', () => ({ default: () => null }));
-vi.mock('@/components/webhooks/WebhookDeleteModal', () => ({ default: () => null }));
+vi.mock('@/components/webhooks/WebhookDeleteModal', () => ({
+  default: ({ isOpen, onConfirm }: { isOpen: boolean; onConfirm: () => Promise<void> }) =>
+    isOpen ? createElement('button', { onClick: () => { void onConfirm(); } }, 'confirm delete') : null,
+}));
 vi.mock('@/components/WebhookLogsDrawer', () => ({ default: () => null }));
 vi.mock('@/components/WebhookFailuresPanel', () => ({ default: () => null }));
 vi.mock('@/components/webhooks/AbandonedEventsPanel', () => ({ default: () => null }));
@@ -56,6 +70,17 @@ const group = (name: string) => ({
   products: ['p1', 'p2'].map((id, i) => ({ id: `gp${i}`, product_id: id, group_id: 'g1', variant_name: null, display_order: i, is_featured: false, created_at: '', product: product(id) })),
 });
 const endpoint = (description: string, events = ['purchase.completed']) => ({ id: 'w1', url: 'https://hooks.test/x', description, events, is_active: true });
+/** Stored endpoint as GET /api/v1/webhooks and GET /api/v1/webhooks/:id return it. */
+const storedEndpoint = (custom_payload_fields: string[]) => ({
+  ...endpoint('Hook'), secret: 'whsec_…', product_filter_mode: 'all', product_ids: [], created_at: '', updated_at: '',
+  custom_payload_fields, payload_field_selection: { mode: 'custom' }, has_custom_headers: true, custom_header_names: ['X-Token'],
+});
+/** PATCH /api/v1/webhooks/:id response: no payload customisation or header fields. */
+const patchResponse = () => {
+  const { custom_payload_fields: _f, payload_field_selection: _s, has_custom_headers: _h, custom_header_names: _n, ...rest } = storedEndpoint([]);
+  void _f; void _s; void _h; void _n;
+  return rest;
+};
 const endpoints = (...rows: ReturnType<typeof endpoint>[]) => ({ data: rows, truncated: false });
 
 const never = () => new Promise<never>(() => {});
@@ -67,9 +92,22 @@ beforeEach(() => { vi.stubGlobal('React', React); });
 afterEach(() => {
   cleanup();
   vi.resetAllMocks();
+  webhookEdit.value = {};
 });
 
 // ===== ORDER BUMPS =====
+
+it('order bumps: a finished save releases the form before the list refresh completes', async () => {
+  mocks.getCustom.mockResolvedValueOnce([bump('Before')]).mockImplementation(never);
+  mocks.create.mockResolvedValue(bump('New'));
+  const view = render(createElement(OrderBumpsPageContent));
+  await act(async () => {});
+  fireEvent.click(view.getAllByRole('button', { name: 'create' })[0]);
+  await act(async () => { fireEvent.click(view.getByRole('button', { name: 'save' })); });
+  expect(view.queryByRole('dialog')).toBeNull();
+  fireEvent.click(view.getAllByRole('button', { name: 'create' })[0]);
+  expect((view.getByRole('button', { name: 'save' }) as HTMLButtonElement).disabled).toBe(false);
+});
 
 it('order bumps: an older list response does not replace a newer one', async () => {
   const resolvers: ((rows: unknown) => void)[] = [];
@@ -126,30 +164,76 @@ it('variant groups: an older list response does not replace a newer one', async 
 
 // ===== WEBHOOKS =====
 
-it('webhooks: a reopen during a pending or failed list refresh shows the saved endpoint', async () => {
-  let failRefresh!: (err: Error) => void;
-  mocks.listAll.mockResolvedValueOnce(endpoints(endpoint('Before'))).mockImplementationOnce(() => new Promise((_, reject) => { failRefresh = reject; }));
-  mocks.update.mockResolvedValue(endpoint('Saved'));
+it('webhooks: re-saving after a payload change keeps it, whatever the list or the PATCH response holds', async () => {
+  // The list keeps the pre-save row (refresh failed); the PATCH response has no payload fields.
+  mocks.listAll.mockResolvedValueOnce(endpoints(storedEndpoint(['old']))).mockRejectedValue(new Error('offline'));
+  mocks.get.mockResolvedValueOnce(storedEndpoint(['old'])).mockResolvedValueOnce(storedEndpoint(['new']));
+  mocks.update.mockResolvedValue(patchResponse());
   const view = render(createElement(WebhooksPageContent));
   await act(async () => {});
-  fireEvent.click(view.getByRole('button', { name: 'edit Before' }));
+
+  webhookEdit.value = { custom_payload_fields: ['new'] };
+  await act(async () => { fireEvent.click(view.getByRole('button', { name: 'edit Hook' })); });
+  expect(mocks.get).toHaveBeenLastCalledWith('webhooks', 'w1');
   await act(async () => { fireEvent.click(view.getByRole('button', { name: 'save' })); });
   expect(view.queryByRole('dialog')).toBeNull();
-  fireEvent.click(view.getByRole('button', { name: 'edit Saved' }));
-  expect(shown(view)).toBe('Saved');
+
+  webhookEdit.value = { description: 'Renamed' };
+  await act(async () => { fireEvent.click(view.getByRole('button', { name: 'edit Hook' })); });
+  expect(shown(view)).toBe(JSON.stringify(['new']));
+  await act(async () => { fireEvent.click(view.getByRole('button', { name: 'save' })); });
+  expect(mocks.update).toHaveBeenLastCalledWith('webhooks', 'w1', expect.objectContaining({
+    description: 'Renamed', custom_payload_fields: ['new'], payload_field_selection: { mode: 'custom' },
+  }));
+});
+
+it('webhooks: does not open the form from the list row when loading the endpoint fails', async () => {
+  mocks.listAll.mockResolvedValue(endpoints(storedEndpoint(['old'])));
+  mocks.get.mockRejectedValue(new Error('offline'));
+  const view = render(createElement(WebhooksPageContent));
+  await act(async () => {});
+  await act(async () => { fireEvent.click(view.getByRole('button', { name: 'edit Hook' })); });
+  expect(view.queryByRole('dialog')).toBeNull();
+  expect(mocks.toastError).toHaveBeenCalledWith('error');
+});
+
+it('webhooks: a confirmed delete removes the row before the list refresh completes', async () => {
+  mocks.listAll.mockResolvedValueOnce(endpoints(storedEndpoint([]))).mockImplementation(never);
+  mocks.remove.mockResolvedValue(undefined);
+  const view = render(createElement(WebhooksPageContent));
+  await act(async () => {});
+  await act(async () => { fireEvent.click(view.getByRole('button', { name: 'delete Hook' })); });
+  await act(async () => { fireEvent.click(view.getByRole('button', { name: 'confirm delete' })); });
+  expect(mocks.remove).toHaveBeenCalledWith('webhooks', 'w1');
+  expect(view.queryByRole('button', { name: 'edit Hook' })).toBeNull();
+});
+
+it('webhooks: a second submit while the waitlist check runs is ignored', async () => {
+  let resolveCheck!: (value: unknown) => void;
+  mocks.listAll.mockResolvedValueOnce(endpoints(endpoint('Before', ['waitlist.signup']))).mockImplementation(never);
+  mocks.get.mockResolvedValue(endpoint('Before', ['waitlist.signup']));
+  mocks.rpc.mockImplementation(() => new Promise(resolve => { resolveCheck = resolve; }));
+  webhookEdit.value = { events: ['purchase.completed'] };
+  const view = render(createElement(WebhooksPageContent));
+  await act(async () => {});
+  await act(async () => { fireEvent.click(view.getByRole('button', { name: 'edit Before' })); });
+  await act(async () => { fireEvent.click(view.getByRole('button', { name: 'save' })); });
+  await act(async () => { fireEvent.click(view.getByRole('button', { name: 'save' })); });
   fireEvent.click(view.getByRole('button', { name: 'close' }));
-  await act(async () => { failRefresh(new Error('offline')); });
-  fireEvent.click(view.getByRole('button', { name: 'edit Saved' }));
-  expect(shown(view)).toBe('Saved');
+  expect(mocks.rpc).toHaveBeenCalledTimes(1);
+  expect(view.queryByRole('dialog')).not.toBeNull();
+  await act(async () => { resolveCheck({ data: { products_count: 2 } }); });
+  expect(view.getAllByRole('button', { name: 'waitlistWarning.confirmEdit' })).toHaveLength(1);
 });
 
 it('webhooks: ignores a close request while the save is in flight', async () => {
   let resolveSave!: (value: unknown) => void;
   mocks.listAll.mockResolvedValueOnce(endpoints(endpoint('Before'))).mockImplementation(never);
+  mocks.get.mockResolvedValue(endpoint('Before'));
   mocks.update.mockImplementation(() => new Promise(resolve => { resolveSave = resolve; }));
   const view = render(createElement(WebhooksPageContent));
   await act(async () => {});
-  fireEvent.click(view.getByRole('button', { name: 'edit Before' }));
+  await act(async () => { fireEvent.click(view.getByRole('button', { name: 'edit Before' })); });
   await act(async () => { fireEvent.click(view.getByRole('button', { name: 'save' })); });
   fireEvent.click(view.getByRole('button', { name: 'close' }));
   expect(view.queryByRole('dialog')).not.toBeNull();
@@ -160,11 +244,13 @@ it('webhooks: ignores a close request while the save is in flight', async () => 
 it('webhooks: confirming the waitlist warning twice saves once', async () => {
   let resolveSave!: (value: unknown) => void;
   mocks.listAll.mockResolvedValueOnce(endpoints(endpoint('Before', ['waitlist.signup']))).mockImplementation(never);
+  mocks.get.mockResolvedValue(endpoint('Before', ['waitlist.signup']));
   mocks.rpc.mockResolvedValue({ data: { products_count: 2 } });
   mocks.update.mockImplementation(() => new Promise(resolve => { resolveSave = resolve; }));
+  webhookEdit.value = { events: ['purchase.completed'] };
   const view = render(createElement(WebhooksPageContent));
   await act(async () => {});
-  fireEvent.click(view.getByRole('button', { name: 'edit Before' }));
+  await act(async () => { fireEvent.click(view.getByRole('button', { name: 'edit Before' })); });
   await act(async () => { fireEvent.click(view.getByRole('button', { name: 'save' })); });
   const confirm = view.getByRole('button', { name: 'waitlistWarning.confirmEdit' });
   await act(async () => { fireEvent.click(confirm); });
