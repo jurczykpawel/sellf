@@ -18,7 +18,7 @@ on:
         type: boolean
         default: false
       server:
-        description: Browser specs run on the dev server (the suite assumes NODE_ENV!=production: E2E_MODE business tier, test captcha, FX stub) or a production build (diagnostics)
+        description: "Browser specs run on the dev server (the suite assumes NODE_ENV is not production, e.g. the E2E_MODE business tier, test captcha and the FX stub) or on a production build (diagnostics)"
         required: false
         type: choice
         options: [dev, production]
