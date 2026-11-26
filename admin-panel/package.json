@@ -90,7 +90,7 @@
     "postcss": "^8.5.32",
     "tailwindcss": "^4.3.4",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.12"
+    "vitest": "^5.1.0"
   },
   "overrides": {
     "js-yaml": "^4.3.1",
