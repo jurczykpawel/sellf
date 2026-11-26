@@ -39,8 +39,8 @@ function location(response: Response): URL {
   return new URL(response.headers.get('location') ?? '');
 }
 
-/** Follows proxy redirects like a browser (keeping cookies) and returns the locale the login screen renders in. */
-async function finalLoginLocale(start: URL, browser: { acceptLanguage?: string; cookie?: string }): Promise<string> {
+/** Follows proxy redirects like a browser (keeping cookies); returns the rendered login locale and the final query. */
+async function finalLoginScreen(start: URL, browser: { acceptLanguage?: string; cookie?: string }): Promise<{ locale: string; params: URLSearchParams }> {
   const jar = new Map<string, string>();
   for (const pair of browser.cookie?.split(';') ?? []) {
     const [name, value] = pair.trim().split('=');
@@ -63,7 +63,7 @@ async function finalLoginLocale(start: URL, browser: { acceptLanguage?: string; 
     const rendered = new URL(response.headers.get('x-middleware-rewrite') ?? url);
     const match = rendered.pathname.match(/^\/(en|pl)\/login$/);
     if (!match) throw new Error(`Not a localized login screen: ${rendered.pathname}`);
-    return match[1];
+    return { locale: match[1], params: new URL(url).searchParams };
   }
   throw new Error('Too many redirects');
 }
@@ -138,7 +138,19 @@ describe('auth callback error keeps the link language', () => {
     ])('an English link stays English for a Polish browser (%o)', async browser => {
       const start = location(await callback('flow=login&locale=en&type=magiclink&token_hash=used'));
 
-      expect(await finalLoginLocale(start, browser)).toBe('en');
+      expect((await finalLoginScreen(start, browser)).locale).toBe('en');
+    });
+
+    it('keeps the error and return path across the /en/login -> /login hop', async () => {
+      const returnPath = '/en/auth/product-access?product=widget';
+      const start = location(await callback(`redirect_to=${encodeURIComponent(returnPath)}&type=magiclink&token_hash=used`));
+      expect(start.pathname).toBe('/en/login');
+
+      const screen = await finalLoginScreen(start, { acceptLanguage: 'pl' });
+
+      expect(screen.locale).toBe('en');
+      expect(screen.params.get('error')).toBe('magic_link_expired');
+      expect(screen.params.get('redirect_to')).toBe(returnPath);
     });
 
     it.each([
@@ -147,7 +159,7 @@ describe('auth callback error keeps the link language', () => {
     ])('a Polish link stays Polish for an English browser (%o)', async browser => {
       const start = location(await callback(`redirect_to=${encodeURIComponent(PL_RETURN)}&type=magiclink&token_hash=used`));
 
-      expect(await finalLoginLocale(start, browser)).toBe('pl');
+      expect((await finalLoginScreen(start, browser)).locale).toBe('pl');
     });
 
     it('a Polish LoginWall link (unprefixed return path) expires onto the Polish screen', async () => {
@@ -157,7 +169,7 @@ describe('auth callback error keeps the link language', () => {
       const start = location(await callback(`${link.search.slice(1)}&type=magiclink&token_hash=used`));
 
       expect(start.searchParams.get('redirect_to')).toBe(LOGINWALL_RETURN);
-      expect(await finalLoginLocale(start, { acceptLanguage: 'en' })).toBe('pl');
+      expect((await finalLoginScreen(start, { acceptLanguage: 'en' })).locale).toBe('pl');
     });
   });
 });
