@@ -89,3 +89,21 @@ it('dims retained product results only while refreshing', () => {
   expect(busy?.getAttribute('aria-busy')).toBe('false');
   expect(busy?.classList.contains('opacity-50')).toBe(false);
 });
+
+it.each(['menu closed with Escape', 'edit button'] as const)('moves focus off a row that vanishes after a delayed search (%s)', focusedOn => {
+  const view = render(createElement(Harness));
+  if (focusedOn === 'edit button') {
+    screen.getByRole('button', { name: 'editLabel' }).focus();
+  } else {
+    fireEvent.click(screen.getByRole('button', { name: 'moreActions' }));
+    screen.getByRole('button', { name: 'duplicate' }).focus();
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    expect(screen.queryByRole('button', { name: 'duplicate' })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'moreActions' }));
+  }
+
+  view.rerender(createElement(Harness, { loading: true }));
+  view.rerender(createElement(Harness, { hasProduct: false }));
+  expect(document.activeElement).not.toBe(document.body);
+  expect(document.activeElement).toBe(screen.getByRole('region', { name: 'title' }));
+});

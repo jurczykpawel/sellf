@@ -16,6 +16,8 @@ export default defineConfig(({ mode }) => {
       env,
       fileParallelism: false,
       maxWorkers: 1,
+      // next-intl's ESM imports `next/server` without an extension; inlining lets tests run the real proxy.
+      server: { deps: { inline: ['next-intl'] } },
       coverage: {
         provider: 'v8',
         reporter: ['text', 'html', 'lcov'],

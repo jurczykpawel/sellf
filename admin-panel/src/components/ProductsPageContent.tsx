@@ -17,7 +17,9 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useProducts, type ProductStatusFilter } from '@/hooks/useProducts';
 import { isRelativeOrHttpUrl } from '@/lib/validations/redirect';
 import { duplicateProductDraft } from '@/lib/product-duplicate';
-import { api, ApiError } from '@/lib/api/client';
+import { ApiError, isExpectedApiError } from '@/lib/api/client';
+import { useStoredRecord } from '@/hooks/useStoredRecord';
+import RecordLoadingOverlay from './ui/RecordLoadingOverlay';
 
 // Server-side failures carry English text; show the localized fallback instead.
 const isServerError = (err: unknown): boolean => err instanceof ApiError && err.status >= 500;
@@ -44,6 +46,8 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
   // True when the wizard was opened via the "New bundle" entry (new products only).
   const [newAsBundle, setNewAsBundle] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Set synchronously: two clicks before a re-render both see submitting === false.
+  const saveInFlight = useRef(false);
   const [showEmbedSnippet, setShowEmbedSnippet] = useState(false);
   const [showLoginwallSnippet, setShowLoginwallSnippet] = useState(false);
   const [showGatingSnippet, setShowGatingSnippet] = useState(false);
@@ -107,19 +111,32 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
     fetchProducts();
   }, [fetchProducts]);
 
+  // The wizard always starts from the stored product, never from a list-row copy.
+  const storedProduct = useStoredRecord<Product>('products');
+  const { load: loadStoredProduct, cancel: cancelStoredProduct } = storedProduct;
+  const openStoredProduct = useCallback(async (id: string, asDuplicate = false) => {
+    try {
+      const product = await loadStoredProduct(id);
+      if (!product) return;
+      setEditingProduct(asDuplicate ? duplicateProductDraft(product, '[COPY] ') : product);
+      setNewAsBundle(false);
+      setShowProductForm(true);
+    } catch (err) {
+      if (!isExpectedApiError(err)) toast.error(t('loadError'));
+    }
+  }, [loadStoredProduct, t]);
+
   const openParam = searchParams.get('open');
   useEffect(() => {
     if (!openParam || openParam === 'new') return;
-    let active = true;
-    void api.get<Product>('products', openParam).then(product => {
-      if (active) { setEditingProduct(product); setShowProductForm(true); }
-    }).catch(() => { if (active) toast.error(t('loadError')); });
-    return () => { active = false; };
-  }, [openParam, t]);
+    void openStoredProduct(openParam);
+    return cancelStoredProduct;
+  }, [openParam, openStoredProduct, cancelStoredProduct]);
   const [previousOpenParam, setPreviousOpenParam] = useState<string | null>(null);
   if (previousOpenParam !== openParam) {
     setPreviousOpenParam(openParam);
     if (openParam === 'new') {
+      cancelStoredProduct();
       setShowProductForm(true);
       setEditingProduct(null);
     }
@@ -137,7 +154,8 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
       if (searchParams.get('open')) {
         router.replace('/dashboard/products');
       }
-      await fetchProducts();
+      // Not awaited: a slow list read must not keep the next wizard locked as submitting.
+      void fetchProducts();
       toast.success(t('createSuccess', { name: formData.name }));
       setTimeout(() => {
         addButtonRef.current?.focus();
@@ -159,7 +177,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
 
       setShowProductForm(false);
       setEditingProduct(null);
-      await fetchProducts();
+      void fetchProducts();
       toast.success(t('updateSuccess', { name: formData.name }));
     } catch (err) {
       toast.error(isValidationError(err) ? t('validationFailed') : err instanceof Error && !isServerError(err) ? err.message : t('updateError'));
@@ -170,10 +188,12 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
   };
 
   const handleProductSubmit = async (formData: ProductFormData) => {
-    if (editingProduct && editingProduct.id) {
-      return handleUpdateProduct(formData);
-    } else {
-      return handleCreateProduct(formData);
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
+      return await (editingProduct && editingProduct.id ? handleUpdateProduct(formData) : handleCreateProduct(formData));
+    } finally {
+      saveInFlight.current = false;
     }
   };
 
@@ -196,17 +216,9 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
   };
 
   // UI Handlers
-  const handleEditProduct = (product: Product) => {
-    setEditingProduct(product);
-    setNewAsBundle(false);
-    setShowProductForm(true);
-  };
+  const handleEditProduct = (product: Product) => { void openStoredProduct(product.id); };
 
-  const handleDuplicateProduct = (product: Product) => {
-    setEditingProduct(duplicateProductDraft(product, '[COPY] '));
-    setNewAsBundle(false);
-    setShowProductForm(true);
-  };
+  const handleDuplicateProduct = (product: Product) => { void openStoredProduct(product.id, true); };
 
   const handlePreviewProduct = (product: Product) => {
     window.open(`${productPath(product.slug)}?preview=1`, '_blank');
@@ -279,12 +291,14 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
   };
 
   const handleAddNewProduct = () => {
+    cancelStoredProduct();
     setEditingProduct(null);
     setNewAsBundle(false);
     setShowProductForm(true);
   };
 
   const handleAddNewBundle = () => {
+    cancelStoredProduct();
     setEditingProduct(null);
     setNewAsBundle(true);
     setShowProductForm(true);
@@ -367,6 +381,8 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
           tutorial={searchParams.get('tutorial') ?? undefined}
           initialFormSection={searchParams.get('section') === 'sales' ? 'sales' : searchParams.get('section') === 'cart' ? 'cart' : undefined}
           onClose={() => {
+            // A save in flight closes the wizard itself once it is confirmed.
+            if (submitting) return;
             setShowProductForm(false);
             setEditingProduct(null);
             setNewAsBundle(false);
@@ -382,6 +398,8 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
           defaultIsBundle={newAsBundle}
         />
       )}
+
+      {storedProduct.loadingId && <RecordLoadingOverlay onCancel={cancelStoredProduct} />}
 
       {productToRemove && (
         <ProductRemoveDialog

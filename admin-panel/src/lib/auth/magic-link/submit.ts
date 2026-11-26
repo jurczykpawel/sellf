@@ -20,6 +20,8 @@ export interface SubmitMagicLinkInput {
   couponCode?: string | null;
   successUrl?: string | null;
   customFieldValues?: Record<string, string>;
+  /** The buyer's explicit resend on the payment page. */
+  resend?: boolean;
 }
 
 export type MagicLinkSubmitResult =
@@ -47,6 +49,7 @@ export async function submitMagicLink(input: SubmitMagicLinkInput): Promise<Magi
     couponCode: input.couponCode,
     successUrl: input.successUrl,
     customFieldValues: input.customFieldValues,
+    ...(input.resend ? { resend: true } : {}),
   });
 
   if (!result.ok) {

@@ -11,7 +11,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Product } from '@/types';
 import { toast } from 'sonner';
 import OrderBumpFormModal from './OrderBumpFormModal';
@@ -19,6 +19,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
 import Link from 'next/link';
 import { api, isExpectedApiError } from '@/lib/api/client';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { fetchAllProductsForDropdown } from '@/hooks/useProducts';
 
 interface OrderBumpWithDetails {
@@ -65,6 +66,8 @@ const OrderBumpsPageContent: React.FC = () => {
   const [showBumpForm, setShowBumpForm] = useState(false);
   const [editingBump, setEditingBump] = useState<OrderBumpWithDetails | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Set synchronously: two clicks before a re-render both see submitting === false.
+  const saveInFlight = useRef(false);
   const [bumpToDelete, setBumpToDelete] = useState<OrderBumpWithDetails | null>(null);
 
   // Fetch products for dropdown using v1 API
@@ -79,18 +82,21 @@ const OrderBumpsPageContent: React.FC = () => {
   }, []);
 
   // Fetch order bumps from the v1 API
+  const beginLoad = useLatestRequest();
   const loadOrderBumps = useCallback(async () => {
+    const isCurrent = beginLoad();
     try {
       const orderBumps = await api.getCustom<OrderBumpWithDetails[]>('order-bumps');
+      if (!isCurrent()) return;
       setOrderBumps(orderBumps || []);
     } catch (err) {
-      if (isExpectedApiError(err)) return;
+      if (!isCurrent() || isExpectedApiError(err)) return;
       setError(t('loadError'));
       console.error('Error:', err);
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
-  }, [t]);
+  }, [t, beginLoad]);
 
   const fetchOrderBumps = useCallback(() => {
     setLoading(true);
@@ -112,7 +118,8 @@ const OrderBumpsPageContent: React.FC = () => {
       await api.create('order-bumps', formData);
 
       setShowBumpForm(false);
-      await fetchOrderBumps();
+      // Not awaited: the save is done, so the next form must not stay locked while the list reloads.
+      void fetchOrderBumps();
       toast.success(t('createSuccess'));
     } catch (err) {
       if (!isExpectedApiError(err)) toast.error(err instanceof Error ? err.message : t('createError'));
@@ -131,13 +138,23 @@ const OrderBumpsPageContent: React.FC = () => {
 
       setShowBumpForm(false);
       setEditingBump(null);
-      await fetchOrderBumps();
+      void fetchOrderBumps();
       toast.success(t('updateSuccess'));
     } catch (err) {
       if (!isExpectedApiError(err)) toast.error(err instanceof Error ? err.message : t('updateError'));
       return Promise.reject(err);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleBumpSubmit = async (formData: any) => {
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    try {
+      return await (editingBump ? handleUpdateBump(formData) : handleCreateBump(formData));
+    } finally {
+      saveInFlight.current = false;
     }
   };
 
@@ -368,7 +385,7 @@ const OrderBumpsPageContent: React.FC = () => {
           products={products}
           loadingProducts={loadingProducts}
           editingBump={editingBump}
-          onSubmit={editingBump ? handleUpdateBump : handleCreateBump}
+          onSubmit={handleBumpSubmit}
           onClose={() => {
             setShowBumpForm(false);
             setEditingBump(null);

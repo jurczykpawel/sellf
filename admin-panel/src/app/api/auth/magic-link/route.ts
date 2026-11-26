@@ -20,6 +20,7 @@ const ALLOWED_KEYS = new Set([
   'successUrl',
   'customFieldValues',
   'attribution',
+  'resend',
 ]);
 
 const PRODUCT_SLUG_REGEX = /^[a-zA-Z0-9_-]{1,100}$/;
@@ -35,6 +36,7 @@ interface ParsedRequest {
   successUrl?: string;
   customFieldValues?: Record<string, string>;
   attribution?: unknown;
+  resend?: true;
 }
 
 function badRequest(): NextResponse {
@@ -53,7 +55,8 @@ function parseBody(body: unknown): ParsedRequest | null {
     if (!ALLOWED_KEYS.has(key)) return null;
   }
 
-  const { email, captchaToken, flow, productSlug, couponCode, successUrl, redirectTo, locale, customFieldValues, attribution } = record;
+  const { email, captchaToken, flow, productSlug, couponCode, successUrl, redirectTo, locale, customFieldValues, attribution, resend } = record;
+  if (resend !== undefined && (resend !== true || flow !== 'post_checkout')) return null;
   if (redirectTo !== undefined && (typeof redirectTo !== 'string' || !getLoginReturnPath(redirectTo))) return null;
 
   if (typeof email !== 'string' || email.length === 0 || email.length > 254) return null;
@@ -91,6 +94,7 @@ function parseBody(body: unknown): ParsedRequest | null {
     successUrl: parsedSuccessUrl,
     ...(customFieldValues !== undefined ? { customFieldValues: customFieldValues as Record<string, string> } : {}),
     ...(flow === 'free_product' && attribution && typeof attribution === 'object' && !Array.isArray(attribution) ? { attribution } : {}),
+    ...(resend === true ? { resend: true as const } : {}),
   };
 }
 
@@ -137,6 +141,7 @@ export async function POST(request: Request) {
     couponCode: parsed.couponCode,
     successUrl: parsed.successUrl,
     customFieldValues: parsed.customFieldValues,
+    ...(parsed.resend ? { resend: true } : {}),
   });
 
   if (result.ok) {

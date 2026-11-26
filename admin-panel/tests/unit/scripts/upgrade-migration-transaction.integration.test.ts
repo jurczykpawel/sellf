@@ -11,13 +11,13 @@
  * @see supabase/migrations/20260303000000_migration_rpc.sql
  */
 import { execFile, execFileSync } from 'node:child_process';
-import { randomInt } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { getTestDatabaseContainer } from '../../helpers/database-container';
 
 const execute = promisify(execFile);
@@ -48,21 +48,52 @@ async function registry(): Promise<string[]> {
   return ((await response.json()) as { version: string }[]).map(entry => entry.version);
 }
 
-/** Three release migrations with fresh timestamps; `brokenSecond` makes the middle one fail. */
-function releaseMigrations(brokenSecond: boolean) {
-  const base = 20990000000000 + randomInt(1, 9_000_000) * 100;
-  const suffix = `upgrade_${base}`;
-  const tables = [`public.${suffix}_first`, `public.${suffix}_third`];
+/**
+ * Removes exactly one fixture's records, in one transaction. The schema is dropped only when
+ * our own CREATE SCHEMA succeeded: that migration stamps it with the fixture's secret `owner`
+ * comment right after creating it, so a failed CREATE (someone else's schema) leaves no stamp
+ * and nothing is dropped. Registry rows go only when their name carries the fixture's UUID, so a
+ * version that another run happened to draw is never deleted.
+ */
+function fixtureCleanupSql(token: string, owner: string, versions: string[]): string {
+  return `BEGIN;
+DO $cleanup$ BEGIN
+  IF obj_description(to_regnamespace('upgrade_test_${token}')::oid, 'pg_namespace') = '${owner}' THEN
+    DROP SCHEMA upgrade_test_${token} CASCADE;
+  END IF;
+END $cleanup$;
+DELETE FROM supabase_migrations.schema_migrations
+ WHERE version IN (${versions.map(version => `'${version}'`).join(', ')}) AND name LIKE 'upgrade\\_${token}\\_%';
+COMMIT;`;
+}
+
+/**
+ * Three release migrations with fresh timestamps; `brokenSecond` makes the middle one fail.
+ * Each fixture owns a UUID: its schema (`upgrade_test_<uuid>`, created without IF NOT EXISTS so a
+ * clash fails instead of reusing someone else's) and its registry names (`upgrade_<uuid>_*`).
+ * Fixture tables never live in `public`: the Security Advisor lint (SA-0013, tables without RLS)
+ * scans `public` in a parallel worker and must not see them.
+ */
+async function releaseMigrations(brokenSecond: boolean) {
+  const token = randomUUID().replaceAll('-', '');
+  const owner = randomUUID();
+  const base = 20990000000000 + randomInt(1, 999_999_999) * 10;
+  const suffix = `upgrade_${token}`;
+  const schema = `upgrade_test_${token}`;
+  const tables = [`${schema}.${suffix}_first`, `${schema}.${suffix}_third`];
   const migrations = {
-    [`${base + 1}_${suffix}_first`]: `CREATE TABLE ${tables[0]} (id integer);\nINSERT INTO ${tables[0]} VALUES (1);\n`,
+    [`${base + 1}_${suffix}_first`]: `CREATE SCHEMA ${schema};\nCOMMENT ON SCHEMA ${schema} IS '${owner}';\nCREATE TABLE ${tables[0]} (id integer);\nINSERT INTO ${tables[0]} VALUES (1);\n`,
     [`${base + 2}_${suffix}_second`]: brokenSecond
-      ? `SELECT id FROM public.${suffix}_does_not_exist;\n`
+      ? `SELECT id FROM ${schema}.${suffix}_does_not_exist;\n`
       : `ALTER TABLE ${tables[0]} ADD COLUMN note text;`,
     [`${base + 3}_${suffix}_third`]: `-- trailing comment without a final newline\nCREATE TABLE ${tables[1]} (id integer) -- no semicolon`,
   };
-  cleanupSql.push(`DROP TABLE IF EXISTS ${tables.join(', ')};`,
-    `DELETE FROM supabase_migrations.schema_migrations WHERE version IN (${Object.keys(migrations).map(name => `'${name.slice(0, 14)}'`).join(', ')});`);
-  return { migrations, tables };
+  const names = Object.keys(migrations);
+  // A drawn version that is already registered would be skipped by apply_migration: fail loudly.
+  const taken = (await registry()).filter(version => names.some(name => version.slice(0, 14) === name.slice(0, 14)));
+  if (taken.length) throw new Error(`Fixture versions already registered: ${taken.join(', ')}`);
+  cleanupSql.push(fixtureCleanupSql(token, owner, names.map(name => name.slice(0, 14))));
+  return { migrations, names, tables, schema };
 }
 
 interface ProxyOptions {
@@ -161,22 +192,29 @@ ${between(source, '# ===== STEP 4b: MIGRATION PREFLIGHT =====', '# ===== FIREWAL
 }
 
 const tableExists = (table: string) => psql(`SELECT to_regclass('${table}') IS NOT NULL;`) === 't';
+/** Tables of this fixture visible in `public` (without RLS) to the parallel Security Advisor lint (SA-0013). */
+const publicTablesOf = (tables: string[]) => psql(`SELECT count(*) FROM pg_tables WHERE schemaname = 'public' AND tablename IN (${tables.map(table => `'${table.split('.')[1]}'`).join(', ')});`);
+const schemaExists = (schema: string) => psql(`SELECT count(*) FROM pg_namespace WHERE nspname = '${schema}';`) === '1';
+
+// Drop each test's schema and registry rows right after it, not once at the end of the file.
+afterEach(() => {
+  if (cleanupSql.length && SUPABASE_URL && SERVICE_KEY) psql(cleanupSql.splice(0).join('\n'));
+});
 
 afterAll(() => {
-  if (cleanupSql.length && SUPABASE_URL && SERVICE_KEY) psql(cleanupSql.join('\n'));
   for (const dir of directories.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
 describe.skipIf(!SUPABASE_URL || !SERVICE_KEY)('updater migrations in one transaction (real database)', () => {
   it('leaves registry and schema untouched when the second of three migrations fails', async () => {
-    const { migrations, tables } = releaseMigrations(true);
-    const names = Object.keys(migrations);
-    const before = await registry();
+    const { migrations, names, tables, schema } = await releaseMigrations(true);
 
     const run = await runUpgrade(migrations);
 
     expect(run.code).toBe(1);
-    expect(await registry()).toEqual(before);
+    const after = await registry();
+    for (const name of names) expect(after).not.toContain(name);
+    expect(schemaExists(schema)).toBe(false);
     for (const table of tables) expect(tableExists(table)).toBe(false);
     expect(run.started).toBe('old-code');
     expect(run.progress).toMatchObject({ step: 'failed', code: 'migration_failed', rollback: true, details: { migration: names[1] } });
@@ -186,9 +224,26 @@ describe.skipIf(!SUPABASE_URL || !SERVICE_KEY)('updater migrations in one transa
     expect(run.progress.message).toContain('the shop is running the previous version (2026.11.1) again');
   });
 
+  it('cleanup removes only its own registry rows and schema, never what another run created', () => {
+    const version = String(20990000000000 + randomInt(1, 999_999_999) * 10);
+    const token = randomUUID().replaceAll('-', '');
+    const foreignName = `upgrade_${randomUUID().replaceAll('-', '')}_first`;
+    const foreignSchema = `upgrade_test_${token}`;
+    psql(`INSERT INTO supabase_migrations.schema_migrations (version, name) VALUES ('${version}', '${foreignName}');
+CREATE SCHEMA ${foreignSchema};
+COMMENT ON SCHEMA ${foreignSchema} IS '${randomUUID()}';`);
+    try {
+      psql(fixtureCleanupSql(token, randomUUID(), [version]));
+      expect(psql(`SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version = '${version}' AND name = '${foreignName}';`)).toBe('1');
+      expect(schemaExists(foreignSchema)).toBe(true);
+    } finally {
+      psql(`DELETE FROM supabase_migrations.schema_migrations WHERE version = '${version}' AND name = '${foreignName}';
+DROP SCHEMA IF EXISTS ${foreignSchema};`);
+    }
+  });
+
   it('applies and records all three migrations together when they succeed', async () => {
-    const { migrations, tables } = releaseMigrations(false);
-    const names = Object.keys(migrations);
+    const { migrations, names, tables } = await releaseMigrations(false);
 
     const run = await runUpgrade(migrations);
 
@@ -196,12 +251,13 @@ describe.skipIf(!SUPABASE_URL || !SERVICE_KEY)('updater migrations in one transa
     expect(run.progress.step).toBe('done');
     expect(await registry()).toEqual(expect.arrayContaining(names));
     for (const table of tables) expect(tableExists(table)).toBe(true);
+    expect(publicTablesOf(tables)).toBe('0');
     expect(psql(`SELECT count(*) FROM ${tables[0]} WHERE note IS NULL;`)).toBe('1');
     expect(run.started).toBe('new-code');
   });
 
   it('starts the new version when the connection drops after COMMIT', async () => {
-    const { migrations, tables } = releaseMigrations(false);
+    const { migrations, tables } = await releaseMigrations(false);
     const proxy = await startProxy({ dropAfterCommit: true });
     try {
       const run = await runUpgrade(migrations, proxy.url);
@@ -221,7 +277,7 @@ describe.skipIf(!SUPABASE_URL || !SERVICE_KEY)('updater migrations in one transa
     ['a gateway error with a database-like body', { replyAfterCommit: { status: 502, body: JSON.stringify({ code: 'GW_AFTER_COMMIT', details: null, hint: null, message: 'upstream closed' }) } }],
     ['success:false', { replyAfterCommit: { status: 200, body: '{"success":false,"message":"reported failure"}' } }],
   ] as const)('reports an unknown outcome and starts no code after COMMIT, %s and a malformed registry read', async (_, reply) => {
-    const { migrations, tables } = releaseMigrations(false);
+    const { migrations, tables } = await releaseMigrations(false);
     const proxy = await startProxy({ ...reply, registryAfterCommit: '{}' });
     try {
       const run = await runUpgrade(migrations, proxy.url);

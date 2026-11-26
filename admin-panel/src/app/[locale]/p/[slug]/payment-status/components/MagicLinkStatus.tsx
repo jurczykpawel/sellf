@@ -216,7 +216,7 @@ export default function MagicLinkStatus({
         
         {!captchaError && !magicLinkError && (
         <div className="bg-sf-accent-soft border border-sf-border-accent rounded-lg p-4 animate-fadeInPulse">
-          <h3 className="text-lg font-semibold text-sf-accent mb-2 animate-pulse">
+          <h3 className="text-lg font-semibold text-sf-accent mb-2">
             🎯 {t('toAccessYourProduct')}
           </h3>
           <div className="text-sm text-sf-body space-y-2">

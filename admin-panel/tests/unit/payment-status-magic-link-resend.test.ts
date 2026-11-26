@@ -88,3 +88,33 @@ it('allows an explicit resend after success and cooldown without auto-sending ag
   expect(fetchMock).toHaveBeenCalledTimes(2);
   expect(result.current.retryCountdown).toBe(60);
 });
+
+it.each([
+  [{ code: 'rate_limited', queued: true }, 'paidLinkQueued', 60],
+  [{ code: 'rate_limited', queued: true, retryAfterSeconds: 3600 }, 'paidLinkQueuedAfterLimit', 3600],
+] as const)('promises only the delivery time the queue can keep (%j, U3)', async (body, message, countdown) => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 429, json: async () => body }));
+  const { result } = renderHook(() => useMagicLink({
+    paymentStatus: 'magic_link_sent', customerEmail: 'buyer@example.com', sessionId: 'cs_test',
+    product: { id: 'p', name: 'Product', slug: 'product', price: 10, currency: 'PLN' },
+    termsAccepted: true, captchaToken: 'fresh', captchaReset: vi.fn(), showInteractiveWarning: false,
+  }));
+  await act(async () => {});
+  expect(result.current.error).toBe(message);
+  expect(result.current.retryCountdown).toBe(countdown);
+});
+
+it('marks only the button resend as explicit; the automatic send is not (W343mr P1)', async () => {
+  const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) });
+  vi.stubGlobal('fetch', fetchMock);
+  const { result } = renderHook(() => useMagicLink({
+    paymentStatus: 'magic_link_sent', customerEmail: 'buyer@example.com', sessionId: 'cs_test',
+    product: { id: 'p', name: 'Product', slug: 'product', price: 10, currency: 'PLN' },
+    termsAccepted: true, captchaToken: 'fresh', captchaReset: vi.fn(), showInteractiveWarning: false,
+  }));
+  await act(async () => {});
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body).resend).toBeUndefined();
+  for (let second = 0; second < 60; second++) await act(async () => { vi.advanceTimersByTime(1000); });
+  await act(async () => { await result.current.sendMagicLink(); });
+  expect(JSON.parse(fetchMock.mock.calls[1][1].body).resend).toBe(true);
+});

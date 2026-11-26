@@ -41,7 +41,7 @@ Mailstack mappings/templates are managed separately in the Mailstack project. Co
 
 ## Delivery limits and pending mail
 
-Sign-in mail requests and the retry worker share a limit of **5 attempts per inbox in 24 hours**. Address variants delivered to the same inbox, including plus tags and Gmail dots, share that limit. This is separate from Supabase Auth and SMTP-provider limits. A queued message that hits the daily limit waits another 24 hours without consuming a retry attempt.
+Sign-in mail requests and the retry worker share a limit of **5 attempts per inbox in 24 hours**. Address variants delivered to the same inbox, including plus tags and Gmail dots, share that limit. This is separate from Supabase Auth and SMTP-provider limits. A queued message that hits the daily limit waits until the limit window resets (00:00 UTC for the database limiter, 24 hours for Upstash) without consuming a retry attempt; the payment page shows that time. Refreshing the confirmation page after the login link was delivered does not queue it again.
 
 The authentication-mail queue makes up to six retry attempts. A successful access or license grant stays successful while its email waits. For API grants, inspect `license.email_pending`; `POST /api/v1/licenses` uses `emailPending`. Repeating **Grant access** can resume an abandoned license email. See [SMTP and the retry schedule](/email-setup/).
 

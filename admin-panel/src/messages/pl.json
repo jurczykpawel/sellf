@@ -389,7 +389,7 @@
     "addToYourOrder": "Dodaj do zamówienia",
     "addToOrder": "Dodaj",
     "addedToOrder": "Dodano",
-    "specialOfferEnds": "Oferta specjalna konczy sie za:",
+    "specialOfferEnds": "Oferta specjalna kończy się za:",
     "couponPlaceholder": "Wpisz kod",
     "applyCoupon": "Zastosuj",
     "verifying": "...",
@@ -1510,7 +1510,8 @@
     "verificationFailed": "Nie udało się zweryfikować płatności. Spróbuj ponownie.",
     "freeAccessMaintenance": "Sklep ma przerwę techniczną, więc teraz nie możemy dać darmowego dostępu. Wróć wkrótce.",
     "paidLinkSendError": "Zakup jest opłacony; nie udało się wysłać linku logowania. Spróbuj ponownie.",
-    "paidLinkQueued": "Zakup jest opłacony. Serwer pocztowy jest chwilowo przeciążony, więc link logowania przyjdzie automatycznie w ciągu kilku minut; możesz zamknąć tę stronę.",
+    "paidLinkQueued": "Zakup jest opłacony. Nie udało się teraz wysłać linku logowania, więc wyślemy go automatycznie w ciągu kilku minut; możesz zamknąć tę stronę.",
+    "paidLinkQueuedAfterLimit": "Zakup jest opłacony. Ten adres wyczerpał dzisiejszy limit maili logowania, więc link logowania wyślemy automatycznie po {time}; możesz zamknąć tę stronę.",
     "paidLinkRateLimitError": "Zakup jest opłacony; nie udało się wysłać linku logowania z powodu limitu wysyłki. Poczekaj przed kolejną próbą.",
     "resendLoginLink": "Wyślij link ponownie",
     "resendLinkCountdown": "Wyślij ponownie za {seconds} s",
@@ -2118,6 +2119,7 @@
           "createProduct": "Utwórz produkt",
           "continueSetup": "Dalej",
           "loadingConfig": "Ładowanie ustawień sklepu…",
+          "storedDataError": "Nie udało się wczytać oferty OTO lub zawartości pakietu tego produktu. Zapis jest zablokowany, żeby ich nie skasować. Zamknij okno i otwórz produkt ponownie.",
           "back": "Wstecz",
           "cancel": "Anuluj",
           "earlyCreateHint": "Możesz utworzyć produkt teraz z samymi podstawami lub kontynuować konfigurację dostawy treści, promocji cenowych i więcej.",
@@ -2829,7 +2831,7 @@
       "quickPresets": "Szybkie ustawienia",
       "permissions": "Uprawnienia",
       "scopesLockedTitle": "Odblokuj z licencja Pro",
-      "scopesLockedDescription": "Licencja Pro wymagana do konfiguracji uprawnien kluczy API. Darmowe klucze maja pelny dostep.",
+      "scopesLockedDescription": "Licencja Pro wymagana do konfiguracji uprawnień kluczy API. Darmowe klucze mają pełny dostęp.",
       "showAdvanced": "Pokaż opcje zaawansowane",
       "hideAdvanced": "Ukryj opcje zaawansowane",
       "rateLimit": "Limit żądań",
@@ -3099,9 +3101,9 @@
         "saving": "Zapisywanie...",
         "accessDurationPlaceholder": "np. 30 dni",
         "defaultTitle": "Tak, dodaj \"{name}\" za jedyne {price} {currency}!",
-        "urgencyTimer": "Timer Pilnosci",
-        "showUrgencyTimer": "Pokaz odliczanie na tym bumpie",
-        "urgencyTimerHelp": "Wyswietla odliczanie od momentu wejscia na strone. Element wizualny — bez wymuszania po stronie serwera.",
+        "urgencyTimer": "Timer pilności",
+        "showUrgencyTimer": "Pokaż odliczanie na tym bumpie",
+        "urgencyTimerHelp": "Wyświetla odliczanie od momentu wejścia na stronę. Element wizualny — bez wymuszania po stronie serwera.",
         "urgencyMinutesPlaceholder": "np. 30 (minuty)"
       },
       "loadError": "Nie udało się załadować order bumpów",
@@ -4319,7 +4321,7 @@
           "recommendedText": "dla integracji self-hosted i środowisk produkcyjnych."
         },
         "benefits": {
-          "title": "Dlaczego warto skorzystać z tego kreato ra?",
+          "title": "Dlaczego warto skorzystać z tego kreatora?",
           "encrypted": {
             "title": "Zaszyfrowane przechowywanie",
             "description": "Twoje klucze API są szyfrowane algorytmem AES-256-GCM przed zapisaniem w bazie danych."

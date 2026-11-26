@@ -11,8 +11,8 @@ import { parseMoneyInput } from '@/lib/currency/parse-money-input';
 import { ProductContentConfig } from '@/types';
 import { marketingFieldsSchema } from '@/lib/validations/product-marketing';
 import { getIconEmoji } from '@/utils/themeUtils';
-import { getCategories, getProductCategories, Category } from '@/lib/actions/categories';
-import { getTags, getProductTags, Tag } from '@/lib/actions/tags';
+import { getCategories, Category } from '@/lib/actions/categories';
+import { getTags, Tag } from '@/lib/actions/tags';
 import { getMyShopConfig } from '@/lib/actions/shop-config';
 import type { TaxMode } from '@/lib/actions/shop-config';
 import { parseVideoUrl, isTrustedVideoPlatform } from '@/lib/videoUtils';
@@ -22,6 +22,7 @@ import { useConfig } from '@/components/providers/config-provider';
 import { createClient } from '@/lib/supabase/client';
 import { api, ApiError } from '@/lib/api/client';
 import { fetchAllProductsForDropdown } from '@/hooks/useProducts';
+import type { EmbeddedTaxonomy } from '@/lib/api/embed';
 import {
   ProductFormData,
   OtoState,
@@ -103,6 +104,9 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
   // "Publikuj" while this is false, and handleSubmit below early-returns as
   // a second guard (e.g. against Enter-key form submission).
   const [shopConfigLoaded, setShopConfigLoaded] = useState(false);
+  // Relations of a stored product read separately (OTO offer, bundle components). Saving waits
+  // for them: a save before they arrive would send their empty defaults and wipe the stored ones.
+  const [storedDataState, setStoredDataState] = useState<'loading' | 'ready' | 'failed'>('ready');
 
   // OTO (One-Time Offer) state
   const [oto, setOto] = useState<OtoState>(initialOtoState);
@@ -229,6 +233,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
       setLoadingTags(true);
       setLoadingProducts(true);
       setUrlValidation({});
+      setStoredDataState(product?.id ? 'loading' : 'ready');
       if (product) {
         // For existing products. ux_product_type is form-only state — derive it
         // from the loaded fields so the radio reflects the product's true shape.
@@ -263,8 +268,9 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
           content_config: product.content_config || { content_items: [] },
           success_redirect_url: product.success_redirect_url || '',
           pass_params_to_redirect: product.pass_params_to_redirect || false,
-          categories: [],
-          tags: [],
+          // GET /api/v1/products/:id embeds the assigned categories and tags (a duplicate starts without them).
+          categories: product.id ? (product as Product & { categories?: EmbeddedTaxonomy[] }).categories?.map(c => c.id) ?? [] : [],
+          tags: product.id ? (product as Product & { tags?: EmbeddedTaxonomy[] }).tags?.map(tag => tag.id) ?? [] : [],
           omnibus_exempt: product.omnibus_exempt || false,
           sale_price: product.sale_price || null,
           sale_price_until: product.sale_price_until || null,
@@ -337,79 +343,65 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
   useEffect(() => {
     // A duplicate draft has no id yet: nothing stored to fetch.
     if (!isOpen || !product?.id) return;
-    // Fetch assigned categories
-    getProductCategories(product.id).then(result => {
-      if (result.success && result.data) {
-        initializeForm(prev => ({ ...prev, categories: result.data! }));
+    let active = true;
+    const productId = product.id;
+
+    const readBundleItems = async (): Promise<void> => {
+      if (!product.is_bundle) return;
+      const supabase = await createClient();
+      const { data, error } = await supabase
+        .from('bundle_items')
+        .select('component_product_id, display_order')
+        .eq('bundle_product_id', productId)
+        .order('display_order');
+      if (error || !data) throw new Error('Failed to fetch bundle components');
+      if (!active) return;
+      initializeForm(prev => ({
+        ...prev,
+        bundleItemIds: data.map((r: { component_product_id: string }) => r.component_product_id),
+      }));
+    };
+
+    const readOto = async (): Promise<void> => {
+      const data = await api.getCustom<{
+        has_oto: boolean;
+        oto_product_id?: string;
+        discount_type?: 'percentage' | 'fixed';
+        discount_value?: number;
+        duration_minutes?: number;
+        downsell_product_id?: string | null;
+        downsell_discount_type?: 'percentage' | 'fixed' | null;
+        downsell_discount_value?: number | null;
+        downsell_duration_minutes?: number | null;
+      }>(`products/${productId}/oto`);
+      if (!active) return;
+      if (data.has_oto) {
+        const hasDownsell = !!data.downsell_product_id;
+        initializeOto({
+          enabled: true,
+          productId: data.oto_product_id || '',
+          discountType: data.discount_type || 'percentage',
+          discountValue: data.discount_value || 20,
+          durationMinutes: data.duration_minutes || 15,
+          downsellEnabled: hasDownsell,
+          downsellProductId: data.downsell_product_id || '',
+          downsellDiscountType: data.downsell_discount_type || 'percentage',
+          downsellDiscountValue: data.downsell_discount_value ?? 50,
+          downsellDurationMinutes: data.downsell_duration_minutes ?? 15,
+        });
+      } else {
+        initializeOto(initialOtoState);
       }
-    }).catch(err => console.error(err));
+    };
 
-    // Fetch assigned tags. Reads the product_tags junction (getProductTags),
-    // never the single-GET embed, so saving an edited product preserves its
-    // existing tags instead of wiping them via PATCH replace-semantics.
-    getProductTags(product.id).then(result => {
-      if (result.success && result.data) {
-        initializeForm(prev => ({ ...prev, tags: result.data! }));
-      }
-    }).catch(err => console.error(err));
-
-    // Fetch existing bundle components (ordered) when editing a bundle
-    if (product.is_bundle) {
-      (async () => {
-        try {
-          const supabase = await createClient();
-          const { data, error } = await supabase
-            .from('bundle_items')
-            .select('component_product_id, display_order')
-            .eq('bundle_product_id', product.id)
-            .order('display_order');
-          if (!error && data) {
-            initializeForm(prev => ({
-              ...prev,
-              bundleItemIds: data.map((r: { component_product_id: string }) => r.component_product_id),
-            }));
-          }
-        } catch (err) {
-          console.error('Failed to fetch bundle components', err);
-        }
-      })();
-    }
-
-    // Fetch OTO configuration for this product using v1 API
-    api.getCustom<{
-      has_oto: boolean;
-      oto_product_id?: string;
-      discount_type?: 'percentage' | 'fixed';
-      discount_value?: number;
-      duration_minutes?: number;
-      downsell_product_id?: string | null;
-      downsell_discount_type?: 'percentage' | 'fixed' | null;
-      downsell_discount_value?: number | null;
-      downsell_duration_minutes?: number | null;
-    }>(`products/${product.id}/oto`)
-      .then(data => {
-        if (data.has_oto) {
-          const hasDownsell = !!data.downsell_product_id;
-          initializeOto({
-            enabled: true,
-            productId: data.oto_product_id || '',
-            discountType: data.discount_type || 'percentage',
-            discountValue: data.discount_value || 20,
-            durationMinutes: data.duration_minutes || 15,
-            downsellEnabled: hasDownsell,
-            downsellProductId: data.downsell_product_id || '',
-            downsellDiscountType: data.downsell_discount_type || 'percentage',
-            downsellDiscountValue: data.downsell_discount_value ?? 50,
-            downsellDurationMinutes: data.downsell_duration_minutes ?? 15,
-          });
-        } else {
-          initializeOto(initialOtoState);
-        }
-      })
+    Promise.all([readBundleItems(), readOto()])
+      .then(() => { if (active) setStoredDataState('ready'); })
       .catch(err => {
-        console.error('Failed to fetch OTO config:', err);
+        console.error('[useProductForm] Failed to read stored product relations:', err);
+        if (active) setStoredDataState('failed');
       });
 
+    return () => { active = false; };
   }, [product, isOpen, initializeForm, initializeOto]);
 
   // Fetch products for OTO dropdown using v1 API
@@ -683,7 +675,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
     // fetch has settled instead; the "Publikuj"/"Dalej" buttons stay
     // disabled for the same reason (WizardFooter), this guards direct form
     // submission (e.g. Enter key) too.
-    if (!shopConfigLoaded) return;
+    if (!shopConfigLoaded || storedDataState !== 'ready') return;
 
     const saveErrors = collectSaveErrors();
     if (Object.keys(saveErrors).length) {
@@ -754,7 +746,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
     }
 
     submitAndShowFieldErrors(submitData);
-  }, [formData, oto, submitAndShowFieldErrors, validateContentItemUrl, checkWaitlistConfig, shopConfigLoaded, collectSaveErrors, rejectSave]);
+  }, [formData, oto, submitAndShowFieldErrors, validateContentItemUrl, checkWaitlistConfig, shopConfigLoaded, storedDataState, collectSaveErrors, rejectSave]);
 
   return {
     // Form data
@@ -788,6 +780,7 @@ export function useProductForm({ product, isOpen, onSubmit, defaultIsBundle }: U
     shopDefaultVatRate,
     taxMode,
     shopConfigLoaded,
+    storedDataState,
 
     // OTO
     oto,

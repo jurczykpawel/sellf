@@ -34,7 +34,7 @@ import {
   PRODUCT_API_FIELDS,
 } from '@/lib/validations/product';
 import { mapApiInputToProductRow, ProductCategoriesSchema, ProductTagsSchema, BundleItemIdsSchema } from '@/lib/api/dto/product';
-import { upsertBundleItems } from '@/lib/services/bundle-items';
+import { ARCHIVED_BUNDLE_MESSAGE, BundleArchivedError, upsertBundleItems } from '@/lib/services/bundle-items';
 import { accessActor } from '@/lib/services/business-events';
 import { hasProductBeenSold } from '@/lib/validations/product-type-guard';
 
@@ -205,12 +205,31 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Check product exists before update
     const { data: existingCheck, error: existsError } = await supabase
       .from('products')
-      .select('id, price, embed_enabled, event_mode, product_type, is_bundle, is_active, checkout_profile, checkout_template, allow_custom_price, issue_license_on_purchase, currency, custom_price_min, custom_price_presets, show_price_presets')
+      .select('id, price, embed_enabled, event_mode, product_type, is_bundle, is_active, checkout_profile, checkout_template, allow_custom_price, issue_license_on_purchase, currency, custom_price_min, custom_price_presets, show_price_presets, archived_at')
       .eq('id', id)
       .single();
 
     if (existsError || !existingCheck) {
       return apiError(request, 'NOT_FOUND', 'Product not found');
+    }
+
+    // An archived bundle keeps its composition. Resending the saved set (the panel form
+    // always sends it) is a no-op; any change is refused before writing other fields.
+    if (bundleItemIds !== undefined && existingCheck.archived_at) {
+      const { data: savedItems, error: savedError } = await supabase
+        .from('bundle_items')
+        .select('component_product_id')
+        .eq('bundle_product_id', id)
+        .order('display_order');
+      if (savedError) {
+        console.error('[products.PATCH archived bundle]', savedError);
+        return apiError(request, 'INTERNAL_ERROR', 'Failed to validate bundle components');
+      }
+      const saved = (savedItems ?? []).map((row: { component_product_id: string }) => row.component_product_id);
+      const incoming = bundleItemIds;
+      const unchanged = saved.length === incoming.length && saved.every((value, index) => value === incoming[index]);
+      if (!unchanged) return apiError(request, 'CONFLICT', ARCHIVED_BUNDLE_MESSAGE);
+      bundleItemIds = undefined;
     }
 
     const presetFields = ['allow_custom_price', 'show_price_presets', 'custom_price_min', 'custom_price_presets', 'currency'];
@@ -278,21 +297,40 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
     }
 
+    // Bundle components are persisted when the product is (or is being set to) a bundle.
+    const effectiveIsBundle =
+      typeof sanitizedData.is_bundle === 'boolean'
+        ? sanitizedData.is_bundle
+        : existingCheck.is_bundle === true;
+    // Fields and a new composition are saved in one transaction that re-checks the archive under the
+    // row lock, so a refusal (e.g. the bundle was archived meanwhile) leaves nothing written.
+    const saveTogether = effectiveIsBundle && bundleItemIds !== undefined && Object.keys(sanitizedData).length > 0;
+
     // Update product (only if there are fields to update)
     let product = existingCheck;
     if (Object.keys(sanitizedData).length > 0) {
-      const { data: updatedProduct, error: updateError } = await supabase
-        .rpc('mutate_product_as', {
+      const { data: updatedProduct, error: updateError } = await (saveTogether
+        ? supabase.rpc('mutate_bundle_product_as', {
+          event_actor: { ...accessActor(auth) },
+          product_data: sanitizedData,
+          p_product_id: id,
+          actor_id: admin.userId,
+          p_component_ids: bundleItemIds,
+        })
+        : supabase.rpc('mutate_product_as', {
           event_actor: { ...accessActor(auth) },
           operation_param: 'UPDATE',
           product_data: sanitizedData,
           product_id: id,
           actor_id: admin.userId,
-        })
+        }))
         .select(PRODUCT_API_FIELDS)
         .single();
 
       if (updateError) {
+        const details = (updateError as { details?: string | null }).details;
+        if (details === 'bundle_archived') return apiError(request, 'CONFLICT', ARCHIVED_BUNDLE_MESSAGE);
+        if (details === 'bundle_component_archived') throw new ApiValidationError(updateError.message, { bundleItemIds: ['archived'] });
         if (updateError.code === '23503') return apiError(request, 'CONFLICT', 'Cannot remove reserved sessions or tiers');
         if (updateError.code === 'P0002') return apiError(request, 'NOT_FOUND', 'Product not found');
         const code = (updateError as { code?: string }).code;
@@ -324,6 +362,22 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         return apiError(request, 'INTERNAL_ERROR', 'Failed to fetch product');
       }
       product = currentProduct;
+    }
+
+    // A composition change without other fields: replace_bundle_items is its own transaction, run
+    // before categories and tags so a refusal (e.g. an archived bundle) leaves no relation written.
+    // The bundle_items trigger validates each component; an invalid one throws and
+    // surfaces as a clean validation error (not a 500).
+    if (effectiveIsBundle && bundleItemIds !== undefined && !saveTogether) {
+      try {
+        await upsertBundleItems(supabase, id, bundleItemIds);
+      } catch (bundleErr) {
+        if (bundleErr instanceof BundleArchivedError) return apiError(request, 'CONFLICT', ARCHIVED_BUNDLE_MESSAGE);
+        if (bundleErr instanceof ApiValidationError) throw bundleErr;
+        throw new ApiValidationError('Validation failed', {
+          _errors: [bundleErr instanceof Error ? bundleErr.message : 'Failed to persist bundle components'],
+        });
+      }
     }
 
     const warnings: string[] = [];
@@ -361,24 +415,6 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           console.error('[products.PATCH tags]', linkErr);
           warnings.push('failed to attach one or more tags');
         }
-      }
-    }
-
-    // Persist bundle components when the product is (or is being set to) a bundle.
-    // The bundle_items trigger validates each component; an invalid one throws and
-    // surfaces as a clean validation error (not a 500).
-    const effectiveIsBundle =
-      typeof sanitizedData.is_bundle === 'boolean'
-        ? sanitizedData.is_bundle
-        : existingCheck.is_bundle === true;
-    if (effectiveIsBundle && bundleItemIds !== undefined) {
-      try {
-        await upsertBundleItems(supabase, id, bundleItemIds);
-      } catch (bundleErr) {
-        if (bundleErr instanceof ApiValidationError) throw bundleErr;
-        throw new ApiValidationError('Validation failed', {
-          _errors: [bundleErr instanceof Error ? bundleErr.message : 'Failed to persist bundle components'],
-        });
       }
     }
 

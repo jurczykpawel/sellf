@@ -166,11 +166,14 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
   const dropdownTrigger = useRef<HTMLButtonElement>(null);
   const dropdownPanel = useRef<HTMLDivElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
-  const previouslyFocusedMenu = useRef<HTMLDivElement | null>(null);
-  const trackFocusedMenu = useCallback((menu: HTMLDivElement | null) => {
-    if (!menu) return;
+  // A row that leaves the results (search, filter, page) while focus is inside it —
+  // its menu open or already closed with Escape, or any row button — hands focus to
+  // the results container instead of dropping it on <body> (WCAG 2.4.3).
+  const previouslyFocusedRow = useRef<HTMLTableRowElement | null>(null);
+  const trackFocusedRow = useCallback((row: HTMLTableRowElement | null) => {
+    if (!row) return;
     return () => {
-      if (menu.contains(document.activeElement)) previouslyFocusedMenu.current = menu;
+      if (row.contains(document.activeElement)) previouslyFocusedRow.current = row;
     };
   }, []);
 
@@ -179,9 +182,9 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
   }
 
   useLayoutEffect(() => {
-    const menu = previouslyFocusedMenu.current;
-    previouslyFocusedMenu.current = null;
-    if (menu && !menu.isConnected && document.activeElement === document.body) {
+    const row = previouslyFocusedRow.current;
+    previouslyFocusedRow.current = null;
+    if (row && !row.isConnected && document.activeElement === document.body) {
       resultsRef.current?.focus();
     }
   });
@@ -264,7 +267,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
               </thead>
               <tbody className="divide-y divide-sf-border-subtle">
                 {products.map((product, index) => (
-                  <tr key={product.id} className={`hover:bg-sf-hover transition-colors duration-150 ${index % 2 === 1 ? 'bg-sf-row-alt' : ''}`}>
+                  <tr key={product.id} ref={trackFocusedRow} className={`hover:bg-sf-hover transition-colors duration-150 ${index % 2 === 1 ? 'bg-sf-row-alt' : ''}`}>
                     <td className="px-3 py-4">
                       <div className="flex items-center max-w-[300px]">
                         <div className="flex-shrink-0 h-8 w-8">
@@ -467,7 +470,7 @@ const ProductsTable: React.FC<ProductsTableProps> = ({
                         </button>
 
                         {/* ── More actions ⋯ ──────────────────────────────── */}
-                        <div className="relative" ref={openDropdownId === product.id ? trackFocusedMenu : undefined}>
+                        <div className="relative">
                           <button
                             id={`product-more-${product.id}`}
                             ref={openDropdownId === product.id ? dropdownTrigger : undefined}
