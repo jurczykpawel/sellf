@@ -389,7 +389,7 @@
     "addToYourOrder": "Dodaj do zamówienia",
     "addToOrder": "Dodaj",
     "addedToOrder": "Dodano",
-    "specialOfferEnds": "Oferta specjalna konczy sie za:",
+    "specialOfferEnds": "Oferta specjalna kończy się za:",
     "couponPlaceholder": "Wpisz kod",
     "applyCoupon": "Zastosuj",
     "verifying": "...",
@@ -2830,7 +2830,7 @@
       "quickPresets": "Szybkie ustawienia",
       "permissions": "Uprawnienia",
       "scopesLockedTitle": "Odblokuj z licencja Pro",
-      "scopesLockedDescription": "Licencja Pro wymagana do konfiguracji uprawnien kluczy API. Darmowe klucze maja pelny dostep.",
+      "scopesLockedDescription": "Licencja Pro wymagana do konfiguracji uprawnień kluczy API. Darmowe klucze mają pełny dostęp.",
       "showAdvanced": "Pokaż opcje zaawansowane",
       "hideAdvanced": "Ukryj opcje zaawansowane",
       "rateLimit": "Limit żądań",
@@ -3100,9 +3100,9 @@
         "saving": "Zapisywanie...",
         "accessDurationPlaceholder": "np. 30 dni",
         "defaultTitle": "Tak, dodaj \"{name}\" za jedyne {price} {currency}!",
-        "urgencyTimer": "Timer Pilnosci",
-        "showUrgencyTimer": "Pokaz odliczanie na tym bumpie",
-        "urgencyTimerHelp": "Wyswietla odliczanie od momentu wejscia na strone. Element wizualny — bez wymuszania po stronie serwera.",
+        "urgencyTimer": "Timer pilności",
+        "showUrgencyTimer": "Pokaż odliczanie na tym bumpie",
+        "urgencyTimerHelp": "Wyświetla odliczanie od momentu wejścia na stronę. Element wizualny — bez wymuszania po stronie serwera.",
         "urgencyMinutesPlaceholder": "np. 30 (minuty)"
       },
       "loadError": "Nie udało się załadować order bumpów",
@@ -4320,7 +4320,7 @@
           "recommendedText": "dla integracji self-hosted i środowisk produkcyjnych."
         },
         "benefits": {
-          "title": "Dlaczego warto skorzystać z tego kreato ra?",
+          "title": "Dlaczego warto skorzystać z tego kreatora?",
           "encrypted": {
             "title": "Zaszyfrowane przechowywanie",
             "description": "Twoje klucze API są szyfrowane algorytmem AES-256-GCM przed zapisaniem w bazie danych."
