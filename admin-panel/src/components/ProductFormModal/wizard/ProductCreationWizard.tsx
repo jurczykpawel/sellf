@@ -36,6 +36,8 @@ export interface ProductCreationWizardProps {
   hasLicenseIssuance?: boolean;
   /** Seed a brand-new product as a bundle (new-product mode only). */
   defaultIsBundle?: boolean;
+  /** Control to refocus on close when focus moved elsewhere before the wizard opened (stored-record load). */
+  returnFocusTo?: HTMLElement | null;
 }
 
 const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
@@ -49,6 +51,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
   product,
   hasLicenseIssuance,
   defaultIsBundle,
+  returnFocusTo,
 }) => {
   const t = useTranslations('admin.products.form');
   const router = useRouter();
@@ -178,7 +181,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
 
   return (
     <>
-      <BaseModal isOpen={isOpen} onClose={handleClose} size="xl" closeOnBackdropClick={false} labelledBy={titleId} initialFocusSelector={isBlankNew ? '[data-scenario]' : 'input#name'}>
+      <BaseModal isOpen={isOpen} onClose={handleClose} size="xl" closeOnBackdropClick={false} labelledBy={titleId} returnFocusTo={returnFocusTo} initialFocusSelector={isBlankNew ? '[data-scenario]' : 'input#name'}>
         <ModalHeader
           title={
             <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
