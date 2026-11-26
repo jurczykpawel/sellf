@@ -45,7 +45,7 @@ export function useMagicLink({
   const tDemo = useTranslations('demo');
   const t = useTranslations('paymentStatus');
 
-  const sendMagicLinkInternal = useCallback(async () => {
+  const sendMagicLinkInternal = useCallback(async (resend = false) => {
     // Need either sessionId (embedded checkout) or paymentIntentId (payment intent)
     const paymentId = sessionId || paymentIntentId;
     if (!customerEmail || !paymentId) return;
@@ -63,6 +63,7 @@ export function useMagicLink({
         flow: 'post_checkout',
         locale,
         productSlug: product.slug,
+        ...(resend ? { resend: true } : {}),
       });
 
       if (result.ok) {
@@ -79,9 +80,15 @@ export function useMagicLink({
         } else if (result.reason === 'captcha_failed' || result.reason === 'captcha_missing') {
           setError(t('captchaFailedError'));
         } else if (result.queued) {
-          // The server parked the link and cron delivers it, even if the buyer closes this page.
-          setError(t('paidLinkQueued'));
-          setRetryCountdown(60);
+          // The server parked the link and cron delivers it, even if the buyer closes this page. Past the
+          // inbox limit it can only go out when the limit resets, so the page names that time.
+          if (result.retryAfterSeconds) {
+            setError(t('paidLinkQueuedAfterLimit', { time: magicLinkRetryAt(result.retryAfterSeconds, locale) }));
+            setRetryCountdown(result.retryAfterSeconds);
+          } else {
+            setError(t('paidLinkQueued'));
+            setRetryCountdown(60);
+          }
         } else if (result.reason === 'address_rate_limited') {
           setError(tAuth('magicLinkAddressRateLimit', { time: magicLinkRetryAt(result.retryAfterSeconds, locale) }));
           setRetryCountdown(result.retryAfterSeconds ?? 86400);
@@ -137,7 +144,8 @@ export function useMagicLink({
   const sendMagicLink = useCallback(() => {
     if (!customerEmail || !paymentId || !captchaToken || retryCountdown > 0 || requestInFlight.current) return Promise.resolve();
     setSendingMagicLink(true);
-    return sendMagicLinkInternal();
+    // The button is the buyer's explicit resend; the effect above is the automatic first send.
+    return sendMagicLinkInternal(true);
   }, [customerEmail, paymentId, captchaToken, retryCountdown, sendMagicLinkInternal]);
 
   return {

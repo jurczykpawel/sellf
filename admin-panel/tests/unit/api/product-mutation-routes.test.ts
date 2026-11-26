@@ -134,3 +134,71 @@ it('accepts partial presets in the saved currency when they meet its minimum', a
   const response = await PATCH(new NextRequest('http://localhost/api/v1/products/'+product.id, { method: 'PATCH', body: JSON.stringify({ allow_custom_price: true, custom_price_presets: [0, 0.3, 0.4] }) }), context);
   expect(response.status).toBe(200);
 });
+
+const savedComponent = 'aaaaaaaa-0000-4000-a000-000000000009';
+function archivedBundle() {
+  mocks.authenticate.mockResolvedValue({ admin: { userId: actor }, supabase: { from: mocks.from, rpc: mocks.rpc } });
+  const implementation = mocks.from.getMockImplementation()!;
+  mocks.from.mockImplementation((table: string) => {
+    const query = implementation(table);
+    query.single.mockResolvedValue({ data: { ...product, is_bundle: true, is_active: false, archived_at: '2026-11-01T00:00:00Z' }, error: null });
+    if (table === 'bundle_items') {
+      query.order = vi.fn(() => query);
+      query.then = (resolve: (value: unknown) => unknown) => Promise.resolve({ data: [{ component_product_id: savedComponent }], error: null }).then(resolve);
+    }
+    return query;
+  });
+}
+
+it.each([
+  [{ bundleItemIds: [] }],
+  [{ name: 'Renamed', bundleItemIds: ['aaaaaaaa-0000-4000-a000-000000000002'] }],
+])('refuses to change the composition of an archived bundle before writing anything (%j)', async (patch) => {
+  archivedBundle();
+  const response = await PATCH(new NextRequest('http://localhost/api/v1/products/'+product.id, { method: 'PATCH', body: JSON.stringify(patch) }), context);
+  expect(response.status).toBe(409);
+  expect((await response.json()).error.message).toMatch(/restore the bundle/i);
+  expect(mocks.rpc).not.toHaveBeenCalled();
+});
+
+it('lets the panel save other fields of an archived bundle when the composition is unchanged', async () => {
+  archivedBundle();
+  const response = await PATCH(new NextRequest('http://localhost/api/v1/products/'+product.id, { method: 'PATCH', body: JSON.stringify({ name: 'Renamed', bundleItemIds: [savedComponent] }) }), context);
+  expect(response.status).toBe(200);
+  expect(mocks.rpc).not.toHaveBeenCalledWith('replace_bundle_items', expect.anything());
+});
+
+it('a bundle archived after the pre-check leaves no field, relation or composition written (W343r P2)', async () => {
+  mocks.authenticate.mockResolvedValue({ admin: { userId: actor }, supabase: { from: mocks.from, rpc: mocks.rpc } });
+  const implementation = mocks.from.getMockImplementation()!;
+  mocks.from.mockImplementation((...args) => {
+    const query = implementation(...args);
+    query.single.mockResolvedValue({ data: { ...product, is_bundle: true, is_active: false, archived_at: null }, error: null });
+    return query;
+  });
+  const refusal = { data: null, error: { code: '55000', message: 'Restore the bundle from the archive before editing its contents', details: 'bundle_archived' } };
+  mocks.rpc.mockReturnValue({ select: () => ({ single: async () => refusal }), then: (resolve: (value: unknown) => unknown) => Promise.resolve(refusal).then(resolve) });
+  const response = await PATCH(new NextRequest('http://localhost/api/v1/products/'+product.id, { method: 'PATCH', body: JSON.stringify({ name: 'Renamed', categories: [], bundleItemIds: [] }) }), context);
+  expect(response.status).toBe(409);
+  // Fields and composition go through one transaction; nothing else was attempted.
+  expect(mocks.rpc).toHaveBeenCalledTimes(1);
+  expect(mocks.rpc).toHaveBeenCalledWith('mutate_bundle_product_as', expect.objectContaining({ p_product_id: product.id, p_component_ids: [] }));
+  expect(mocks.from).not.toHaveBeenCalledWith('product_categories');
+});
+
+it('a composition-only PATCH refused for an archived bundle writes no categories or tags (W343r2 P4)', async () => {
+  mocks.authenticate.mockResolvedValue({ admin: { userId: actor }, supabase: { from: mocks.from, rpc: mocks.rpc } });
+  const implementation = mocks.from.getMockImplementation()!;
+  mocks.from.mockImplementation((...args) => {
+    const query = implementation(...args);
+    query.single.mockResolvedValue({ data: { ...product, is_bundle: true, is_active: false, archived_at: null }, error: null });
+    return query;
+  });
+  mocks.rpc.mockImplementation((name: string) => name === 'replace_bundle_items'
+    ? Promise.resolve({ data: null, error: { code: '55000', message: 'Archived', details: 'bundle_archived' } })
+    : { select: () => ({ single: async () => ({ data: product, error: null }) }) });
+  const response = await PATCH(new NextRequest('http://localhost/api/v1/products/'+product.id, { method: 'PATCH', body: JSON.stringify({ categories: [], tags: [], bundleItemIds: [] }) }), context);
+  expect(response.status).toBe(409);
+  expect(mocks.from).not.toHaveBeenCalledWith('product_categories');
+  expect(mocks.from).not.toHaveBeenCalledWith('product_tags');
+});

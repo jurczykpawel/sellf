@@ -52,6 +52,23 @@ describe('POST /api/auth/magic-link', () => {
     expect(requestMagicLink).not.toHaveBeenCalled();
   });
 
+  it('passes the explicit post-checkout resend flag to the gateway (W343mr P1)', async () => {
+    requestMagicLink.mockResolvedValue({ ok: true });
+    const res = await POST(jsonRequest({ email: 'a@b.com', captchaToken: 't', flow: 'post_checkout', productSlug: 'course', resend: true }));
+    expect(res.status).toBe(200);
+    expect(requestMagicLink).toHaveBeenCalledWith(expect.objectContaining({ resend: true }));
+  });
+
+  it.each([
+    [{ flow: 'post_checkout', productSlug: 'course', resend: 'yes' }],
+    [{ flow: 'post_checkout', productSlug: 'course', resend: false }],
+    [{ flow: 'login', resend: true }],
+  ])('rejects a resend flag that is not true on post-checkout (%j)', async body => {
+    const res = await POST(jsonRequest({ email: 'a@b.com', captchaToken: 't', ...body }));
+    expect(res.status).toBe(400);
+    expect(requestMagicLink).not.toHaveBeenCalled();
+  });
+
   it('keeps a success destination with its complete query', async () => {
     requestMagicLink.mockResolvedValue({ ok: true });
     const res = await POST(jsonRequest({ email: 'a@b.com', captchaToken: 't', flow: 'free_product', productSlug: 'course', successUrl: '/thanks?a=1&b=2' }));

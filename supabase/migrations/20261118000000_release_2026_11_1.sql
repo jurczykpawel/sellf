@@ -4163,8 +4163,12 @@ END $$;
 REVOKE EXECUTE ON FUNCTION public.claim_auth_mail_retries(integer) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.claim_auth_mail_retries(integer) TO service_role;
 
-CREATE OR REPLACE FUNCTION public.queue_auth_mail_retry(p_email text, p_redirect_to text, p_data jsonb, p_kind text, p_error text)
-RETURNS void LANGUAGE sql SECURITY DEFINER SET search_path = '' AS $$
+-- Returns whether the mail was parked: false when the row is a delivered post-payment link and the
+-- request is automatic (C-B3). The buyer's explicit resend (p_reopen_sent) parks it again, as before.
+DROP FUNCTION IF EXISTS public.queue_auth_mail_retry(text, text, jsonb, text, text);
+CREATE FUNCTION public.queue_auth_mail_retry(p_email text, p_redirect_to text, p_data jsonb, p_kind text, p_error text, p_reopen_sent boolean DEFAULT false)
+RETURNS boolean LANGUAGE sql SECURITY DEFINER SET search_path = '' AS $$
+  WITH parked AS (
   INSERT INTO public.auth_mail_retries(email, redirect_to, data, kind, next_attempt_at, last_error)
   VALUES (lower(btrim(p_email)), p_redirect_to, coalesce(p_data, '{}'::jsonb), p_kind, now() + interval '2 minutes', left(p_error, 40))
   -- A link scheduled by a paid order (W336) keeps its order key, so a redelivered payment does not schedule it again.
@@ -4181,10 +4185,17 @@ RETURNS void LANGUAGE sql SECURITY DEFINER SET search_path = '' AS $$
     next_attempt_at = CASE WHEN public.auth_mail_retries.given_up_at IS NULL AND public.auth_mail_retries.last_error = 'awaiting_return'
         THEN least(public.auth_mail_retries.next_attempt_at, EXCLUDED.next_attempt_at)
       WHEN public.auth_mail_retries.given_up_at IS NULL THEN public.auth_mail_retries.next_attempt_at
-      ELSE greatest(public.auth_mail_retries.next_attempt_at, EXCLUDED.next_attempt_at) END;
+      ELSE greatest(public.auth_mail_retries.next_attempt_at, EXCLUDED.next_attempt_at) END
+  -- A delivered post-payment link stays a sent marker (W336): a page refresh refused by the mailer's
+  -- cooldown or the inbox limit must not put it back in the queue and mail the buyer again (C-B3).
+  WHERE NOT (public.auth_mail_retries.kind = 'post_checkout' AND EXCLUDED.kind = 'post_checkout'
+    AND public.auth_mail_retries.last_error = 'sent' AND public.auth_mail_retries.given_up_at IS NOT NULL
+    AND NOT coalesce(p_reopen_sent, false))
+  RETURNING 1)
+  SELECT EXISTS (SELECT 1 FROM parked);
 $$;
-REVOKE EXECUTE ON FUNCTION public.queue_auth_mail_retry(text, text, jsonb, text, text) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.queue_auth_mail_retry(text, text, jsonb, text, text) TO service_role;
+REVOKE EXECUTE ON FUNCTION public.queue_auth_mail_retry(text, text, jsonb, text, text, boolean) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.queue_auth_mail_retry(text, text, jsonb, text, text, boolean) TO service_role;
 
 -- ===== An ended subscription stays ended =====
 -- Stripe never reopens a canceled or expired subscription. A subscription event handled
@@ -4233,6 +4244,9 @@ BEGIN
     OR component.product_type <> 'one_time' THEN
     RAISE EXCEPTION 'Invalid bundle component' USING ERRCODE = '23514';
   END IF;
+  IF parent.archived_at IS NOT NULL THEN
+    RAISE EXCEPTION 'Restore the bundle from the archive before editing its contents' USING ERRCODE = '55000', DETAIL = 'bundle_archived';
+  END IF;
   IF component.archived_at IS NOT NULL THEN
     RAISE EXCEPTION 'Archived products cannot be bundle components' USING ERRCODE = '23514', DETAIL = 'bundle_component_archived';
   END IF;
@@ -4262,6 +4276,10 @@ BEGIN
     RAISE EXCEPTION 'Service role required' USING ERRCODE = '42501';
   END IF;
   PERFORM 1 FROM public.products WHERE id = p_bundle_id FOR NO KEY UPDATE;
+  -- An archived bundle keeps its composition (purchases without a snapshot read bundle_items).
+  IF EXISTS (SELECT 1 FROM public.products WHERE id = p_bundle_id AND archived_at IS NOT NULL) THEN
+    RAISE EXCEPTION 'Restore the bundle from the archive before editing its contents' USING ERRCODE = '55000', DETAIL = 'bundle_archived';
+  END IF;
   PERFORM 1 FROM public.products WHERE id = ANY(p_component_ids) ORDER BY id FOR SHARE;
   DELETE FROM public.bundle_items WHERE bundle_product_id = p_bundle_id;
   INSERT INTO public.bundle_items(bundle_product_id, component_product_id, display_order)
@@ -4270,6 +4288,25 @@ BEGIN
 END $$;
 REVOKE EXECUTE ON FUNCTION public.replace_bundle_items(uuid, uuid[]) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.replace_bundle_items(uuid, uuid[]) TO service_role;
+
+-- Product fields and bundle composition saved in one transaction: an archived bundle (checked under
+-- the row lock) refuses both, so a refusal never leaves the other half written (W343r P2).
+CREATE FUNCTION public.mutate_bundle_product_as(event_actor jsonb, product_data jsonb, p_product_id uuid, actor_id uuid, p_component_ids uuid[])
+RETURNS SETOF public.products LANGUAGE plpgsql SET search_path = '' AS $$
+DECLARE
+  saved public.products;
+BEGIN
+  PERFORM 1 FROM public.products WHERE id = p_product_id FOR NO KEY UPDATE;
+  IF EXISTS (SELECT 1 FROM public.products WHERE id = p_product_id AND archived_at IS NOT NULL) THEN
+    RAISE EXCEPTION 'Restore the bundle from the archive before editing its contents' USING ERRCODE = '55000', DETAIL = 'bundle_archived';
+  END IF;
+  SELECT * INTO saved FROM public.mutate_product_as(event_actor, 'UPDATE', product_data, p_product_id, actor_id);
+  PERFORM public.replace_bundle_items(p_product_id, p_component_ids);
+  SELECT * INTO saved FROM public.products WHERE id = p_product_id;
+  RETURN NEXT saved;
+END $$;
+REVOKE EXECUTE ON FUNCTION public.mutate_bundle_product_as(jsonb, jsonb, uuid, uuid, uuid[]) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.mutate_bundle_product_as(jsonb, jsonb, uuid, uuid, uuid[]) TO service_role;
 
 
 CREATE OR REPLACE FUNCTION public.license_event_snapshot(p_license public.issued_licenses) RETURNS jsonb

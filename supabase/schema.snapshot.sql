@@ -10534,6 +10534,30 @@ COMMENT ON COLUMN public.products.vat_exempt IS 'Product sold VAT-exempt ("zwoln
 
 
 --
+-- Name: mutate_bundle_product_as(jsonb, jsonb, uuid, uuid, uuid[]); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.mutate_bundle_product_as(event_actor jsonb, product_data jsonb, p_product_id uuid, actor_id uuid, p_component_ids uuid[]) RETURNS SETOF public.products
+    LANGUAGE plpgsql
+    SET search_path TO ''
+    AS $$
+DECLARE
+  saved public.products;
+BEGIN
+  PERFORM 1 FROM public.products WHERE id = p_product_id FOR NO KEY UPDATE;
+  IF EXISTS (SELECT 1 FROM public.products WHERE id = p_product_id AND archived_at IS NOT NULL) THEN
+    RAISE EXCEPTION 'Restore the bundle from the archive before editing its contents' USING ERRCODE = '55000', DETAIL = 'bundle_archived';
+  END IF;
+  SELECT * INTO saved FROM public.mutate_product_as(event_actor, 'UPDATE', product_data, p_product_id, actor_id);
+  PERFORM public.replace_bundle_items(p_product_id, p_component_ids);
+  SELECT * INTO saved FROM public.products WHERE id = p_product_id;
+  RETURN NEXT saved;
+END $$;
+
+
+ALTER FUNCTION public.mutate_bundle_product_as(event_actor jsonb, product_data jsonb, p_product_id uuid, actor_id uuid, p_component_ids uuid[]) OWNER TO postgres;
+
+--
 -- Name: mutate_product_as(jsonb, text, jsonb, uuid, uuid); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -11616,13 +11640,14 @@ END $$;
 ALTER FUNCTION public.purge_attribution_click_ids() OWNER TO postgres;
 
 --
--- Name: queue_auth_mail_retry(text, text, jsonb, text, text); Type: FUNCTION; Schema: public; Owner: postgres
+-- Name: queue_auth_mail_retry(text, text, jsonb, text, text, boolean); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
-CREATE FUNCTION public.queue_auth_mail_retry(p_email text, p_redirect_to text, p_data jsonb, p_kind text, p_error text) RETURNS void
+CREATE FUNCTION public.queue_auth_mail_retry(p_email text, p_redirect_to text, p_data jsonb, p_kind text, p_error text, p_reopen_sent boolean DEFAULT false) RETURNS boolean
     LANGUAGE sql SECURITY DEFINER
     SET search_path TO ''
     AS $$
+  WITH parked AS (
   INSERT INTO public.auth_mail_retries(email, redirect_to, data, kind, next_attempt_at, last_error)
   VALUES (lower(btrim(p_email)), p_redirect_to, coalesce(p_data, '{}'::jsonb), p_kind, now() + interval '2 minutes', left(p_error, 40))
   -- A link scheduled by a paid order (W336) keeps its order key, so a redelivered payment does not schedule it again.
@@ -11639,11 +11664,18 @@ CREATE FUNCTION public.queue_auth_mail_retry(p_email text, p_redirect_to text, p
     next_attempt_at = CASE WHEN public.auth_mail_retries.given_up_at IS NULL AND public.auth_mail_retries.last_error = 'awaiting_return'
         THEN least(public.auth_mail_retries.next_attempt_at, EXCLUDED.next_attempt_at)
       WHEN public.auth_mail_retries.given_up_at IS NULL THEN public.auth_mail_retries.next_attempt_at
-      ELSE greatest(public.auth_mail_retries.next_attempt_at, EXCLUDED.next_attempt_at) END;
+      ELSE greatest(public.auth_mail_retries.next_attempt_at, EXCLUDED.next_attempt_at) END
+  -- A delivered post-payment link stays a sent marker (W336): a page refresh refused by the mailer's
+  -- cooldown or the inbox limit must not put it back in the queue and mail the buyer again (C-B3).
+  WHERE NOT (public.auth_mail_retries.kind = 'post_checkout' AND EXCLUDED.kind = 'post_checkout'
+    AND public.auth_mail_retries.last_error = 'sent' AND public.auth_mail_retries.given_up_at IS NOT NULL
+    AND NOT coalesce(p_reopen_sent, false))
+  RETURNING 1)
+  SELECT EXISTS (SELECT 1 FROM parked);
 $$;
 
 
-ALTER FUNCTION public.queue_auth_mail_retry(p_email text, p_redirect_to text, p_data jsonb, p_kind text, p_error text) OWNER TO postgres;
+ALTER FUNCTION public.queue_auth_mail_retry(p_email text, p_redirect_to text, p_data jsonb, p_kind text, p_error text, p_reopen_sent boolean) OWNER TO postgres;
 
 --
 -- Name: queue_pending_free_grant(text, text); Type: FUNCTION; Schema: public; Owner: postgres
@@ -12127,6 +12159,10 @@ BEGIN
     RAISE EXCEPTION 'Service role required' USING ERRCODE = '42501';
   END IF;
   PERFORM 1 FROM public.products WHERE id = p_bundle_id FOR NO KEY UPDATE;
+  -- An archived bundle keeps its composition (purchases without a snapshot read bundle_items).
+  IF EXISTS (SELECT 1 FROM public.products WHERE id = p_bundle_id AND archived_at IS NOT NULL) THEN
+    RAISE EXCEPTION 'Restore the bundle from the archive before editing its contents' USING ERRCODE = '55000', DETAIL = 'bundle_archived';
+  END IF;
   PERFORM 1 FROM public.products WHERE id = ANY(p_component_ids) ORDER BY id FOR SHARE;
   DELETE FROM public.bundle_items WHERE bundle_product_id = p_bundle_id;
   INSERT INTO public.bundle_items(bundle_product_id, component_product_id, display_order)
@@ -14080,6 +14116,9 @@ BEGIN
   IF parent.is_bundle IS NOT TRUE OR component.id IS NULL OR component.is_bundle
     OR component.product_type <> 'one_time' THEN
     RAISE EXCEPTION 'Invalid bundle component' USING ERRCODE = '23514';
+  END IF;
+  IF parent.archived_at IS NOT NULL THEN
+    RAISE EXCEPTION 'Restore the bundle from the archive before editing its contents' USING ERRCODE = '55000', DETAIL = 'bundle_archived';
   END IF;
   IF component.archived_at IS NOT NULL THEN
     RAISE EXCEPTION 'Archived products cannot be bundle components' USING ERRCODE = '23514', DETAIL = 'bundle_component_archived';
@@ -24104,6 +24143,8 @@ function | public.mutate_access_audited(p_action text, p_user_id uuid, p_product
 function | public.mutate_access_audited(p_action text, p_user_id uuid, p_product_id uuid, p_access_id uuid, p_values jsonb, p_actor jsonb, p_audit jsonb) | service_role | EXECUTE | postgres | -
 function | public.mutate_access_impl(p_action text, p_user_id uuid, p_product_id uuid, p_access_id uuid, p_values jsonb, p_actor jsonb) | postgres | EXECUTE | postgres | -
 function | public.mutate_access_impl(p_action text, p_user_id uuid, p_product_id uuid, p_access_id uuid, p_values jsonb, p_actor jsonb) | service_role | EXECUTE | postgres | -
+function | public.mutate_bundle_product_as(event_actor jsonb, product_data jsonb, p_product_id uuid, actor_id uuid, p_component_ids uuid[]) | postgres | EXECUTE | postgres | -
+function | public.mutate_bundle_product_as(event_actor jsonb, product_data jsonb, p_product_id uuid, actor_id uuid, p_component_ids uuid[]) | service_role | EXECUTE | postgres | -
 function | public.mutate_product_as(event_actor jsonb, operation_param text, product_data jsonb, product_id uuid, actor_id uuid) | postgres | EXECUTE | postgres | -
 function | public.mutate_product_as(event_actor jsonb, operation_param text, product_data jsonb, product_id uuid, actor_id uuid) | service_role | EXECUTE | postgres | -
 function | public.mutate_product_offer(offer_product_id uuid, expected_revision bigint, operation text, validated_config jsonb, restored_from bigint, actor_user_id uuid, actor_method text, actor_api_key_id uuid) | postgres | EXECUTE | postgres | -
@@ -24169,8 +24210,8 @@ function | public.purchase_attribution_immutable() | PUBLIC | EXECUTE | postgres
 function | public.purchase_attribution_immutable() | service_role | EXECUTE | postgres | -
 function | public.purge_attribution_click_ids() | postgres | EXECUTE | postgres | -
 function | public.purge_attribution_click_ids() | service_role | EXECUTE | postgres | -
-function | public.queue_auth_mail_retry(p_email text, p_redirect_to text, p_data jsonb, p_kind text, p_error text) | postgres | EXECUTE | postgres | -
-function | public.queue_auth_mail_retry(p_email text, p_redirect_to text, p_data jsonb, p_kind text, p_error text) | service_role | EXECUTE | postgres | -
+function | public.queue_auth_mail_retry(p_email text, p_redirect_to text, p_data jsonb, p_kind text, p_error text, p_reopen_sent boolean) | postgres | EXECUTE | postgres | -
+function | public.queue_auth_mail_retry(p_email text, p_redirect_to text, p_data jsonb, p_kind text, p_error text, p_reopen_sent boolean) | service_role | EXECUTE | postgres | -
 function | public.queue_pending_free_grant(p_email text, p_product_slug text) | postgres | EXECUTE | postgres | -
 function | public.queue_pending_free_grant(p_email text, p_product_slug text) | service_role | EXECUTE | postgres | -
 function | public.reconcile_refunded_subscription_access(p_transaction_id uuid) | postgres | EXECUTE | postgres | -

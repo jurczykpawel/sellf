@@ -11,6 +11,7 @@ export interface MagicLinkClientRequest {
   couponCode?: string | null;
   successUrl?: string | null;
   customFieldValues?: Record<string, string>;
+  resend?: boolean;
 }
 
 const KNOWN_ERROR_CODES: readonly MagicLinkErrorCode[] = [
@@ -44,6 +45,7 @@ export async function sendMagicLinkRequest(req: MagicLinkClientRequest): Promise
   if (req.couponCode != null) body.couponCode = req.couponCode;
   if (req.successUrl != null) body.successUrl = req.successUrl;
   if (req.customFieldValues !== undefined) body.customFieldValues = req.customFieldValues;
+  if (req.resend) body.resend = true;
   // Free signup: the purchase source travels with the magic link request (@see lib/attribution).
   if (req.flow === 'free_product') {
     const attribution = readBrowserAttribution();
