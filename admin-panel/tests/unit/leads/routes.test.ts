@@ -144,6 +144,14 @@ describe('lead submit', () => {
     expect(new URL(m.send.mock.calls[0][0].redirectTo).searchParams.get('redirect_to')).toContain('/auth/lead'); expect(m.trigger).not.toHaveBeenCalled();
     expect((await submit(req(payload()))).status).toBe(400);
   });
+  it.each(['pl', 'en'])('sends a confirmation link whose return path carries the lead language (%s)', async locale => {
+    // A used or expired link must reopen the login page in the lead's language (REG-rc5-A-B1).
+    const r = await submit(req(payload(), origin, 'POST', `/api/leads/submit?locale=${locale}`));
+    expect(r.status).toBe(200);
+    const returnPath = new URL(m.send.mock.calls[0][0].redirectTo).searchParams.get('redirect_to');
+    expect(returnPath).toMatch(new RegExp(`^/${locale}/auth/lead\\?token=[a-f0-9]{64}$`));
+    expect(m.send.mock.calls[0][0].data.locale).toBe(locale);
+  });
   it.each([{ email: 'invalid' }, { altcha: 'invalid' }, { altcha: Buffer.from('null').toString('base64') }, { product: 'missing' }, { marketingConsent: 'true' }])('consumes nonce before rejecting %j', async invalid => {
     expect((await submit(req({ ...payload(), ...invalid }))).status).toBeGreaterThanOrEqual(400);
     expect(rows.lead_nonces).toEqual([]); expect(m.send).not.toHaveBeenCalled();
