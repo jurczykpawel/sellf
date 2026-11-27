@@ -1021,5 +1021,11 @@
   ],
   "41df6c1f38730d8e8a3cb687330e153a0f0bb0d9": [
     "none \u2014 defensive label: unpaid statuses never show \"Paid\" in My purchases; pending and abandoned checkouts are already hidden, buyer-emails.md already documents the Paid label."
+  ],
+  "974724af21e22139767848d8c6c5e28c64538c39": [
+    "none — a used lead confirmation link now returns to the login screen in the lead's language; buyer-emails already states that login links keep the chosen language, no documented step changes."
+  ],
+  "312bf9a7b2c4af9dfb5840e05ad576beca8c5bef": [
+    "none — accessibility and formatting of the daily address-limit notice on the login form (announced to screen readers, time without seconds); no documented step changes."
   ]
 }
