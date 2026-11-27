@@ -1018,5 +1018,8 @@
   ],
   "74558b353b485750809bc0413395cf2a2b2067d1": [
     "buyer-emails.md"
+  ],
+  "41df6c1f38730d8e8a3cb687330e153a0f0bb0d9": [
+    "none \u2014 defensive label: unpaid statuses never show \"Paid\" in My purchases; pending and abandoned checkouts are already hidden, buyer-emails.md already documents the Paid label."
   ]
 }
