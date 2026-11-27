@@ -111,3 +111,28 @@ test.describe('Magic Link Flow', () => {
     await expect(page).toHaveURL(/\/login\?error=magic_link_expired$/, { timeout: 10000 });
   });
 });
+
+test.describe('Login address limit notice', () => {
+  // The server's 429 address_rate_limited answer is covered by unit tests; here the browser gets
+  // that answer and the notice must be announced (role=alert) with the retry time to the minute.
+  for (const { locale, path, button, text } of [
+    { locale: 'pl', path: '/pl/login', button: 'Wyślij link na maila', text: 'Dobowy limit wysyłania linków na ten adres został wykorzystany' },
+    { locale: 'en', path: '/login', button: 'Email me a sign-in link', text: 'The daily link email limit for this address has been reached' },
+  ]) {
+    test(`announces the daily address limit without seconds (${locale})`, async ({ page }) => {
+      await acceptAllCookies(page);
+      await page.route('**/api/auth/magic-link', route => route.fulfill({
+        status: 429, headers: { 'Retry-After': '3600' }, json: { ok: false, code: 'address_rate_limited', retryAfterSeconds: 3600 },
+      }));
+      await page.goto(path);
+      await page.locator('#email').fill('limited@example.com');
+      await page.locator('label[for="terms-checkbox"] > div').click();
+      await page.getByRole('button', { name: button, exact: true }).click();
+      const notice = page.getByRole('alert').filter({ hasText: text });
+      await expect(notice).toBeVisible();
+      const message = await notice.innerText();
+      expect(message).toMatch(/\d{1,2}:\d{2}/);
+      expect(message).not.toMatch(/\d{1,2}:\d{2}:\d{2}/);
+    });
+  }
+});

@@ -217,7 +217,7 @@ export default function LoginForm({ redirectTo, onMagicLinkSent }: { redirectTo?
       )}
 
       {message && !sentEmail && (
-        <div className="p-4 rounded-xl text-sm bg-sf-danger-soft text-sf-danger border border-sf-danger/20">
+        <div role="alert" className="p-4 rounded-xl text-sm bg-sf-danger-soft text-sf-danger border border-sf-danger/20">
           {message}
         </div>
       )}
