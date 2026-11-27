@@ -157,7 +157,10 @@ it.each([
   archivedBundle();
   const response = await PATCH(new NextRequest('http://localhost/api/v1/products/'+product.id, { method: 'PATCH', body: JSON.stringify(patch) }), context);
   expect(response.status).toBe(409);
-  expect((await response.json()).error.message).toMatch(/restore the bundle/i);
+  const { error } = await response.json();
+  expect(error.message).toMatch(/restore the bundle/i);
+  // The panel words the refusal in its own language from this code, not from the English message.
+  expect(error.details).toEqual({ code: ['bundle_archived'] });
   expect(mocks.rpc).not.toHaveBeenCalled();
 });
 
@@ -180,6 +183,7 @@ it('a bundle archived after the pre-check leaves no field, relation or compositi
   mocks.rpc.mockReturnValue({ select: () => ({ single: async () => refusal }), then: (resolve: (value: unknown) => unknown) => Promise.resolve(refusal).then(resolve) });
   const response = await PATCH(new NextRequest('http://localhost/api/v1/products/'+product.id, { method: 'PATCH', body: JSON.stringify({ name: 'Renamed', categories: [], bundleItemIds: [] }) }), context);
   expect(response.status).toBe(409);
+  expect((await response.json()).error.details).toEqual({ code: ['bundle_archived'] });
   // Fields and composition go through one transaction; nothing else was attempted.
   expect(mocks.rpc).toHaveBeenCalledTimes(1);
   expect(mocks.rpc).toHaveBeenCalledWith('mutate_bundle_product_as', expect.objectContaining({ p_product_id: product.id, p_component_ids: [] }));
@@ -199,6 +203,16 @@ it('a composition-only PATCH refused for an archived bundle writes no categories
     : { select: () => ({ single: async () => ({ data: product, error: null }) }) });
   const response = await PATCH(new NextRequest('http://localhost/api/v1/products/'+product.id, { method: 'PATCH', body: JSON.stringify({ categories: [], tags: [], bundleItemIds: [] }) }), context);
   expect(response.status).toBe(409);
+  expect((await response.json()).error.details).toEqual({ code: ['bundle_archived'] });
   expect(mocks.from).not.toHaveBeenCalledWith('product_categories');
   expect(mocks.from).not.toHaveBeenCalledWith('product_tags');
+});
+
+it('activating an archived product answers 409 with a code the panel can word', async () => {
+  mocks.authenticate.mockResolvedValue({ admin: { userId: actor }, supabase: { from: mocks.from, rpc: mocks.rpc } });
+  const failure = { data: null, error: { code: '23514', message: 'new row violates check constraint "products_archived_not_active"' } };
+  mocks.rpc.mockReturnValue({ select: () => ({ single: async () => failure }), then: (resolve: (value: unknown) => unknown) => Promise.resolve(failure).then(resolve) });
+  const response = await PATCH(new NextRequest('http://localhost/api/v1/products/'+product.id, { method: 'PATCH', body: JSON.stringify({ is_active: true }) }), context);
+  expect(response.status).toBe(409);
+  expect((await response.json()).error.details).toEqual({ code: ['product_archived'] });
 });

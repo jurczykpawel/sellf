@@ -19,6 +19,8 @@ import { ApiValidationError } from '@/lib/api/errors';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export const ARCHIVED_BUNDLE_MESSAGE = 'Restore the bundle from the archive before editing its contents';
+/** `error.details.code` of the 409 answer, so clients can word the refusal themselves (api.md). */
+export const ARCHIVED_BUNDLE_DETAILS = { code: ['bundle_archived'] };
 
 /** The bundle is archived, so its composition is frozen (api.md: archive rules). */
 export class BundleArchivedError extends Error {

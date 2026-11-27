@@ -17,6 +17,8 @@ interface DeliveryPanelProps {
   products: Product[];
   /** Id of the product being edited — excluded from the bundle picker. */
   currentProductId?: string;
+  /** The edited product is in the archive (a bundle's components are then locked). */
+  productArchived?: boolean;
   hasLicenseIssuance?: boolean;
   fieldErrors?: Record<string, string>;
   setFieldErrors?: React.Dispatch<React.SetStateAction<Record<string, string>>>;
@@ -25,14 +27,14 @@ interface DeliveryPanelProps {
 /** What the buyer gets after purchase: bundle items, content or redirect, access period, license key. */
 export const DeliveryPanel: React.FC<DeliveryPanelProps> = ({
   formData, setFormData, t, urlValidation, setUrlValidation, validateContentItemUrl,
-  products, currentProductId, hasLicenseIssuance, fieldErrors, setFieldErrors,
+  products, currentProductId, productArchived, hasLicenseIssuance, fieldErrors, setFieldErrors,
 }) => {
   const isTipJar = formData.checkout_template === 'tip-jar';
   return (
     <>
       {/* A bundle may still carry its own bonus content via the content section below. */}
       {formData.is_bundle && (
-        <BundleItemsSection formData={formData} setFormData={setFormData} t={t} products={products} currentProductId={currentProductId} fieldErrors={fieldErrors} />
+        <BundleItemsSection formData={formData} setFormData={setFormData} t={t} products={products} currentProductId={currentProductId} archived={productArchived} fieldErrors={fieldErrors} />
       )}
       {!isTipJar && (
         <ContentDeliverySection

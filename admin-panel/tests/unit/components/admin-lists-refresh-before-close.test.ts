@@ -219,7 +219,7 @@ it('webhooks: does not open the form from the list row when loading the endpoint
   await act(async () => {});
   await act(async () => { fireEvent.click(view.getByRole('button', { name: 'edit Hook' })); });
   expect(view.queryByRole('dialog')).toBeNull();
-  expect(mocks.toastError).toHaveBeenCalledWith('error');
+  expect(mocks.toastError).toHaveBeenCalledWith('loadError');
 });
 
 it('webhooks: a confirmed delete removes the row before the list refresh completes', async () => {
