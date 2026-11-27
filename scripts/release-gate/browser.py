@@ -37,7 +37,7 @@ pwyw-security pwyw-subscription refund-system sale-price-checkout-charge set-pri
 stripe-checkout-console-warnings stripe-deleted-product-reconciliation stripe-webhook-registration
 stripe-webhook subscription-checkout-ui tip-jar-template tracking-events v1-refund webhook-amount-validation webhook-dispatch
 checkout-theme-settings coupons funnel-mechanics funnel-test-preview funnel-test-redirect mobile-pwyw-cookies
-variants-e2e checkout-template-dispatch
+variants-e2e checkout-template-dispatch quantity-stepper
 '''.split()
 STRIPE_FILTER = r'(?:^|/)(?:' + '|'.join(STRIPE_SPECS) + r')\.spec\.ts$'
 FAKE_STRIPE = {
