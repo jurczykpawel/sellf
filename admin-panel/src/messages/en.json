@@ -4530,6 +4530,7 @@
     "statusPendingRefund": "Refund Pending",
     "statusRefundRejected": "Refund Rejected",
     "statusCompleted": "Paid",
+    "statusPaymentPending": "Payment pending",
     "notRefundable": "Not refundable",
     "refundPeriodExpired": "Refund period expired",
     "refundRejectedContactSeller": "Refund rejected. Contact the seller directly if you need more help.",

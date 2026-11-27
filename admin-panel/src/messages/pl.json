@@ -4530,6 +4530,7 @@
     "statusPendingRefund": "Oczekuje na zwrot",
     "statusRefundRejected": "Zwrot odrzucony",
     "statusCompleted": "Opłacono",
+    "statusPaymentPending": "Oczekuje na płatność",
     "notRefundable": "Bez możliwości zwrotu",
     "refundPeriodExpired": "Okres zwrotu minął",
     "refundRejectedContactSeller": "Zwrot został odrzucony. Jeśli potrzebujesz dalszej pomocy, skontaktuj się bezpośrednio ze sprzedawcą.",
