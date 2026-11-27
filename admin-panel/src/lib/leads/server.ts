@@ -127,7 +127,8 @@ export async function leadSubmit(request: Request): Promise<NextResponse> {
       locale,
     });
     if (error) return reply(request, origins, 503, { error: 'Unavailable' });
-    const redirectTo = `${getSellfBaseUrl()}/auth/callback?redirect_to=${encodeURIComponent(`/auth/lead?token=${confirmation}`)}`;
+    // The return path carries the lead language, so a used or expired link reopens the login page in it.
+    const redirectTo = `${getSellfBaseUrl()}/auth/callback?redirect_to=${encodeURIComponent(`/${locale}/auth/lead?token=${confirmation}`)}`;
     const sent = await sendTrustedMagicLink({ email: body.email, redirectTo, data: { locale, ...(ctx.product ? { product_slug: ctx.product.slug } : {}) } });
     if (!sent.ok) return reply(request, origins, (sent.code === 'rate_limited' || sent.code === 'address_rate_limited') ? 429 : 503, { error: 'Unable to send email' });
     return reply(request, origins, 200, { status: 'check_email' });
