@@ -45,7 +45,11 @@ for (const locale of ['pl', 'en']) test(`first queued subscription email confirm
     const requested = await page.request.post('/api/auth/magic-link', { data: { flow: 'post_checkout', email, productSlug: product.data!.slug, locale, captchaToken: 'test' } });
     expect(requested.status(), await requested.text()).toBe(200);
     expect(await searchMessages(email)).toHaveLength(0);
-    expect((await db.from('auth_mail_retries').select('id').eq('email', email)).data).toHaveLength(1);
+    // Still being stored after the page's wait: parked with its own code, due in ~20 s, not 2 min (W351).
+    const parked = (await db.from('auth_mail_retries').select('last_error,next_attempt_at').eq('email', email)).data!;
+    expect(parked).toHaveLength(1);
+    expect(parked[0].last_error).toBe('purchase_pending');
+    expect(new Date(parked[0].next_attempt_at).getTime() - Date.now()).toBeLessThan(30_000);
     expect((await db.from('user_product_access').select('id').eq('user_id', uid).eq('product_id', pid)).data).toHaveLength(0);
     expect((await db.from('payment_transactions').update({ fulfillment_pending: false }).eq('id', tx.data!.id)).error).toBeNull();
     expect((await db.from('auth_mail_retries').update({ next_attempt_at: new Date(0).toISOString() }).eq('email', email)).error).toBeNull();
@@ -67,6 +71,35 @@ for (const locale of ['pl', 'en']) test(`first queued subscription email confirm
     await db.from('auth_mail_retries').delete().eq('email', email); await db.from('user_product_access').delete().eq('product_id', pid);
     await db.from('payment_transactions').delete().eq('product_id', pid); await db.from('subscriptions').delete().eq('product_id', pid);
     await db.from('products').delete().eq('id', pid); await db.auth.admin.deleteUser(uid);
+  }
+});
+
+for (const locale of ['pl', 'en']) test(`a subscription stored seconds after the page asks still gets its first email at once in ${locale} @J32`, async ({ page }) => {
+  // W351 (QA3-G U2): the webhook stores the purchase 2–3 s after the page asks; the page waits for it.
+  const db = supabaseAdmin, email = `late-sub-${crypto.randomUUID()}@example.com`;
+  const product = await db.from('products').insert({ name: 'Late subscription', slug: `late-${crypto.randomUUID()}`, price: 17, currency: 'PLN', product_type: 'subscription', recurring_price: 17, billing_interval: 'month', billing_interval_count: 1, is_active: true }).select('id,slug').single();
+  expect(product.error).toBeNull(); const pid = product.data!.id;
+  try {
+    const invoice = `in_${crypto.randomUUID().replaceAll('-', '')}`;
+    const tx = await db.from('payment_transactions').insert({ ...recordedSubscription.payment, amount: Number(recordedSubscription.payment.amount), session_id: invoice, stripe_invoice_id: invoice, stripe_payment_intent_id: null, customer_email: email, product_id: pid, fulfillment_pending: true }).select('id').single(); expect(tx.error).toBeNull();
+    const started = Date.now();
+    const requested = page.request.post('/api/auth/magic-link', { data: { flow: 'post_checkout', email, productSlug: product.data!.slug, locale, captchaToken: 'test' } });
+    await new Promise(resolve => setTimeout(resolve, 3_000));
+    expect((await db.from('payment_transactions').update({ fulfillment_pending: false }).eq('id', tx.data!.id)).error).toBeNull();
+    const response = await requested;
+    expect(response.status(), await response.text()).toBe(200);
+    expect(await response.json()).toEqual({ ok: true });
+    expect(Date.now() - started).toBeLessThan(10_000);
+    const mail = await waitForEmail(email);
+    expect(mail.Subject).toBe((locale === 'pl' ? 'Potwierdź swój email' : 'Confirm your email') + ': Late subscription');
+    expect(mail.HTML).toContain(locale === 'pl' ? '17,00\u00a0zł' : 'PLN\u00a017.00');
+    // Delivered by the page itself: nothing parked for the queue.
+    expect((await db.from('auth_mail_retries').select('id').eq('email', email).neq('last_error', 'sent')).data).toHaveLength(0);
+  } finally {
+    const user = (await db.auth.admin.listUsers({ perPage: 1000 })).data.users.find(u => u.email === email);
+    if (user) await db.auth.admin.deleteUser(user.id);
+    await db.from('auth_mail_retries').delete().eq('email', email);
+    await db.from('payment_transactions').delete().eq('product_id', pid); await db.from('products').delete().eq('id', pid);
   }
 });
 

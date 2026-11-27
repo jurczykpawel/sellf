@@ -69,11 +69,53 @@ describe('auth mail retry @J292', () => {
     await paidLink(email);
     expect((await rows(email)).data![0].data).toMatchObject({ event_online_url: 'https://meet.example.com/room' });
 
-    eventMailForSlug.mockResolvedValue({});
+    eventMailForSlug.mockResolvedValue({ purchase_product: 'Course', purchase_amount: '10 PLN' });
     await due(email);
     deliverMagicLink.mockResolvedValue({ ok: true });
     await runAuthMailRetries(db);
-    expect(lastCallFor(email)).toEqual(expect.objectContaining({ email, data: { locale: 'pl' } }));
+    expect(lastCallFor(email)).toEqual(expect.objectContaining({ email, data: { locale: 'pl', purchase_product: 'Course', purchase_amount: '10 PLN' } }));
+  });
+
+  // W351 (QA3-G U2): the page waited ~8 s and the purchase is still being stored.
+  it('a link parked while the purchase is still being stored has its own code and is due in about 20 s', async () => {
+    const email = `retry-pending-${run}@example.com`; emails.push(email);
+    eventMailForSlug.mockResolvedValue({ purchase_mail_pending: 'true' });
+    expect(await paidLink(email)).toEqual({ ok: true });
+    expect(callsFor(email)).toHaveLength(0);
+    const [row] = (await rows(email)).data!;
+    expect(row).toMatchObject({ kind: 'post_checkout', attempts: 0, last_error: 'purchase_pending' });
+    const dueIn = new Date(row.next_attempt_at).getTime() - Date.now();
+    expect(dueIn).toBeGreaterThan(10_000);
+    expect(dueIn).toBeLessThan(40_000);
+  });
+
+  it('a purchase still being stored at the retry keeps its code and waits for the next attempt', async () => {
+    const email = `retry-pending-again-${run}@example.com`; emails.push(email);
+    eventMailForSlug.mockResolvedValue({ purchase_mail_pending: 'true' });
+    await paidLink(email);
+    await due(email);
+    await runAuthMailRetries(db);
+    expect(callsFor(email)).toHaveLength(0);
+    const [row] = (await rows(email)).data!;
+    expect(row).toMatchObject({ attempts: 1, last_error: 'purchase_pending', given_up_at: null });
+  });
+
+  it('a parked link whose purchase was fully refunded or lost in a dispute before the retry is dropped, not mailed', async () => {
+    for (const parked of ['pending', 'refused'] as const) {
+      const email = `retry-gone-${parked}-${run}@example.com`; emails.push(email);
+      if (parked === 'pending') eventMailForSlug.mockResolvedValue({ purchase_mail_pending: 'true' });
+      else deliverMagicLink.mockResolvedValueOnce({ ok: false, code: 'rate_limited' });
+      await paidLink(email);
+      expect((await rows(email)).data).toHaveLength(1);
+      // The order no longer stands: the purchase read finds no receipt and nothing pending.
+      eventMailForSlug.mockResolvedValue({});
+      await due(email);
+      deliverMagicLink.mockClear().mockResolvedValue({ ok: true });
+      await runAuthMailRetries(db);
+      expect(callsFor(email)).toHaveLength(0);
+      expect((await rows(email)).data).toEqual([]);
+      eventMailForSlug.mockResolvedValue({ purchase_product: 'Course', purchase_amount: '10 PLN' });
+    }
   });
 
   it('a parked link whose purchase never appears leaves the queue after the waiting window, without polling @J292', async () => {

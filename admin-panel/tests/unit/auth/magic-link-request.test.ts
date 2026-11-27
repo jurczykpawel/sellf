@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const policyRetry = vi.hoisted(() => vi.fn(async () => ({ ok: false as const, code: 'send_failed' as const, queued: true as const })));
 const markPostCheckoutMailSent = vi.hoisted(() => vi.fn(async () => undefined));
-vi.mock('@/lib/auth/magic-link/retry', () => ({ queueAuthMailRetry: policyRetry, markPostCheckoutMailSent }));
+vi.mock('@/lib/auth/magic-link/retry', () => ({ queueAuthMailRetry: policyRetry, markPostCheckoutMailSent, PURCHASE_PENDING_CODE: 'purchase_pending' }));
 const buyerPolicy = vi.hoisted(() => vi.fn(async (): Promise<boolean | null> => false));
 vi.mock('@/lib/auth/magic-link/buyer-email-policy', () => ({ readBuyerEmailPolicy: buyerPolicy }));
 const eventMailForSlug = vi.hoisted(() => vi.fn(async () => ({ purchase_product: 'Course' } as Record<string,string>)));

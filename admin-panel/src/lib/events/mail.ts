@@ -33,17 +33,26 @@ async function readPurchaseEventMail(email: string, productId: string, sessionId
   return { ...eventMailData((rows ?? []).flatMap(r => r.event ? [r.event] : []), locale),
     ...receipt };
 }
+/**
+ * How long the confirmation page waits for the payment to be stored before composing the first
+ * purchase mail. A subscription webhook stores it 2–3 s after the page asks; a shorter wait parked
+ * the mail in the retry queue and it arrived minutes later (W351, QA3-G U2).
+ */
+export const PURCHASE_MAIL_WAIT_MS = 8_000;
+const PURCHASE_MAIL_POLL_MS = 250;
 /** Wait briefly for payment persistence before composing the first purchase mail. */
 export async function purchaseEventMail(email: string, productId: string, sessionId?: string, paymentIntentId?: string, locale = 'en', options: PurchaseMailOptions = {}): Promise<Record<string, string>> {
-  const attempts = options.wait === false ? 1 : 10;
-  for (let attempt = 0; attempt < attempts; attempt++) {
+  const deadline = Date.now() + (options.wait === false ? 0 : PURCHASE_MAIL_WAIT_MS);
+  for (let attempt = 1; ; attempt++) {
     const data = await readPurchaseEventMail(email.trim().toLowerCase(), productId, sessionId, paymentIntentId, locale, options);
-    if (data.purchase_mail_pending === 'true' && attempt === attempts - 1) return data;
     if (data.purchase_product && data.purchase_amount) {
-      if (attempt) console.info(`[purchase-mail] context ready after ${attempt + 1} attempts`);
+      if (attempt > 1) console.info(`[purchase-mail] context ready after ${attempt} attempts`);
       return data;
     }
-    if (attempt < attempts - 1) await new Promise(resolve => setTimeout(resolve, 250));
+    const last = Date.now() + PURCHASE_MAIL_POLL_MS > deadline;
+    if (last && data.purchase_mail_pending === 'true') return data;
+    if (last) break;
+    await new Promise(resolve => setTimeout(resolve, PURCHASE_MAIL_POLL_MS));
   }
   console.info('[purchase-mail] context not ready');
   const { data: product } = await createAdminClient().from('products').select('issue_license_on_purchase').eq('id', productId).maybeSingle();
