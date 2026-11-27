@@ -1021,5 +1021,8 @@
   ],
   "41df6c1f38730d8e8a3cb687330e153a0f0bb0d9": [
     "none \u2014 defensive label: unpaid statuses never show \"Paid\" in My purchases; pending and abandoned checkouts are already hidden, buyer-emails.md already documents the Paid label."
+  ],
+  "ee7e114338f671fd9ce26c5230bcf62d369f2e54": [
+    "none \u2014 test-only: J238 now waits for the quantity session update; no user-facing change."
   ]
 }
