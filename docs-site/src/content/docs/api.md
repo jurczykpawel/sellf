@@ -414,7 +414,7 @@ Orders, invoices and licenses are never deleted together with a product.
 A product used as a **bundle component** cannot be archived or deleted, including permanently from the archive.
 The panel names the containing bundles and disables confirmation; API DELETE returns **409 CONFLICT** with their names.
 First remove the component from those bundles explicitly. A refused operation leaves the product and bundle contents unchanged.
-Archived products cannot be added to a bundle (including through `bundleItemIds`); restore the component first. Invalid replacements leave the previous composition unchanged. If a containing bundle is archived, restore that bundle before editing its contents. Changing `bundleItemIds` of an archived bundle returns **409** and saves nothing; sending its saved list unchanged is accepted.
+Archived products cannot be added to a bundle (including through `bundleItemIds`); restore the component first. Invalid replacements leave the previous composition unchanged. If a containing bundle is archived, restore that bundle before editing its contents. Changing `bundleItemIds` of an archived bundle returns **409** `CONFLICT` with `error.details.code: ["bundle_archived"]` and saves nothing (activating an archived product: `["product_archived"]`); sending its saved list unchanged is accepted.
 
 An existing active bundle containing an already archived component can still be purchased and grants access to that component. Its checkout shows every component, including archived ones; archiving a standalone offer does not remove bundle entitlements.
 

@@ -212,6 +212,8 @@ export interface BundleItemsSectionProps extends SectionProps {
   products: Product[];
   /** Id of the product being edited — excluded from the eligible list to prevent self-reference. */
   currentProductId?: string;
+  /** The bundle is in the archive: its components are shown read-only until it is restored. */
+  archived?: boolean;
 }
 
 export type RefundSectionProps = SectionProps;

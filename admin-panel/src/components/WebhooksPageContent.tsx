@@ -83,7 +83,7 @@ export default function WebhooksPageContent({ scopingLocked = false, customizati
       setActiveEndpoint(stored);
       setShowFormModal(true);
     } catch (err) {
-      if (!isExpectedApiError(err)) toast.error(tCommon('error'));
+      if (!isExpectedApiError(err)) toast.error(t('loadError'));
     }
   };
 

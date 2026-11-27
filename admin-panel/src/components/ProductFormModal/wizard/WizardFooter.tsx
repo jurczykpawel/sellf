@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/Modal';
 import type { TranslationFunction, ProductFormData } from '../types';
 import { PublishChecklist, getPublishChecklist } from './PublishChecklist';
@@ -46,6 +46,16 @@ export const WizardFooter: React.FC<WizardFooterProps> = ({
   onCancel,
   t,
 }) => {
+  // A refused save re-enables the save button; the browser dropped focus to the page while it was disabled.
+  const submitGroupRef = useRef<HTMLDivElement>(null);
+  const wasSubmitting = useRef(isSubmitting);
+  useEffect(() => {
+    const saveEnded = wasSubmitting.current && !isSubmitting;
+    wasSubmitting.current = isSubmitting;
+    if (!saveEnded || (document.activeElement && document.activeElement !== document.body)) return;
+    submitGroupRef.current?.querySelector('button')?.focus();
+  }, [isSubmitting]);
+
   const checklist = getPublishChecklist(formData, priceDisplayValue, t);
   const missing = checklist.filter((c) => !c.ok);
   const canPublish = isEditMode || missing.length === 0;
@@ -91,7 +101,7 @@ export const WizardFooter: React.FC<WizardFooterProps> = ({
           )}
         </div>
 
-        <div className="flex items-center gap-3" title={tooltip}>
+        <div ref={submitGroupRef} className="flex items-center gap-3" title={tooltip}>
           <Button
             onClick={onSubmit}
             variant="primary"
