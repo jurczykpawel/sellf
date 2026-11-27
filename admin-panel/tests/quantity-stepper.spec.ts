@@ -1,4 +1,8 @@
-/** Quantity control: visible before the coupon, large enough to tap, and the summary follows it. */
+/**
+ * Quantity control: visible before the coupon, large enough to tap, and both the summary and the payment session follow it.
+ * Paid checkout: the page opens a Stripe session on load, so this spec needs a working Stripe key (release gate: STRIPE_SPECS).
+ * With an unusable key the session request fails and the page rightly swaps the summary for "Błąd płatności".
+ */
 import { test, expect } from '@playwright/test';
 import { supabaseAdmin as db } from './helpers/admin-auth';
 import { acceptAllCookies } from './helpers/consent';
@@ -29,8 +33,13 @@ for (const [name, viewport] of [['desktop', { width: 1280, height: 900 }], ['390
       expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
     }
     await expect(minus).toBeDisabled();
+    const updated = page.waitForResponse(response => new URL(response.url()).pathname === '/api/create-payment-intent'
+      && response.request().postDataJSON()?.quantity === 2, { timeout: 30000 });
     await plus.click();
     await expect(input).toHaveValue('2');
+    const update = await updated;
+    expect(update.status(), await update.text()).toBe(200);
+    await expect(page.getByRole('heading', { name: 'Błąd płatności' })).toHaveCount(0);
     await expect(page.getByText(/100,00\s?zł/).first()).toBeVisible();
     await plus.click();
     await expect(plus).toBeDisabled();

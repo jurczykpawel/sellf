@@ -60,6 +60,9 @@ export async function submitMagicLink(input: SubmitMagicLinkInput): Promise<Magi
   return { ok: true };
 }
 
+/** When the address limit opens again, to the minute with the time zone (seconds would be noise). */
 export function magicLinkRetryAt(seconds: number | undefined, locale: string): string {
-  return new Date(Date.now() + (seconds ?? 86400) * 1000).toLocaleString(locale, { timeZoneName: 'short' });
+  return new Date(Date.now() + (seconds ?? 86400) * 1000).toLocaleString(locale, {
+    year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+  });
 }

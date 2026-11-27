@@ -88,6 +88,15 @@ describe('auth callback error keeps the link language', () => {
     expect(url.searchParams.get('redirect_to')).toBe(PL_RETURN);
   });
 
+  it.each(['pl', 'en'])('returns a used lead confirmation link to the lead language login (%s)', async locale => {
+    const lead = `/${locale}/auth/lead?token=${'a'.repeat(64)}`;
+    const url = location(await callback(`redirect_to=${encodeURIComponent(lead)}&type=magiclink&token_hash=used`));
+
+    expect(url.pathname).toBe(`/${locale}/login`);
+    expect(url.searchParams.get('error')).toBe('magic_link_expired');
+    expect(url.searchParams.get('redirect_to')).toBe(lead);
+  });
+
   it('returns an upstream otp_expired error for a PL link to /pl/login', async () => {
     const url = location(await callback(`redirect_to=${encodeURIComponent(PL_RETURN)}&error=access_denied&error_code=otp_expired`));
 
