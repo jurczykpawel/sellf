@@ -358,7 +358,7 @@ test('order delivery retry retains metadata in the logs panel @J71', async ({ pa
     await loginAsAdmin(page, admin.email, admin.password);
     await page.goto('/pl/dashboard/webhooks');
     const endpointRow = page.getByRole('row').filter({ hasText: marker });
-    await endpointRow.getByRole('button', { name: 'Logi', exact: true }).click();
+    await endpointRow.getByRole('button', { name: `Logi ${marker}`, exact: true }).click();
     const drawer = page.getByRole('dialog').filter({ hasText: tunnel.url });
     const row = drawer.getByRole('row').filter({ hasText: 'order.placed' });
     await expect(row).toBeVisible();
