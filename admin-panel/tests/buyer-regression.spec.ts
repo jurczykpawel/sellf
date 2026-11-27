@@ -189,6 +189,51 @@ test('buyer history retains cancelled status and purchased subscription summary 
   }
 });
 
+for (const locale of ['pl', 'en'] as const) {
+  // W351 (QA3-G U4a): one click used to schedule the cancellation; now a dialog asks first, by keyboard too.
+  test(`cancelling a subscription asks for confirmation first, keyboard and focus included (${locale}) @J37`, async ({ page }) => {
+    const copy = locale === 'pl'
+      ? { cancel: 'Anuluj subskrypcję', title: 'Anulować subskrypcję?', keep: 'Nie, zostaw', confirm: 'Tak, anuluj', resume: 'Wznów subskrypcję' }
+      : { cancel: 'Cancel subscription', title: 'Cancel this subscription?', keep: 'No, keep it', confirm: 'Yes, cancel', resume: 'Resume subscription' };
+    const user = await createTestUser(`sub-cancel-${locale}`);
+    const p = await product({ name: `Confirmed plan ${locale}`, product_type: 'subscription', price: 0, recurring_price: 49, billing_interval: 'month', billing_interval_count: 1 });
+    try {
+      const sub = (await checked(await db.from('subscriptions').insert({ user_id: user.userId, product_id: p.id, status: 'active', stripe_subscription_id: `sub_${randomUUID()}`, stripe_customer_id: `cus_${randomUUID()}`,
+        current_period_start: new Date().toISOString(), current_period_end: new Date(Date.now() + 30 * 86_400_000).toISOString() }).select('id').single()))!;
+      // Stripe is not called locally: the cancel endpoint's effect is applied to the row directly.
+      const cancels: string[] = [];
+      await page.route(`**/api/subscriptions/${sub.id}/cancel`, async route => {
+        cancels.push(route.request().method());
+        await checked(await db.from('subscriptions').update({ cancel_at_period_end: true }).eq('id', sub.id));
+        await route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+      });
+      await acceptAllCookies(page); await setAuthSession(page, user.email, user.password);
+      await page.goto(`/${locale}/my-purchases`);
+      const opener = page.getByRole('button', { name: copy.cancel, exact: true });
+      await opener.focus();
+      await page.keyboard.press('Enter');
+      const dialog = page.getByRole('dialog', { name: copy.title });
+      await expect(dialog).toContainText(`Confirmed plan ${locale}`);
+      await expect(dialog.getByRole('button', { name: copy.keep, exact: true })).toBeFocused();
+      await page.keyboard.press('Escape');
+      await expect(dialog).toHaveCount(0);
+      await expect(opener).toBeFocused();
+      expect(cancels).toEqual([]);
+
+      await page.keyboard.press('Enter');
+      await expect(dialog.getByRole('button', { name: copy.keep, exact: true })).toBeFocused();
+      await page.keyboard.press('Tab');
+      await expect(dialog.getByRole('button', { name: copy.confirm, exact: true })).toBeFocused();
+      await page.keyboard.press('Enter');
+      await expect(dialog).toHaveCount(0);
+      await expect(page.getByRole('button', { name: copy.resume, exact: true })).toBeFocused();
+      expect(cancels).toEqual(['POST']);
+    } finally {
+      await db.from('subscriptions').delete().eq('user_id', user.userId); await user.cleanup();
+    }
+  });
+}
+
 test('Polish video shows Polish loading and provider failure @J185', async ({ page }) => {
   const p = await product({ preview_video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' });
   let abortScript: (() => Promise<void>) | undefined;

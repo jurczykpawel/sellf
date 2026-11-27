@@ -9,20 +9,21 @@ import { createClient } from '@supabase/supabase-js';
 import { afterAll, expect, it, vi } from 'vitest';
 
 const db = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-const failingReads = vi.hoisted(() => ({ on: false }));
+const failingReads = vi.hoisted(() => ({ on: false, table: undefined as string | undefined }));
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: () => {
-    if (!failingReads.on) return db;
+    if (!failingReads.on && !failingReads.table) return db;
     const failed = { data: null, error: { message: 'connection reset' } };
     const builder: Record<string, unknown> = new Proxy({}, {
       get: (_target, key) => key === 'then' ? (resolve: (value: unknown) => void) => resolve(failed)
         : key === 'maybeSingle' || key === 'single' ? async () => failed : () => builder,
     });
+    if (failingReads.table) return { from: (table: string) => table === failingReads.table ? builder : db.from(table), rpc: db.rpc.bind(db) };
     return { from: () => builder, rpc: async () => failed };
   },
 }));
 
-import { purchaseEventMail } from '@/lib/events/mail';
+import { eventMailForSlug, purchaseEventMail } from '@/lib/events/mail';
 
 const run = crypto.randomUUID().slice(0, 8);
 const email = `purchase-state-${run}@example.com`;
@@ -51,4 +52,49 @@ it('an unreadable purchase is reported as pending, not as missing', async () => 
   } finally {
     failingReads.on = false;
   }
+});
+
+// W351r: the retry worker drops a parked purchase link when the purchase reads as gone, so an
+// unreadable product (by slug, or its name) must read as pending too, never as "no purchase".
+it('an unreadable product is reported as pending, not as missing', async () => {
+  failingReads.on = true;
+  try {
+    expect(await eventMailForSlug(email, `partial-${run}`, 'pl', { wait: false })).toEqual({ purchase_mail_pending: 'true' });
+  } finally {
+    failingReads.on = false;
+  }
+  failingReads.table = 'products';
+  try {
+    expect(await purchaseEventMail(email, productId!, undefined, undefined, 'pl', { wait: false })).toEqual({ purchase_mail_pending: 'true' });
+    expect(await purchaseEventMail(`nobody-${run}@example.com`, productId!, undefined, undefined, 'pl', { wait: false })).toEqual({ purchase_mail_pending: 'true' });
+  } finally {
+    failingReads.table = undefined;
+  }
+});
+
+// W351 (QA3-G U2): a subscription webhook stores the purchase 2–3 s after the confirmation page
+// asks; the page waits for it (~8 s) so the first mail carries the product instead of being parked.
+it('the confirmation page waits for a purchase stored a few seconds later', async () => {
+  const pendingEmail = `purchase-late-${run}@example.com`;
+  const tx = await db.from('payment_transactions').insert({ product_id: productId!, customer_email: pendingEmail, amount: 4000, currency: 'PLN',
+    status: 'completed', fulfillment_pending: true, session_id: `cs_late_${run}`, pricing_snapshot_version: 1 }).select('id').single();
+  expect(tx.error).toBeNull();
+  const stored = setTimeout(() => { void db.from('payment_transactions').update({ fulfillment_pending: false }).eq('id', tx.data!.id).then(() => undefined); }, 5_000);
+  try {
+    const data = await purchaseEventMail(pendingEmail, productId!, undefined, undefined, 'pl');
+    expect(data).toMatchObject({ purchase_product: `Partial ${run}` });
+    expect(data.purchase_mail_pending).toBeUndefined();
+  } finally { clearTimeout(stored); }
+});
+
+it('the confirmation page stops waiting after about 8 s and reports the purchase as pending', async () => {
+  const pendingEmail = `purchase-stuck-${run}@example.com`;
+  const tx = await db.from('payment_transactions').insert({ product_id: productId!, customer_email: pendingEmail, amount: 4000, currency: 'PLN',
+    status: 'completed', fulfillment_pending: true, session_id: `cs_stuck_${run}`, pricing_snapshot_version: 1 });
+  expect(tx.error).toBeNull();
+  const started = Date.now();
+  expect(await purchaseEventMail(pendingEmail, productId!, undefined, undefined, 'pl')).toEqual({ purchase_mail_pending: 'true' });
+  const waited = Date.now() - started;
+  expect(waited).toBeGreaterThanOrEqual(7_500);
+  expect(waited).toBeLessThan(9_500);
 });

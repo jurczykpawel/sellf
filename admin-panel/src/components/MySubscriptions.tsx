@@ -3,8 +3,8 @@
 /**
  * My-Purchases > Subscriptions panel.
  *
- * Lists the current user's subscriptions, lets them cancel (period-end) or
- * resume a scheduled cancel. Card update + invoice list are deferred for
+ * Lists the current user's subscriptions, lets them cancel (period-end, after a
+ * confirmation dialog — W351) or resume a scheduled cancel. Card update + invoice list are deferred for
  * future polish — Phase 6 / 7 of the Subscriptions MVP.
  *
  * @see /api/subscriptions
@@ -17,6 +17,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { formatPrice } from '@/lib/constants';
 import { formatAdminDate } from '@/lib/timezone';
 import { toast } from 'sonner';
+import BaseModal from '@/components/ui/BaseModal';
 
 interface SubscriptionProduct {
   id: string;
@@ -77,6 +78,7 @@ export default function MySubscriptions() {
   const [rows, setRows] = useState<SubscriptionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [confirmCancel, setConfirmCancel] = useState<{ row: SubscriptionRow; opener: HTMLElement } | null>(null);
 
   const loadRows = useCallback(async () => {
 
@@ -92,11 +94,6 @@ export default function MySubscriptions() {
       setLoading(false);
     }
   }, [t]);
-
-  const fetchRows = useCallback(() => {
-    setLoading(true);
-    return loadRows();
-  }, [loadRows]);
 
   useEffect(() => {
     loadRows();
@@ -120,7 +117,8 @@ export default function MySubscriptions() {
           ? t('cancelScheduled', { defaultValue: 'Cancellation scheduled at period end.' })
           : t('resumed', { defaultValue: 'Subscription resumed.' })
       );
-      await fetchRows();
+      // Refresh in place: the list (and the action button focus returns to) stays mounted.
+      await loadRows();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       toast.error(message);
@@ -199,7 +197,8 @@ export default function MySubscriptions() {
                 {row.status !== 'canceled' && !row.cancel_at_period_end && (
                   <button
                     type="button"
-                    onClick={() => callAction(row.id, 'cancel')}
+                    id={`subscription-action-${row.id}`}
+                    onClick={event => setConfirmCancel({ row, opener: event.currentTarget })}
                     disabled={isBusy}
                     className="inline-flex items-center px-3 py-1.5 text-sm border border-sf-border-medium text-sf-body hover:bg-sf-raised disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -212,6 +211,8 @@ export default function MySubscriptions() {
                 {row.cancel_at_period_end && row.status !== 'canceled' && (
                   <button
                     type="button"
+                    // Same id as the cancel button: focus lands here when the confirmation closes.
+                    id={`subscription-action-${row.id}`}
                     onClick={() => callAction(row.id, 'resume')}
                     disabled={isBusy}
                     className="inline-flex items-center px-3 py-1.5 text-sm border border-sf-accent bg-sf-accent text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -227,6 +228,48 @@ export default function MySubscriptions() {
           );
         })}
       </div>
+      {confirmCancel && (
+        <BaseModal
+          isOpen
+          returnFocusTo={confirmCancel.opener}
+          onClose={() => { if (!busyId) setConfirmCancel(null); }}
+          labelledBy="subscription-cancel-title"
+          initialFocusSelector="#subscription-cancel-keep"
+          showCloseButton={false}
+          closeOnBackdropClick={false}
+        >
+          <div className="bg-sf-raised border border-sf-border rounded-2xl p-6">
+            <h2 id="subscription-cancel-title" className="text-xl font-bold text-sf-heading mb-3">
+              {t('cancelConfirmTitle')}
+            </h2>
+            <p className="text-sm text-sf-body mb-6">
+              {confirmCancel.row.current_period_end
+                ? t('cancelConfirmBody', { product: confirmCancel.row.product?.name ?? '—', date: formatAdminDate(confirmCancel.row.current_period_end, locale, false) })
+                : t('cancelConfirmBodyNoDate', { product: confirmCancel.row.product?.name ?? '—' })}
+            </p>
+            <div className="flex flex-wrap gap-3 justify-end">
+              <button
+                type="button"
+                id="subscription-cancel-keep"
+                onClick={() => setConfirmCancel(null)}
+                disabled={busyId !== null}
+                className="px-4 py-2 text-sm border border-sf-border-medium text-sf-body hover:bg-sf-raised disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {t('cancelConfirmKeep')}
+              </button>
+              <button
+                type="button"
+                onClick={async () => { await callAction(confirmCancel.row.id, 'cancel'); setConfirmCancel(null); }}
+                disabled={busyId !== null}
+                className="inline-flex items-center px-4 py-2 text-sm bg-sf-danger-bg text-sf-inverse hover:bg-sf-danger/90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {busyId !== null && <ActionSpinner />}
+                {busyId !== null ? t('cancelInProgress') : t('cancelConfirmAction')}
+              </button>
+            </div>
+          </div>
+        </BaseModal>
+      )}
     </div>
   );
 }

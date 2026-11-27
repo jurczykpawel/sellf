@@ -18,7 +18,7 @@ import { prepareFreeGrantRequest } from '@/lib/services/free-grant-context';
 import { allowMailToAddress, addressMailRetryAfterSeconds } from './address-limit';
 import { readBuyerEmailPolicy } from './buyer-email-policy';
 import { deliverMagicLink } from './deliver';
-import { markPostCheckoutMailSent, queueAuthMailRetry } from './retry';
+import { markPostCheckoutMailSent, PURCHASE_PENDING_CODE, queueAuthMailRetry } from './retry';
 import type { AuthMailRetryKind } from './retry';
 import type { MagicLinkFlow, MagicLinkResult } from './types';
 
@@ -73,7 +73,7 @@ export async function sendTrustedMagicLink(input: SendTrustedMagicLinkInput): Pr
     return { ok: false, code: 'invalid_request' };
   }
   if (input.retry === 'post_checkout' && input.data?.purchase_mail_pending === 'true') {
-    const pending = await queueAuthMailRetry({ email: input.email.trim().toLowerCase(), redirectTo: input.redirectTo, data: input.data, kind: input.retry, code: 'send_failed', reopenSent: input.resend });
+    const pending = await queueAuthMailRetry({ email: input.email.trim().toLowerCase(), redirectTo: input.redirectTo, data: input.data, kind: input.retry, code: PURCHASE_PENDING_CODE, reopenSent: input.resend });
     return !pending.ok && pending.queued ? { ok: true } : pending;
   }
   if (input.data?.license_mail_managed === 'true' && await readBuyerEmailPolicy() === true) return { ok: true, skipped: true };
