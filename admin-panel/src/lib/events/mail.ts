@@ -15,7 +15,9 @@ async function readPurchaseEventMail(email: string, productId: string, sessionId
   // A failed read means the purchase is not known yet, not that there is none (W336r P3-2).
   const { data: tx, error } = await q.maybeSingle(); if (error) return { purchase_mail_pending: 'true' }; if (!tx) return {};
   if (tx.fulfillment_pending === true && !options.allowPending) return { purchase_mail_pending: 'true' };
-  const { data: product } = await db.from('products').select('name').eq('id', productId).maybeSingle();
+  const { data: product, error: productError } = await db.from('products').select('name').eq('id', productId).maybeSingle();
+  // An unreadable product is not a missing purchase: the retry worker would drop the parked link (W351r).
+  if (productError) return { purchase_mail_pending: 'true' };
   const receipt: Record<string, string> = product ? { purchase_product: product.name, purchase_amount: formatPrice(fromMinorUnits(tx.amount, tx.currency), tx.currency, locale) } : {};
   if (product && tx.amount === 0 && tx.subscription_id) {
     const { data: subscription } = await db.from('subscriptions').select('status,current_period_start,trial_end').eq('id', tx.subscription_id).eq('product_id', productId).maybeSingle();
@@ -55,10 +57,11 @@ export async function purchaseEventMail(email: string, productId: string, sessio
     await new Promise(resolve => setTimeout(resolve, PURCHASE_MAIL_POLL_MS));
   }
   console.info('[purchase-mail] context not ready');
-  const { data: product } = await createAdminClient().from('products').select('issue_license_on_purchase').eq('id', productId).maybeSingle();
-  return product?.issue_license_on_purchase ? { purchase_mail_pending: 'true' } : {};
+  const { data: product, error } = await createAdminClient().from('products').select('issue_license_on_purchase').eq('id', productId).maybeSingle();
+  return error || product?.issue_license_on_purchase ? { purchase_mail_pending: 'true' } : {};
 }
 export async function eventMailForSlug(email: string, slug: string, locale = 'en', options: Pick<PurchaseMailOptions, 'wait'> = {}): Promise<Record<string, string>> {
-  const { data } = await createAdminClient().from('products').select('id').eq('slug', slug).maybeSingle();
+  const { data, error } = await createAdminClient().from('products').select('id').eq('slug', slug).maybeSingle();
+  if (error) return { purchase_mail_pending: 'true' };
   return data ? purchaseEventMail(email.trim().toLowerCase(), data.id, undefined, undefined, locale, options) : {};
 }
