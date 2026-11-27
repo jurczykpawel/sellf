@@ -975,5 +975,51 @@
   ],
   "2ce74e25b2ee4162852e4fa8014c0a513720ccf7": [
     "none \u2014 upgrade.sh firewall warning no longer ends a finished update with exit 1; progress, messages and documented updater behaviour are unchanged."
+  ],
+  "2c03af760b75e999c9ea645fd89167b4998be8cb": [
+    "none \u2014 admin editor correctness: lists refresh before an edit dialog closes, so a quick reopen shows the saved values; documented editor behaviour, fields and API are unchanged."
+  ],
+  "b188827f9dd435501886d0c34db5660f46673885": [
+    "none \u2014 admin editor correctness: edit forms reopen with the saved row and ignore close and repeat submit while saving; documented editor behaviour, fields and API are unchanged."
+  ],
+  "a952eff77095b6178a5365c32e13d9583db38d5c": [
+    "none \u2014 admin editor correctness: product and webhook editors load the stored record by id before opening, with a loading layer and an error on a failed read; documented editor behaviour, fields and API are unchanged."
+  ],
+  "dfa22555f9e4807a49750ed1a6f619777de8e014": [
+    "none \u2014 admin editor correctness: edit saves keep stored categories, tags, OTO, bundle components and webhook payload settings instead of empty defaults; documented editor behaviour, fields and API are unchanged."
+  ],
+  "edb5966f4684efbc957653ee86aa226f4a6e1852": [
+    "none \u2014 admin editor correctness: keyboard focus returns to the control that opened a stored-record editor; documented editor behaviour, fields and API are unchanged."
+  ],
+  "05476f6ee5776106453a5c0ab76e5de3a61e2841": [
+    "none \u2014 admin editor correctness: a backdrop click no longer cancels a stored-record load (double click on Duplicate); documented editor behaviour, fields and API are unchanged."
+  ],
+  "7f5007eae86242977453d7fee52e0e6eaf9f98cb": [
+    "none \u2014 a used or expired sign-in link now returns to the login screen in the link's language; buyer-emails already states that login links keep the chosen language, no documented step changes."
+  ],
+  "eb0fc6fe9f9ec3155ab6ee0669d8a300676c6d33": [
+    "none \u2014 follow-up of the failed-link language fix (LoginWall links, English links, demo mode); buyer-emails already states that login links keep the chosen language."
+  ],
+  "934f1c89fc3bf4e7709da9691883c88ff473a329": [
+    "none \u2014 accessibility only: login alert contrast and role, steady access heading, FilterBar button labels; no documented behaviour changes."
+  ],
+  "7415814d4187158bca65691b3c8794df49b5fa25": [
+    "none \u2014 Polish interface copy typos (missing diacritics) corrected; no documented behaviour changes."
+  ],
+  "2d93f739bd9187b7b380a87a55b0556508ef5af3": [
+    "api.md",
+    "buyer-emails.md"
+  ],
+  "111fe877935c7354971ede77f0900d5249122757": [
+    "buyer-emails.md"
+  ],
+  "722c21daa125ff26878ae59522c4466c1a3e7a2f": [
+    "buyer-emails.md"
+  ],
+  "74558b353b485750809bc0413395cf2a2b2067d1": [
+    "buyer-emails.md"
+  ],
+  "41df6c1f38730d8e8a3cb687330e153a0f0bb0d9": [
+    "none \u2014 defensive label: unpaid statuses never show \"Paid\" in My purchases; pending and abandoned checkouts are already hidden, buyer-emails.md already documents the Paid label."
   ]
 }

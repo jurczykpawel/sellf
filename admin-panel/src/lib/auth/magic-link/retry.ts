@@ -30,13 +30,21 @@ const PURCHASE_PENDING_WINDOW_MS = 30 * 60_000;
 export const GUEST_ACCESS_MAIL_DELAY_MINUTES = 10;
 /** Marks a link scheduled by a paid order, as opposed to one the confirmation page parked. */
 const ACCESS_FALLBACK_FLAG = 'access_fallback';
+/**
+ * Queue code of a link the confirmation page parked because the purchase was still being stored
+ * after its wait. The queue makes it due after PURCHASE_PENDING_RETRY_SECONDS instead of 2 minutes
+ * (queue_auth_mail_retry, release 2026.11.1), and the worker is woken for it (W351, QA3-G U2).
+ */
+export const PURCHASE_PENDING_CODE = 'purchase_pending';
+const PURCHASE_PENDING_RETRY_SECONDS = 20;
+export type AuthMailRetryCode = MagicLinkErrorCode | typeof PURCHASE_PENDING_CODE;
 
 interface QueueInput {
   email: string;
   redirectTo: string;
   data?: Record<string, string | Record<string, string>>;
   kind: AuthMailRetryKind;
-  code: MagicLinkErrorCode;
+  code: AuthMailRetryCode;
   /** The buyer's explicit resend: parks the link again even after an earlier delivery. */
   reopenSent?: boolean;
 }
@@ -51,12 +59,16 @@ export async function queueAuthMailRetry(input: QueueInput): Promise<MagicLinkRe
   const { data: parked, error } = await createAdminClient().rpc('queue_auth_mail_retry', {
     p_email: input.email, p_redirect_to: input.redirectTo, p_data: input.data ?? {}, p_kind: input.kind, p_error: input.code, p_reopen_sent: input.reopenSent === true,
   });
+  // A purchase still being stored is not a refusal the buyer could act on: callers see a failed send.
+  const code: MagicLinkErrorCode = input.code === PURCHASE_PENDING_CODE ? 'send_failed' : input.code;
   if (error) {
     console.error('[auth-mail-retry] Queue failed:', error.message);
-    return { ok: false, code: input.code };
+    return { ok: false, code };
   }
   if (parked === false) return { ok: true, skipped: true };
-  return { ok: false, code: input.code, queued: true };
+  // The minute cycle alone could leave it waiting up to a minute past its due time.
+  if (input.code === PURCHASE_PENDING_CODE) wakeAuthMailRetries((PURCHASE_PENDING_RETRY_SECONDS + 1) * 1000);
+  return { ok: false, code, queued: true };
 }
 
 function postCheckoutRedirect(productSlug: string, locale: 'pl' | 'en'): string {
@@ -124,15 +136,19 @@ export async function runAuthMailRetries(db: SupabaseClient = createAdminClient(
   let processed = 0, errors = 0;
   for (const row of (claimed ?? []) as Array<{ id: string; email: string; redirect_to: string; data: Record<string, string | Record<string, string>>; attempts: number; kind: string; created_at: string }>) {
     let purchaseReady = true;
+    let deliveryCode: AuthMailRetryCode = 'send_failed';
     if (row.kind === 'post_checkout') {
       const slug = postCheckoutSlug(row.redirect_to);
       if (slug) {
         // One read per attempt: the backoff already spaces the checks.
         const context: Record<string, string> = await eventMailForSlug(row.email, slug, row.data.locale === 'pl' ? 'pl' : 'en', { wait: false })
           .catch(() => ({ purchase_mail_pending: 'true' }));
-        // A scheduled access link needs a purchase that still stands (not fully refunded or disputed);
-        // an unreadable purchase reads as pending and waits for the next attempt.
-        const purchaseGone = row.data[ACCESS_FALLBACK_FLAG] === 'true' && !context.purchase_product && context.purchase_mail_pending !== 'true';
+        // A link for a purchase (scheduled by the order, or parked with the purchase or while it was
+        // being stored) needs a purchase that still stands: a full refund or a lost dispute in the
+        // meantime must not mail an invitation to "your purchased products" (W351). An unreadable
+        // purchase reads as pending and waits for the next attempt.
+        const purchaseExpected = row.data[ACCESS_FALLBACK_FLAG] === 'true' || row.data.purchase_mail_pending === 'true' || Boolean(row.data.purchase_product);
+        const purchaseGone = purchaseExpected && !context.purchase_product && context.purchase_mail_pending !== 'true';
         if (purchaseGone || (context.license_mail_managed === 'true' && await readBuyerEmailPolicy(db) === true)) {
           await db.from('auth_mail_retries').delete().eq('id', row.id);
           processed++;
@@ -143,7 +159,7 @@ export async function runAuthMailRetries(db: SupabaseClient = createAdminClient(
           processed++;
           continue;
         }
-        if (context.purchase_mail_pending === 'true') purchaseReady = false;
+        if (context.purchase_mail_pending === 'true') { purchaseReady = false; deliveryCode = PURCHASE_PENDING_CODE; }
         // Purchase and event details are re-read at delivery; values parked earlier may be stale.
         row.data = { locale: row.data.locale === 'pl' ? 'pl' : 'en', ...context };
       }
@@ -168,7 +184,7 @@ export async function runAuthMailRetries(db: SupabaseClient = createAdminClient(
       }).eq('id', row.id);
       continue;
     }
-    const result: MagicLinkResult = !purchaseReady ? { ok: false, code: 'send_failed' } : await deliverMagicLink({ email: row.email, redirectTo: row.redirect_to, shouldCreateUser: true, transactionalOnly: row.kind === 'license', data: row.data });
+    const result: { ok: true } | { ok: false; code: AuthMailRetryCode } = !purchaseReady ? { ok: false, code: deliveryCode } : await deliverMagicLink({ email: row.email, redirectTo: row.redirect_to, shouldCreateUser: true, transactionalOnly: row.kind === 'license', data: row.data });
     // Purchase data (e.g. a license key) must not linger in the account once the mail was rendered.
     const cleared = await db.rpc('prepare_event_mail', { p_email: row.email, p_data: { locale: row.data.locale === 'pl' ? 'pl' : 'en' } });
     if (cleared.error) console.error('[auth-mail-retry] Account data cleanup failed');
@@ -196,13 +212,21 @@ export async function runAuthMailRetries(db: SupabaseClient = createAdminClient(
 let timer: ReturnType<typeof setInterval> | undefined;
 let running = false;
 
+function runCycle(): void {
+  if (running) return;
+  running = true;
+  void runAuthMailRetries().catch(() => console.error('[auth-mail-retry] Cycle unavailable')).finally(() => { running = false; });
+}
+
 /** In-process worker (production only), like business events; `/api/cron?job=auth-mail-retry` is the external entry point. */
 export function startAuthMailRetries(): void {
   if (timer || process.env.E2E_MODE === 'true' || process.env.NODE_ENV !== 'production' || process.env.NEXT_PHASE === 'phase-production-build') return;
-  timer = setInterval(() => {
-    if (running) return;
-    running = true;
-    void runAuthMailRetries().catch(() => console.error('[auth-mail-retry] Cycle unavailable')).finally(() => { running = false; });
-  }, 60_000);
+  timer = setInterval(runCycle, 60_000);
   timer.unref();
+}
+
+/** One extra cycle of the in-process worker after `afterMs`; a no-op where the worker does not run. */
+function wakeAuthMailRetries(afterMs: number): void {
+  if (!timer) return;
+  setTimeout(runCycle, afterMs).unref();
 }

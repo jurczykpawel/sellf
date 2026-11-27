@@ -13,7 +13,7 @@ A guest who pays and closes the payment tab before the confirmation page loads s
 
 In **Settings → Shop → Buyer emails**, enable **Send buyer emails through Supabase** to use Sellf's existing templates. This consumes the free Supabase email allowance faster and may require a paid plan. Sellf does not configure a separate SMTP service. On upgrade, existing installations keep this option enabled so buyer messages do not stop unexpectedly. New installations default to off. You can turn it off after connecting and testing your receiver. Pending retries follow the current setting: purchase-access retries become plain sign-in links; notification-only retries are skipped.
 
-When a recorded payment is still being fulfilled after the initial short wait, its first access email waits in the authentication-mail queue. Once fulfillment finishes, delivery reads the current purchase details and includes the product and paid amount when buyer emails are enabled. This applies to subscriptions and one-time purchases, including a buyer's first email confirmation. The first retry is due after two minutes. Keep the retry worker running as described below.
+The confirmation page waits up to about 8 seconds for the payment to be recorded, so the first access email normally leaves at once with the product and amount. When a recorded payment is still being fulfilled after that wait, its first access email waits in the authentication-mail queue. Once fulfillment finishes, delivery reads the current purchase details and includes the product and paid amount when buyer emails are enabled. This applies to subscriptions and one-time purchases, including a buyer's first email confirmation. The first retry is due after about 20 seconds, and the built-in worker runs it on time; other refused sends are first retried after two minutes. If the purchase is fully refunded or lost in a dispute before the queued email is delivered, the email is dropped instead of inviting the buyer to their purchased products; a partial refund keeps it. Keep the retry worker running as described below.
 
 ## Mailstack example
 
@@ -53,7 +53,7 @@ After requesting a fresh sign-in link successfully, the login page clears the pr
 
 Withdrawing or archiving an offer after checkout has started does not cancel a completed payment: its confirmation page still offers a sign-in link, and confirming that email claims the paid product. The offer remains unavailable for new purchases.
 
-In **My purchases**, subscription cards retain the purchased name, price, currency and billing cadence when an offer is deactivated or archived.
+In **My purchases**, subscription cards retain the purchased name, price, currency and billing cadence when an offer is deactivated or archived. **Cancel subscription** asks for confirmation first; the subscription stops renewing and stays active until the end of the paid period. Completed payments are labelled **Paid**.
 
 A paused offer keeps its recorded purchase and access in the buyer library, with a paused message instead of an unavailable content link. Archived content remains open to its buyers. For subscriptions created before this update, the summary uses the first saved positive paid invoice amount (including its VAT and discounts); if no paid invoice exists, it uses the catalogue terms available during the update.
 

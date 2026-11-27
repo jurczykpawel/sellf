@@ -13,7 +13,7 @@ Gość, który zapłaci i zamknie kartę płatności, zanim wczyta się strona p
 
 W **Ustawienia → Sklep → Maile do kupujących** włącz **Wysyłaj maile do kupujących przez Supabase**, aby korzystać z dotychczasowych szablonów Sellfa. Ta opcja szybciej zużywa darmowy limit maili Supabase i może wymagać płatnego planu. Sellf nie konfiguruje osobnego SMTP. Aktualizacja pozostawia opcję włączoną w istniejących instalacjach, aby kupujący nie stracili powiadomień bez ostrzeżenia. W nowych instalacjach jest wyłączona. Wyłącz ją po podłączeniu i sprawdzeniu odbiorcy webhooków. Oczekujące ponowienia uwzględniają bieżące ustawienie: zakupowe linki dostępu stają się zwykłymi linkami logowania, a same powiadomienia są pomijane.
 
-Jeżeli realizacja zapisanej płatności nie zakończy się po krótkim oczekiwaniu, pierwszy mail z dostępem trafia do kolejki ponowień. Po zakończeniu realizacji wysyłka odczytuje aktualne dane zakupu i dołącza produkt oraz zapłaconą kwotę, gdy maile do kupujących są włączone. Dotyczy to subskrypcji i zakupów jednorazowych, także pierwszego potwierdzenia adresu kupującego. Pierwsze ponowienie jest zaplanowane po dwóch minutach. Zapewnij działanie procesu ponowień opisanego poniżej.
+Strona potwierdzenia czeka do około 8 sekund na zapis płatności, więc pierwszy mail z dostępem zwykle wychodzi od razu, z produktem i kwotą. Jeżeli realizacja zapisanej płatności nie zakończy się w tym czasie, pierwszy mail z dostępem trafia do kolejki ponowień. Po zakończeniu realizacji wysyłka odczytuje aktualne dane zakupu i dołącza produkt oraz zapłaconą kwotę, gdy maile do kupujących są włączone. Dotyczy to subskrypcji i zakupów jednorazowych, także pierwszego potwierdzenia adresu kupującego. Pierwsze ponowienie jest zaplanowane po około 20 sekundach, a wbudowany proces wykonuje je na czas; inne odrzucone wysyłki są ponawiane po raz pierwszy po dwóch minutach. Jeśli przed wysłaniem maila z kolejki zakup zostanie w całości zwrócony albo przegra spór, mail nie wychodzi, zamiast zapraszać do zakupionych produktów; częściowy zwrot go nie wstrzymuje. Zapewnij działanie procesu ponowień opisanego poniżej.
 
 ## Przykład z Mailstackiem
 
@@ -53,7 +53,7 @@ Po udanym wysłaniu nowego linku logowania strona usuwa ostrzeżenie o poprzedni
 
 Wyłączenie lub archiwizacja oferty po rozpoczęciu zakupu nie anuluje opłaconego zamówienia: strona potwierdzenia nadal umożliwia wysłanie linku logowania, a potwierdzenie adresu przypisuje kupującemu opłacony produkt. Oferta pozostaje niedostępna dla nowych zakupów.
 
-W **Moich zakupach** karta subskrypcji zachowuje nazwę, cenę, walutę i okres rozliczeniowy z zakupu także po wyłączeniu lub archiwizacji oferty.
+W **Moich zakupach** karta subskrypcji zachowuje nazwę, cenę, walutę i okres rozliczeniowy z zakupu także po wyłączeniu lub archiwizacji oferty. Przycisk **Anuluj subskrypcję** najpierw prosi o potwierdzenie; subskrypcja przestaje się odnawiać i działa do końca opłaconego okresu. Opłacone płatności mają status **Opłacono**.
 
 Przy wstrzymanej ofercie biblioteka zachowuje zakup i zapisany dostęp, ale zamiast linku do niedostępnej treści pokazuje informację o wstrzymaniu. Treść archiwalnego produktu nadal otwiera się kupującym. Dla subskrypcji sprzed tej aktualizacji podsumowanie używa kwoty pierwszego zapisanego dodatniego opłaconego rachunku (z VAT i rabatami); przy braku opłaconego rachunku używa warunków katalogowych dostępnych podczas aktualizacji.
 

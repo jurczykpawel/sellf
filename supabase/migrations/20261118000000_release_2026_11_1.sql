@@ -4165,12 +4165,15 @@ GRANT EXECUTE ON FUNCTION public.claim_auth_mail_retries(integer) TO service_rol
 
 -- Returns whether the mail was parked: false when the row is a delivered post-payment link and the
 -- request is automatic (C-B3). The buyer's explicit resend (p_reopen_sent) parks it again, as before.
+-- A link parked because the purchase is still being stored ('purchase_pending': the confirmation page
+-- waited ~8 s for the payment webhook) is first retried after 20 seconds, not 2 minutes (W351).
 DROP FUNCTION IF EXISTS public.queue_auth_mail_retry(text, text, jsonb, text, text);
 CREATE FUNCTION public.queue_auth_mail_retry(p_email text, p_redirect_to text, p_data jsonb, p_kind text, p_error text, p_reopen_sent boolean DEFAULT false)
 RETURNS boolean LANGUAGE sql SECURITY DEFINER SET search_path = '' AS $$
   WITH parked AS (
   INSERT INTO public.auth_mail_retries(email, redirect_to, data, kind, next_attempt_at, last_error)
-  VALUES (lower(btrim(p_email)), p_redirect_to, coalesce(p_data, '{}'::jsonb), p_kind, now() + interval '2 minutes', left(p_error, 40))
+  VALUES (lower(btrim(p_email)), p_redirect_to, coalesce(p_data, '{}'::jsonb), p_kind,
+    now() + CASE WHEN p_error = 'purchase_pending' THEN interval '20 seconds' ELSE interval '2 minutes' END, left(p_error, 40))
   -- A link scheduled by a paid order (W336) keeps its order key, so a redelivered payment does not schedule it again.
   ON CONFLICT (email, redirect_to) DO UPDATE SET data = CASE WHEN public.auth_mail_retries.kind='license' AND EXCLUDED.kind='post_checkout' THEN public.auth_mail_retries.data
       WHEN public.auth_mail_retries.kind='post_checkout' AND EXCLUDED.kind='post_checkout' AND public.auth_mail_retries.data ? 'order'

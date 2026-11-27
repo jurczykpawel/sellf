@@ -250,11 +250,15 @@ export default function MyPurchasesPage() {
       );
     }
 
-    return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-sf-success-soft text-sf-success">
-        {t('statusCompleted', { defaultValue: 'Completed' })}
-      </span>
-    );
+    // "Paid" only for a payment that was paid; anything else waits for payment (W351).
+    if (purchase.status === 'completed' || purchase.status === 'partially_refunded') {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-sf-success-soft text-sf-success">
+          {t('statusCompleted', { defaultValue: 'Paid' })}
+        </span>
+      );
+    }
+    return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-sf-warning-soft text-sf-warning">{t('statusPaymentPending')}</span>;
   };
 
   const getRefundButton = (purchase: UserPurchase, lineItems: NormalizedPurchaseLineItem[] = []) => {

@@ -756,8 +756,8 @@ test.describe('Purchase History - /my-purchases', () => {
       // Should see the purchased product in the list (use first() as there may be multiple entries)
       await expect(page.getByText(product!.name).first()).toBeVisible({ timeout: 10000 });
 
-      // Should see "Completed" status badge (at least one)
-      await expect(page.getByText('Completed').first()).toBeVisible();
+      // Should see the "Paid" status badge (at least one) — "Completed" read as an ended subscription (W351)
+      await expect(page.locator('span.rounded-full', { hasText: /^Paid$/ }).first()).toBeVisible();
 
     } finally {
       await cleanupMockPayment(sessionId);
