@@ -1033,5 +1033,8 @@
   ],
   "d0102e62acf6c4b1b1d6116c3a53372ad6ee3492": [
     "api.md (EN/PL): the archived-bundle 409 now names error.details.code bundle_archived, and activating an archived product product_archived; panel wording, focus and ?open= handling need no documented step changes."
+  ],
+  "f1c5cea829666d0856a272906e2c0541fef43b0c": [
+    "none — the admin panel now loads the late-transfer preview through the already documented GET /api/v1/payments/{id}/late-transfer-preview (api.md, bank-transfers.md unchanged); the rest are test fixes (auth mail interval helper, J184 wait)."
   ]
 }

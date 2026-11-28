@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { test, expect } from '@playwright/test';
 import { useSupabaseBuyerEmails } from './helpers/buyer-email-setting-playwright';
 import { createTestAdmin, createTestUser, setAuthSession, supabaseAdmin as db } from './helpers/admin-auth';
+import { holdAuthMailInterval } from './helpers/auth-mail-interval';
 import { waitForEmail } from './helpers/mailpit';
 import { generateSellerKeypair, storeSellerKey } from '@/lib/license-keys/keys';
 useSupabaseBuyerEmails();
@@ -96,6 +97,8 @@ test('second license grant within a minute shows the saved access and a pending 
       const response = await grant;
       expect(response.status()).toBe(201);
       expect((await response.json()).license).toMatchObject(i === 0 ? { email_sent: true, email_pending: false } : { email_sent: false, email_pending: true });
+      // Local Supabase Auth's per-recipient interval is 1 s (Cloud: 60 s); hold it so the second mail is refused however slow the runner.
+      if (i === 0) holdAuthMailInterval(buyer.email);
       await expect(dialog.locator('h4', { hasText: `Limit UI ${i}` })).toBeVisible();
     }
     await expect(dialog.getByText('Licencja przyznana, mail czeka na wysłanie (limit dostawcy poczty). Wyślemy go automatycznie.')).toBeVisible();

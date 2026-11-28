@@ -6,7 +6,6 @@
  * @see src/app/api/v1/licenses/route.ts
  * @see src/lib/license-keys/request.ts
  */
-import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
@@ -24,7 +23,7 @@ import { runAuthMailRetries } from '@/lib/auth/magic-link/retry';
 import { generateSellerKeypair, storeSellerKey } from '@/lib/license-keys/keys';
 import { licenseMailKey } from '@/lib/license-keys/license-mail';
 import { useSupabaseBuyerEmails } from '../../helpers/buyer-email-setting';
-import { getTestDatabaseContainer } from '../../helpers/database-container';
+import { holdAuthMailInterval, letAuthMailIntervalPass } from '../../helpers/auth-mail-interval';
 import { getMessage, searchMessages } from '../../helpers/mailpit';
 
 useSupabaseBuyerEmails();
@@ -57,6 +56,7 @@ afterAll(async () => {
 
 it('issues the second license within a minute, reports its mail as pending and delivers it from the retry queue @J197', async () => {
   expect(await issue(products[0])).toMatchObject({ emailSent: true, emailPending: false });
+  holdAuthMailInterval(email);
 
   const second = await issue(products[1]);
   expect(second).toMatchObject({ emailSent: false, emailPending: true });
@@ -65,10 +65,7 @@ it('issues the second license within a minute, reports its mail as pending and d
   expect(queued.data).toEqual([{ kind: 'license', given_up_at: null }]);
   expect(await licenseMails()).toHaveLength(1);
 
-  // As if the per-recipient interval had passed.
-  execFileSync('docker', ['exec', '-i', getTestDatabaseContainer(), 'psql', '-U', 'postgres', '-At', '-v', 'ON_ERROR_STOP=1'], {
-    input: `UPDATE auth.users SET recovery_sent_at = recovery_sent_at - interval '5 minutes', confirmation_sent_at = confirmation_sent_at - interval '5 minutes' WHERE email = '${email}';`, encoding: 'utf8',
-  });
+  letAuthMailIntervalPass(email);
   await db.from('auth_mail_retries').update({ next_attempt_at: new Date(Date.now() - 1000).toISOString() }).eq('license_mail_key', key);
   expect(await runAuthMailRetries(db)).toMatchObject({ errors: 0 });
   expect((await db.from('auth_mail_retries').select('id').eq('license_mail_key', key)).data).toEqual([]);

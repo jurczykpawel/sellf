@@ -9,7 +9,7 @@ vi.mock('@/components/tutorials/TutorialHelpButton', () => ({ default: () => nul
 vi.mock('@/components/tutorials/TutorialTrigger', () => ({ default: () => null }));
 vi.mock('@/components/checkout/TransferInstructions', () => ({ default: () => null }));
 const retry = vi.hoisted(() => vi.fn());
-vi.mock('@/lib/orders/bank-transfer-actions', () => ({ retryOrderNotice: retry, getLateTransferPreview: async () => ({ success: false }) }));
+vi.mock('@/lib/orders/bank-transfer-actions', () => ({ retryOrderNotice: retry }));
 afterEach(() => { cleanup(); vi.useRealTimers(); retry.mockReset(); });
 const tx = { id: 'tx', amount: 1000, currency: 'PLN', payment_provider: 'bank_transfer', status: 'awaiting_payment',
   reminder_mail_delivery_unknown: true, reminder_mail_sent_at: '2026-11-24T12:00:00Z' } as PaymentTransaction;
