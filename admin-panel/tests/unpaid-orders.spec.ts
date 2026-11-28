@@ -234,7 +234,8 @@ test('admin accepts the late transfer at the order price although the promo seat
   await expect(accept).toBeDisabled();
   await form.getByRole('checkbox', { name: /Przyjmuję ponad stan/ }).check();
   await accept.click();
-  await expect.poll(async () => (await db.from('payment_transactions').select('status').eq('id', orderId).single()).data?.status).toBe('completed');
+  // Acceptance is a server action: it runs after the panel's other queued actions, which take seconds on a busy runner (W355).
+  await expect.poll(async () => (await db.from('payment_transactions').select('status').eq('id', orderId).single()).data?.status, { timeout: 30000 }).toBe('completed');
   const tx = await checked(await db.from('payment_transactions').select('amount,metadata,reopened_at').eq('id', orderId).single());
   expect(tx.amount).toBe(10000); expect(tx.reopened_at).toBeTruthy(); expect((tx.metadata as Record<string, unknown>).oversold).toBe(true);
   await expect.poll(async () => (await webhook('order.reopened', orderId)).length).toBe(1);
