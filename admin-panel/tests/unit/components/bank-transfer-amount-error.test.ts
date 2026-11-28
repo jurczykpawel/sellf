@@ -10,6 +10,8 @@ vi.mock('@/components/tutorials/TutorialTrigger', () => ({ default: () => null }
 vi.mock('@/components/checkout/TransferInstructions', () => ({ default: () => null }));
 const { update } = vi.hoisted(() => ({ update: vi.fn() }));
 vi.mock('@/lib/orders/bank-transfer-actions', () => ({ updateBankTransfer: update }));
+// The late-transfer preview is read over the v1 API: keep it pending instead of calling a real server.
+vi.mock('@/lib/api/client', () => ({ api: { getCustom: () => new Promise(() => {}) } }));
 afterEach(() => { cleanup(); update.mockReset(); });
 it.each(['awaiting_payment', 'cancelled'])('associates a mismatched booked amount with the amount field for %s', async status => {
   render(createElement(BankTransferSection, { transaction: { id: 'tx', amount: 10000, currency: 'PLN', payment_provider: 'bank_transfer', status, created_at: '2026-11-01' } as PaymentTransaction, onRefresh: vi.fn() }));
