@@ -9,7 +9,9 @@ vi.mock('next-intl', () => ({ useLocale: () => 'en', useTranslations: () => (key
 vi.mock('@/components/tutorials/TutorialHelpButton', () => ({ default: () => null }));
 vi.mock('@/components/tutorials/TutorialTrigger', () => ({ default: () => null }));
 vi.mock('@/components/checkout/TransferInstructions', () => ({ default: () => null }));
-vi.mock('@/lib/orders/bank-transfer-actions', () => ({ updateBankTransfer: vi.fn(), getLateTransferPreview: async () => ({ success: false }) }));
+vi.mock('@/lib/orders/bank-transfer-actions', () => ({ updateBankTransfer: vi.fn() }));
+// The late-transfer preview is read over the v1 API: keep it pending instead of calling a real server.
+vi.mock('@/lib/api/client', () => ({ api: { getCustom: () => new Promise(() => {}) } }));
 afterEach(cleanup);
 const base = { id: 'tx', amount: 10000, currency: 'PLN', payment_provider: 'bank_transfer', created_at: '2026-11-01', release_at: '2026-11-15T12:00:00+00:00', transfer_declared_note: 'Wysłane wczoraj' };
 const badge = () => screen.getByText(/declaredBadge/).textContent;

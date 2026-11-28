@@ -35,6 +35,7 @@ const WebhookRow = ({
   const [showSecret, setShowSecret] = useState(false);
   const t = useTranslations('admin.webhooks');
   const tCommon = useTranslations('common');
+  const name = endpoint.description || endpoint.url;
 
   const handleCopySecret = () => {
     if (endpoint.secret) {
@@ -46,7 +47,7 @@ const WebhookRow = ({
   return (
     <tr className={`hover:bg-sf-hover transition-colors`}>
       <td className="px-3 py-4 2xl:px-6">
-        <div className="text-sm font-medium text-sf-heading truncate max-w-full" title={endpoint.description || endpoint.url}>
+        <div className="text-sm font-medium text-sf-heading truncate max-w-full" title={name}>
           {endpoint.description || endpoint.url}
         </div>
         <div className="text-xs text-sf-muted mt-0.5 truncate max-w-full font-mono">
@@ -118,24 +119,28 @@ const WebhookRow = ({
         <div className="flex flex-wrap justify-end gap-x-3 gap-y-2">
         <button
           onClick={() => onLogs(endpoint)}
+          aria-label={t('logsLabel', { name })}
           className="text-sf-body hover:text-sf-heading transition-colors"
         >
           {t('logsButtonLabel')}
         </button>
         <button
           onClick={() => onTest(endpoint)}
+          aria-label={t('testLabel', { name })}
           className="text-sf-accent hover:text-sf-heading transition-colors"
         >
           {t('test')}
         </button>
         <button
           onClick={() => onEdit(endpoint)}
+          aria-label={t('editLabel', { name })}
           className="text-sf-accent hover:text-sf-heading transition-colors"
         >
           {t('edit')}
         </button>
         <button
           onClick={() => onDelete(endpoint)}
+          aria-label={t('deleteLabel', { name })}
           className="text-sf-danger hover:text-sf-heading transition-colors"
         >
           {t('delete')}

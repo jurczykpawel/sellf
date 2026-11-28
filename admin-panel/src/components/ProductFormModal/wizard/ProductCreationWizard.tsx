@@ -210,7 +210,9 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
             <span className="text-2xl">{formData.icon}</span>
           }
           badge={isEditMode ? (
-            !formData.is_active
+            product?.archived_at
+              ? { text: t('archived'), variant: 'neutral' as const }
+              : !formData.is_active
               ? { text: t('inactive'), variant: 'neutral' as const }
               : !formData.is_listed
                 ? { text: t('active'), variant: 'warning' as const }
@@ -275,6 +277,7 @@ const ProductCreationWizard: React.FC<ProductCreationWizardProps> = ({
                   validateContentItemUrl={validateContentItemUrl}
                   products={products}
                   currentProductId={product?.id}
+                  productArchived={!!product?.archived_at}
                   hasLicenseIssuance={hasLicenseIssuance}
                   fieldErrors={fieldErrors}
                   setFieldErrors={setFieldErrors}

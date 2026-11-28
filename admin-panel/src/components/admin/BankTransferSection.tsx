@@ -1,12 +1,13 @@
 'use client';
-/** Transfer administration uses the same operation as API v1. @see lib/orders/bank-transfer-actions.ts */
+/** Transfer administration uses the same operations as API v1. @see lib/orders/bank-transfer-actions.ts, app/api/v1/payments/[id]/late-transfer-preview/route.ts */
 import { useEffect, useState, useId, useRef } from 'react';
 import { LoaderCircle } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import TutorialHelpButton from '@/components/tutorials/TutorialHelpButton';
 import TutorialTrigger from '@/components/tutorials/TutorialTrigger';
 import TransferInstructions from '@/components/checkout/TransferInstructions';
-import { getLateTransferPreview, updateBankTransfer, retryOrderNotice } from '@/lib/orders/bank-transfer-actions';
+import { updateBankTransfer, retryOrderNotice } from '@/lib/orders/bank-transfer-actions';
+import { api } from '@/lib/api/client';
 import { formatPrice } from '@/lib/constants';
 import { fromMinorUnits, toMinorUnits, currencyExponent } from '@/lib/currency/minor-units';
 import { ORDER_NOTICES, NOTICE_RETRY_DELAY, noticeMatchesStatus } from '@/lib/orders/notice-state';
@@ -48,10 +49,12 @@ export default function BankTransferSection({ transaction: tx, onRefresh }: { tr
   // Over a seat limit the acceptance is a second explicit decision; the server refuses it without one.
   const [overLimitRefused, setOverLimitRefused] = useState(false), [acceptOversold, setAcceptOversold] = useState(false);
   const overLimit = overLimitRefused || (!!preview && preview !== 'error' && preview.seats?.oversold === true);
+  // Read from the API, not a server action: the page's actions run one at a time, and the preview would wait behind
+  // every other detail of this payment panel (W355). Same operation as GET /api/v1/payments/:id/late-transfer-preview.
   useEffect(() => {
     if (!lateDecision) return;
     let live = true;
-    getLateTransferPreview(tx.id).then(r => { if (live) setPreview(r.success && r.data ? r.data : 'error'); }).catch(() => { if (live) setPreview('error'); });
+    api.getCustom<LateTransferPreview>(`payments/${tx.id}/late-transfer-preview`).then(data => { if (live) setPreview(data); }).catch(() => { if (live) setPreview('error'); });
     return () => { live = false; };
   }, [lateDecision, tx.id]);
   const price = (major: number) => formatPrice(major, tx.currency, locale);

@@ -188,7 +188,7 @@ test.describe('Webhook payload customization form', () => {
 
     const row = page.locator('tr', { hasText: url });
     await expect(row).toBeVisible({ timeout: 10000 });
-    await row.getByRole('button', { name: 'Edit' }).click();
+    await row.getByRole('button', { name: `Edit ${url}`, exact: true }).click();
     await expect(page.locator('#webhook-form')).toBeVisible();
 
     await expandCustomization(page);
@@ -270,7 +270,7 @@ test.describe('Webhook payload customization form', () => {
       expect(logs.every((log:{payload:unknown})=>!Array.isArray(log.payload))).toBe(true);
       expect(JSON.stringify(logs)).not.toMatch(/fixture-credential|encrypted_key|encryption_iv|encryption_tag/);
       await page.reload();
-      await page.locator('tr',{hasText:url}).getByRole('button',{name:'Logs',exact:true}).click();
+      await page.locator('tr',{hasText:url}).getByRole('button',{name:`Logs ${url}`,exact:true}).click();
       const dialog = page.getByRole('dialog');
       await expect(dialog).toBeVisible();
       for (const fixture of fixtures) {

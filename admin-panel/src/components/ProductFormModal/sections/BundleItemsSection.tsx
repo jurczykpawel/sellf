@@ -27,6 +27,7 @@ export function BundleItemsSection({
   products,
   currentProductId,
   fieldErrors,
+  archived,
 }: BundleItemsSectionProps) {
   const locale = useLocale();
 
@@ -81,16 +82,25 @@ export function BundleItemsSection({
       <div>
         <h4 className="text-sm font-medium text-sf-heading">{t('bundle.title')}</h4>
         <p className="mt-1 text-xs text-sf-muted">{t('bundle.help')}</p>
-        <p className="mt-1 text-xs text-sf-muted">{t('bundle.archivedHelp')}</p>
+        {!archived && <p className="mt-1 text-xs text-sf-muted">{t('bundle.archivedHelp')}</p>}
       </div>
 
-      <OrderedItemPicker
-        label={t('bundle.addLabel')}
-        items={eligible.map(product => ({ id: product.id, name: product.name, image: product.thumbnail_url ?? product.image_url,
-          detail: formatPrice(getEffectiveUnitPrice(product), product.currency, locale), unavailable: !product.is_active }))}
-        selectedIds={selectedIds}
-        onChange={setSelected}
-      />
+      {archived ? (
+        <>
+          <p className="text-sm text-sf-warning">{t('bundle.lockedArchived')}</p>
+          <ol className="list-decimal pl-5 text-sm text-sf-body">
+            {selectedComponents.map(component => <li key={component.id}>{component.name}</li>)}
+          </ol>
+        </>
+      ) : (
+        <OrderedItemPicker
+          label={t('bundle.addLabel')}
+          items={eligible.map(product => ({ id: product.id, name: product.name, image: product.thumbnail_url ?? product.image_url,
+            detail: formatPrice(getEffectiveUnitPrice(product), product.currency, locale), unavailable: !product.is_active }))}
+          selectedIds={selectedIds}
+          onChange={setSelected}
+        />
+      )}
 
       {fieldErrors?.bundleItemIds && <p role="alert" className="text-sm text-sf-danger">{t('bundle.archivedHelp')}</p>}
 

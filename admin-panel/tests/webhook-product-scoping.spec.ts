@@ -169,7 +169,7 @@ test.describe('Per-product webhook scoping', () => {
     const row = page.locator('tr', { hasText: url });
     await expect(row).toBeVisible({ timeout: 10000 });
     await expect(row.getByText('All products')).toBeVisible();
-    await row.getByRole('button', { name: 'Edit' }).click();
+    await row.getByRole('button', { name: `Edit ${url}`, exact: true }).click();
 
     await expect(page.locator('#webhook-form')).toBeVisible();
     await page.getByRole('button', { name: 'Selected products' }).click();

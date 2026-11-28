@@ -34,7 +34,7 @@ import {
   PRODUCT_API_FIELDS,
 } from '@/lib/validations/product';
 import { mapApiInputToProductRow, ProductCategoriesSchema, ProductTagsSchema, BundleItemIdsSchema } from '@/lib/api/dto/product';
-import { ARCHIVED_BUNDLE_MESSAGE, BundleArchivedError, upsertBundleItems } from '@/lib/services/bundle-items';
+import { ARCHIVED_BUNDLE_DETAILS, ARCHIVED_BUNDLE_MESSAGE, BundleArchivedError, upsertBundleItems } from '@/lib/services/bundle-items';
 import { accessActor } from '@/lib/services/business-events';
 import { hasProductBeenSold } from '@/lib/validations/product-type-guard';
 
@@ -228,7 +228,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       const saved = (savedItems ?? []).map((row: { component_product_id: string }) => row.component_product_id);
       const incoming = bundleItemIds;
       const unchanged = saved.length === incoming.length && saved.every((value, index) => value === incoming[index]);
-      if (!unchanged) return apiError(request, 'CONFLICT', ARCHIVED_BUNDLE_MESSAGE);
+      if (!unchanged) return apiError(request, 'CONFLICT', ARCHIVED_BUNDLE_MESSAGE, ARCHIVED_BUNDLE_DETAILS);
       bundleItemIds = undefined;
     }
 
@@ -329,7 +329,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
       if (updateError) {
         const details = (updateError as { details?: string | null }).details;
-        if (details === 'bundle_archived') return apiError(request, 'CONFLICT', ARCHIVED_BUNDLE_MESSAGE);
+        if (details === 'bundle_archived') return apiError(request, 'CONFLICT', ARCHIVED_BUNDLE_MESSAGE, ARCHIVED_BUNDLE_DETAILS);
         if (details === 'bundle_component_archived') throw new ApiValidationError(updateError.message, { bundleItemIds: ['archived'] });
         if (updateError.code === '23503') return apiError(request, 'CONFLICT', 'Cannot remove reserved sessions or tiers');
         if (updateError.code === 'P0002') return apiError(request, 'NOT_FOUND', 'Product not found');
@@ -338,7 +338,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           return apiError(request, 'ALREADY_EXISTS', 'A product with this slug already exists');
         }
         if (code === '23514' && updateError.message.includes('products_archived_not_active')) {
-          return apiError(request, 'CONFLICT', 'Restore the product from the archive before activating it');
+          return apiError(request, 'CONFLICT', 'Restore the product from the archive before activating it', { code: ['product_archived'] });
         }
         if (code === '23514') {
           throw new ApiValidationError('Validation failed', {
@@ -372,7 +372,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       try {
         await upsertBundleItems(supabase, id, bundleItemIds);
       } catch (bundleErr) {
-        if (bundleErr instanceof BundleArchivedError) return apiError(request, 'CONFLICT', ARCHIVED_BUNDLE_MESSAGE);
+        if (bundleErr instanceof BundleArchivedError) return apiError(request, 'CONFLICT', ARCHIVED_BUNDLE_MESSAGE, ARCHIVED_BUNDLE_DETAILS);
         if (bundleErr instanceof ApiValidationError) throw bundleErr;
         throw new ApiValidationError('Validation failed', {
           _errors: [bundleErr instanceof Error ? bundleErr.message : 'Failed to persist bundle components'],

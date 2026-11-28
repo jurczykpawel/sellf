@@ -13,7 +13,7 @@ import GateSnippetModal from './GateSnippetModal';
 import ProductRemoveDialog from './ProductRemoveDialog';
 import { exportProductsToCsv } from '@/utils/csvExport';
 import { useTranslations } from 'next-intl';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useProducts, type ProductStatusFilter } from '@/hooks/useProducts';
 import { isRelativeOrHttpUrl } from '@/lib/validations/redirect';
 import { duplicateProductDraft } from '@/lib/product-duplicate';
@@ -25,6 +25,15 @@ import RecordLoadingOverlay from './ui/RecordLoadingOverlay';
 const isServerError = (err: unknown): boolean => err instanceof ApiError && err.status >= 500;
 // API validation messages are English and generic; the form shows the exact field instead.
 const isValidationError = (err: unknown): boolean => err instanceof ApiError && err.status === 400;
+// Refusals the API marks with `error.details.code`, worded in the panel language instead of the API's English.
+const REFUSAL_MESSAGE_KEYS: Record<string, string> = {
+  bundle_archived: 'bundleArchivedError',
+  product_archived: 'productArchivedError',
+};
+const refusalMessageKey = (err: unknown): string | undefined =>
+  err instanceof ApiError ? REFUSAL_MESSAGE_KEYS[err.details?.code?.[0] ?? ''] : undefined;
+// Query parameters that only drive the product editor; a closed editor leaves none behind.
+const EDITOR_PARAMS = ['open', 'section', 'tutorial'];
 
 interface ProductsPageContentProps {
   hasLicenseIssuance?: boolean;
@@ -32,9 +41,16 @@ interface ProductsPageContentProps {
 
 const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIssuance }) => {
   const addButtonRef = useRef<HTMLButtonElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const t = useTranslations('admin.products');
   const searchParams = useSearchParams();
-  const router = useRouter();
+  // Replace, not push: closing the editor adds no history entry, and a refresh no longer reopens it.
+  const clearEditorParams = useCallback(() => {
+    const url = new URL(window.location.href);
+    if (!EDITOR_PARAMS.some(param => url.searchParams.has(param))) return;
+    EDITOR_PARAMS.forEach(param => url.searchParams.delete(param));
+    window.history.replaceState(null, '', url);
+  }, []);
   const productPath = (productSlug: string) => `/p/${productSlug}`;
   const checkoutPath = (productSlug: string) => `/checkout/${productSlug}`;
 
@@ -122,9 +138,11 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
       setNewAsBundle(false);
       setShowProductForm(true);
     } catch (err) {
-      if (!isExpectedApiError(err)) toast.error(t('loadError'));
+      if (isExpectedApiError(err)) return;
+      toast.error(t('loadError'));
+      clearEditorParams();
     }
-  }, [loadStoredProduct, t]);
+  }, [loadStoredProduct, t, clearEditorParams]);
 
   const openParam = searchParams.get('open');
   useEffect(() => {
@@ -142,6 +160,16 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
     }
   }
 
+  // Runs after the closed editor's own focus return (passive cleanups run first): its product row, else the heading.
+  const focusAfterClose = useRef<string | null>(null);
+  useEffect(() => {
+    const productId = focusAfterClose.current;
+    if (showProductForm || !productId) return;
+    focusAfterClose.current = null;
+    if (document.activeElement && document.activeElement !== document.body) return;
+    (document.getElementById(`product-edit-${productId}`) ?? headingRef.current)?.focus();
+  }, [showProductForm]);
+
   // CRUD Handlers
   const handleCreateProduct = async (formData: ProductFormData) => {
     setSubmitting(true);
@@ -150,10 +178,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
       await createProduct(formData);
 
       setShowProductForm(false);
-      // Remove query param if present
-      if (searchParams.get('open')) {
-        router.replace('/dashboard/products');
-      }
+      clearEditorParams();
       // Not awaited: a slow list read must not keep the next wizard locked as submitting.
       void fetchProducts();
       toast.success(t('createSuccess', { name: formData.name }));
@@ -180,7 +205,8 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
       void fetchProducts();
       toast.success(t('updateSuccess', { name: formData.name }));
     } catch (err) {
-      toast.error(isValidationError(err) ? t('validationFailed') : err instanceof Error && !isServerError(err) ? err.message : t('updateError'));
+      const refusal = refusalMessageKey(err);
+      toast.error(refusal ? t(refusal) : isValidationError(err) ? t('validationFailed') : err instanceof Error && !isServerError(err) ? err.message : t('updateError'));
       return Promise.reject(err);
     } finally {
       setSubmitting(false);
@@ -335,7 +361,7 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
 
   return (
     <div className="space-y-6">
-      <h1 className="text-[40px] font-[800] text-sf-heading tracking-[-0.03em] leading-[1.1]">{t('title')}</h1>
+      <h1 ref={headingRef} tabIndex={-1} className="text-[40px] font-[800] text-sf-heading tracking-[-0.03em] leading-[1.1]">{t('title')}</h1>
       <FilterBar
         searchTerm={searchTerm}
         onSearchChange={handleSearchChange}
@@ -383,12 +409,12 @@ const ProductsPageContent: React.FC<ProductsPageContentProps> = ({ hasLicenseIss
           onClose={() => {
             // A save in flight closes the wizard itself once it is confirmed.
             if (submitting) return;
+            // Opened from a link, the editor had no control to return focus to.
+            if (editingProduct?.id && !storedProduct.opener) focusAfterClose.current = editingProduct.id;
             setShowProductForm(false);
             setEditingProduct(null);
             setNewAsBundle(false);
-            if (searchParams.get('open')) {
-              router.replace('/dashboard/products');
-            }
+            clearEditorParams();
           }}
           onSubmit={handleProductSubmit}
           product={editingProduct}

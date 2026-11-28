@@ -37,3 +37,20 @@ for (const [locale, messages] of [['en', en], ['pl', pl]] as const) {
     expect(view.getByRole('alert').textContent).toBe(messages.admin.products.form.bundle.archivedHelp);
   });
 }
+
+for (const [locale, messages] of [['en', en], ['pl', pl]] as const) {
+  it(`an archived bundle shows its components as locked until restored (${locale})`, () => {
+    const workshop = { ...initialFormData, id: 'a', name: 'Workshop', slug: 'a', layout_template: 'default', is_bundle: false, created_at: '', updated_at: '', price: 50 } as Product;
+    const locked = messages.admin.products.form.bundle.lockedArchived;
+    const view = render(React.createElement(NextIntlClientProvider, { locale, messages },
+      React.createElement(BundleItemsSection, { formData: { ...initialFormData, bundleItemIds: ['a'] }, setFormData: () => {}, products: [workshop], archived: true,
+        t: key => key === 'bundle.lockedArchived' ? locked : key })));
+    expect(locked).toBeTruthy();
+    expect(view.getByText(locked)).toBeTruthy();
+    expect(view.getByText('Workshop')).toBeTruthy();
+    // No control to add, remove or reorder components.
+    expect(view.queryByRole('button')).toBeNull();
+    expect(view.queryByRole('searchbox')).toBeNull();
+    expect(view.queryByRole('textbox')).toBeNull();
+  });
+}

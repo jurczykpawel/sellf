@@ -13,7 +13,7 @@ test('keeps webhook actions visible at 1366px', async ({ page }) => {
     await setAuthSession(page, admin.email, admin.password);
     await page.goto('/en/dashboard/webhooks');
     const row = page.getByRole('row').filter({ hasText: name });
-    const button = row.getByRole('button', { name: 'Delete', exact: true });
+    const button = row.getByRole('button', { name: `Delete ${name}`, exact: true });
     await expect(button).toBeVisible();
     const bounds = await button.boundingBox();
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(1366);

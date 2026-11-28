@@ -1030,5 +1030,14 @@
   ],
   "312bf9a7b2c4af9dfb5840e05ad576beca8c5bef": [
     "none — accessibility and formatting of the daily address-limit notice on the login form (announced to screen readers, time without seconds); no documented step changes."
+  ],
+  "d0102e62acf6c4b1b1d6116c3a53372ad6ee3492": [
+    "api.md (EN/PL): the archived-bundle 409 now names error.details.code bundle_archived, and activating an archived product product_archived; panel wording, focus and ?open= handling need no documented step changes."
+  ],
+  "f1c5cea829666d0856a272906e2c0541fef43b0c": [
+    "none — the admin panel now loads the late-transfer preview through the already documented GET /api/v1/payments/{id}/late-transfer-preview (api.md, bank-transfers.md unchanged); the rest are test fixes (auth mail interval helper, J184 wait)."
+  ],
+  "08110d71c37027dbe53c9e518e2b9b128b424b48": [
+    "none — test-only: component tests stub the v1 API client (no real network calls)."
   ]
 }
