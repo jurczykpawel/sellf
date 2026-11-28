@@ -1036,5 +1036,8 @@
   ],
   "f1c5cea829666d0856a272906e2c0541fef43b0c": [
     "none — the admin panel now loads the late-transfer preview through the already documented GET /api/v1/payments/{id}/late-transfer-preview (api.md, bank-transfers.md unchanged); the rest are test fixes (auth mail interval helper, J184 wait)."
+  ],
+  "08110d71c37027dbe53c9e518e2b9b128b424b48": [
+    "none — test-only: component tests stub the v1 API client (no real network calls)."
   ]
 }
